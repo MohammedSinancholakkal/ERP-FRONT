@@ -1,0 +1,26 @@
+/* index.css - put after the tailwind @directives */
+ /* WebKit browsers (Chrome, Edge, Safari) */
+ .sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: #0f1724; /* dark track (matches bg-gray-900) */
+    border-radius: 8px;
+  }
+  
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: #6b7280; /* gray-500 */
+    border-radius: 8px;
+  }
+  
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af; /* lighter on hover */
+  }
+  
+  /* Firefox */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #6b7280 #0f1724; /* thumb track */
+  }
+  

@@ -1,0 +1,57 @@
+*{
+  margin: 0px;
+  padding: 0px;
+  box-sizing: border-box;
+  /* background: "linear-gradient(to bottom, #111827, #374151)" !important; */
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out;
+}
+
+
+
+/* =============================== */
+/* GLOBAL SCROLLBAR STYLE (ALL PAGES) */
+/* =============================== */
+
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f1724; /* dark track (matches your theme) */
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #6b7280; /* gray-500 */
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af; /* gray-400 */
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 #0f1724; /* thumb, track */
+}
+
+
+
