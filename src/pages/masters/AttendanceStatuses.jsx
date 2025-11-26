@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -22,17 +23,23 @@ import {
   updateAttendanceStatusApi,
   deleteAttendanceStatusApi,
   searchAttendanceStatusApi,
+  getInactiveAttendanceStatusesApi,
+  restoreAttendanceStatusApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 
 const AttendanceStatuses = () => {
-  // UI states
+  // Modals
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   // Data
   const [rows, setRows] = useState([]);
+  const [inactiveRows, setInactiveRows] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
+
+  // Search
   const [searchText, setSearchText] = useState("");
 
   // User
@@ -43,9 +50,13 @@ const AttendanceStatuses = () => {
   const [newItem, setNewItem] = useState({ name: "" });
 
   // Edit form
-  const [editItem, setEditItem] = useState({ id: null, name: "" });
+  const [editItem, setEditItem] = useState({
+    id: null,
+    name: "",
+    isInactive: false,
+  });
 
-  // Column picker
+  // Column Picker
   const defaultColumns = { id: true, name: true };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
@@ -60,41 +71,37 @@ const AttendanceStatuses = () => {
   const start = (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
 
+  // Sorting
   const [sortOrder, setSortOrder] = useState("asc");
+  const sortedActiveRows = [...rows];
+  if (sortOrder === "asc") {
+    sortedActiveRows.sort((a, b) => Number(a.id) - Number(b.id));
+  }
 
-const sortedRows = [...rows];
+  // Normalize helper
+  const normalize = (arr = []) =>
+    arr.map((r) => ({
+      id: r.Id ?? r.id,
+      name: r.Name ?? r.name,
+    }));
 
-if (sortOrder === "asc") {
-  sortedRows.sort((a, b) => Number(a.id) - Number(b.id));
-}
-
-
-  // =============================
-  // Load Data
-  // =============================
+  // Load Active
   const loadRows = async () => {
     try {
       const res = await getAttendanceStatusesApi(page, limit);
-
       if (res?.status === 200) {
         const data = res.data;
-        const items = Array.isArray(data.records)
+        const rows = Array.isArray(data.records)
           ? data.records
           : Array.isArray(data)
           ? data
           : [];
 
-        setTotalRecords(data.total || items.length);
-
-        const normalized = items.map((r) => ({
-          id: r.Id ?? r.id,
-          name: r.Name ?? r.name,
-        }));
-
-        setRows(normalized);
+        setRows(normalize(rows));
+        setTotalRecords(data.total ?? rows.length);
       }
     } catch (err) {
-      toast.error("Error loading attendance statuses");
+      toast.error("Failed to load attendance statuses");
     }
   };
 
@@ -102,13 +109,25 @@ if (sortOrder === "asc") {
     loadRows();
   }, [page, limit]);
 
-  // =============================
+  // Load inactive
+  const loadInactive = async () => {
+    try {
+      const res = await getInactiveAttendanceStatusesApi();
+      if (res?.status === 200) {
+        const rows = res.data.records ?? res.data ?? [];
+        setInactiveRows(normalize(rows));
+      }
+    } catch (err) {
+      toast.error("Failed to load inactive statuses");
+    }
+  };
+
   // Search
-  // =============================
   const handleSearch = async (value) => {
     setSearchText(value);
 
     if (!value.trim()) {
+      setPage(1);
       loadRows();
       return;
     }
@@ -117,24 +136,15 @@ if (sortOrder === "asc") {
       const res = await searchAttendanceStatusApi(value);
 
       if (res?.status === 200) {
-        const items = Array.isArray(res.data) ? res.data : [];
-
-        const normalized = items.map((r) => ({
-          id: r.Id,
-          name: r.Name,
-        }));
-
-        setRows(normalized);
-        setTotalRecords(normalized.length);
+        setRows(normalize(res.data));
+        setTotalRecords(res.data.length);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Search error:", err);
     }
   };
 
-  // =============================
   // Add
-  // =============================
   const handleAdd = async () => {
     if (!newItem.name.trim()) return toast.error("Name is required");
 
@@ -145,7 +155,7 @@ if (sortOrder === "asc") {
       });
 
       if (res?.status === 201) {
-        toast.success("Attendance status added");
+        toast.success("Status added");
         setModalOpen(false);
         setNewItem({ name: "" });
         setPage(1);
@@ -156,17 +166,17 @@ if (sortOrder === "asc") {
     }
   };
 
-  // =============================
-  // Edit Modal Open
-  // =============================
-  const openEdit = (row) => {
-    setEditItem({ id: row.id, name: row.name });
+  // Open Edit (active/inactive)
+  const openEdit = (row, inactive = false) => {
+    setEditItem({
+      id: row.id,
+      name: row.name,
+      isInactive: inactive,
+    });
     setEditModalOpen(true);
   };
 
-  // =============================
   // Update
-  // =============================
   const handleUpdate = async () => {
     if (!editItem.name.trim()) return toast.error("Name is required");
 
@@ -180,15 +190,14 @@ if (sortOrder === "asc") {
         toast.success("Updated");
         setEditModalOpen(false);
         loadRows();
+        if (showInactive) loadInactive();
       }
     } catch (err) {
       toast.error("Server error");
     }
   };
 
-  // =============================
   // Delete
-  // =============================
   const handleDelete = async () => {
     try {
       const res = await deleteAttendanceStatusApi(editItem.id, {
@@ -199,15 +208,32 @@ if (sortOrder === "asc") {
         toast.success("Deleted");
         setEditModalOpen(false);
         loadRows();
+        if (showInactive) loadInactive();
       }
     } catch (err) {
       toast.error("Delete failed");
     }
   };
 
-  // =============================
+  // Restore
+  const handleRestore = async () => {
+    try {
+      const res = await restoreAttendanceStatusApi(editItem.id, {
+        userId: currentUserId,
+      });
+
+      if (res?.status === 200) {
+        toast.success("Restored");
+        setEditModalOpen(false);
+        loadRows();
+        loadInactive();
+      }
+    } catch (err) {
+      toast.error("Restore failed");
+    }
+  };
+
   // Column Picker
-  // =============================
   const openColumnPicker = () => {
     setTempVisibleColumns(visibleColumns);
     setColumnModalOpen(true);
@@ -215,6 +241,8 @@ if (sortOrder === "asc") {
 
   return (
     <>
+      {/* ---------------- MODALS ------------------- */}
+
       {/* ADD MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
@@ -228,10 +256,7 @@ if (sortOrder === "asc") {
             </div>
 
             <div className="p-6">
-              <label className="text-sm text-gray-300">
-                Name <span className="text-red-400">*</span>
-              </label>
-
+              <label className="text-sm text-gray-300">Name *</label>
               <input
                 type="text"
                 value={newItem.name}
@@ -260,13 +285,15 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* EDIT MODAL */}
+      {/* EDIT / RESTORE MODAL */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[520px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Attendance Status</h2>
+              <h2 className="text-lg font-semibold">
+                {editItem.isInactive ? "Restore Attendance Status" : "Edit Attendance Status"} ({editItem.name})
+              </h2>
               <button onClick={() => setEditModalOpen(false)}>
                 <X className="text-gray-300 hover:text-white" />
               </button>
@@ -274,39 +301,45 @@ if (sortOrder === "asc") {
 
             <div className="p-6">
               <label className="text-sm text-gray-300">Name</label>
+
               <input
                 type="text"
                 value={editItem.name}
                 onChange={(e) =>
                   setEditItem((p) => ({ ...p, name: e.target.value }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-2"
+                disabled={editItem.isInactive}
+                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-2 ${
+                  editItem.isInactive ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               />
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
-
-              <div className="flex gap-2">
+              {editItem.isInactive ? (
                 <button
-                  onClick={() => setEditModalOpen(false)}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+                  onClick={handleRestore}
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 rounded border border-green-900"
                 >
-                  Cancel
+                  <ArchiveRestore size={16} /> Restore
                 </button>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
 
+              {!editItem.isInactive && (
                 <button
                   onClick={handleUpdate}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
                 >
                   <Save size={16} /> Save
                 </button>
-              </div>
+              )}
             </div>
 
           </div>
@@ -335,8 +368,10 @@ if (sortOrder === "asc") {
               />
             </div>
 
+            {/* Visible + Hidden columns */}
             <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              {/* Visible */}
+
+              {/* Visible Columns */}
               <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
                 <h3 className="font-semibold mb-2">Visible Columns</h3>
 
@@ -344,18 +379,12 @@ if (sortOrder === "asc") {
                   .filter((col) => tempVisibleColumns[col])
                   .filter((col) => col.includes(columnSearch))
                   .map((col) => (
-                    <div
-                      key={col}
-                      className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2"
-                    >
+                    <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2">
                       <span>{col.toUpperCase()}</span>
                       <button
                         className="text-red-400"
                         onClick={() =>
-                          setTempVisibleColumns((p) => ({
-                            ...p,
-                            [col]: false,
-                          }))
+                          setTempVisibleColumns((p) => ({ ...p, [col]: false }))
                         }
                       >
                         ✕
@@ -364,7 +393,7 @@ if (sortOrder === "asc") {
                   ))}
               </div>
 
-              {/* Hidden */}
+              {/* Hidden Columns */}
               <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
                 <h3 className="font-semibold mb-2">Hidden Columns</h3>
 
@@ -372,18 +401,12 @@ if (sortOrder === "asc") {
                   .filter((col) => !tempVisibleColumns[col])
                   .filter((col) => col.includes(columnSearch))
                   .map((col) => (
-                    <div
-                      key={col}
-                      className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2"
-                    >
+                    <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2">
                       <span>{col.toUpperCase()}</span>
                       <button
                         className="text-green-400"
                         onClick={() =>
-                          setTempVisibleColumns((p) => ({
-                            ...p,
-                            [col]: true,
-                          }))
+                          setTempVisibleColumns((p) => ({ ...p, [col]: true }))
                         }
                       >
                         ➕
@@ -393,6 +416,7 @@ if (sortOrder === "asc") {
               </div>
             </div>
 
+            {/* Footer */}
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               <button
                 onClick={() => setTempVisibleColumns(defaultColumns)}
@@ -425,7 +449,8 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* MAIN PAGE */}
+      {/* ---------------- MAIN PAGE ------------------- */}
+
       <div className="p-4 sm:p-6 text-white min-h-[calc(100vh-64px)] bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col">
 
         <h2 className="text-2xl font-semibold mb-4">Attendance Statuses</h2>
@@ -472,70 +497,104 @@ if (sortOrder === "asc") {
             <List size={16} className="text-blue-300" />
           </button>
 
+          {/* Show Inactive Toggle */}
+          <button
+            onClick={async () => {
+              if (!showInactive) await loadInactive();
+              setShowInactive((s) => !s);
+            }}
+            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 ${
+              showInactive ? "" : ""
+            }`}
+          >
+            <ArchiveRestore size={16} className="text-yellow-300" />
+            <span className="text-xs opacity-80">Inactive</span>
+          </button>
+
         </div>
 
         {/* TABLE */}
         <div className="flex-grow overflow-auto">
-  <table className="w-[350px] border-separate border-spacing-y-1 text-sm">
+          <table className="w-[350px] border-separate border-spacing-y-1 text-sm">
 
-    {/* HEADER */}
-    <thead className="sticky top-0 bg-gray-900 z-10">
-      <tr className="text-white text-center">
+            {/* HEADER */}
+            <thead className="sticky top-0 bg-gray-900 z-10">
+              <tr className="text-white text-center">
 
-        {visibleColumns.id && (
-          <SortableHeader
-            label="ID"
-            sortOrder={sortOrder}
-            onClick={() =>
-              setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-            }
-          />
-        )}
+                {visibleColumns.id && (
+                  <SortableHeader
+                    label="ID"
+                    sortOrder={sortOrder}
+                    onClick={() =>
+                      setSortOrder((prev) => (prev === "asc" ? null : "asc"))
+                    }
+                  />
+                )}
 
-        {visibleColumns.name && (
-          <th className="pb-1 border-b border-white text-center">Name</th>
-        )}
+                {visibleColumns.name && (
+                  <th className="pb-1 border-b border-white text-center">Name</th>
+                )}
 
-      </tr>
-    </thead>
+              </tr>
+            </thead>
 
-    {/* BODY */}
-    <tbody className="text-center">
-      {sortedRows.length === 0 && (
-        <tr>
-          <td
-            colSpan={Object.values(visibleColumns).filter(Boolean).length}
-            className="px-4 py-6 text-center text-gray-400"
-          >
-            No records found
-          </td>
-        </tr>
-      )}
+            {/* BODY */}
+            <tbody className="text-center">
 
-      {sortedRows.map((row) => (
-        <tr
-          key={row.id}
-          className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-          onClick={() => openEdit(row)}
-        >
-          {visibleColumns.id && (
-            <td className="px-2 py-1 align-middle">{row.id}</td>
-          )}
+              {/* ACTIVE ROWS */}
+              {sortedActiveRows.length === 0 && !showInactive && (
+                <tr>
+                  <td
+                    colSpan={Object.values(visibleColumns).filter(Boolean).length}
+                    className="px-4 py-6 text-center text-gray-400"
+                  >
+                    No records found
+                  </td>
+                </tr>
+              )}
 
-          {visibleColumns.name && (
-            <td className="px-2 py-1 align-middle">{row.name}</td>
-          )}
-        </tr>
-      ))}
-    </tbody>
+              {sortedActiveRows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                  onClick={() => openEdit(row, false)}
+                >
+                  {visibleColumns.id && (
+                    <td className="px-2 py-1">{row.id}</td>
+                  )}
 
-  </table>
-</div>
+                  {visibleColumns.name && (
+                    <td className="px-2 py-1">{row.name}</td>
+                  )}
+                </tr>
+              ))}
 
+              {/* INACTIVE ROWS */}
+              {showInactive &&
+                inactiveRows.map((row) => (
+                  <tr
+                    key={`inactive-${row.id}`}
+                    className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
+                    onClick={() => openEdit(row, true)}
+                  >
+                    {visibleColumns.id && (
+                      <td className="px-2 py-1">{row.id}</td>
+                    )}
+
+                    {visibleColumns.name && (
+                      <td className="px-2 py-1">{row.name}</td>
+                    )}
+                  </tr>
+                ))}
+            </tbody>
+
+          </table>
+        </div>
 
         {/* PAGINATION */}
         <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
 
+          {/* Limit */}
           <select
             value={limit}
             onChange={(e) => {
@@ -571,6 +630,7 @@ if (sortOrder === "asc") {
 
           <span>Page</span>
 
+          {/* Page Input */}
           <input
             type="number"
             className="w-12 bg-gray-800 border border-gray-600 rounded text-center"

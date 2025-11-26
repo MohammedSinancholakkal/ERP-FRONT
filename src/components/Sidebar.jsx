@@ -7,13 +7,15 @@ import {
   Search,
   LineChart,
   Folder,
-  Menu
+  Boxes,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import "../styles/Dashboard.css";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const [openMasters, setOpenMasters] = useState(false);
+  const [openInventory, setOpenInventory] = useState(false);
+
   const [hoveredItem, setHoveredItem] = useState("");
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
@@ -21,8 +23,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const masterLinks = [
     "Countries",
-    "Cities",
     "States",
+    "Cities",
     "Banks",
     "Expense Types",
     "Services",
@@ -36,18 +38,33 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     "Meeting Types",
     "Locations",
     "Attendance Status",
-    "Attendance Types",
+    // "Attendance Types",
+    "Attendee Types",
     "Resolution Status",
     "Deductions",
     "Incomes",
   ];
 
+  const inventoryLinks = [
+    "Products",
+    "Categories",
+    "Units",
+    "Brands",
+    "Damaged Products",
+    "Goods Receipts",
+    "Goods Issue",
+    "Update Stock",
+  ];
+
   const formatRoute = (item) => item.replace(/\s+/g, "").toLowerCase();
 
-  // Auto-open Masters if inside /app/masters
+  // Auto-open sections based on current location
   useEffect(() => {
     if (location.pathname.startsWith("/app/masters")) {
       setOpenMasters(true);
+    }
+    if (location.pathname.startsWith("/app/inventory")) {
+      setOpenInventory(true);
     }
   }, [location.pathname]);
 
@@ -59,34 +76,18 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           bg-gradient-to-b from-gray-900 to-gray-800 text-white h-screen flex flex-col
           transition-all duration-300 z-50
 
-          /* Desktop behavior */
           md:static 
           md:flex
           ${sidebarOpen ? "md:w-64" : "md:w-16"}
 
-          /* Mobile drawer behavior */
           ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden md:flex"}
         `}
       >
         {/* Top section */}
-        <div
-          className={`${
-            sidebarOpen
-              ? "p-4 border-b border-gray-700 p-4"
-              : "p-4 border-b border-gray-700 p-5"
-          }`}
-        >
+        <div className={`${sidebarOpen ? "p-4 border-b border-gray-700 p-4" : "p-4 border-b border-gray-700 p-5"}`}>
           <div className="flex items-center gap-3">
-            <LayoutDashboard
-              className={`${
-                sidebarOpen ? "w-10 h-10" : "w-8 h-8"
-              } text-white`}
-            />
-            {sidebarOpen && (
-              <h1 className="text-2xl font-bold whitespace-nowrap">
-                Homebutton
-              </h1>
-            )}
+            <LayoutDashboard className={`${sidebarOpen ? "w-10 h-10" : "w-8 h-8"} text-white`} />
+            {sidebarOpen && <h1 className="text-2xl font-bold whitespace-nowrap">Homebutton</h1>}
           </div>
         </div>
 
@@ -126,17 +127,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 }}
                 onMouseLeave={() => setHoveredItem("")}
               >
-                <LineChart
-                  className={`${
-                    sidebarOpen ? "w-5 h-5" : "w-4 h-4"
-                  } text-white stroke-[1.5]`}
-                />
-
+                <LineChart className={`${sidebarOpen ? "w-5 h-5" : "w-4 h-4"} text-white stroke-[1.5]`} />
                 {sidebarOpen && <span>Dashboard</span>}
               </NavLink>
             </li>
 
-            {/* Masters */}
+            {/* ===================== MASTERS ===================== */}
             <li>
               <button
                 onClick={() => {
@@ -157,39 +153,22 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 className={`flex items-center w-full px-3 py-2 rounded hover:bg-gray-700 transition ${
                   sidebarOpen ? "justify-between" : "justify-center"
                 } ${
-                  location.pathname.startsWith("/app/masters")
-                    ? "bg-white/10"
-                    : ""
+                  location.pathname.startsWith("/app/masters") ? "bg-white/10" : ""
                 }`}
               >
-                <div
-                  className={`flex items-center ${
-                    sidebarOpen ? "gap-3" : ""
-                  }`}
-                >
-                  <Folder
-                    className={`${
-                      sidebarOpen ? "w-5 h-5" : "w-4 h-4"
-                    } text-white stroke-[1.5]`}
-                  />
+                <div className={`flex items-center ${sidebarOpen ? "gap-3" : ""}`}>
+                  <Folder className={`${sidebarOpen ? "w-5 h-5" : "w-4 h-4"} text-white stroke-[1.5]`} />
                   {sidebarOpen && <span>Masters</span>}
                 </div>
 
                 {sidebarOpen &&
-                  (openMasters ? (
-                    <ChevronDown size={16} className="text-white" />
-                  ) : (
-                    <ChevronRight size={16} className="text-white" />
-                  ))}
+                  (openMasters ? <ChevronDown size={16} className="text-white" /> : <ChevronRight size={16} className="text-white" />)}
               </button>
 
-              {/* Dropdown menu */}
               {sidebarOpen && (
                 <ul
                   className={`ml-6 space-y-1 text-gray-300 overflow-hidden transition-all duration-300 ${
-                    openMasters
-                      ? "max-h-[1500px] opacity-100"
-                      : "max-h-0 opacity-0"
+                    openMasters ? "max-h-[1500px] opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
                   {masterLinks.map((item, index) => (
@@ -204,10 +183,67 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                           }`
                         }
                       >
-                        <ChevronRight
-                          size={14}
-                          className="text-white opacity-70"
-                        />
+                        <ChevronRight size={14} className="text-white opacity-70" />
+                        <span>{item}</span>
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+
+            {/* ===================== INVENTORY ===================== */}
+            <li>
+              <button
+                onClick={() => {
+                  if (!sidebarOpen) {
+                    setSidebarOpen(true);
+                    setOpenInventory(true);
+                  } else {
+                    setOpenInventory(!openInventory);
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  if (!sidebarOpen) {
+                    setHoveredItem("Inventory");
+                    setTooltipPos({ x: e.clientX, y: e.clientY });
+                  }
+                }}
+                onMouseLeave={() => setHoveredItem("")}
+                className={`flex items-center w-full px-3 py-2 rounded hover:bg-gray-700 transition ${
+                  sidebarOpen ? "justify-between" : "justify-center"
+                } ${
+                  location.pathname.startsWith("/app/inventory") ? "bg-white/10" : ""
+                }`}
+              >
+                <div className={`flex items-center ${sidebarOpen ? "gap-3" : ""}`}>
+                  <Boxes className={`${sidebarOpen ? "w-5 h-5" : "w-4 h-4"} text-white stroke-[1.5]`} />
+                  {sidebarOpen && <span>Inventory</span>}
+                </div>
+
+                {sidebarOpen &&
+                  (openInventory ? <ChevronDown size={16} className="text-white" /> : <ChevronRight size={16} className="text-white" />)}
+              </button>
+
+              {sidebarOpen && (
+                <ul
+                  className={`ml-6 space-y-1 text-gray-300 overflow-hidden transition-all duration-300 ${
+                    openInventory ? "max-h-[1500px] opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
+                  {inventoryLinks.map((item, index) => (
+                    <li key={index}>
+                      <NavLink
+                        to={`/app/inventory/${formatRoute(item)}`}
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 py-1 px-2 rounded transition ${
+                            isActive
+                              ? "bg-white/20 text-white"
+                              : "text-gray-300 hover:text-white hover:bg-gray-700"
+                          }`
+                        }
+                      >
+                        <ChevronRight size={14} className="text-white opacity-70" />
                         <span>{item}</span>
                       </NavLink>
                     </li>
@@ -221,10 +257,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
       {/* MOBILE BACKDROP */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        ></div>
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)}></div>
       )}
 
       {/* Tooltip when collapsed */}

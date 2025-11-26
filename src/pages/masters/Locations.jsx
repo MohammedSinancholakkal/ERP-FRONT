@@ -245,6 +245,8 @@ if (sortOrder === "asc") {
   const loadCities = async () => {
     try {
       const res = await getCitiesApi(1, 9999);
+      console.log(res);
+      
       const arr = parseArrayFromResponse(res);
       setCities(arr);
       return arr;
@@ -311,7 +313,7 @@ if (sortOrder === "asc") {
     if (!value.trim()) {
       loadRows();
       return;
-    }
+    } 
     try {
       const res = await searchLocationApi(value);
       if (res?.status === 200) {

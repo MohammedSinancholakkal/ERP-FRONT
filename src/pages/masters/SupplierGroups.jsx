@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -20,17 +21,26 @@ import {
   updateSupplierGroupApi,
   deleteSupplierGroupApi,
   searchSupplierGroupApi,
+  getInactiveSupplierGroupsApi,
+  restoreSupplierGroupApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 
 const SupplierGroups = () => {
+  // modals
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
+  // data
   const [groups, setGroups] = useState([]);
+  const [inactiveGroups, setInactiveGroups] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
+
+  // search
   const [searchText, setSearchText] = useState("");
 
+  // user
   const user = JSON.parse(localStorage.getItem("user")) || null;
   const currentUserId = user?.userId || 1;
 
@@ -42,13 +52,14 @@ const SupplierGroups = () => {
     id: null,
     name: "",
     description: "",
+    isInactive: false,
   });
 
   // column picker
   const defaultCols = { id: true, name: true, description: true };
   const [visibleColumns, setVisibleColumns] = useState(defaultCols);
 
-  // temp columns used inside modal (OK applies changes)
+  // temp columns used inside modal
   const [tempColumns, setTempColumns] = useState(defaultCols);
   const [searchColumn, setSearchColumn] = useState("");
 
@@ -56,6 +67,16 @@ const SupplierGroups = () => {
     setTempColumns((p) => ({ ...p, [col]: !p[col] }));
 
   const restoreTempDefaults = () => setTempColumns(defaultCols);
+
+  const applyColumnChanges = () => {
+    setVisibleColumns(tempColumns);
+    setColumnModal(false);
+  };
+
+  const openColumnModal = () => {
+    setTempColumns(visibleColumns);
+    setColumnModal(true);
+  };
 
   // pagination
   const [page, setPage] = useState(1);
@@ -65,16 +86,27 @@ const SupplierGroups = () => {
   const start = (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
 
+  // sorting
   const [sortOrder, setSortOrder] = useState("asc");
+  const sortedGroups = [...groups];
+  if (sortOrder === "asc") {
+    sortedGroups.sort((a, b) => Number(a.id) - Number(b.id));
+  }
 
-const sortedGroups = [...groups];
+  // Normalize helper (handles different backend shapes)
+  const normalizeRows = (rows = []) =>
+    rows.map((r) => ({
+      id: r.Id ?? r.id ?? r.supplierGroupId ?? null,
+      name: r.GroupName ?? r.groupName ?? r.Name ?? r.name ?? "",
+      description:
+        r.Description ??
+        r.description ??
+        r.GroupDescription ??
+        r.groupDescription ??
+        "",
+    }));
 
-if (sortOrder === "asc") {
-  sortedGroups.sort((a, b) => Number(a.id) - Number(b.id));
-}
-
-
-  // load groups
+  // load active groups
   const loadGroups = async () => {
     try {
       const res = await getSupplierGroupsApi(page, limit);
@@ -85,7 +117,7 @@ if (sortOrder === "asc") {
 
         if (Array.isArray(data.records)) {
           rows = data.records;
-          setTotalRecords(data.total || data.records.length);
+          setTotalRecords(data.total ?? data.records.length);
         } else if (Array.isArray(data)) {
           rows = data;
           setTotalRecords(data.length);
@@ -94,15 +126,7 @@ if (sortOrder === "asc") {
           setTotalRecords(0);
         }
 
-        // normalize to consistent keys
-        const normalized = rows.map((r) => ({
-          id: r.Id ?? r.id ?? r.supplierGroupId,
-          name: r.GroupName ?? r.groupName ?? r.Name ?? r.name,
-          description:
-            r.Description ?? r.description ?? r.GroupDescription ?? r.groupDescription ?? "",
-        }));
-
-        setGroups(normalized);
+        setGroups(normalizeRows(rows));
       } else {
         toast.error("Failed to load supplier groups");
       }
@@ -114,14 +138,31 @@ if (sortOrder === "asc") {
 
   useEffect(() => {
     loadGroups();
-    // when opening column modal, copy current visible to temp
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit]);
+
+  // load inactive groups
+  const loadInactive = async () => {
+    try {
+      const res = await getInactiveSupplierGroupsApi();
+      if (res?.status === 200) {
+        const rows = res.data.records ?? res.data ?? [];
+        setInactiveGroups(normalizeRows(rows));
+      } else {
+        toast.error("Failed to load inactive groups");
+      }
+    } catch (err) {
+      console.error("Load inactive groups error:", err);
+      toast.error("Failed to load inactive groups");
+    }
+  };
 
   // search
   const handleSearch = async (value) => {
     setSearchText(value);
 
     if (!value.trim()) {
+      setPage(1);
       loadGroups();
       return;
     }
@@ -130,13 +171,8 @@ if (sortOrder === "asc") {
       const res = await searchSupplierGroupApi(value);
       if (res?.status === 200) {
         const rows = Array.isArray(res.data) ? res.data : res.data.records ?? [];
-        const normalized = rows.map((r) => ({
-          id: r.Id ?? r.id,
-          name: r.GroupName ?? r.name,
-          description: r.Description ?? r.description,
-        }));
-        setGroups(normalized);
-        setTotalRecords(normalized.length);
+        setGroups(normalizeRows(rows));
+        setTotalRecords(rows.length);
       }
     } catch (err) {
       console.error("Search supplier groups error:", err);
@@ -145,7 +181,9 @@ if (sortOrder === "asc") {
 
   // add
   const handleAdd = async () => {
-    if (!newGroup.name || !newGroup.name.trim()) return toast.error("Name is required");
+    if (!newGroup.name || !newGroup.name.trim()) {
+      return toast.error("Name is required");
+    }
 
     try {
       const res = await addSupplierGroupApi({
@@ -158,7 +196,7 @@ if (sortOrder === "asc") {
         toast.success("Supplier group added");
         setModalOpen(false);
         setNewGroup({ name: "", description: "" });
-        // refresh current page
+        setPage(1);
         loadGroups();
       } else {
         toast.error(res?.response?.data?.message || "Add failed");
@@ -169,15 +207,18 @@ if (sortOrder === "asc") {
     }
   };
 
-  const openEdit = (row) => {
+  // open edit (handles both active and inactive rows)
+  const openEdit = (row, inactive = false) => {
     setEditGroup({
       id: row.id,
       name: row.name,
       description: row.description,
+      isInactive: !!inactive,
     });
     setEditModalOpen(true);
   };
 
+  // update
   const handleUpdate = async () => {
     if (!editGroup.name || !editGroup.name.trim()) return toast.error("Name is required");
 
@@ -192,6 +233,7 @@ if (sortOrder === "asc") {
         toast.success("Updated");
         setEditModalOpen(false);
         loadGroups();
+        if (showInactive) loadInactive();
       } else {
         toast.error(res?.response?.data?.message || "Update failed");
       }
@@ -201,6 +243,7 @@ if (sortOrder === "asc") {
     }
   };
 
+  // delete (soft)
   const handleDelete = async () => {
     try {
       const res = await deleteSupplierGroupApi(editGroup.id, { userId: currentUserId });
@@ -208,6 +251,7 @@ if (sortOrder === "asc") {
         toast.success("Deleted");
         setEditModalOpen(false);
         loadGroups();
+        if (showInactive) loadInactive();
       } else {
         toast.error(res?.response?.data?.message || "Delete failed");
       }
@@ -217,16 +261,22 @@ if (sortOrder === "asc") {
     }
   };
 
-  // open column modal and copy current visibleColumns to tempColumns
-  const openColumnModal = () => {
-    setTempColumns(visibleColumns);
-    setColumnModal(true);
-  };
-
-  // apply tempColumns to visibleColumns when OK clicked
-  const applyColumnChanges = () => {
-    setVisibleColumns(tempColumns);
-    setColumnModal(false);
+  // restore
+  const handleRestore = async () => {
+    try {
+      const res = await restoreSupplierGroupApi(editGroup.id, { userId: currentUserId });
+      if (res?.status === 200) {
+        toast.success("Supplier group restored");
+        setEditModalOpen(false);
+        loadGroups();
+        loadInactive();
+      } else {
+        toast.error(res?.response?.data?.message || "Restore failed");
+      }
+    } catch (err) {
+      console.error("Restore supplier group error:", err);
+      toast.error("Server error");
+    }
   };
 
   return (
@@ -278,12 +328,14 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* EDIT MODAL */}
+      {/* EDIT / RESTORE MODAL */}
       {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center">
           <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Supplier Group ({editGroup.name})</h2>
+              <h2 className="text-lg font-semibold">
+                {editGroup.isInactive ? "Restore Supplier Group" : "Edit Supplier Group"} ({editGroup.name})
+              </h2>
               <button onClick={() => setEditModalOpen(false)}>
                 <X className="text-gray-300 hover:text-white" />
               </button>
@@ -296,7 +348,10 @@ if (sortOrder === "asc") {
                   type="text"
                   value={editGroup.name}
                   onChange={(e) => setEditGroup((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  disabled={editGroup.isInactive}
+                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editGroup.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                 />
               </div>
 
@@ -306,34 +361,48 @@ if (sortOrder === "asc") {
                   rows={3}
                   value={editGroup.description}
                   onChange={(e) => setEditGroup((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  disabled={editGroup.isInactive}
+                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editGroup.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                 />
               </div>
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
+              {editGroup.isInactive ? (
+                <button
+                  onClick={handleRestore}
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
 
-              <button
-                onClick={handleUpdate}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded border border-gray-600"
-              >
-                <Save size={16} /> Save
-              </button>
+              {!editGroup.isInactive && (
+                <button
+                  onClick={handleUpdate}
+                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
+                >
+                  <Save size={16} /> Save
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* COLUMN PICKER (uses tempColumns; OK applies) */}
+      {/* COLUMN PICKER */}
       {columnModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg border border-gray-700 text-white">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">Column Picker</h2>
               <button onClick={() => setColumnModal(false)}>
@@ -352,6 +421,7 @@ if (sortOrder === "asc") {
             </div>
 
             <div className="grid grid-cols-2 gap-5 px-5 pb-5">
+              {/* Visible */}
               <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
                 <h3 className="font-semibold mb-2">Visible Columns</h3>
 
@@ -368,6 +438,7 @@ if (sortOrder === "asc") {
                   ))}
               </div>
 
+              {/* Hidden */}
               <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
                 <h3 className="font-semibold mb-2">Hidden Columns</h3>
 
@@ -391,10 +462,7 @@ if (sortOrder === "asc") {
               </button>
 
               <div className="flex gap-3">
-              <button
-                  onClick={() => setColumnModal(false)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
+                <button onClick={applyColumnChanges} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
                   OK
                 </button>
                 <button onClick={() => setColumnModal(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
@@ -426,96 +494,89 @@ if (sortOrder === "asc") {
             <Plus size={16} /> New Group
           </button>
 
-          <button onClick={() => loadGroups()} className="p-2 bg-gray-700 border border-gray-600 rounded">
+          <button onClick={() => {
+              setSearchText("");
+              setPage(1);
+              loadGroups();
+            }} className="p-2 bg-gray-700 border border-gray-600 rounded">
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
           <button onClick={openColumnModal} className="p-2 bg-gray-700 border border-gray-600 rounded">
             <List size={16} className="text-blue-300" />
           </button>
+
+          {/* INACTIVE TOGGLE (Option A placement) */}
+          <button
+            onClick={async () => {
+              if (!showInactive) await loadInactive();
+              setShowInactive((s) => !s);
+            }}
+            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? "ring-1 ring-yellow-300" : ""}`}
+          >
+            <ArchiveRestore size={16} className="text-yellow-300" />
+            <span className="text-xs opacity-80">Inactive</span>
+          </button>
         </div>
 
         {/* TABLE */}
         <div className="flex-grow overflow-auto">
-  <table className="w-[450px] border-separate border-spacing-y-1 text-sm">
-    
-    {/* HEADER */}
-    <thead className="sticky top-0 bg-gray-900 z-10">
-      <tr className="text-white text-center">
+          <table className="w-[450px] border-separate border-spacing-y-1 text-sm">
+            {/* HEADER */}
+            <thead className="sticky top-0 bg-gray-900 z-10">
+              <tr className="text-white text-center">
+                {visibleColumns.id && (
+                  <SortableHeader
+                    label="ID"
+                    sortOrder={sortOrder}
+                    onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}
+                  />
+                )}
 
-        {visibleColumns.id && (
-          <SortableHeader
-            label="ID"
-            sortOrder={sortOrder}
-            onClick={() =>
-              setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-            }
-          />
-        )}
+                {visibleColumns.name && <th className="pb-1 border-b border-white">Name</th>}
+                {visibleColumns.description && <th className="pb-1 border-b border-white">Description</th>}
+              </tr>
+            </thead>
 
-        {visibleColumns.name && (
-          <th className="pb-1 border-b border-white">Name</th>
-        )}
+            {/* BODY */}
+            <tbody className="text-center">
+              {sortedGroups.length === 0 && (
+                <tr>
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-6 text-center text-gray-400">
+                    No records found
+                  </td>
+                </tr>
+              )}
 
-        {visibleColumns.description && (
-          <th className="pb-1 border-b border-white">Description</th>
-        )}
+              {sortedGroups.map((row) => (
+                <tr key={row.id} className="bg-gray-900 hover:bg-gray-700 cursor-pointer" onClick={() => openEdit(row, false)}>
+                  {visibleColumns.id && <td className="px-2 py-1 align-middle">{row.id}</td>}
+                  {visibleColumns.name && <td className="px-2 py-1 align-middle">{row.name}</td>}
+                  {visibleColumns.description && <td className="px-2 py-1 align-middle">{row.description}</td>}
+                </tr>
+              ))}
 
-      </tr>
-    </thead>
-
-    {/* BODY */}
-    <tbody className="text-center">
-      {sortedGroups.length === 0 && (
-        <tr>
-          <td
-            colSpan={Object.values(visibleColumns).filter(Boolean).length}
-            className="px-4 py-6 text-center text-gray-400"
-          >
-            No records found
-          </td>
-        </tr>
-      )}
-
-      {sortedGroups.map((row) => (
-        <tr
-          key={row.id}
-          className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-          onClick={() => openEdit(row)}
-        >
-          {visibleColumns.id && (
-            <td className="px-2 py-1 align-middle">{row.id}</td>
-          )}
-
-          {visibleColumns.name && (
-            <td className="px-2 py-1 align-middle">{row.name}</td>
-          )}
-
-          {visibleColumns.description && (
-            <td className="px-2 py-1 align-middle">{row.description}</td>
-          )}
-        </tr>
-      ))}
-    </tbody>
-
-  </table>
-</div>
-
-
+              {/* INACTIVE ROWS */}
+              {showInactive &&
+                inactiveGroups.map((row) => (
+                  <tr
+                    key={`inactive-${row.id}`}
+                    className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
+                    onClick={() => openEdit(row, true)}
+                  >
+                    {visibleColumns.id && <td className="px-2 py-1 align-middle">{row.id}</td>}
+                    {visibleColumns.name && <td className="px-2 py-1 align-middle">{row.name}</td>}
+                    {visibleColumns.description && <td className="px-2 py-1 align-middle">{row.description}</td>}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* PAGINATION */}
         <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-            className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
-          >
-            {[10, 25, 50, 100].map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
+          <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="bg-gray-800 border border-gray-600 rounded px-2 py-1">
+            {[10, 25, 50, 100].map((n) => (<option key={n} value={n}>{n}</option>))}
           </select>
 
           <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
@@ -527,10 +588,15 @@ if (sortOrder === "asc") {
           </button>
 
           <span>Page</span>
-          <input type="number" className="w-12 bg-gray-800 border border-gray-600 rounded text-center" value={page} onChange={(e) => {
-            const v = Number(e.target.value);
-            if (v >= 1 && v <= totalPages) setPage(v);
-          }} />
+          <input
+            type="number"
+            className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
+            value={page}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              if (v >= 1 && v <= totalPages) setPage(v);
+            }}
+          />
           <span>/ {totalPages}</span>
 
           <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
@@ -545,7 +611,7 @@ if (sortOrder === "asc") {
             <RefreshCw size={16} />
           </button>
 
-          <span>Showing <b>{start}</b> to <b>{end}</b> of <b>{totalRecords}</b> records</span>
+          <span>Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records</span>
         </div>
       </div>
     </>

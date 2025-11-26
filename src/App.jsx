@@ -24,6 +24,10 @@ import AttendeeTypes from "./pages/masters/AttendeeTypes";
 import AttendanceStatuses from "./pages/masters/AttendanceStatuses";
 import Locations from "./pages/masters/Locations";
 import Warehouses from "./pages/masters/Warehouses";
+import Units from "./pages/inventory/Units";
+import Brands from "./pages/inventory/Brands";
+import Categories from "./pages/inventory/Categories";
+import Products from "./pages/inventory/Products";
 
 function App() {
   return (
@@ -54,10 +58,22 @@ function App() {
           <Route path="masters/meetingtypes" element={<MeetingTypes />} />
           <Route path="masters/deductions" element={<Deductions />} />
           <Route path="masters/resolutionstatus" element={<ResolutionStatuses />} />
-          <Route path="masters/attendancetypes" element={<AttendeeTypes />} />
+          <Route path="masters/attendeetypes" element={<AttendeeTypes />} />
           <Route path="masters/attendancestatus" element={<AttendanceStatuses />} />
           <Route path="masters/locations" element={<Locations />} />
           <Route path="masters/warehouses" element={<Warehouses />} />
+
+
+          {/* inventory */}
+
+          <Route path="inventory/units" element={<Units />} />
+          <Route path="inventory/brands" element={<Brands />} />
+          <Route path="inventory/categories" element={<Categories />} />
+          <Route path="inventory/products" element={<Products />} />
+
+
+
+
         </Route>
       </Routes>
     </>

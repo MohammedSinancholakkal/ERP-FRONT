@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -20,99 +21,72 @@ import {
   updateRegionApi,
   deleteRegionApi,
   searchRegionApi,
+  getInactiveRegionsApi,
+  restoreRegionApi,
 } from "../../services/allAPI";
-import SortableHeader from "../../components/SortableHeader";
 
 const Regions = () => {
-  // modal states
+  // MODALS
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
-  // data
+  // LIST DATA
   const [regions, setRegions] = useState([]);
+  const [inactiveRegions, setInactiveRegions] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
 
-  // add form
+  // ADD FORM
   const [newRegionName, setNewRegionName] = useState("");
 
-  // edit form
-  const [editRegionData, setEditRegionData] = useState({
+  // EDIT FORM
+  const [editData, setEditData] = useState({
     id: null,
     name: "",
+    isInactive: false,
   });
 
-  // column picker
-  const defaultColumns = { id: true, name: true };
-  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
-
-  // search text
+  // SEARCH
   const [searchText, setSearchText] = useState("");
 
-  // pagination
+  // PAGINATION
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
-  const totalPages = Math.ceil(totalRecords / limit);
+  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
+  const start = (page - 1) * limit + 1;
+  const end = Math.min(page * limit, totalRecords);
+
+  // COLUMNS
+  const defaultColumns = { id: true, name: true };
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
+  const [searchColumn, setSearchColumn] = useState("");
 
   const toggleColumn = (col) =>
     setVisibleColumns((p) => ({ ...p, [col]: !p[col] }));
   const restoreDefaultColumns = () => setVisibleColumns(defaultColumns);
 
-  const user = JSON.parse(localStorage.getItem("user")) || null;
-  const currentUserId = user?.userId || 1;
-
+  // SORT ORDER
   const [sortOrder, setSortOrder] = useState("asc");
 
-const sortedRegions = [...regions];
+  const sortedRegions = [...regions];
+  if (sortOrder === "asc") {
+    sortedRegions.sort((a, b) => a.regionId - b.regionId);
+  }
 
-if (sortOrder === "asc") {
-  sortedRegions.sort((a, b) => a.regionId - b.regionId);
-}
+  // USER
+  const user = JSON.parse(localStorage.getItem("user"));
+  const currentUserId = user?.userId || 1;
 
-
-
-  // load regions
+  // LOAD ACTIVE REGIONS
   const loadRegions = async () => {
-    try {
-      const res = await getRegionsApi(page, limit);
-
-      if (res?.status === 200) {
-        const data = res.data;
-
-        if (Array.isArray(data.records)) {
-          setRegions(data.records);
-          setTotalRecords(data.total || data.records.length);
-        } else if (Array.isArray(data)) {
-          setRegions(data);
-          setTotalRecords(data.length);
-        }
-      } else {
-        toast.error("Failed to load regions");
-      }
-    } catch (err) {
-      console.error("Load regions error:", err);
+    setSearchText("");
+    const res = await getRegionsApi(page, limit);
+    if (res?.status === 200) {
+      setRegions(res.data.records);
+      setTotalRecords(res.data.total);
+    } else {
       toast.error("Failed to load regions");
-    }
-  };
-
-  // SEARCH FUNCTION
-  const handleSearch = async (value) => {
-    setSearchText(value);
-
-    if (!value.trim()) {
-      loadRegions();
-      return;
-    }
-
-    try {
-      const res = await searchRegionApi(value);
-      if (res?.status === 200) {
-        setRegions(res.data);
-        setTotalRecords(res.data.length);
-      }
-    } catch (err) {
-      console.log("Search error:", err);
     }
   };
 
@@ -120,136 +94,149 @@ if (sortOrder === "asc") {
     loadRegions();
   }, [page, limit]);
 
-  // add region
-  const handleAddRegion = async () => {
-    if (!newRegionName.trim()) {
-      return toast.error("Name is required");
-    }
-    try {
-      const res = await addRegionApi({
-        regionName: newRegionName.trim(),
-        userId: currentUserId,
-      });
-
-      if (res?.status === 201) {
-        toast.success("Region added");
-        setModalOpen(false);
-        setNewRegionName("");
-        loadRegions();
-      } else {
-        toast.error(res?.response?.data?.message || "Add failed");
-      }
-    } catch (err) {
-      console.error("Add region error:", err);
-      toast.error("Server error");
+  // LOAD INACTIVE REGIONS
+  const loadInactive = async () => {
+    const res = await getInactiveRegionsApi();
+    if (res?.status === 200) {
+      setInactiveRegions(res.data.records || res.data);
+    } else {
+      toast.error("Failed to load inactive records");
     }
   };
 
-  // open edit modal
-  const openEditModal = (r) => {
-    setEditRegionData({
+  // SEARCH
+  const handleSearch = async (text) => {
+    setSearchText(text);
+    if (!text.trim()) return loadRegions();
+
+    const res = await searchRegionApi(text);
+    if (res?.status === 200) {
+      setRegions(res.data);
+      setTotalRecords(res.data.length);
+    }
+  };
+
+  // ADD REGION
+  const handleAddRegion = async () => {
+    if (!newRegionName.trim()) return toast.error("Name required");
+
+    const res = await addRegionApi({
+      regionName: newRegionName.trim(),
+      userId: currentUserId,
+    });
+
+    if (res?.status === 201) {
+      toast.success("Region added");
+      setModalOpen(false);
+      setNewRegionName("");
+      loadRegions();
+    } else {
+      toast.error("Failed to add");
+    }
+  };
+
+  // OPEN EDIT MODAL
+  const openEdit = (r, inactive = false) => {
+    setEditData({
       id: r.regionId,
       name: r.regionName,
+      isInactive: inactive,
     });
     setEditModalOpen(true);
   };
 
-  // update region
+  // UPDATE REGION
   const handleUpdateRegion = async () => {
-    const { id, name } = editRegionData;
-    if (!name.trim()) return toast.error("Name required");
+    if (!editData.name.trim()) return toast.error("Name required");
 
-    try {
-      const res = await updateRegionApi(id, {
-        regionName: name.trim(),
-        userId: currentUserId,
-      });
+    const res = await updateRegionApi(editData.id, {
+      regionName: editData.name,
+      userId: currentUserId,
+    });
 
-      if (res?.status === 200) {
-        toast.success("Region updated");
-        setEditModalOpen(false);
-        loadRegions();
-      } else {
-        toast.error(res?.response?.data?.message || "Update failed");
-      }
-    } catch (err) {
-      console.error("Update region error:", err);
-      toast.error("Server error");
+    if (res?.status === 200) {
+      toast.success("Region updated");
+      setEditModalOpen(false);
+      loadRegions();
+      if (showInactive) loadInactive();
+    } else {
+      toast.error("Update failed");
     }
   };
 
-  // delete region
+  // DELETE REGION
   const handleDeleteRegion = async () => {
-    const id = editRegionData.id;
+    const res = await deleteRegionApi(editData.id, { userId: currentUserId });
 
-    try {
-      const res = await deleteRegionApi(id, { userId: currentUserId });
-
-      if (res?.status === 200) {
-        toast.success("Region deleted");
-        setEditModalOpen(false);
-        loadRegions();
-      } else {
-        toast.error(res?.response?.data?.message || "Delete failed");
-      }
-    } catch (err) {
-      console.error("Delete region error:", err);
-      toast.error("Server error");
+    if (res?.status === 200) {
+      toast.success("Region deleted");
+      setEditModalOpen(false);
+      loadRegions();
+      if (showInactive) loadInactive();
+    } else {
+      toast.error("Delete failed");
     }
   };
 
-  // pagination helper values
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
+  // RESTORE REGION
+  const handleRestoreRegion = async () => {
+    const res = await restoreRegionApi(editData.id, { userId: currentUserId });
+
+    if (res?.status === 200) {
+      toast.success("Region restored");
+      setEditModalOpen(false);
+      loadRegions();
+      loadInactive();
+    } else {
+      toast.error("Failed to restore");
+    }
+  };
 
   return (
     <>
       {/* ADD REGION MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg shadow-xl border border-gray-700">
-            <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold text-white-400">
-                New Region
-              </h2>
+          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+
+            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
+              <h2 className="text-lg font-semibold">New Region</h2>
               <button onClick={() => setModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" size={20} />
+                <X size={20} className="text-gray-300 hover:text-white" />
               </button>
             </div>
 
             <div className="p-6">
-              <label className="block text-sm text-gray-300 mb-1">
-                Name <span className="text-red-500">*</span>
-              </label>
-
+              <label className="block mb-1 text-sm">Name *</label>
               <input
                 type="text"
                 value={newRegionName}
                 onChange={(e) => setNewRegionName(e.target.value)}
-                placeholder="Enter region name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               />
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
               <button
                 onClick={handleAddRegion}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* EDIT REGION MODAL */}
+      {/* EDIT / RESTORE MODAL */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg shadow-xl border border-gray-700">
+          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold text-white-400">
-                Edit Region ({editRegionData.name})
+              <h2 className="text-lg font-semibold">
+                {editData.isInactive ? "Restore Region" : "Edit Region"} ({editData.name})
               </h2>
               <button onClick={() => setEditModalOpen(false)}>
                 <X size={20} className="text-gray-300 hover:text-white" />
@@ -257,64 +244,80 @@ if (sortOrder === "asc") {
             </div>
 
             <div className="p-6">
-              <label className="block text-sm text-gray-300 mb-1">
-                Name <span className="text-red-500">*</span>
-              </label>
+              <label className="block mb-1 text-sm">Name *</label>
 
               <input
                 type="text"
-                value={editRegionData.name}
+                value={editData.name}
                 onChange={(e) =>
-                  setEditRegionData((p) => ({ ...p, name: e.target.value }))
+                  setEditData((p) => ({ ...p, name: e.target.value }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white"
+                disabled={editData.isInactive}
+                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm ${
+                  editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                }`}
               />
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={handleDeleteRegion}
-                className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
 
-              <button
-                onClick={handleUpdateRegion}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded border border-gray-600 text-blue-300"
-              >
-                <Save size={16} /> Save
-              </button>
+              {editData.isInactive ? (
+                <button
+                  onClick={handleRestoreRegion}
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              ) : (
+                <button
+                  onClick={handleDeleteRegion}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
+
+              {!editData.isInactive && (
+                <button
+                  onClick={handleUpdateRegion}
+                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
+                >
+                  <Save size={16} /> Save
+                </button>
+              )}
+
             </div>
+
           </div>
         </div>
       )}
 
-      {/* COLUMN PICKER */}
+      {/* COLUMN PICKER MODAL */}
       {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[750px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-xl font-semibold">Column Picker</h2>
+              <h2 className="text-lg font-semibold">Column Picker</h2>
               <button onClick={() => setColumnModal(false)}>
-                <X className="text-gray-300 hover:text-white" size={22} />
+                <X size={20} className="text-gray-300 hover:text-white" />
               </button>
             </div>
 
-            <div className="px-5 py-4">
+            <div className="px-5 py-3">
               <input
                 type="text"
-                placeholder="search..."
+                placeholder="search columns..."
                 value={searchColumn}
                 onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
+                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              {/* Visible */}
-              <div className="bg-gray-900/40 border border-gray-700 p-4 rounded">
-                <h3 className="mb-3 font-medium">👁 Visible Columns</h3>
+            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+              {/* VISIBLE */}
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
 
                 {Object.keys(visibleColumns)
                   .filter((col) => visibleColumns[col])
@@ -322,22 +325,22 @@ if (sortOrder === "asc") {
                   .map((col) => (
                     <div
                       key={col}
-                      className="flex justify-between bg-gray-800 p-2 rounded mb-2"
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
                     >
                       <span>☰ {col.toUpperCase()}</span>
                       <button
                         className="text-red-400"
                         onClick={() => toggleColumn(col)}
                       >
-                        ✕
+                        ✖
                       </button>
                     </div>
                   ))}
               </div>
 
-              {/* Hidden */}
-              <div className="bg-gray-900/40 border border-gray-700 p-4 rounded">
-                <h3 className="mb-3 font-medium">📋 Hidden Columns</h3>
+              {/* HIDDEN */}
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
 
                 {Object.keys(visibleColumns)
                   .filter((col) => !visibleColumns[col])
@@ -345,7 +348,7 @@ if (sortOrder === "asc") {
                   .map((col) => (
                     <div
                       key={col}
-                      className="flex justify-between bg-gray-800 p-2 rounded mb-2"
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
                     >
                       <span>☰ {col.toUpperCase()}</span>
                       <button
@@ -357,13 +360,13 @@ if (sortOrder === "asc") {
                     </div>
                   ))}
 
-                {Object.keys(visibleColumns).every(
-                  (c) => visibleColumns[c]
-                ) && <p className="text-gray-400 text-sm">No hidden columns</p>}
+                {Object.keys(visibleColumns).filter((col) => !visibleColumns[col]).length === 0 && (
+                  <p className="text-gray-400 text-sm">No hidden columns</p>
+                )}
               </div>
             </div>
 
-            <div className="flex justify-between px-5 py-3 border-t border-gray-700">
+            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               <button
                 onClick={restoreDefaultColumns}
                 className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
@@ -371,54 +374,42 @@ if (sortOrder === "asc") {
                 Restore Defaults
               </button>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setColumnModal(false)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  OK
-                </button>
-                <button
-                  onClick={() => setColumnModal(false)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                onClick={() => setColumnModal(false)}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                OK
+              </button>
+
             </div>
           </div>
         </div>
       )}
 
       {/* MAIN PAGE */}
-      <div
-        className="
-    p-4 sm:p-6 text-white 
-    min-h-[calc(100vh-64px)]
-    bg-gradient-to-b from-gray-900 to-gray-700
-    flex flex-col 
-    overflow-hidden
-  "
-      >
-        <h2 className="text-xl sm:text-2xl font-semibold mb-4">Regions</h2>
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col h-[calc(100vh-80px)] overflow-hidden">
+
+        <h2 className="text-2xl font-semibold mb-4">Regions</h2>
 
         {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+
           {/* SEARCH */}
-          <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-            <Search className="text-gray-300" size={16} />
+          <div className="flex items-center bg-gray-700 rounded-md border border-gray-600 px-2 py-1.5 w-full sm:w-60">
+            <Search size={16} className="text-gray-300" />
             <input
-              className="bg-transparent pl-2 w-full text-sm outline-none text-gray-200"
+              type="text"
               placeholder="search..."
               value={searchText}
               onChange={(e) => handleSearch(e.target.value)}
+              className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
             />
           </div>
 
-          {/* NEW REGION */}
+          {/* ADD */}
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 border border-gray-600 rounded text-sm hover:bg-gray-600"
+            className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
           >
             <Plus size={16} /> New Region
           </button>
@@ -427,84 +418,108 @@ if (sortOrder === "asc") {
           <button
             onClick={() => {
               setSearchText("");
+              setPage(1);
               loadRegions();
             }}
             className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
-            <RefreshCw className="text-blue-400" size={16} />
+            <RefreshCw size={16} className="text-blue-400" />
           </button>
 
-          {/* COLUMN PICKER */}
+          {/* COLUMNS */}
           <button
             onClick={() => setColumnModal(true)}
             className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
-            <List className="text-blue-300" size={16} />
+            <List size={16} className="text-blue-300" />
           </button>
+
+          {/* INACTIVE TOGGLE */}
+          <button
+            onClick={async () => {
+              if (!showInactive) await loadInactive();
+              setShowInactive(!showInactive);
+            }}
+            className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 flex items-center gap-1"
+          >
+            <ArchiveRestore size={16} className="text-yellow-300" />
+            <span className="text-xs opacity-80">Inactive</span>
+          </button>
+
         </div>
 
-{/* TABLE AREA */}
-<div className="flex-grow overflow-auto min-h-0 w-full">
-  <table className="w-[350px] border-separate border-spacing-y-1 text-sm">
+        {/* TABLE */}
+        <div className="flex-grow overflow-auto min-h-0 w-full">
+          <table className="w-[400px] border-separate border-spacing-y-1 text-sm">
+            <thead className="sticky top-0 bg-gray-900 z-10">
+              <tr className="text-white">
 
-    {/* HEADER */}
-    <thead className="sticky top-0 bg-gray-900 z-10">
-      <tr className="text-white text-center">
+                {visibleColumns.id && (
+                  <th
+                    className="pb-1 border-b border-white text-center cursor-pointer select-none"
+                    onClick={() =>
+                      setSortOrder((prev) => (prev === "asc" ? null : "asc"))
+                    }
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      {sortOrder === "asc" && <span>▲</span>}
+                      {sortOrder === null && <span className="opacity-40">⬍</span>}
+                      <span>ID</span>
+                    </div>
+                  </th>
+                )}
 
-        {visibleColumns.id && (
-          <SortableHeader
-            label="ID"
-            sortOrder={sortOrder}
-            onClick={() =>
-              setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-            }
-          />
-        )}
+                {visibleColumns.name && (
+                  <th className="pb-1 border-b border-white text-center">
+                    Name
+                  </th>
+                )}
 
-        {visibleColumns.name && (
-          <th className="pb-1 border-b border-white">Name</th>
-        )}
+              </tr>
+            </thead>
 
-      </tr>
-    </thead>
+            <tbody>
 
-    {/* BODY */}
-    <tbody className="text-center">
-      {sortedRegions.length === 0 && (
-        <tr>
-          <td
-            colSpan={Object.values(visibleColumns).filter(Boolean).length}
-            className="px-4 py-6 text-center text-gray-400"
-          >
-            No records found
-          </td>
-        </tr>
-      )}
+              {/* ACTIVE ROWS */}
+              {sortedRegions.map((r) => (
+                <tr
+                  key={r.regionId}
+                  className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded"
+                  onClick={() => openEdit(r, false)}
+                >
+                  {visibleColumns.id && (
+                    <td className="px-2 py-1 text-center">{r.regionId}</td>
+                  )}
+                  {visibleColumns.name && (
+                    <td className="px-2 py-1 text-center">{r.regionName}</td>
+                  )}
+                </tr>
+              ))}
 
-      {sortedRegions.map((r) => (
-        <tr
-          key={r.regionId}
-          className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded"
-          onClick={() => openEditModal(r)}
-        >
-          {visibleColumns.id && (
-            <td className="px-2 py-1 align-middle">{r.regionId}</td>
-          )}
+              {/* INACTIVE ROWS */}
+              {showInactive &&
+                inactiveRegions.map((r) => (
+                  <tr
+                    key={`inactive-${r.regionId}`}
+                    className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded"
+                    onClick={() => openEdit(r, true)}
+                  >
+                    {visibleColumns.id && (
+                      <td className="px-2 py-1 text-center">{r.regionId}</td>
+                    )}
+                    {visibleColumns.name && (
+                      <td className="px-2 py-1 text-center">{r.regionName}</td>
+                    )}
+                  </tr>
+                ))}
 
-          {visibleColumns.name && (
-            <td className="px-2 py-1 align-middle">{r.regionName}</td>
-          )}
-        </tr>
-      ))}
-    </tbody>
+            </tbody>
+          </table>
+        </div>
 
-  </table>
-</div>
+        {/* PAGINATION */}
+        <div className="mt-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
 
-
-        {/* PAGINATION BAR */}
-        <div className="mt-5 flex flex-wrap sm:flex-nowrap items-center gap-3 bg-gray-900/50 px-4 py-2 text-gray-200 text-sm rounded-md border border-gray-700">
-          {/* LIMIT SELECT */}
           <select
             value={limit}
             onChange={(e) => {
@@ -513,28 +528,16 @@ if (sortOrder === "asc") {
             }}
             className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
           >
-            {[10, 25, 50, 100].map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
+            {[10, 25, 50, 100].map((n) => (
+              <option key={n} value={n}>{n}</option>
             ))}
           </select>
 
-          {/* FIRST */}
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(1)}
-            className="p-1 bg-gray-800 rounded border border-gray-700 disabled:opacity-40"
-          >
+          <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
             <ChevronsLeft size={16} />
           </button>
 
-          {/* PREV */}
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-            className="p-1 bg-gray-800 rounded border border-gray-700 disabled:opacity-40"
-          >
+          <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
             <ChevronLeft size={16} />
           </button>
 
@@ -542,48 +545,34 @@ if (sortOrder === "asc") {
 
           <input
             type="number"
-            className="w-12 bg-gray-800 border border-gray-600 rounded px-1 text-center"
+            className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
             value={page}
             onChange={(e) => {
-              const num = Number(e.target.value);
-              if (num >= 1 && num <= totalPages) {
-                setPage(num);
-              }
+              const value = Number(e.target.value);
+              if (value >= 1 && value <= totalPages) setPage(value);
             }}
           />
+
           <span>/ {totalPages}</span>
 
-          {/* NEXT */}
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage(page + 1)}
-            className="p-1 bg-gray-800 rounded border border-gray-700 disabled:opacity-40"
-          >
+          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
             <ChevronRight size={16} />
           </button>
 
-          {/* LAST */}
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage(totalPages)}
-            className="p-1 bg-gray-800 rounded border border-gray-700 disabled:opacity-40"
-          >
+          <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
             <ChevronsRight size={16} />
           </button>
 
-          {/* REFRESH */}
-          <button
-            onClick={() => loadRegions()}
-            className="p-1 bg-gray-800 rounded border border-gray-700"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
+          <button onClick={() => loadRegions()} className="p-1 bg-gray-800 border border-gray-700 rounded">
+            <RefreshCw size={16} />
           </button>
 
           <span>
-            Showing <strong>{start}</strong> to <strong>{end}</strong> of{" "}
-            <strong>{totalRecords}</strong> records
+            Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records
           </span>
+
         </div>
+
       </div>
     </>
   );

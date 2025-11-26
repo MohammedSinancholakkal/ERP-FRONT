@@ -15,6 +15,7 @@ import {
   ChevronsRight,
   Star,
   Pencil,
+  ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -36,10 +37,11 @@ import {
   updateCityApi,
   getStatesByCountryApi,
   getCitiesApi as getAllCitiesApi,
+  // new APIs for inactive/restore
+  getInactiveWarehousesApi,
+  restoreWarehouseApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
- 
-
 
 const Warehouses = () => {
   // ================================
@@ -51,9 +53,12 @@ const Warehouses = () => {
 
   // Data
   const [rows, setRows] = useState([]);
+  const [inactiveRows, setInactiveRows] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
+
   const [searchText, setSearchText] = useState("");
 
-  // Filters
+  // Filters (searchable)
   const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterCity, setFilterCity] = useState("");
@@ -66,24 +71,34 @@ const Warehouses = () => {
   // searchable dropdown helpers for add/edit modals
   const [countryDropdownOpenAdd, setCountryDropdownOpenAdd] = useState(false);
   const [countryDropdownOpenEdit, setCountryDropdownOpenEdit] = useState(false);
+  const [countryDropdownOpenFilter, setCountryDropdownOpenFilter] =
+    useState(false);
   const [countrySearchAdd, setCountrySearchAdd] = useState("");
   const [countrySearchEdit, setCountrySearchEdit] = useState("");
+  const [countrySearchFilter, setCountrySearchFilter] = useState("");
   const addCountryRef = useRef(null);
   const editCountryRef = useRef(null);
+  const filterCountryRef = useRef(null);
 
   const [stateDropdownOpenAdd, setStateDropdownOpenAdd] = useState(false);
   const [stateDropdownOpenEdit, setStateDropdownOpenEdit] = useState(false);
+  const [stateDropdownOpenFilter, setStateDropdownOpenFilter] = useState(false);
   const [stateSearchAdd, setStateSearchAdd] = useState("");
   const [stateSearchEdit, setStateSearchEdit] = useState("");
+  const [stateSearchFilter, setStateSearchFilter] = useState("");
   const addStateRef = useRef(null);
   const editStateRef = useRef(null);
+  const filterStateRef = useRef(null);
 
   const [cityDropdownOpenAdd, setCityDropdownOpenAdd] = useState(false);
   const [cityDropdownOpenEdit, setCityDropdownOpenEdit] = useState(false);
+  const [cityDropdownOpenFilter, setCityDropdownOpenFilter] = useState(false);
   const [citySearchAdd, setCitySearchAdd] = useState("");
   const [citySearchEdit, setCitySearchEdit] = useState("");
+  const [citySearchFilter, setCitySearchFilter] = useState("");
   const addCityRef = useRef(null);
   const editCityRef = useRef(null);
+  const filterCityRef = useRef(null);
 
   // close dropdowns on outside click
   useEffect(() => {
@@ -91,20 +106,40 @@ const Warehouses = () => {
       if (addCountryRef.current && !addCountryRef.current.contains(e.target)) {
         setCountryDropdownOpenAdd(false);
       }
-      if (editCountryRef.current && !editCountryRef.current.contains(e.target)) {
+      if (
+        editCountryRef.current &&
+        !editCountryRef.current.contains(e.target)
+      ) {
         setCountryDropdownOpenEdit(false);
       }
+      if (
+        filterCountryRef.current &&
+        !filterCountryRef.current.contains(e.target)
+      ) {
+        setCountryDropdownOpenFilter(false);
+      }
+
       if (addStateRef.current && !addStateRef.current.contains(e.target)) {
         setStateDropdownOpenAdd(false);
       }
       if (editStateRef.current && !editStateRef.current.contains(e.target)) {
         setStateDropdownOpenEdit(false);
       }
+      if (
+        filterStateRef.current &&
+        !filterStateRef.current.contains(e.target)
+      ) {
+        setStateDropdownOpenFilter(false);
+      }
+
       if (addCityRef.current && !addCityRef.current.contains(e.target)) {
         setCityDropdownOpenAdd(false);
       }
       if (editCityRef.current && !editCityRef.current.contains(e.target)) {
         setCityDropdownOpenEdit(false);
+      }
+      if (filterCityRef.current && !filterCityRef.current.contains(e.target)) {
+        setCityDropdownOpenFilter(false);
       }
     };
 
@@ -138,6 +173,7 @@ const Warehouses = () => {
     cityId: "",
     phone: "",
     address: "",
+    isInactive: false,
   });
 
   // Country/State/City modals (star/pencil)
@@ -149,12 +185,26 @@ const Warehouses = () => {
   const [addStateModalOpen, setAddStateModalOpen] = useState(false);
   const [editStateModalOpen, setEditStateModalOpen] = useState(false);
   const [stateFormName, setStateFormName] = useState("");
-  const [stateEditData, setStateEditData] = useState({ id: "", name: "", countryId: "" });
+  const [stateEditData, setStateEditData] = useState({
+    id: "",
+    name: "",
+    countryId: "",
+  });
 
   const [addCityModalOpen, setAddCityModalOpen] = useState(false);
   const [editCityModalOpen, setEditCityModalOpen] = useState(false);
   const [cityFormName, setCityFormName] = useState("");
-  const [cityEditData, setCityEditData] = useState({ id: "", name: "", countryId: "", stateId: "" });
+  const [cityEditData, setCityEditData] = useState({
+    id: "",
+    name: "",
+    countryId: "",
+    stateId: "",
+  });
+
+  // origins for modals: "add", "edit", "filter"
+  const [countryModalOrigin, setCountryModalOrigin] = useState(null);
+  const [stateModalOrigin, setStateModalOrigin] = useState(null);
+  const [cityModalOrigin, setCityModalOrigin] = useState(null);
 
   // ================================
   // COLUMN PICKER
@@ -185,30 +235,29 @@ const Warehouses = () => {
   const start = (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
 
+  // ================================
+  // Filtering (client-side)
+  // ================================
+  const filteredRows = rows.filter((r) => {
+    let valid = true;
+    if (filterCountry)
+      valid = valid && String(r.countryId) === String(filterCountry);
+    if (filterState) valid = valid && String(r.stateId) === String(filterState);
+    if (filterCity) valid = valid && String(r.cityId) === String(filterCity);
+    return valid;
+  });
 
+  const [sortOrder, setSortOrder] = useState("asc");
 
-// ================================
-// Filtering (client-side)
-// ================================
-const filteredRows = rows.filter((r) => {
-  let valid = true;
-  if (filterCountry) valid = valid && String(r.countryId) === String(filterCountry);
-  if (filterState) valid = valid && String(r.stateId) === String(filterState);
-  if (filterCity) valid = valid && String(r.cityId) === String(filterCity);
-  return valid;
-});
+  const sortedRows = useMemo(() => {
+    const arr = [...filteredRows];
 
-const [sortOrder, setSortOrder] = useState("asc");
+    if (sortOrder === "asc") {
+      arr.sort((a, b) => Number(a.id) - Number(b.id));
+    }
 
-const sortedRows = useMemo(() => {
-  const arr = [...filteredRows];
-
-  if (sortOrder === "asc") {
-    arr.sort((a, b) => Number(a.id) - Number(b.id));
-  }
-
-  return arr;
-}, [filteredRows, sortOrder]);
+    return arr;
+  }, [filteredRows, sortOrder]);
 
   // ================================
   // LOADERS (Countries/States/Cities)
@@ -283,6 +332,16 @@ const sortedRows = useMemo(() => {
     }
   };
 
+  // convenience: load states for a country asynchronously (when user selects country)
+  const awaitLoadStatesForCountry = async (countryId) => {
+    await loadStates();
+    // optional: could filter states by country; states are loaded into `states` state
+  };
+
+  const awaitLoadCitiesForState = async (stateId) => {
+    await loadCities();
+  };
+
   // ================================
   // LOAD WAREHOUSE ROWS
   // ================================
@@ -320,6 +379,36 @@ const sortedRows = useMemo(() => {
     }
   };
 
+  const loadInactiveRows = async () => {
+    try {
+      const res = await getInactiveWarehousesApi();
+      if (res?.status === 200) {
+        const data = res.data ?? res;
+        // res.data should be an array
+        const items = Array.isArray(data) ? data : data.records ?? [];
+        const normalized = (items || []).map((w) => ({
+          id: w.Id ?? w.id ?? w.ID,
+          name: w.Name ?? w.name ?? "",
+          description: w.Description ?? w.description ?? "",
+          countryName: w.CountryName ?? w.countryName ?? w.country?.name ?? "",
+          countryId: w.CountryId ?? w.countryId ?? w.country?.id ?? "",
+          stateName: w.StateName ?? w.stateName ?? w.state?.name ?? "",
+          stateId: w.StateId ?? w.stateId ?? w.state?.id ?? "",
+          cityName: w.CityName ?? w.cityName ?? w.city?.name ?? "",
+          cityId: w.CityId ?? w.cityId ?? w.city?.id ?? "",
+          phone: w.Phone ?? w.phone ?? "",
+          address: w.Address ?? w.address ?? "",
+        }));
+        setInactiveRows(normalized);
+      } else {
+        toast.error("Failed to load inactive warehouses");
+      }
+    } catch (err) {
+      console.error("loadInactiveRows error", err);
+      toast.error("Failed to load inactive warehouses");
+    }
+  };
+
   // Initial load
   useEffect(() => {
     (async () => {
@@ -330,6 +419,12 @@ const sortedRows = useMemo(() => {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit]);
+
+  // load inactive when toggled on
+  useEffect(() => {
+    if (showInactive) loadInactiveRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showInactive]);
 
   // phone validation
   const isValidPhone = (phone) => {
@@ -380,14 +475,23 @@ const sortedRows = useMemo(() => {
     if (!newItem.countryId) return toast.error("Select a country");
     if (!newItem.stateId) return toast.error("Select a state");
     if (!newItem.cityId) return toast.error("Select a city");
-    if (!isValidPhone(newItem.phone)) return toast.error("Phone number must be 10 to 15 digits.");
+    if (!isValidPhone(newItem.phone))
+      return toast.error("Phone number must be 10 to 15 digits.");
 
     try {
       const res = await addWarehouseApi({ ...newItem, userId: currentUserId });
       if (res?.status === 201 || res?.status === 200) {
         toast.success("Warehouse added");
         setModalOpen(false);
-        setNewItem({ name: "", description: "", countryId: "", stateId: "", cityId: "", phone: "", address: "" });
+        setNewItem({
+          name: "",
+          description: "",
+          countryId: "",
+          stateId: "",
+          cityId: "",
+          phone: "",
+          address: "",
+        });
         loadRows();
       } else {
         toast.error(res?.data?.message || "Add failed");
@@ -398,7 +502,7 @@ const sortedRows = useMemo(() => {
     }
   };
 
-  const openEdit = (row) => {
+  const openEdit = (row, inactive = false) => {
     setEditItem({
       id: row.id,
       name: row.name,
@@ -408,16 +512,27 @@ const sortedRows = useMemo(() => {
       cityId: row.cityId,
       phone: row.phone,
       address: row.address,
+      isInactive: !!inactive,
     });
+
+    // prefill the search inputs shown in the edit modal
+    setCountrySearchEdit(row.countryName || "");
+    setStateSearchEdit(row.stateName || "");
+    setCitySearchEdit(row.cityName || "");
+
     setEditModalOpen(true);
   };
 
   const handleUpdate = async () => {
     if (!editItem.name.trim()) return toast.error("Name required");
-    if (!isValidPhone(editItem.phone)) return toast.error("Phone number must be 10 to 15 digits.");
+    if (!isValidPhone(editItem.phone))
+      return toast.error("Phone number must be 10 to 15 digits.");
 
     try {
-      const res = await updateWarehouseApi(editItem.id, { ...editItem, userId: currentUserId });
+      const res = await updateWarehouseApi(editItem.id, {
+        ...editItem,
+        userId: currentUserId,
+      });
       if (res?.status === 200) {
         toast.success("Warehouse updated");
         setEditModalOpen(false);
@@ -433,7 +548,9 @@ const sortedRows = useMemo(() => {
 
   const handleDelete = async () => {
     try {
-      const res = await deleteWarehouseApi(editItem.id, { userId: currentUserId });
+      const res = await deleteWarehouseApi(editItem.id, {
+        userId: currentUserId,
+      });
       if (res?.status === 200) {
         toast.success("Deleted");
         setEditModalOpen(false);
@@ -447,19 +564,46 @@ const sortedRows = useMemo(() => {
     }
   };
 
+  const handleRestore = async () => {
+    try {
+      const res = await restoreWarehouseApi(editItem.id, {
+        userId: currentUserId,
+      });
+      if (res?.status === 200) {
+        toast.success("Restored");
+        setEditModalOpen(false);
+        loadRows();
+        loadInactiveRows();
+        setShowInactive(false);
+      } else {
+        toast.error("Restore failed");
+      }
+    } catch (err) {
+      console.error("handleRestore error", err);
+      toast.error("Restore failed");
+    }
+  };
+
   // ================================
-  // Country / State / City CRUD helpers (inline create + modals)
+  // Country / State / City CRUD helpers (open modals instead of inline create)
+  // Modified: when "No matches" suggestion clicked -> open the same star modal
+  // and prefill the modal name and origin so Save will preselect the created item.
   // ================================
 
   // --- Countries ---
   const handleAddCountry = async (name) => {
     if (!name?.trim()) return null;
     try {
-      const res = await addCountryApi({ name: name.trim(), userId: currentUserId });
+      const res = await addCountryApi({
+        name: name.trim(),
+        userId: currentUserId,
+      });
       if (res?.status === 200 || res?.status === 201) {
         toast.success("Country created");
         const list = await loadCountries();
-        const found = list.find((c) => String(c.name).toLowerCase() === name.trim().toLowerCase());
+        const found = list.find(
+          (c) => String(c.name).toLowerCase() === name.trim().toLowerCase()
+        );
         return found || null;
       } else {
         toast.error("Failed to create country");
@@ -474,7 +618,10 @@ const sortedRows = useMemo(() => {
   const handleUpdateCountry = async (id, name) => {
     if (!id || !name?.trim()) return false;
     try {
-      const res = await updateCountryApi(id, { name: name.trim(), userId: currentUserId });
+      const res = await updateCountryApi(id, {
+        name: name.trim(),
+        userId: currentUserId,
+      });
       if (res?.status === 200) {
         toast.success("Country updated");
         await loadCountries();
@@ -489,47 +636,79 @@ const sortedRows = useMemo(() => {
     return false;
   };
 
-  // inline create from add country dropdown
-  const handleInlineCreateCountryFromAdd = async () => {
-    const name = countrySearchAdd.trim();
-    if (!name) return;
-    const created = await handleAddCountry(name);
-    if (created) {
-      setNewItem((p) => ({ ...p, countryId: created.id ?? created.Id ?? created.countryId }));
-      setCountrySearchAdd("");
-      setCountryDropdownOpenAdd(false);
-      // reload states filtered
-      await loadStates();
-    }
+  // open add-country modal from dropdown suggestion (origin indicates where it was opened)
+  const openAddCountryModalFromDropdown = (origin, typed = "") => {
+    setCountryFormName(typed);
+    setCountryModalOrigin(origin); // "add" | "edit" | "filter"
+    setAddCountryModalOpen(true);
   };
 
-  // inline create from edit country dropdown
-  const handleInlineCreateCountryFromEdit = async () => {
-    const name = countrySearchEdit.trim();
-    if (!name) return;
-    const created = await handleAddCountry(name);
-    if (created) {
-      setEditItem((p) => ({ ...p, countryId: created.id ?? created.Id ?? created.countryId }));
-      setCountrySearchEdit("");
-      setCountryDropdownOpenEdit(false);
-      await loadStates();
-    }
+  // open add-state modal from dropdown suggestion
+  const openAddStateModalFromDropdown = (
+    origin,
+    typed = "",
+    countryIdForModal = ""
+  ) => {
+    setStateFormName(typed);
+    setStateModalOrigin(origin);
+    setStateEditData((p) => ({
+      ...p,
+      countryId: countryIdForModal || p.countryId || "",
+    }));
+    setAddStateModalOpen(true);
   };
 
-  // add country modal save
+  // open add-city modal from dropdown suggestion
+  const openAddCityModalFromDropdown = (
+    origin,
+    typed = "",
+    countryIdForModal = "",
+    stateIdForModal = ""
+  ) => {
+    setCityFormName(typed);
+    setCityModalOrigin(origin);
+    setCityEditData((p) => ({
+      ...p,
+      countryId: countryIdForModal || p.countryId || "",
+      stateId: stateIdForModal || p.stateId || "",
+    }));
+    setAddCityModalOpen(true);
+  };
+
+  // add country modal save - preselect depending on origin
   const handleAddCountryModalSave = async () => {
     const name = countryFormName.trim();
     if (!name) return toast.error("Country name required");
     const created = await handleAddCountry(name);
     if (created) {
-      // preselect if Add Warehouse open
-      if (modalOpen) setNewItem((p) => ({ ...p, countryId: created.id ?? created.Id ?? created.countryId }));
+      // if Add Warehouse modal open or origin is "add", preselect created country for newItem
+      if (countryModalOrigin === "add" || modalOpen) {
+        setNewItem((p) => ({
+          ...p,
+          countryId: created.id ?? created.Id ?? created.countryId,
+        }));
+        // reload states after selecting
+        await loadStates();
+      } else if (countryModalOrigin === "edit") {
+        // preselect for edit modal
+        setEditItem((p) => ({
+          ...p,
+          countryId: created.id ?? created.Id ?? created.countryId,
+        }));
+        await loadStates();
+      } else if (countryModalOrigin === "filter") {
+        setFilterCountry(created.id ?? created.Id ?? created.countryId);
+        // reset dependent filters
+        setFilterState("");
+        setFilterCity("");
+      }
+
       setAddCountryModalOpen(false);
       setCountryFormName("");
+      setCountryModalOrigin(null);
     }
   };
 
-  // edit country modal save
   const handleEditCountryModalSave = async () => {
     const { id, name } = countryEditData;
     if (!id || !name.trim()) return toast.error("Invalid country details");
@@ -546,7 +725,11 @@ const sortedRows = useMemo(() => {
       if (res?.status === 200 || res?.status === 201) {
         toast.success("State created");
         const list = await loadStates();
-        const found = list.find((s) => String(s.name).toLowerCase() === name.trim().toLowerCase() && String(s.countryId) === String(countryId));
+        const found = list.find(
+          (s) =>
+            String(s.name).toLowerCase() === name.trim().toLowerCase() &&
+            String(s.countryId) === String(countryId)
+        );
         return found || null;
       } else {
         toast.error("Failed to create state");
@@ -561,7 +744,11 @@ const sortedRows = useMemo(() => {
   const handleUpdateState = async (id, name, countryId) => {
     if (!id || !name?.trim() || !countryId) return false;
     try {
-      const res = await updateStateApi(id, { name: name.trim(), countryId, userId: currentUserId });
+      const res = await updateStateApi(id, {
+        name: name.trim(),
+        countryId,
+        userId: currentUserId,
+      });
       if (res?.status === 200) {
         toast.success("State updated");
         await loadStates();
@@ -576,35 +763,6 @@ const sortedRows = useMemo(() => {
     return false;
   };
 
-  // inline create state from add dropdown (country must be selected)
-  const handleInlineCreateStateFromAdd = async () => {
-    const name = stateSearchAdd.trim();
-    const countryId = newItem.countryId;
-    if (!name) return;
-    if (!countryId) return toast.error("Please select country first");
-    const created = await handleAddState(name, countryId);
-    if (created) {
-      setNewItem((p) => ({ ...p, stateId: created.id ?? created.Id ?? created.stateId }));
-      setStateSearchAdd("");
-      setStateDropdownOpenAdd(false);
-      await loadCities();
-    }
-  };
-
-  const handleInlineCreateStateFromEdit = async () => {
-    const name = stateSearchEdit.trim();
-    const countryId = editItem.countryId;
-    if (!name) return;
-    if (!countryId) return toast.error("Please select country first");
-    const created = await handleAddState(name, countryId);
-    if (created) {
-      setEditItem((p) => ({ ...p, stateId: created.id ?? created.Id ?? created.stateId }));
-      setStateSearchEdit("");
-      setStateDropdownOpenEdit(false);
-      await loadCities();
-    }
-  };
-
   const handleAddStateModalSave = async () => {
     const name = stateFormName.trim();
     const countryId = stateEditData.countryId || "";
@@ -612,18 +770,32 @@ const sortedRows = useMemo(() => {
     if (!countryId) return toast.error("Select country for state");
     const created = await handleAddState(name, countryId);
     if (created) {
-      if (addStateModalOpen && modalOpen) {
-        // if add state modal opened from add warehouse, preselect
-        setNewItem((p) => ({ ...p, stateId: created.id ?? created.Id ?? created.stateId }));
+      if (stateModalOrigin === "add" || modalOpen) {
+        setNewItem((p) => ({
+          ...p,
+          stateId: created.id ?? created.Id ?? created.stateId,
+        }));
+        await loadCities();
+      } else if (stateModalOrigin === "edit") {
+        setEditItem((p) => ({
+          ...p,
+          stateId: created.id ?? created.Id ?? created.stateId,
+        }));
+        await loadCities();
+      } else if (stateModalOrigin === "filter") {
+        setFilterState(created.id ?? created.Id ?? created.stateId);
+        setFilterCity("");
       }
       setAddStateModalOpen(false);
       setStateFormName("");
+      setStateModalOrigin(null);
     }
   };
 
   const handleEditStateModalSave = async () => {
     const { id, name, countryId } = stateEditData;
-    if (!id || !name.trim() || !countryId) return toast.error("Invalid state details");
+    if (!id || !name.trim() || !countryId)
+      return toast.error("Invalid state details");
     const ok = await handleUpdateState(id, name, countryId);
     if (ok) setEditStateModalOpen(false);
   };
@@ -632,14 +804,20 @@ const sortedRows = useMemo(() => {
   const handleAddCity = async (name, countryId, stateId) => {
     if (!name?.trim() || !countryId || !stateId) return null;
     try {
-      const payload = { name: name.trim(), countryId, stateId, userId: currentUserId };
+      const payload = {
+        name: name.trim(),
+        countryId,
+        stateId,
+        userId: currentUserId,
+      };
       const res = await addCityApi(payload);
       if (res?.status === 200 || res?.status === 201) {
         toast.success("City created");
         const list = await loadCities();
         const found = list.find(
           (c) =>
-            String((c.name ?? c.CityName ?? c.cityName)).toLowerCase() === name.trim().toLowerCase() &&
+            String(c.name ?? c.CityName ?? c.cityName).toLowerCase() ===
+              name.trim().toLowerCase() &&
             String(c.stateId ?? c.StateId) === String(stateId)
         );
         return found || null;
@@ -656,7 +834,12 @@ const sortedRows = useMemo(() => {
   const handleUpdateCity = async (id, name, countryId, stateId) => {
     if (!id || !name?.trim() || !countryId || !stateId) return false;
     try {
-      const res = await updateCityApi(id, { name: name.trim(), countryId, stateId, userId: currentUserId });
+      const res = await updateCityApi(id, {
+        name: name.trim(),
+        countryId,
+        stateId,
+        userId: currentUserId,
+      });
       if (res?.status === 200) {
         toast.success("City updated");
         await loadCities();
@@ -671,50 +854,37 @@ const sortedRows = useMemo(() => {
     return false;
   };
 
-  const handleInlineCreateCityFromAdd = async () => {
-    const name = citySearchAdd.trim();
-    const countryId = newItem.countryId;
-    const stateId = newItem.stateId;
-    if (!name) return;
-    if (!countryId || !stateId) return toast.error("Please select country & state first");
-    const created = await handleAddCity(name, countryId, stateId);
-    if (created) {
-      setNewItem((p) => ({ ...p, cityId: created.id ?? created.Id ?? created.cityId }));
-      setCitySearchAdd("");
-      setCityDropdownOpenAdd(false);
-    }
-  };
-
-  const handleInlineCreateCityFromEdit = async () => {
-    const name = citySearchEdit.trim();
-    const countryId = editItem.countryId;
-    const stateId = editItem.stateId;
-    if (!name) return;
-    if (!countryId || !stateId) return toast.error("Please select country & state first");
-    const created = await handleAddCity(name, countryId, stateId);
-    if (created) {
-      setEditItem((p) => ({ ...p, cityId: created.id ?? created.Id ?? created.cityId }));
-      setCitySearchEdit("");
-      setCityDropdownOpenEdit(false);
-    }
-  };
-
   const handleAddCityModalSave = async () => {
     const name = cityFormName.trim();
     const { countryId, stateId } = cityEditData;
     if (!name) return toast.error("City name required");
-    if (!countryId || !stateId) return toast.error("Select country & state for city");
+    if (!countryId || !stateId)
+      return toast.error("Select country & state for city");
     const created = await handleAddCity(name, countryId, stateId);
     if (created) {
-      if (modalOpen) setNewItem((p) => ({ ...p, cityId: created.id ?? created.Id ?? created.cityId }));
+      if (cityModalOrigin === "add" || modalOpen) {
+        setNewItem((p) => ({
+          ...p,
+          cityId: created.id ?? created.Id ?? created.cityId,
+        }));
+      } else if (cityModalOrigin === "edit") {
+        setEditItem((p) => ({
+          ...p,
+          cityId: created.id ?? created.Id ?? created.cityId,
+        }));
+      } else if (cityModalOrigin === "filter") {
+        setFilterCity(created.id ?? created.Id ?? created.cityId);
+      }
       setAddCityModalOpen(false);
       setCityFormName("");
+      setCityModalOrigin(null);
     }
   };
 
   const handleEditCityModalSave = async () => {
     const { id, name, countryId, stateId } = cityEditData;
-    if (!id || !name.trim() || !countryId || !stateId) return toast.error("Invalid city details");
+    if (!id || !name.trim() || !countryId || !stateId)
+      return toast.error("Invalid city details");
     const ok = await handleUpdateCity(id, name, countryId, stateId);
     if (ok) setEditCityModalOpen(false);
   };
@@ -739,27 +909,84 @@ const sortedRows = useMemo(() => {
 
   // filtered lists for searchable dropdowns
   const filteredCountriesAdd = countries.filter((c) =>
-    String(c.name ?? "").toLowerCase().includes(countrySearchAdd.toLowerCase())
+    String(c.name ?? "")
+      .toLowerCase()
+      .includes(countrySearchAdd.toLowerCase())
   );
   const filteredCountriesEdit = countries.filter((c) =>
-    String(c.name ?? "").toLowerCase().includes(countrySearchEdit.toLowerCase())
+    String(c.name ?? "")
+      .toLowerCase()
+      .includes(countrySearchEdit.toLowerCase())
+  );
+  const filteredCountriesFilter = countries.filter((c) =>
+    String(c.name ?? "")
+      .toLowerCase()
+      .includes(countrySearchFilter.toLowerCase())
   );
 
   const filteredStatesAdd = states
-    .filter((s) => (newItem.countryId ? String(s.countryId) === String(newItem.countryId) : true))
-    .filter((s) => String(s.name ?? "").toLowerCase().includes(stateSearchAdd.toLowerCase()));
+    .filter((s) =>
+      newItem.countryId
+        ? String(s.countryId) === String(newItem.countryId)
+        : true
+    )
+    .filter((s) =>
+      String(s.name ?? "")
+        .toLowerCase()
+        .includes(stateSearchAdd.toLowerCase())
+    );
 
   const filteredStatesEdit = states
-    .filter((s) => (editItem.countryId ? String(s.countryId) === String(editItem.countryId) : true))
-    .filter((s) => String(s.name ?? "").toLowerCase().includes(stateSearchEdit.toLowerCase()));
+    .filter((s) =>
+      editItem.countryId
+        ? String(s.countryId) === String(editItem.countryId)
+        : true
+    )
+    .filter((s) =>
+      String(s.name ?? "")
+        .toLowerCase()
+        .includes(stateSearchEdit.toLowerCase())
+    );
+
+  const filteredStatesFilter = states
+    .filter((s) =>
+      filterCountry ? String(s.countryId) === String(filterCountry) : true
+    )
+    .filter((s) =>
+      String(s.name ?? "")
+        .toLowerCase()
+        .includes(stateSearchFilter.toLowerCase())
+    );
 
   const filteredCitiesAdd = cities
-    .filter((c) => (newItem.stateId ? String(c.stateId) === String(newItem.stateId) : true))
-    .filter((c) => String(c.name ?? "").toLowerCase().includes(citySearchAdd.toLowerCase()));
+    .filter((c) =>
+      newItem.stateId ? String(c.stateId) === String(newItem.stateId) : true
+    )
+    .filter((c) =>
+      String(c.name ?? "")
+        .toLowerCase()
+        .includes(citySearchAdd.toLowerCase())
+    );
 
   const filteredCitiesEdit = cities
-    .filter((c) => (editItem.stateId ? String(c.stateId) === String(editItem.stateId) : true))
-    .filter((c) => String(c.name ?? "").toLowerCase().includes(citySearchEdit.toLowerCase()));
+    .filter((c) =>
+      editItem.stateId ? String(c.stateId) === String(editItem.stateId) : true
+    )
+    .filter((c) =>
+      String(c.name ?? "")
+        .toLowerCase()
+        .includes(citySearchEdit.toLowerCase())
+    );
+
+  const filteredCitiesFilter = cities
+    .filter((c) =>
+      filterState ? String(c.stateId) === String(filterState) : true
+    )
+    .filter((c) =>
+      String(c.name ?? "")
+        .toLowerCase()
+        .includes(citySearchFilter.toLowerCase())
+    );
 
   // Column picker helpers
   const openColumnPicker = () => {
@@ -768,7 +995,7 @@ const sortedRows = useMemo(() => {
   };
 
   // ================================
-  // Render
+  // RENDER
   // ================================
   return (
     <>
@@ -806,18 +1033,24 @@ const sortedRows = useMemo(() => {
                 <textarea
                   className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
                   value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, description: e.target.value })
+                  }
                 />
               </div>
 
-              {/* Country (searchable + inline create + star modal) */}
+              {/* Country (searchable + star modal) */}
               <div>
                 <label className="text-sm">Country *</label>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="relative w-full" ref={addCountryRef}>
                     <input
                       type="text"
-                      value={countrySearchAdd || getCountryName(newItem.countryId) || countrySearchAdd}
+                      value={
+                        countrySearchAdd ||
+                        getCountryName(newItem.countryId) ||
+                        countrySearchAdd
+                      }
                       onChange={(e) => {
                         setCountrySearchAdd(e.target.value);
                         setCountryDropdownOpenAdd(true);
@@ -837,8 +1070,7 @@ const sortedRows = useMemo(() => {
                                 setNewItem((p) => ({ ...p, countryId: c.id }));
                                 setCountryDropdownOpenAdd(false);
                                 setCountrySearchAdd("");
-                                // load states for that country
-                                loadStates();
+                                awaitLoadStatesForCountry(c.id);
                               }}
                               className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
                             >
@@ -849,10 +1081,16 @@ const sortedRows = useMemo(() => {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={handleInlineCreateCountryFromAdd}
+                              onClick={() =>
+                                openAddCountryModalFromDropdown(
+                                  "add",
+                                  countrySearchAdd
+                                )
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new country &quot;{countrySearchAdd}&quot; and select
+                              Create new country &quot;{countrySearchAdd}&quot;
+                              (open modal)
                             </button>
                           </div>
                         )}
@@ -865,6 +1103,7 @@ const sortedRows = useMemo(() => {
                     className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
                     onClick={() => {
                       setCountryFormName("");
+                      setCountryModalOrigin("add");
                       setAddCountryModalOpen(true);
                     }}
                   >
@@ -873,14 +1112,18 @@ const sortedRows = useMemo(() => {
                 </div>
               </div>
 
-              {/* State (searchable + inline create + star modal) */}
+              {/* State (searchable + star modal) */}
               <div>
                 <label className="text-sm">State *</label>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="relative w-full" ref={addStateRef}>
                     <input
                       type="text"
-                      value={stateSearchAdd || getStateName(newItem.stateId) || stateSearchAdd}
+                      value={
+                        stateSearchAdd ||
+                        getStateName(newItem.stateId) ||
+                        stateSearchAdd
+                      }
                       onChange={(e) => {
                         setStateSearchAdd(e.target.value);
                         setStateDropdownOpenAdd(true);
@@ -911,10 +1154,17 @@ const sortedRows = useMemo(() => {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={handleInlineCreateStateFromAdd}
+                              onClick={() =>
+                                openAddStateModalFromDropdown(
+                                  "add",
+                                  stateSearchAdd,
+                                  newItem.countryId
+                                )
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new state &quot;{stateSearchAdd}&quot; and select
+                              Create new state &quot;{stateSearchAdd}&quot;
+                              (open modal)
                             </button>
                           </div>
                         )}
@@ -926,9 +1176,12 @@ const sortedRows = useMemo(() => {
                     type="button"
                     className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
                     onClick={() => {
-                      // if user wants to add state via modal, set default country
                       setStateFormName("");
-                      setStateEditData((p) => ({ ...p, countryId: newItem.countryId || "" }));
+                      setStateEditData((p) => ({
+                        ...p,
+                        countryId: newItem.countryId || "",
+                      }));
+                      setStateModalOrigin("add");
                       setAddStateModalOpen(true);
                     }}
                   >
@@ -937,14 +1190,18 @@ const sortedRows = useMemo(() => {
                 </div>
               </div>
 
-              {/* City (searchable + inline create + star modal) */}
+              {/* City (searchable + star modal) */}
               <div>
                 <label className="text-sm">City *</label>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="relative w-full" ref={addCityRef}>
                     <input
                       type="text"
-                      value={citySearchAdd || getCityName(newItem.cityId) || citySearchAdd}
+                      value={
+                        citySearchAdd ||
+                        getCityName(newItem.cityId) ||
+                        citySearchAdd
+                      }
                       onChange={(e) => {
                         setCitySearchAdd(e.target.value);
                         setCityDropdownOpenAdd(true);
@@ -974,10 +1231,18 @@ const sortedRows = useMemo(() => {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={handleInlineCreateCityFromAdd}
+                              onClick={() =>
+                                openAddCityModalFromDropdown(
+                                  "add",
+                                  citySearchAdd,
+                                  newItem.countryId,
+                                  newItem.stateId
+                                )
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new city &quot;{citySearchAdd}&quot; and select
+                              Create new city &quot;{citySearchAdd}&quot; (open
+                              modal)
                             </button>
                           </div>
                         )}
@@ -990,8 +1255,12 @@ const sortedRows = useMemo(() => {
                     className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
                     onClick={() => {
                       setCityFormName("");
-                      // set defaults for modal to newItem's country/state
-                      setCityEditData((p) => ({ ...p, countryId: newItem.countryId || "", stateId: newItem.stateId || "" }));
+                      setCityEditData((p) => ({
+                        ...p,
+                        countryId: newItem.countryId || "",
+                        stateId: newItem.stateId || "",
+                      }));
+                      setCityModalOrigin("add");
                       setAddCityModalOpen(true);
                     }}
                   >
@@ -1022,17 +1291,25 @@ const sortedRows = useMemo(() => {
                 <textarea
                   className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
                   value={newItem.address}
-                  onChange={(e) => setNewItem({ ...newItem, address: e.target.value })}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, address: e.target.value })
+                  }
                 />
               </div>
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2">
-              <button onClick={() => setModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
                 Cancel
               </button>
 
-              <button onClick={handleAdd} className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded">
+              <button
+                onClick={handleAdd}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
                 <Save size={16} /> Save
               </button>
             </div>
@@ -1045,7 +1322,9 @@ const sortedRows = useMemo(() => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Warehouse</h2>
+              <h2 className="text-lg font-semibold">
+                {editItem.isInactive ? "Restore Warehouse" : "Edit Warehouse"}
+              </h2>
               <button onClick={() => setEditModalOpen(false)}>
                 <X className="text-gray-300 hover:text-white" />
               </button>
@@ -1056,9 +1335,14 @@ const sortedRows = useMemo(() => {
               <div>
                 <label className="text-sm">Name *</label>
                 <input
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   value={editItem.name}
-                  onChange={(e) => setEditItem({ ...editItem, name: e.target.value })}
+                  onChange={(e) =>
+                    setEditItem({ ...editItem, name: e.target.value })
+                  }
+                  disabled={editItem.isInactive}
                 />
               </div>
 
@@ -1066,9 +1350,14 @@ const sortedRows = useMemo(() => {
               <div>
                 <label className="text-sm">Description</label>
                 <textarea
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   value={editItem.description}
-                  onChange={(e) => setEditItem({ ...editItem, description: e.target.value })}
+                  onChange={(e) =>
+                    setEditItem({ ...editItem, description: e.target.value })
+                  }
+                  disabled={editItem.isInactive}
                 />
               </div>
 
@@ -1079,7 +1368,11 @@ const sortedRows = useMemo(() => {
                   <div className="relative w-full" ref={editCountryRef}>
                     <input
                       type="text"
-                      value={countrySearchEdit || getCountryName(editItem.countryId) || countrySearchEdit}
+                      value={
+                        countrySearchEdit ||
+                        getCountryName(editItem.countryId) ||
+                        countrySearchEdit
+                      }
                       onChange={(e) => {
                         setCountrySearchEdit(e.target.value);
                         setCountryDropdownOpenEdit(true);
@@ -1087,6 +1380,7 @@ const sortedRows = useMemo(() => {
                       onFocus={() => setCountryDropdownOpenEdit(true)}
                       placeholder="Search or type to create..."
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+                      disabled={editItem.isInactive}
                     />
 
                     {countryDropdownOpenEdit && (
@@ -1099,7 +1393,7 @@ const sortedRows = useMemo(() => {
                                 setEditItem((p) => ({ ...p, countryId: c.id }));
                                 setCountryDropdownOpenEdit(false);
                                 setCountrySearchEdit("");
-                                loadStates();
+                                awaitLoadStatesForCountry(c.id);
                               }}
                               className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
                             >
@@ -1110,10 +1404,16 @@ const sortedRows = useMemo(() => {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={handleInlineCreateCountryFromEdit}
+                              onClick={() =>
+                                openAddCountryModalFromDropdown(
+                                  "edit",
+                                  countrySearchEdit
+                                )
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new country &quot;{countrySearchEdit}&quot; and select
+                              Create new country &quot;{countrySearchEdit}&quot;
+                              (open modal)
                             </button>
                           </div>
                         )}
@@ -1123,13 +1423,16 @@ const sortedRows = useMemo(() => {
 
                   <button
                     type="button"
-                    className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                    className={`p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition ${
+                      editItem.isInactive ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     onClick={() => {
                       const id = editItem.countryId;
                       const name = getCountryName(id);
                       setCountryEditData({ id: id || "", name: name || "" });
                       setEditCountryModalOpen(true);
                     }}
+                    disabled={editItem.isInactive}
                   >
                     <Pencil size={18} className="text-blue-400" />
                   </button>
@@ -1143,7 +1446,11 @@ const sortedRows = useMemo(() => {
                   <div className="relative w-full" ref={editStateRef}>
                     <input
                       type="text"
-                      value={stateSearchEdit || getStateName(editItem.stateId) || stateSearchEdit}
+                      value={
+                        stateSearchEdit ||
+                        getStateName(editItem.stateId) ||
+                        stateSearchEdit
+                      }
                       onChange={(e) => {
                         setStateSearchEdit(e.target.value);
                         setStateDropdownOpenEdit(true);
@@ -1151,6 +1458,7 @@ const sortedRows = useMemo(() => {
                       onFocus={() => setStateDropdownOpenEdit(true)}
                       placeholder="Search or type to create..."
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+                      disabled={editItem.isInactive}
                     />
 
                     {stateDropdownOpenEdit && (
@@ -1173,10 +1481,17 @@ const sortedRows = useMemo(() => {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={handleInlineCreateStateFromEdit}
+                              onClick={() =>
+                                openAddStateModalFromDropdown(
+                                  "edit",
+                                  stateSearchEdit,
+                                  editItem.countryId
+                                )
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new state &quot;{stateSearchEdit}&quot; and select
+                              Create new state &quot;{stateSearchEdit}&quot;
+                              (open modal)
                             </button>
                           </div>
                         )}
@@ -1186,11 +1501,18 @@ const sortedRows = useMemo(() => {
 
                   <button
                     type="button"
-                    className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                    className={`p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition ${
+                      editItem.isInactive ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     onClick={() => {
-                      setStateEditData({ id: "", name: "", countryId: editItem.countryId || "" });
+                      setStateEditData({
+                        id: "",
+                        name: "",
+                        countryId: editItem.countryId || "",
+                      });
                       setEditStateModalOpen(true);
                     }}
+                    disabled={editItem.isInactive}
                   >
                     <Pencil size={18} className="text-blue-400" />
                   </button>
@@ -1204,7 +1526,11 @@ const sortedRows = useMemo(() => {
                   <div className="relative w-full" ref={editCityRef}>
                     <input
                       type="text"
-                      value={citySearchEdit || getCityName(editItem.cityId) || citySearchEdit}
+                      value={
+                        citySearchEdit ||
+                        getCityName(editItem.cityId) ||
+                        citySearchEdit
+                      }
                       onChange={(e) => {
                         setCitySearchEdit(e.target.value);
                         setCityDropdownOpenEdit(true);
@@ -1212,6 +1538,7 @@ const sortedRows = useMemo(() => {
                       onFocus={() => setCityDropdownOpenEdit(true)}
                       placeholder="Search or type to create..."
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+                      disabled={editItem.isInactive}
                     />
 
                     {cityDropdownOpenEdit && (
@@ -1234,10 +1561,18 @@ const sortedRows = useMemo(() => {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={handleInlineCreateCityFromEdit}
+                              onClick={() =>
+                                openAddCityModalFromDropdown(
+                                  "edit",
+                                  citySearchEdit,
+                                  editItem.countryId,
+                                  editItem.stateId
+                                )
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new city &quot;{citySearchEdit}&quot; and select
+                              Create new city &quot;{citySearchEdit}&quot; (open
+                              modal)
                             </button>
                           </div>
                         )}
@@ -1247,11 +1582,19 @@ const sortedRows = useMemo(() => {
 
                   <button
                     type="button"
-                    className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                    className={`p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition ${
+                      editItem.isInactive ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     onClick={() => {
-                      setCityEditData({ id: "", name: "", countryId: editItem.countryId || "", stateId: editItem.stateId || "" });
+                      setCityEditData({
+                        id: "",
+                        name: "",
+                        countryId: editItem.countryId || "",
+                        stateId: editItem.stateId || "",
+                      });
                       setEditCityModalOpen(true);
                     }}
+                    disabled={editItem.isInactive}
                   >
                     <Pencil size={18} className="text-blue-400" />
                   </button>
@@ -1262,10 +1605,15 @@ const sortedRows = useMemo(() => {
               <div>
                 <label className="text-sm">Phone</label>
                 <input
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   value={editItem.phone}
-                  onChange={(e) => setEditItem({ ...editItem, phone: e.target.value })}
+                  onChange={(e) =>
+                    setEditItem({ ...editItem, phone: e.target.value })
+                  }
                   maxLength={16}
+                  disabled={editItem.isInactive}
                 />
               </div>
 
@@ -1273,25 +1621,50 @@ const sortedRows = useMemo(() => {
               <div>
                 <label className="text-sm">Address</label>
                 <textarea
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   value={editItem.address}
-                  onChange={(e) => setEditItem({ ...editItem, address: e.target.value })}
+                  onChange={(e) =>
+                    setEditItem({ ...editItem, address: e.target.value })
+                  }
+                  disabled={editItem.isInactive}
                 />
               </div>
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={handleDelete} className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900">
-                <Trash2 size={16} /> Delete
-              </button>
+              {editItem.isInactive ? (
+                <button
+                  onClick={handleRestore}
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
 
               <div className="flex gap-2">
-                <button onClick={() => setEditModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
+                <button
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+                >
                   Cancel
                 </button>
-                <button onClick={handleUpdate} className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded">
-                  <Save size={16} /> Save
-                </button>
+                {!editItem.isInactive && (
+                  <button
+                    onClick={handleUpdate}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+                  >
+                    <Save size={16} /> Save
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1304,7 +1677,14 @@ const sortedRows = useMemo(() => {
           <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Country</h2>
-              <button onClick={() => setAddCountryModalOpen(false)} className="text-gray-300 hover:text-white">
+              <button
+                onClick={() => {
+                  setAddCountryModalOpen(false);
+                  setCountryModalOrigin(null);
+                  setCountryFormName("");
+                }}
+                className="text-gray-300 hover:text-white"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1336,8 +1716,13 @@ const sortedRows = useMemo(() => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Country ({countryEditData.name})</h2>
-              <button onClick={() => setEditCountryModalOpen(false)} className="text-gray-300 hover:text-white">
+              <h2 className="text-lg font-semibold">
+                Edit Country ({countryEditData.name})
+              </h2>
+              <button
+                onClick={() => setEditCountryModalOpen(false)}
+                className="text-gray-300 hover:text-white"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1347,7 +1732,9 @@ const sortedRows = useMemo(() => {
               <input
                 type="text"
                 value={countryEditData.name}
-                onChange={(e) => setCountryEditData((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setCountryEditData((p) => ({ ...p, name: e.target.value }))
+                }
                 placeholder="Enter country name"
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
@@ -1371,7 +1758,14 @@ const sortedRows = useMemo(() => {
           <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New State</h2>
-              <button onClick={() => setAddStateModalOpen(false)} className="text-gray-300 hover:text-white">
+              <button
+                onClick={() => {
+                  setAddStateModalOpen(false);
+                  setStateModalOrigin(null);
+                  setStateFormName("");
+                }}
+                className="text-gray-300 hover:text-white"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1389,7 +1783,9 @@ const sortedRows = useMemo(() => {
               <label className="block text-sm mb-1">Country *</label>
               <select
                 value={stateEditData.countryId}
-                onChange={(e) => setStateEditData((p) => ({ ...p, countryId: e.target.value }))}
+                onChange={(e) =>
+                  setStateEditData((p) => ({ ...p, countryId: e.target.value }))
+                }
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
                 <option value="">Select Country</option>
@@ -1417,8 +1813,13 @@ const sortedRows = useMemo(() => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit State ({stateEditData.name})</h2>
-              <button onClick={() => setEditStateModalOpen(false)} className="text-gray-300 hover:text-white">
+              <h2 className="text-lg font-semibold">
+                Edit State ({stateEditData.name})
+              </h2>
+              <button
+                onClick={() => setEditStateModalOpen(false)}
+                className="text-gray-303 hover:text-white"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1428,7 +1829,9 @@ const sortedRows = useMemo(() => {
               <input
                 type="text"
                 value={stateEditData.name}
-                onChange={(e) => setStateEditData((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setStateEditData((p) => ({ ...p, name: e.target.value }))
+                }
                 placeholder="Enter state name"
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
@@ -1436,7 +1839,9 @@ const sortedRows = useMemo(() => {
               <label className="block text-sm mb-1">Country *</label>
               <select
                 value={stateEditData.countryId}
-                onChange={(e) => setStateEditData((p) => ({ ...p, countryId: e.target.value }))}
+                onChange={(e) =>
+                  setStateEditData((p) => ({ ...p, countryId: e.target.value }))
+                }
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
                 <option value="">Select Country</option>
@@ -1466,7 +1871,14 @@ const sortedRows = useMemo(() => {
           <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New City</h2>
-              <button onClick={() => setAddCityModalOpen(false)} className="text-gray-300 hover:text-white">
+              <button
+                onClick={() => {
+                  setAddCityModalOpen(false);
+                  setCityModalOrigin(null);
+                  setCityFormName("");
+                }}
+                className="text-gray-300 hover:text-white"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1484,7 +1896,9 @@ const sortedRows = useMemo(() => {
               <label className="block text-sm mb-1">Country *</label>
               <select
                 value={cityEditData.countryId}
-                onChange={(e) => setCityEditData((p) => ({ ...p, countryId: e.target.value }))}
+                onChange={(e) =>
+                  setCityEditData((p) => ({ ...p, countryId: e.target.value }))
+                }
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
                 <option value="">Select Country</option>
@@ -1498,12 +1912,18 @@ const sortedRows = useMemo(() => {
               <label className="block text-sm mb-1">State *</label>
               <select
                 value={cityEditData.stateId}
-                onChange={(e) => setCityEditData((p) => ({ ...p, stateId: e.target.value }))}
+                onChange={(e) =>
+                  setCityEditData((p) => ({ ...p, stateId: e.target.value }))
+                }
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
                 <option value="">Select State</option>
                 {states
-                  .filter((s) => !cityEditData.countryId || String(s.countryId) === String(cityEditData.countryId))
+                  .filter(
+                    (s) =>
+                      !cityEditData.countryId ||
+                      String(s.countryId) === String(cityEditData.countryId)
+                  )
                   .map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -1528,8 +1948,13 @@ const sortedRows = useMemo(() => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit City ({cityEditData.name})</h2>
-              <button onClick={() => setEditCityModalOpen(false)} className="text-gray-300 hover:text-white">
+              <h2 className="text-lg font-semibold">
+                Edit City ({cityEditData.name})
+              </h2>
+              <button
+                onClick={() => setEditCityModalOpen(false)}
+                className="text-gray-300 hover:text-white"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1539,7 +1964,9 @@ const sortedRows = useMemo(() => {
               <input
                 type="text"
                 value={cityEditData.name}
-                onChange={(e) => setCityEditData((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setCityEditData((p) => ({ ...p, name: e.target.value }))
+                }
                 placeholder="Enter city name"
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
@@ -1547,7 +1974,9 @@ const sortedRows = useMemo(() => {
               <label className="block text-sm mb-1">Country *</label>
               <select
                 value={cityEditData.countryId}
-                onChange={(e) => setCityEditData((p) => ({ ...p, countryId: e.target.value }))}
+                onChange={(e) =>
+                  setCityEditData((p) => ({ ...p, countryId: e.target.value }))
+                }
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
                 <option value="">Select Country</option>
@@ -1561,12 +1990,18 @@ const sortedRows = useMemo(() => {
               <label className="block text-sm mb-1">State *</label>
               <select
                 value={cityEditData.stateId}
-                onChange={(e) => setCityEditData((p) => ({ ...p, stateId: e.target.value }))}
+                onChange={(e) =>
+                  setCityEditData((p) => ({ ...p, stateId: e.target.value }))
+                }
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
                 <option value="">Select State</option>
                 {states
-                  .filter((s) => !cityEditData.countryId || String(s.countryId) === String(cityEditData.countryId))
+                  .filter(
+                    (s) =>
+                      !cityEditData.countryId ||
+                      String(s.countryId) === String(cityEditData.countryId)
+                  )
                   .map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -1616,9 +2051,20 @@ const sortedRows = useMemo(() => {
                     .filter((col) => tempVisibleColumns[col])
                     .filter((col) => col.includes(columnSearch))
                     .map((col) => (
-                      <div className="bg-gray-800 px-3 py-2 rounded flex justify-between" key={col}>
+                      <div
+                        className="bg-gray-800 px-3 py-2 rounded flex justify-between"
+                        key={col}
+                      >
                         <span>{col.toUpperCase()}</span>
-                        <button className="text-red-400" onClick={() => setTempVisibleColumns((p) => ({ ...p, [col]: false }))}>
+                        <button
+                          className="text-red-400"
+                          onClick={() =>
+                            setTempVisibleColumns((p) => ({
+                              ...p,
+                              [col]: false,
+                            }))
+                          }
+                        >
                           ✕
                         </button>
                       </div>
@@ -1633,9 +2079,20 @@ const sortedRows = useMemo(() => {
                     .filter((col) => !tempVisibleColumns[col])
                     .filter((col) => col.includes(columnSearch))
                     .map((col) => (
-                      <div className="bg-gray-800 px-3 py-2 rounded flex justify-between" key={col}>
+                      <div
+                        className="bg-gray-800 px-3 py-2 rounded flex justify-between"
+                        key={col}
+                      >
                         <span>{col.toUpperCase()}</span>
-                        <button className="text-green-400" onClick={() => setTempVisibleColumns((p) => ({ ...p, [col]: true }))}>
+                        <button
+                          className="text-green-400"
+                          onClick={() =>
+                            setTempVisibleColumns((p) => ({
+                              ...p,
+                              [col]: true,
+                            }))
+                          }
+                        >
                           ➕
                         </button>
                       </div>
@@ -1645,12 +2102,18 @@ const sortedRows = useMemo(() => {
             </div>
 
             <div className="sticky bottom-0 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={() => setTempVisibleColumns(defaultColumns)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
+              <button
+                onClick={() => setTempVisibleColumns(defaultColumns)}
+                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
                 Restore Defaults
               </button>
 
               <div className="flex gap-3">
-                <button onClick={() => setColumnModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
+                <button
+                  onClick={() => setColumnModalOpen(false)}
+                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+                >
                   Cancel
                 </button>
 
@@ -1673,69 +2136,6 @@ const sortedRows = useMemo(() => {
       <div className="p-4 sm:p-6 text-white min-h-[calc(100vh-64px)] bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col">
         <h2 className="text-2xl font-semibold mb-4">Warehouses</h2>
 
-        {/* FILTER BAR */}
-        <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {/* Country filter */}
-          <select
-            value={filterCountry}
-            onChange={(e) => {
-              setFilterCountry(e.target.value);
-              setFilterState("");
-              setFilterCity("");
-            }}
-            className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
-          >
-            <option value="">Filter by Country</option>
-            {countries.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-
-          {/* State filter */}
-          <select
-            value={filterState}
-            onChange={(e) => {
-              setFilterState(e.target.value);
-              setFilterCity("");
-            }}
-            className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
-          >
-            <option value="">Filter by State</option>
-            {states
-              .filter((s) => !filterCountry || String(s.countryId) === String(filterCountry))
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-          </select>
-
-          {/* City filter */}
-          <select value={filterCity} onChange={(e) => setFilterCity(e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm">
-            <option value="">Filter by City</option>
-            {cities
-              .filter((c) => !filterState || String(c.stateId) === String(filterState))
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
-
-          <button
-            onClick={() => {
-              setFilterCountry("");
-              setFilterState("");
-              setFilterCity("");
-            }}
-            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm"
-          >
-            Clear Filters
-          </button>
-        </div>
-
         {/* ACTION BAR */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
@@ -1748,7 +2148,10 @@ const sortedRows = useMemo(() => {
             />
           </div>
 
-          <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
+          >
             <Plus size={16} /> New Warehouse
           </button>
 
@@ -1756,138 +2159,378 @@ const sortedRows = useMemo(() => {
             onClick={() => {
               setSearchText("");
               loadRows();
+              if (showInactive) loadInactiveRows();
             }}
             className="p-2 bg-gray-700 border border-gray-600 rounded"
           >
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
-          <button onClick={openColumnPicker} className="p-2 bg-gray-700 border border-gray-600 rounded">
+          <button
+            onClick={openColumnPicker}
+            className="p-2 bg-gray-700 border border-gray-600 rounded"
+          >
             <List size={16} className="text-blue-300" />
+          </button>
+
+          {/* Active/Inactive toggle */}
+          <button
+            onClick={async () => {
+              if (!showInactive) await loadInactiveRows();
+              setShowInactive((s) => !s);
+            }}
+            className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
+          >
+            <ArchiveRestore size={16} className="text-yellow-300" />
+            <span className="text-xs opacity-80">Inactive</span>
           </button>
         </div>
 
+        
+
+                    {/* FILTER BAR */}
+        <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
+          {/* Country filter (searchable) */}
+          <div className="relative w-48" ref={filterCountryRef}>
+            <input
+              type="text"
+              value={
+                countrySearchFilter ||
+                getCountryName(filterCountry) ||
+                countrySearchFilter
+              }
+              onChange={(e) => {
+                setCountrySearchFilter(e.target.value);
+                setCountryDropdownOpenFilter(true);
+              }}
+              onFocus={() => setCountryDropdownOpenFilter(true)}
+              placeholder="Filter by Country..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+            {countryDropdownOpenFilter && (
+              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
+                {filteredCountriesFilter.length > 0 ? (
+                  filteredCountriesFilter.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setFilterCountry(c.id);
+                        setCountryDropdownOpenFilter(false);
+                        setCountrySearchFilter("");
+                        setFilterState("");
+                        setFilterCity("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {c.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm">
+                    <div className="mb-2 text-gray-300">No matches</div>
+                    <button
+                      onClick={() => {
+                        setCountryFormName(countrySearchFilter);
+                        setCountryModalOrigin("filter");
+                        setAddCountryModalOpen(true);
+                        setCountryDropdownOpenFilter(false);
+                      }}
+                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
+                    >
+                      Create new country &quot;{countrySearchFilter}&quot; (open
+                      modal)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* State filter */}
+          <div className="relative w-48" ref={filterStateRef}>
+            <input
+              type="text"
+              value={
+                stateSearchFilter ||
+                getStateName(filterState) ||
+                stateSearchFilter
+              }
+              onChange={(e) => {
+                setStateSearchFilter(e.target.value);
+                setStateDropdownOpenFilter(true);
+              }}
+              onFocus={() => setStateDropdownOpenFilter(true)}
+              placeholder="Filter by State..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+            {stateDropdownOpenFilter && (
+              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
+                {filteredStatesFilter.length > 0 ? (
+                  filteredStatesFilter.map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => {
+                        setFilterState(s.id);
+                        setStateDropdownOpenFilter(false);
+                        setStateSearchFilter("");
+                        setFilterCity("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {s.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm">
+                    <div className="mb-2 text-gray-300">No matches</div>
+                    <button
+                      onClick={() => {
+                        setStateFormName(stateSearchFilter);
+                        setStateEditData((p) => ({
+                          ...p,
+                          countryId: filterCountry || "",
+                        }));
+                        setStateModalOrigin("filter");
+                        setAddStateModalOpen(true);
+                        setStateDropdownOpenFilter(false);
+                      }}
+                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
+                    >
+                      Create new state &quot;{stateSearchFilter}&quot; (open
+                      modal)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* City filter */}
+          <div className="relative w-48" ref={filterCityRef}>
+            <input
+              type="text"
+              value={
+                citySearchFilter || getCityName(filterCity) || citySearchFilter
+              }
+              onChange={(e) => {
+                setCitySearchFilter(e.target.value);
+                setCityDropdownOpenFilter(true);
+              }}
+              onFocus={() => setCityDropdownOpenFilter(true)}
+              placeholder="Filter by City..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+            {cityDropdownOpenFilter && (
+              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
+                {filteredCitiesFilter.length > 0 ? (
+                  filteredCitiesFilter.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setFilterCity(c.id);
+                        setCityDropdownOpenFilter(false);
+                        setCitySearchFilter("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {c.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm">
+                    <div className="mb-2 text-gray-300">No matches</div>
+                    <button
+                      onClick={() => {
+                        setCityFormName(citySearchFilter);
+                        setCityEditData((p) => ({
+                          ...p,
+                          countryId: filterCountry || "",
+                          stateId: filterState || "",
+                        }));
+                        setCityModalOrigin("filter");
+                        setAddCityModalOpen(true);
+                        setCityDropdownOpenFilter(false);
+                      }}
+                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
+                    >
+                      Create new city &quot;{citySearchFilter}&quot; (open
+                      modal)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              setFilterCountry("");
+              setFilterState("");
+              setFilterCity("");
+            }}
+            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm"
+          >
+            Clear Filters
+          </button>
+        </div>
+        
         {/* TABLE */}
         <div className="flex-grow overflow-auto w-full min-h-0">
-  <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-auto">
+            <table className="w-[1000px] table-fixed border-separate border-spacing-y-1 text-sm">
+              <colgroup>
+                {visibleColumns.id && <col className="w-[70px]" />}
+                {visibleColumns.name && <col className="w-[160px]" />}
+                {visibleColumns.description && <col className="w-[200px]" />}
+                {visibleColumns.country && <col className="w-[140px]" />}
+                {visibleColumns.state && <col className="w-[140px]" />}
+                {visibleColumns.city && <col className="w-[140px]" />}
+                {visibleColumns.phone && <col className="w-[120px]" />}
+                {visibleColumns.address && <col className="w-[230px]" />}
+              </colgroup>
 
-    <table className="w-[1000px] table-fixed border-separate border-spacing-y-1 text-sm">
+              {/* HEADER */}
+              <thead className="sticky top-0 bg-gray-900 z-10">
+                <tr className="text-white text-center">
+                  {visibleColumns.id && (
+                    <SortableHeader
+                      label="ID"
+                      sortOrder={sortOrder}
+                      onClick={() =>
+                        setSortOrder((prev) => (prev === "asc" ? null : "asc"))
+                      }
+                    />
+                  )}
 
-      <colgroup>
-        {visibleColumns.id && <col className="w-[70px]" />}
-        {visibleColumns.name && <col className="w-[160px]" />}
-        {visibleColumns.description && <col className="w-[200px]" />}
-        {visibleColumns.country && <col className="w-[140px]" />}
-        {visibleColumns.state && <col className="w-[140px]" />}
-        {visibleColumns.city && <col className="w-[140px]" />}
-        {visibleColumns.phone && <col className="w-[120px]" />}
-        {visibleColumns.address && <col className="w-[230px]" />}
-      </colgroup>
+                  {visibleColumns.name && (
+                    <th className="pb-2 border-b border-white">Name</th>
+                  )}
 
-      {/* HEADER */}
-      <thead className="sticky top-0 bg-gray-900 z-10">
-        <tr className="text-white text-center">
+                  {visibleColumns.description && (
+                    <th className="pb-2 border-b border-white">Description</th>
+                  )}
 
-          {visibleColumns.id && (
-            <SortableHeader
-              label="ID"
-              sortOrder={sortOrder}
-              onClick={() =>
-                setSortOrder(prev => (prev === "asc" ? null : "asc"))
-              }
-            />
-          )}
+                  {visibleColumns.country && (
+                    <th className="pb-2 border-b border-white">Country</th>
+                  )}
 
-          {visibleColumns.name && (
-            <th className="pb-2 border-b border-white">Name</th>
-          )}
+                  {visibleColumns.state && (
+                    <th className="pb-2 border-b border-white">State</th>
+                  )}
 
-          {visibleColumns.description && (
-            <th className="pb-2 border-b border-white">Description</th>
-          )}
+                  {visibleColumns.city && (
+                    <th className="pb-2 border-b border-white">City</th>
+                  )}
 
-          {visibleColumns.country && (
-            <th className="pb-2 border-b border-white">Country</th>
-          )}
+                  {visibleColumns.phone && (
+                    <th className="pb-2 border-b border-white">Phone</th>
+                  )}
 
-          {visibleColumns.state && (
-            <th className="pb-2 border-b border-white">State</th>
-          )}
+                  {visibleColumns.address && (
+                    <th className="pb-2 border-b border-white">Address</th>
+                  )}
+                </tr>
+              </thead>
 
-          {visibleColumns.city && (
-            <th className="pb-2 border-b border-white">City</th>
-          )}
+              {/* BODY */}
+              <tbody className="text-center">
+                {/* No records at all */}
+                {sortedRows.length === 0 && inactiveRows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={
+                        Object.values(visibleColumns).filter(Boolean).length
+                      }
+                      className="px-4 py-6 text-center text-gray-400"
+                    >
+                      No records found
+                    </td>
+                  </tr>
+                )}
 
-          {visibleColumns.phone && (
-            <th className="pb-2 border-b border-white">Phone</th>
-          )}
+                {/* ACTIVE ROWS */}
+                {sortedRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                    onClick={() => openEdit(row, false)}
+                  >
+                    {visibleColumns.id && (
+                      <td className="px-2 py-3 align-middle">{row.id}</td>
+                    )}
+                    {visibleColumns.name && (
+                      <td className="px-2 py-3 align-middle">{row.name}</td>
+                    )}
+                    {visibleColumns.description && (
+                      <td className="px-2 py-3 align-middle">
+                        {row.description}
+                      </td>
+                    )}
+                    {visibleColumns.country && (
+                      <td className="px-2 py-3 align-middle">
+                        {row.countryName}
+                      </td>
+                    )}
+                    {visibleColumns.state && (
+                      <td className="px-2 py-3 align-middle">
+                        {row.stateName}
+                      </td>
+                    )}
+                    {visibleColumns.city && (
+                      <td className="px-2 py-3 align-middle">{row.cityName}</td>
+                    )}
+                    {visibleColumns.phone && (
+                      <td className="px-2 py-3 align-middle">{row.phone}</td>
+                    )}
+                    {visibleColumns.address && (
+                      <td className="px-2 py-3 align-middle">{row.address}</td>
+                    )}
+                  </tr>
+                ))}
 
-          {visibleColumns.address && (
-            <th className="pb-2 border-b border-white">Address</th>
-          )}
-
-        </tr>
-      </thead>
-
-      {/* BODY */}
-      <tbody className="text-center">
-        {sortedRows.length === 0 && (
-          <tr>
-            <td
-              colSpan={Object.values(visibleColumns).filter(Boolean).length}
-              className="px-4 py-6 text-center text-gray-400"
-            >
-              No records found
-            </td>
-          </tr>
-        )}
-
-        {sortedRows.map((row) => (
-          <tr
-            key={row.id}
-            className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-            onClick={() => openEdit(row)}
-          >
-            {visibleColumns.id && (
-              <td className="px-2 py-3 align-middle">{row.id}</td>
-            )}
-
-            {visibleColumns.name && (
-              <td className="px-2 py-3 align-middle">{row.name}</td>
-            )}
-
-            {visibleColumns.description && (
-              <td className="px-2 py-3 align-middle">{row.description}</td>
-            )}
-
-            {visibleColumns.country && (
-              <td className="px-2 py-3 align-middle">{row.countryName}</td>
-            )}
-
-            {visibleColumns.state && (
-              <td className="px-2 py-3 align-middle">{row.stateName}</td>
-            )}
-
-            {visibleColumns.city && (
-              <td className="px-2 py-3 align-middle">{row.cityName}</td>
-            )}
-
-            {visibleColumns.phone && (
-              <td className="px-2 py-3 align-middle">{row.phone}</td>
-            )}
-
-            {visibleColumns.address && (
-              <td className="px-2 py-3 align-middle">{row.address}</td>
-            )}
-          </tr>
-        ))}
-      </tbody>
-
-    </table>
-
-  </div>
-</div>
-
+                {/* INACTIVE ROWS (inside same table) */}
+                {inactiveRows.map((row) => (
+                  <tr
+                    key={`inactive-${row.id}`}
+                    className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
+                    onClick={() => openEdit(row, true)}
+                  >
+                    {visibleColumns.id && (
+                      <td className="px-2 py-3 align-middle">{row.id}</td>
+                    )}
+                    {visibleColumns.name && (
+                      <td className="px-2 py-3 align-middle">{row.name}</td>
+                    )}
+                    {visibleColumns.description && (
+                      <td className="px-2 py-3 align-middle">
+                        {row.description}
+                      </td>
+                    )}
+                    {visibleColumns.country && (
+                      <td className="px-2 py-3 align-middle">
+                        {row.countryName}
+                      </td>
+                    )}
+                    {visibleColumns.state && (
+                      <td className="px-2 py-3 align-middle">
+                        {row.stateName}
+                      </td>
+                    )}
+                    {visibleColumns.city && (
+                      <td className="px-2 py-3 align-middle">{row.cityName}</td>
+                    )}
+                    {visibleColumns.phone && (
+                      <td className="px-2 py-3 align-middle">{row.phone}</td>
+                    )}
+                    {visibleColumns.address && (
+                      <td className="px-2 py-3 align-middle">{row.address}</td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* PAGINATION */}
         <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
@@ -1906,11 +2549,19 @@ const sortedRows = useMemo(() => {
             ))}
           </select>
 
-          <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage(1)}
+            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+          >
             <ChevronsLeft size={16} />
           </button>
 
-          <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+          >
             <ChevronLeft size={16} />
           </button>
 
@@ -1928,16 +2579,25 @@ const sortedRows = useMemo(() => {
 
           <span>/ {totalPages}</span>
 
-          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage(page + 1)}
+            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+          >
             <ChevronRight size={16} />
           </button>
 
-          <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage(totalPages)}
+            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+          >
             <ChevronsRight size={16} />
           </button>
 
           <span>
-            Showing <b>{Math.min(start, totalRecords)}</b> to <b>{end}</b> of <b>{totalRecords}</b> records
+            Showing <b>{Math.min(start, totalRecords)}</b> to <b>{end}</b> of{" "}
+            <b>{totalRecords}</b> records
           </span>
         </div>
       </div>
@@ -1946,4 +2606,3 @@ const sortedRows = useMemo(() => {
 };
 
 export default Warehouses;
-

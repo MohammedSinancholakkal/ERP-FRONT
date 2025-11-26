@@ -14,6 +14,7 @@ import {
   ChevronsRight,
   Star,
   Pencil,
+  ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -26,6 +27,9 @@ import {
   searchStateApi,
   addCountryApi,
   updateCountryApi,
+  // new services
+  getInactiveStatesApi,
+  restoreStateApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 
@@ -41,7 +45,11 @@ const States = () => {
 
   // data
   const [states, setStates] = useState([]);
+  const [inactiveStates, setInactiveStates] = useState([]);
   const [countries, setCountries] = useState([]);
+
+  // show inactive toggle
+  const [showInactive, setShowInactive] = useState(false);
 
   // PAGINATION
   const [page, setPage] = useState(1);
@@ -61,6 +69,7 @@ const States = () => {
     id: null,
     name: "",
     countryId: "",
+    isInactive: false,
   });
 
   // column picker
@@ -94,24 +103,18 @@ const States = () => {
   const [sortOrder, setSortOrder] = useState("asc"); // smallest ID first on load
 
   const sortedStates = [...states];
+  if (sortOrder === "asc") sortedStates.sort((a, b) => a.id - b.id);
 
-  if (sortOrder === "asc") {
-    sortedStates.sort((a, b) => a.id - b.id);
-  }
+  // callback when star modal creates a country (used by "no matches" suggestion)
+  const [countryModalCallback, setCountryModalCallback] = useState(null);
 
   // close dropdowns if click outside
   useEffect(() => {
     const onDocClick = (e) => {
-      if (
-        addDropdownRef.current &&
-        !addDropdownRef.current.contains(e.target)
-      ) {
+      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target)) {
         setCountryDropdownOpenAdd(false);
       }
-      if (
-        editDropdownRef.current &&
-        !editDropdownRef.current.contains(e.target)
-      ) {
+      if (editDropdownRef.current && !editDropdownRef.current.contains(e.target)) {
         setCountryDropdownOpenEdit(false);
       }
     };
@@ -122,10 +125,8 @@ const States = () => {
   // load countries
   const loadCountries = async () => {
     try {
-      // load many for dropdowns
-      const res = await getCountriesApi(1, 5000); // keep existing API shape
+      const res = await getCountriesApi(1, 5000); // large list for dropdowns
       if (res?.status === 200) {
-        // support both { data: { records: [...] } } and res.data being array
         const recs = res.data?.records ?? res.data ?? [];
         setCountries(recs);
         return recs;
@@ -141,15 +142,12 @@ const States = () => {
     }
   };
 
-  // load states (paginated)
+  // load states (paginated or search)
   const loadStates = async () => {
     try {
       if (searchText.trim()) {
         const res = await searchStateApi(searchText.trim());
-        // searchStates endpoint returns an array of records
-        const items = Array.isArray(res.data)
-          ? res.data
-          : res.data?.records || [];
+        const items = Array.isArray(res.data) ? res.data : res.data?.records || [];
         setStates(items);
         setTotalRecords(items.length);
         return;
@@ -159,6 +157,9 @@ const States = () => {
       if (res?.status === 200) {
         setStates(res.data.records || []);
         setTotalRecords(res.data.total || 0);
+      } else {
+        setStates([]);
+        setTotalRecords(0);
       }
     } catch (err) {
       console.error("Load States Error:", err);
@@ -166,9 +167,23 @@ const States = () => {
     }
   };
 
+  // load inactive states
+  const loadInactiveStates = async () => {
+    try {
+      const res = await getInactiveStatesApi();
+      if (res?.status === 200) {
+        setInactiveStates(res.data.records || res.data || []);
+      } else {
+        toast.error("Failed to load inactive states");
+      }
+    } catch (err) {
+      console.error("LOAD INACTIVE STATES ERROR:", err);
+      toast.error("Failed to load inactive states");
+    }
+  };
+
   const handleSearch = async (value) => {
     setSearchText(value);
-
     if (!value.trim()) {
       setPage(1);
       loadStates();
@@ -177,9 +192,7 @@ const States = () => {
 
     try {
       const res = await searchStateApi(value.trim());
-      const items = Array.isArray(res.data)
-        ? res.data
-        : res.data?.records || [];
+      const items = Array.isArray(res.data) ? res.data : res.data?.records || [];
       setStates(items);
       setTotalRecords(items.length);
     } catch (err) {
@@ -240,33 +253,33 @@ const States = () => {
     return false;
   };
 
-  // inline create from add dropdown
-  const handleInlineCreateFromAdd = async () => {
-    const name = countrySearchAdd.trim();
-    if (!name) return;
-    const created = await handleAddCountry(name);
-    if (created) {
-      setNewStateCountryId(created.id);
-      setCountrySearchAdd("");
-      setCountryDropdownOpenAdd(false);
-    }
-  };
-
-  // inline create from edit dropdown
-  const handleInlineCreateFromEdit = async () => {
-    const name = countrySearchEdit.trim();
-    if (!name) return;
-    const created = await handleAddCountry(name);
-    if (created) {
-      setEditStateData((p) => ({ ...p, countryId: created.id }));
-      setCountrySearchEdit("");
-      setCountryDropdownOpenEdit(false);
-    }
-  };
-
-  // star click -> open add country modal
+  // OPEN add-country modal via star button (no callback)
   const onStarClickOpenAddCountry = () => {
     setCountryFormName("");
+    setCountryModalCallback(null);
+    setAddCountryModalOpen(true);
+  };
+
+  // OPEN add-country modal from suggestion (NO MATCH) — set callback so created country is selected
+  const onSuggestionCreateCountryFromAdd = (suggestedName) => {
+    setCountryFormName(suggestedName);
+    setCountryModalCallback(() => (created) => {
+      if (!created) return;
+      setNewStateCountryId(created.id);
+      setCountryDropdownOpenAdd(false);
+      setCountrySearchAdd("");
+    });
+    setAddCountryModalOpen(true);
+  };
+
+  const onSuggestionCreateCountryFromEdit = (suggestedName) => {
+    setCountryFormName(suggestedName);
+    setCountryModalCallback(() => (created) => {
+      if (!created) return;
+      setEditStateData((p) => ({ ...p, countryId: created.id }));
+      setCountryDropdownOpenEdit(false);
+      setCountrySearchEdit("");
+    });
     setAddCountryModalOpen(true);
   };
 
@@ -277,19 +290,26 @@ const States = () => {
     const name = getCountryName(id);
     setCountryEditData({ id, name });
     setEditCountryModalOpen(true);
-    setEditCountryModalOpen && setEditCountryModalOpen(true); // keep consistent variable name
   };
 
-  // add country modal save
+  // add country modal save — calls callback if present
   const handleAddCountryModalSave = async () => {
     const name = countryFormName.trim();
     if (!name) return toast.error("Country name required");
     const created = await handleAddCountry(name);
     if (created) {
-      // if Add State modal is open, preselect the created country
-      if (modalOpen) setNewStateCountryId(created.id);
+      // call callback if present
+      if (typeof countryModalCallback === "function") {
+        try {
+          countryModalCallback(created);
+        } catch (e) {
+          console.error("countryModalCallback error:", e);
+        }
+      }
+      // cleanup
       setAddCountryModalOpen(false);
       setCountryFormName("");
+      setCountryModalCallback(null);
     }
   };
 
@@ -321,6 +341,7 @@ const States = () => {
         loadStates();
       }
     } catch (err) {
+      console.error("ADD STATE ERROR:", err);
       toast.error("Server error");
     }
   };
@@ -330,6 +351,7 @@ const States = () => {
       id: s.id,
       name: s.name,
       countryId: s.countryId,
+      isInactive: s.isInactive === true || s.isActive === 0 || false,
     });
     setEditModalOpen(true);
   };
@@ -350,6 +372,7 @@ const States = () => {
         loadStates();
       }
     } catch (err) {
+      console.error("UPDATE STATE ERROR:", err);
       toast.error("Server error");
     }
   };
@@ -367,6 +390,25 @@ const States = () => {
         loadStates();
       }
     } catch (err) {
+      console.error("DELETE STATE ERROR:", err);
+      toast.error("Server error");
+    }
+  };
+
+  // restore state
+  const handleRestoreState = async () => {
+    try {
+      const res = await restoreStateApi(editStateData.id, { userId: currentUserId });
+      if (res?.status === 200) {
+        toast.success("State restored");
+        setEditModalOpen(false);
+        await loadStates();
+        await loadInactiveStates();
+      } else {
+        toast.error("Restore failed");
+      }
+    } catch (err) {
+      console.error("RESTORE STATE ERROR:", err);
       toast.error("Server error");
     }
   };
@@ -452,11 +494,10 @@ const States = () => {
                         <div className="px-3 py-2 text-sm">
                           <div className="mb-2 text-gray-300">No matches</div>
                           <button
-                            onClick={handleInlineCreateFromAdd}
+                            onClick={() => onSuggestionCreateCountryFromAdd(countrySearchAdd)}
                             className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                           >
-                            Create new country &quot;{countrySearchAdd}&quot;
-                            and select
+                            Create new country "{countrySearchAdd}" — open create modal
                           </button>
                         </div>
                       )}
@@ -558,11 +599,10 @@ const States = () => {
                         <div className="px-3 py-2 text-sm">
                           <div className="mb-2 text-gray-300">No matches</div>
                           <button
-                            onClick={handleInlineCreateFromEdit}
+                            onClick={() => onSuggestionCreateCountryFromEdit(countrySearchEdit)}
                             className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                           >
-                            Create new country &quot;{countrySearchEdit}&quot;
-                            and select
+                            Create new country "{countrySearchEdit}" — open create modal
                           </button>
                         </div>
                       )}
@@ -588,12 +628,22 @@ const States = () => {
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={handleDeleteState}
-                className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded text-sm"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
+              {/* Delete or Restore depending on status */}
+              {!editStateData.isInactive ? (
+                <button
+                  onClick={handleDeleteState}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded text-sm"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              ) : (
+                <button
+                  onClick={handleRestoreState}
+                  className="flex items-center gap-2 bg-green-700 px-4 py-2 border border-green-900 rounded text-sm"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              )}
 
               <button
                 onClick={handleUpdateState}
@@ -699,14 +749,14 @@ const States = () => {
         </div>
       )}
 
-      {/* ADD COUNTRY MODAL (star) - uses same style as Countries page modal */}
+      {/* ADD COUNTRY MODAL (star) */}
       {addCountryModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Country</h2>
               <button
-                onClick={() => setAddCountryModalOpen(false)}
+                onClick={() => { setAddCountryModalOpen(false); setCountryModalCallback(null); }}
                 className="text-gray-300 hover:text-white"
               >
                 <X size={20} />
@@ -736,7 +786,7 @@ const States = () => {
         </div>
       )}
 
-      {/* EDIT COUNTRY MODAL (pencil) - matches Countries page edit modal */}
+      {/* EDIT COUNTRY MODAL (pencil) */}
       {editCountryModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
@@ -817,6 +867,18 @@ const States = () => {
             >
               <List className="text-blue-300" size={16} />
             </button>
+
+            {/* INACTIVE TOGGLE */}
+            <button
+              onClick={async () => {
+                if (!showInactive) await loadInactiveStates();
+                setShowInactive(!showInactive);
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm"
+            >
+              <ArchiveRestore size={16} className="text-yellow-300" />
+              {showInactive ? "Hide Inactive" : "Inactive"}
+            </button>
           </div>
 
           {/* TABLE */}
@@ -849,7 +911,7 @@ const States = () => {
               </thead>
 
               <tbody>
-                {sortedStates.length === 0 && (
+                {sortedStates.length === 0 && !showInactive && (
                   <tr>
                     <td
                       colSpan={
@@ -883,6 +945,36 @@ const States = () => {
                     )}
                   </tr>
                 ))}
+
+                {/* INACTIVE ROWS */}
+                {showInactive &&
+                  inactiveStates.map((s) => (
+                    <tr
+                      key={`inactive-${s.id}`}
+                      className="bg-gray-900/50 hover:bg-gray-700/50 cursor-pointer opacity-50"
+                      onClick={() =>
+                        openEditModal({ ...s, isInactive: true })
+                      }
+                    >
+                      {visibleColumns.id && (
+                        <td className="px-2 py-1 text-center line-through">
+                          {s.id}
+                        </td>
+                      )}
+
+                      {visibleColumns.name && (
+                        <td className="px-2 py-1 text-center line-through">
+                          {s.name}
+                        </td>
+                      )}
+
+                      {visibleColumns.country && (
+                        <td className="px-2 py-1 text-center line-through">
+                          {s.countryName || getCountryName(s.countryId)}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
