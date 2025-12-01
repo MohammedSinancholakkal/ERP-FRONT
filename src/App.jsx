@@ -28,6 +28,18 @@ import Units from "./pages/inventory/Units";
 import Brands from "./pages/inventory/Brands";
 import Categories from "./pages/inventory/Categories";
 import Products from "./pages/inventory/Products";
+import DamagedProducts from "./pages/inventory/DamagedProducts";
+import UpdateStocks from "./pages/inventory/UpdateStock";
+import Departments from "./pages/human resource/Departments";
+import Designations from "./pages/human resource/Designations";
+import NewEmployee from "./pages/human resource/NewEmployee";
+import UserManagement from "./pages/Administration/UserManagement"  ;
+import Roles from "./pages/Administration/Roles"  ;
+import Currencies from "./pages/Administration/Currencies"  ;
+import Languages from "./pages/Administration/Languages"  ;
+import Expenses from "./pages/Cash Bank/Expenses"  ;
+import Customers from "./pages/business partners/Customers"  ;
+import Suppliers from "./pages/business partners/Suppliers"  ;
 
 function App() {
   return (
@@ -70,9 +82,32 @@ function App() {
           <Route path="inventory/brands" element={<Brands />} />
           <Route path="inventory/categories" element={<Categories />} />
           <Route path="inventory/products" element={<Products />} />
+          <Route path="inventory/updatestock" element={<UpdateStocks />} />
+          <Route path="inventory/damagedproducts" element={<DamagedProducts />} />
 
 
 
+          {/* human resource */}
+
+          <Route path="hr/departments" element={<Departments />} />
+          <Route path="hr/designations" element={<Designations />} />
+          <Route path="hr/newemployee" element={<NewEmployee />} />
+
+
+        {/* administration */}
+        <Route path="administration/usermanagement" element={<UserManagement />} />
+        <Route path="administration/roles" element={<Roles />} />
+        <Route path="administration/currencies" element={<Currencies />} />
+        <Route path="administration/language" element={<Languages />} />
+
+        {/* cash/bank */}
+        <Route path="cashbank/expenses" element={<Expenses />} />
+
+
+
+        {/* business partners */}
+        <Route path="businesspartners/customers" element={<Customers />} />
+        <Route path="businesspartners/suppliers" element={<Suppliers />} />
 
         </Route>
       </Routes>

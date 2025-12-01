@@ -1,5 +1,5 @@
 // src/pages/masters/Locations.jsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -14,6 +14,7 @@ import {
   ChevronsRight,
   Star,
   Pencil,
+  ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -33,102 +34,70 @@ import {
   getCitiesApi,
   addCityApi,
   updateCityApi,
+  // new
+  getInactiveLocationsApi,
+  restoreLocationApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 
 const Locations = () => {
-  // UI states
+  // ================================
+  // UI STATES
+  // ================================
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   // Data
   const [rows, setRows] = useState([]);
+  const [inactiveRows, setInactiveRows] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
+
   const [searchText, setSearchText] = useState("");
 
-  // Filtering
+  // Filters (searchable)
   const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterCity, setFilterCity] = useState("");
 
-  // Dropdown data
+  // Dropdowns (arrays)
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
 
-  // User
-  const user = JSON.parse(localStorage.getItem("user")) || null;
-  const currentUserId = user?.userId || 1;
-
-  // Add form
-  const [newItem, setNewItem] = useState({
-    name: "",
-    countryId: "",
-    stateId: "",
-    cityId: "",
-    address: "",
-    latitude: "",
-    longitude: "",
-  });
-
-  // Edit form
-  const [editItem, setEditItem] = useState({
-    id: null,
-    name: "",
-    countryId: "",
-    stateId: "",
-    cityId: "",
-    address: "",
-    latitude: "",
-    longitude: "",
-  });
-
-  // Column picker
-  const defaultColumns = {
-    id: true,
-    name: true,
-    country: true,
-    state: true,
-    city: true,
-    address: true,
-    latitude: true,
-    longitude: true,
-  };
-
-  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
-  const [columnSearch, setColumnSearch] = useState("");
-
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-  const [totalRecords, setTotalRecords] = useState(0);
-
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
-
-  // Searchable dropdown helpers (add/edit)
+  // searchable dropdown helpers for add/edit/filter
   const [countryDropdownOpenAdd, setCountryDropdownOpenAdd] = useState(false);
   const [countryDropdownOpenEdit, setCountryDropdownOpenEdit] = useState(false);
+  const [countryDropdownOpenFilter, setCountryDropdownOpenFilter] =
+    useState(false);
   const [countrySearchAdd, setCountrySearchAdd] = useState("");
   const [countrySearchEdit, setCountrySearchEdit] = useState("");
+  const [countrySearchFilter, setCountrySearchFilter] = useState("");
   const countryAddRef = useRef(null);
   const countryEditRef = useRef(null);
+  const filterCountryRef = useRef(null);
 
   const [stateDropdownOpenAdd, setStateDropdownOpenAdd] = useState(false);
   const [stateDropdownOpenEdit, setStateDropdownOpenEdit] = useState(false);
+  const [stateDropdownOpenFilter, setStateDropdownOpenFilter] =
+    useState(false);
   const [stateSearchAdd, setStateSearchAdd] = useState("");
   const [stateSearchEdit, setStateSearchEdit] = useState("");
+  const [stateSearchFilter, setStateSearchFilter] = useState("");
   const stateAddRef = useRef(null);
   const stateEditRef = useRef(null);
+  const filterStateRef = useRef(null);
 
   const [cityDropdownOpenAdd, setCityDropdownOpenAdd] = useState(false);
   const [cityDropdownOpenEdit, setCityDropdownOpenEdit] = useState(false);
+  const [cityDropdownOpenFilter, setCityDropdownOpenFilter] =
+    useState(false);
   const [citySearchAdd, setCitySearchAdd] = useState("");
   const [citySearchEdit, setCitySearchEdit] = useState("");
+  const [citySearchFilter, setCitySearchFilter] = useState("");
   const cityAddRef = useRef(null);
   const cityEditRef = useRef(null);
+  const filterCityRef = useRef(null);
 
   // Country/State/City modals (star/pencil)
   const [addCountryModalOpen, setAddCountryModalOpen] = useState(false);
@@ -155,73 +124,162 @@ const Locations = () => {
     stateId: "",
   });
 
-  // Close dropdowns if click outside
+  // origins for modals: "add", "edit", "filter"
+  const [countryModalOrigin, setCountryModalOrigin] = useState(null);
+  const [stateModalOrigin, setStateModalOrigin] = useState(null);
+  const [cityModalOrigin, setCityModalOrigin] = useState(null);
+
+  // close dropdowns on outside click
   useEffect(() => {
     const onDocClick = (e) => {
-      if (countryAddRef.current && !countryAddRef.current.contains(e.target))
+      if (countryAddRef.current && !countryAddRef.current.contains(e.target)) {
         setCountryDropdownOpenAdd(false);
-      if (countryEditRef.current && !countryEditRef.current.contains(e.target))
+      }
+      if (
+        countryEditRef.current &&
+        !countryEditRef.current.contains(e.target)
+      ) {
         setCountryDropdownOpenEdit(false);
-      if (stateAddRef.current && !stateAddRef.current.contains(e.target))
+      }
+      if (
+        filterCountryRef.current &&
+        !filterCountryRef.current.contains(e.target)
+      ) {
+        setCountryDropdownOpenFilter(false);
+      }
+
+      if (stateAddRef.current && !stateAddRef.current.contains(e.target)) {
         setStateDropdownOpenAdd(false);
-      if (stateEditRef.current && !stateEditRef.current.contains(e.target))
+      }
+      if (stateEditRef.current && !stateEditRef.current.contains(e.target)) {
         setStateDropdownOpenEdit(false);
-      if (cityAddRef.current && !cityAddRef.current.contains(e.target))
+      }
+      if (
+        filterStateRef.current &&
+        !filterStateRef.current.contains(e.target)
+      ) {
+        setStateDropdownOpenFilter(false);
+      }
+
+      if (cityAddRef.current && !cityAddRef.current.contains(e.target)) {
         setCityDropdownOpenAdd(false);
-      if (cityEditRef.current && !cityEditRef.current.contains(e.target))
+      }
+      if (cityEditRef.current && !cityEditRef.current.contains(e.target)) {
         setCityDropdownOpenEdit(false);
+      }
+      if (filterCityRef.current && !filterCityRef.current.contains(e.target)) {
+        setCityDropdownOpenFilter(false);
+      }
     };
+
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  // ===============================
-  // Load dropdowns (robust shape handling)
-  // ===============================
+  // User
+  const user = JSON.parse(localStorage.getItem("user")) || null;
+  const currentUserId = user?.userId || 1;
+
+  // ================================
+  // ADD & EDIT FORM STATES
+  // ================================
+  const [newItem, setNewItem] = useState({
+    name: "",
+    countryId: "",
+    stateId: "",
+    cityId: "",
+    address: "",
+    latitude: "",
+    longitude: "",
+  });
+
+  const [editItem, setEditItem] = useState({
+    id: null,
+    name: "",
+    countryId: "",
+    stateId: "",
+    cityId: "",
+    address: "",
+    latitude: "",
+    longitude: "",
+    isInactive: false,
+  });
+
+  // ================================
+  // COLUMN PICKER
+  // ================================
+  const defaultColumns = {
+    id: true,
+    name: true,
+    country: true,
+    state: true,
+    city: true,
+    address: true,
+    latitude: true,
+    longitude: true,
+  };
+
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
+  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
+  const [columnSearch, setColumnSearch] = useState("");
+
+  // ================================
+  // PAGINATION
+  // ================================
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
+  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
+  const end = Math.min(page * limit, totalRecords);
+
+  // ================================
+  // Filtering (client-side)
+  // ================================
+  const filteredRows = rows.filter((r) => {
+    let valid = true;
+    if (filterCountry)
+      valid = valid && String(r.countryId) === String(filterCountry);
+    if (filterState) valid = valid && String(r.stateId) === String(filterState);
+    if (filterCity) valid = valid && String(r.cityId) === String(filterCity);
+    return valid;
+  });
+
+  const [sortOrder, setSortOrder] = useState("asc");
+
+  const sortedRows = useMemo(() => {
+    const arr = [...filteredRows];
+
+    if (sortOrder === "asc") {
+      arr.sort((a, b) => Number(a.id) - Number(b.id));
+    }
+
+    return arr;
+  }, [filteredRows, sortOrder]);
+
+  // ================================
+  // LOADERS (Countries/States/Cities)
+  // robust to different API shapes
+  // ================================
   const parseArrayFromResponse = (res) => {
     if (!res) return [];
     if (Array.isArray(res)) return res;
     if (Array.isArray(res.data)) return res.data;
-    if (Array.isArray(res.data?.records)) return res.data.records;
-    if (Array.isArray(res.records)) return res.records;
+    if (res.data?.records) return res.data.records;
+    if (res.records) return res.records;
     const maybeArray = Object.values(res).find((v) => Array.isArray(v));
     return Array.isArray(maybeArray) ? maybeArray : [];
   };
 
-
-// ===============================
-// Filtering logic  (must come first)
-// ===============================
-const filteredRows = rows.filter((r) => {
-  let valid = true;
-  if (filterCountry)
-    valid = valid && String(r.countryId) === String(filterCountry);
-  if (filterState) valid = valid && String(r.stateId) === String(filterState);
-  if (filterCity) valid = valid && String(r.cityId) === String(filterCity);
-  return valid;
-});
-
-// ===============================
-// Sorting logic (AFTER filteredRows)
-// ===============================
-const [sortOrder, setSortOrder] = useState("asc");
-
-const sortedRows = [...filteredRows];
-
-if (sortOrder === "asc") {
-  sortedRows.sort((a, b) => Number(a.id) - Number(b.id));
-}
-
-
-
   const loadCountries = async () => {
     try {
-      const res = await getCountriesApi(1, 9999);
+      const res = await getCountriesApi(1, 5000);
       const arr = parseArrayFromResponse(res);
       setCountries(arr);
       return arr;
     } catch (err) {
-      console.error("loadCountries", err);
+      console.error("loadCountries error", err);
       toast.error("Failed to load countries");
       setCountries([]);
       return [];
@@ -230,12 +288,12 @@ if (sortOrder === "asc") {
 
   const loadStates = async () => {
     try {
-      const res = await getStatesApi(1, 9999);
+      const res = await getStatesApi(1, 5000);
       const arr = parseArrayFromResponse(res);
       setStates(arr);
       return arr;
     } catch (err) {
-      console.error("loadStates", err);
+      console.error("loadStates error", err);
       toast.error("Failed to load states");
       setStates([]);
       return [];
@@ -244,22 +302,30 @@ if (sortOrder === "asc") {
 
   const loadCities = async () => {
     try {
-      const res = await getCitiesApi(1, 9999);
-      console.log(res);
-      
+      const res = await getCitiesApi(1, 5000);
       const arr = parseArrayFromResponse(res);
       setCities(arr);
       return arr;
     } catch (err) {
-      console.error("loadCities", err);
+      console.error("loadCities error", err);
       toast.error("Failed to load cities");
       setCities([]);
       return [];
     }
   };
-  // ===============================
-  // Load table rows
-  // ===============================
+
+  // convenience: load states for a country asynchronously (when user selects country)
+  const awaitLoadStatesForCountry = async (countryId) => {
+    await loadStates();
+  };
+
+  const awaitLoadCitiesForState = async (stateId) => {
+    await loadCities();
+  };
+
+  // ================================
+  // LOAD LOCATION ROWS
+  // ================================
   const loadRows = async () => {
     try {
       const res = await getLocationsApi(page, limit);
@@ -294,6 +360,36 @@ if (sortOrder === "asc") {
     }
   };
 
+  const loadInactiveRows = async () => {
+    try {
+      const res = await getInactiveLocationsApi();
+      if (res?.status === 200) {
+        const data = res.data ?? res;
+        const items = Array.isArray(data) ? data : data.records ?? [];
+        const normalized = (items || []).map((r) => ({
+          id: r.Id ?? r.id,
+          name: r.Name ?? r.name,
+          countryName: r.CountryName ?? r.countryName ?? r.country?.name ?? "",
+          countryId: r.CountryId ?? r.countryId ?? r.country?.id ?? "",
+          stateName: r.StateName ?? r.stateName ?? r.state?.name ?? "",
+          stateId: r.StateId ?? r.stateId ?? r.state?.id ?? "",
+          cityName: r.CityName ?? r.cityName ?? r.city?.name ?? "",
+          cityId: r.CityId ?? r.cityId ?? r.city?.id ?? "",
+          address: r.Address ?? r.address ?? "",
+          latitude: r.Latitude ?? r.latitude ?? "",
+          longitude: r.Longitude ?? r.longitude ?? "",
+        }));
+        setInactiveRows(normalized);
+      } else {
+        toast.error("Failed to load inactive locations");
+      }
+    } catch (err) {
+      console.error("loadInactiveRows error", err);
+      toast.error("Failed to load inactive locations");
+    }
+  };
+
+  // Initial load
   useEffect(() => {
     (async () => {
       await loadCountries();
@@ -304,16 +400,21 @@ if (sortOrder === "asc") {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit]);
 
+  // load inactive when toggled on
+  useEffect(() => {
+    if (showInactive) loadInactiveRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showInactive]);
 
-  // ===============================
+  // ================================
   // SEARCH
-  // ===============================
+  // ================================
   const handleSearch = async (value) => {
     setSearchText(value);
     if (!value.trim()) {
       loadRows();
       return;
-    } 
+    }
     try {
       const res = await searchLocationApi(value);
       if (res?.status === 200) {
@@ -330,8 +431,6 @@ if (sortOrder === "asc") {
         }));
         setRows(normalized);
         setTotalRecords(normalized.length);
-      } else {
-        toast.error("Search failed");
       }
     } catch (err) {
       console.error("searchLocation error", err);
@@ -339,9 +438,9 @@ if (sortOrder === "asc") {
     }
   };
 
-  // ===============================
-  // Add / Update / Delete location
-  // ===============================
+  // ================================
+  // ADD / UPDATE / DELETE / RESTORE
+  // ================================
   const handleAdd = async () => {
     if (!newItem.name.trim()) return toast.error("Name required");
     if (!newItem.countryId) return toast.error("Select a country");
@@ -362,7 +461,7 @@ if (sortOrder === "asc") {
           latitude: "",
           longitude: "",
         });
-        await loadRows();
+        loadRows();
       } else {
         toast.error(res?.data?.message || "Add failed");
       }
@@ -372,7 +471,7 @@ if (sortOrder === "asc") {
     }
   };
 
-  const openEdit = (row) => {
+  const openEdit = (row, inactive = false) => {
     setEditItem({
       id: row.id,
       name: row.name,
@@ -382,11 +481,14 @@ if (sortOrder === "asc") {
       address: row.address,
       latitude: row.latitude,
       longitude: row.longitude,
+      isInactive: !!inactive,
     });
-    // clear mini-searches so getName(...) shows current names
-    setCountrySearchEdit("");
-    setStateSearchEdit("");
-    setCitySearchEdit("");
+
+    // prefill the search inputs shown in the edit modal
+    setCountrySearchEdit(row.countryName || "");
+    setStateSearchEdit(row.stateName || "");
+    setCitySearchEdit(row.cityName || "");
+
     setEditModalOpen(true);
   };
 
@@ -400,7 +502,7 @@ if (sortOrder === "asc") {
       if (res?.status === 200) {
         toast.success("Location updated");
         setEditModalOpen(false);
-        await loadRows();
+        loadRows();
       } else {
         toast.error(res?.data?.message || "Update failed");
       }
@@ -418,7 +520,7 @@ if (sortOrder === "asc") {
       if (res?.status === 200) {
         toast.success("Deleted");
         setEditModalOpen(false);
-        await loadRows();
+        loadRows();
       } else {
         toast.error(res?.data?.message || "Delete failed");
       }
@@ -428,9 +530,31 @@ if (sortOrder === "asc") {
     }
   };
 
-  // ===============================
+  const handleRestore = async () => {
+    try {
+      const res = await restoreLocationApi(editItem.id, {
+        userId: currentUserId,
+      });
+      if (res?.status === 200) {
+        toast.success("Restored");
+        setEditModalOpen(false);
+        loadRows();
+        loadInactiveRows();
+        setShowInactive(false);
+      } else {
+        toast.error("Restore failed");
+      }
+    } catch (err) {
+      console.error("handleRestore error", err);
+      toast.error("Restore failed");
+    }
+  };
+
+  // ================================
   // Country / State / City CRUD helpers
-  // ===============================
+  // ================================
+
+  // --- Countries ---
   const handleAddCountry = async (name) => {
     if (!name?.trim()) return null;
     try {
@@ -441,14 +565,15 @@ if (sortOrder === "asc") {
       if (res?.status === 200 || res?.status === 201) {
         toast.success("Country created");
         const list = await loadCountries();
-        return (
-          list.find(
-            (c) => String(c.name).toLowerCase() === name.trim().toLowerCase()
-          ) || null
+        const found = list.find(
+          (c) => String(c.name).toLowerCase() === name.trim().toLowerCase()
         );
+        return found || null;
+      } else {
+        toast.error("Failed to create country");
       }
     } catch (err) {
-      console.error("addCountry", err);
+      console.error("addCountry error", err);
       toast.error("Failed to create country");
     }
     return null;
@@ -464,38 +589,44 @@ if (sortOrder === "asc") {
       if (res?.status === 200) {
         toast.success("Country updated");
         await loadCountries();
-        // clear search so new name shows
-        setCountrySearchEdit("");
         return true;
+      } else {
+        toast.error("Failed to update country");
       }
     } catch (err) {
-      console.error("updateCountry", err);
+      console.error("updateCountry error", err);
       toast.error("Failed to update country");
     }
     return false;
   };
 
+  // open add-country modal from dropdown suggestion (origin indicates where it was opened)
+  const openAddCountryModalFromDropdown = (origin, typed = "") => {
+    setCountryFormName(typed);
+    setCountryModalOrigin(origin); // "add" | "edit" | "filter"
+    setAddCountryModalOpen(true);
+  };
+
+  // --- States ---
   const handleAddState = async (name, countryId) => {
     if (!name?.trim() || !countryId) return null;
     try {
-      const res = await addStateApi({
-        name: name.trim(),
-        countryId,
-        userId: currentUserId,
-      });
+      const payload = { name: name.trim(), countryId, userId: currentUserId };
+      const res = await addStateApi(payload);
       if (res?.status === 200 || res?.status === 201) {
         toast.success("State created");
         const list = await loadStates();
-        return (
-          list.find(
-            (s) =>
-              String(s.name).toLowerCase() === name.trim().toLowerCase() &&
-              String(s.countryId) === String(countryId)
-          ) || null
+        const found = list.find(
+          (s) =>
+            String(s.name).toLowerCase() === name.trim().toLowerCase() &&
+            String(s.countryId) === String(countryId)
         );
+        return found || null;
+      } else {
+        toast.error("Failed to create state");
       }
     } catch (err) {
-      console.error("addState", err);
+      console.error("addState error", err);
       toast.error("Failed to create state");
     }
     return null;
@@ -512,40 +643,53 @@ if (sortOrder === "asc") {
       if (res?.status === 200) {
         toast.success("State updated");
         await loadStates();
-        // clear mini-search so updated name shows
-        setStateSearchEdit("");
         return true;
+      } else {
+        toast.error("Failed to update state");
       }
     } catch (err) {
-      console.error("updateState", err);
+      console.error("updateState error", err);
       toast.error("Failed to update state");
     }
     return false;
   };
 
+  const openAddStateModalFromDropdown = (origin, typed = "", countryIdForModal = "") => {
+    setStateFormName(typed);
+    setStateModalOrigin(origin);
+    setStateEditData((p) => ({
+      ...p,
+      countryId: countryIdForModal || p.countryId || "",
+    }));
+    setAddStateModalOpen(true);
+  };
+
+  // --- Cities ---
   const handleAddCity = async (name, countryId, stateId) => {
     if (!name?.trim() || !countryId || !stateId) return null;
     try {
-      const res = await addCityApi({
+      const payload = {
         name: name.trim(),
         countryId,
         stateId,
         userId: currentUserId,
-      });
+      };
+      const res = await addCityApi(payload);
       if (res?.status === 200 || res?.status === 201) {
         toast.success("City created");
         const list = await loadCities();
-        return (
-          list.find(
-            (c) =>
-              String(c.name ?? c.CityName ?? "").toLowerCase() ===
-                name.trim().toLowerCase() &&
-              String(c.stateId) === String(stateId)
-          ) || null
+        const found = list.find(
+          (c) =>
+            String(c.name ?? c.CityName ?? c.cityName).toLowerCase() ===
+              name.trim().toLowerCase() &&
+            String(c.stateId ?? c.StateId) === String(stateId)
         );
+        return found || null;
+      } else {
+        toast.error("Failed to create city");
       }
     } catch (err) {
-      console.error("addCity", err);
+      console.error("addCity error", err);
       toast.error("Failed to create city");
     }
     return null;
@@ -563,17 +707,143 @@ if (sortOrder === "asc") {
       if (res?.status === 200) {
         toast.success("City updated");
         await loadCities();
-        // clear search so updated name shows
-        setCitySearchEdit("");
         return true;
+      } else {
+        toast.error("Failed to update city");
       }
     } catch (err) {
-      console.error("updateCity", err);
+      console.error("updateCity error", err);
       toast.error("Failed to update city");
     }
     return false;
   };
-  // Inline create helpers (from dropdown no-matches)
+
+  const openAddCityModalFromDropdown = (
+    origin,
+    typed = "",
+    countryIdForModal = "",
+    stateIdForModal = ""
+  ) => {
+    setCityFormName(typed);
+    setCityModalOrigin(origin);
+    setCityEditData((p) => ({
+      ...p,
+      countryId: countryIdForModal || p.countryId || "",
+      stateId: stateIdForModal || p.stateId || "",
+    }));
+    setAddCityModalOpen(true);
+  };
+
+  // add country modal save - preselect depending on origin
+  const handleAddCountryModalSave = async () => {
+    const name = countryFormName.trim();
+    if (!name) return toast.error("Country name required");
+    const created = await handleAddCountry(name);
+    if (created) {
+      if (countryModalOrigin === "add" || modalOpen) {
+        setNewItem((p) => ({
+          ...p,
+          countryId: created.id ?? created.Id ?? created.countryId,
+        }));
+        await loadStates();
+      } else if (countryModalOrigin === "edit") {
+        setEditItem((p) => ({
+          ...p,
+          countryId: created.id ?? created.Id ?? created.countryId,
+        }));
+        await loadStates();
+      } else if (countryModalOrigin === "filter") {
+        setFilterCountry(created.id ?? created.Id ?? created.countryId);
+        // reset dependent filters
+        setFilterState("");
+        setFilterCity("");
+      }
+      setAddCountryModalOpen(false);
+      setCountryFormName("");
+      setCountryModalOrigin(null);
+    }
+  };
+
+  const handleEditCountryModalSave = async () => {
+    const { id, name } = countryEditData;
+    if (!id || !name.trim()) return toast.error("Invalid country details");
+    const ok = await handleUpdateCountry(id, name);
+    if (ok) setEditCountryModalOpen(false);
+  };
+
+  const handleAddStateModalSave = async () => {
+    const name = stateFormName.trim();
+    const countryId = stateEditData.countryId || "";
+    if (!name) return toast.error("State name required");
+    if (!countryId) return toast.error("Select country for state");
+    const created = await handleAddState(name, countryId);
+    if (created) {
+      if (stateModalOrigin === "add" || modalOpen) {
+        setNewItem((p) => ({
+          ...p,
+          stateId: created.id ?? created.Id ?? created.stateId,
+        }));
+        await loadCities();
+      } else if (stateModalOrigin === "edit") {
+        setEditItem((p) => ({
+          ...p,
+          stateId: created.id ?? created.Id ?? created.stateId,
+        }));
+        await loadCities();
+      } else if (stateModalOrigin === "filter") {
+        setFilterState(created.id ?? created.Id ?? created.stateId);
+        setFilterCity("");
+      }
+      setAddStateModalOpen(false);
+      setStateFormName("");
+      setStateModalOrigin(null);
+    }
+  };
+
+  const handleEditStateModalSave = async () => {
+    const { id, name, countryId } = stateEditData;
+    if (!id || !name.trim() || !countryId)
+      return toast.error("Invalid state details");
+    const ok = await handleUpdateState(id, name, countryId);
+    if (ok) setEditStateModalOpen(false);
+  };
+
+  const handleAddCityModalSave = async () => {
+    const name = cityFormName.trim();
+    const { countryId, stateId } = cityEditData;
+    if (!name) return toast.error("City name required");
+    if (!countryId || !stateId)
+      return toast.error("Select country & state for city");
+    const created = await handleAddCity(name, countryId, stateId);
+    if (created) {
+      if (cityModalOrigin === "add" || modalOpen) {
+        setNewItem((p) => ({
+          ...p,
+          cityId: created.id ?? created.Id ?? created.cityId,
+        }));
+      } else if (cityModalOrigin === "edit") {
+        setEditItem((p) => ({
+          ...p,
+          cityId: created.id ?? created.Id ?? created.cityId,
+        }));
+      } else if (cityModalOrigin === "filter") {
+        setFilterCity(created.id ?? created.Id ?? created.cityId);
+      }
+      setAddCityModalOpen(false);
+      setCityFormName("");
+      setCityModalOrigin(null);
+    }
+  };
+
+  const handleEditCityModalSave = async () => {
+    const { id, name, countryId, stateId } = cityEditData;
+    if (!id || !name.trim() || !countryId || !stateId)
+      return toast.error("Invalid city details");
+    const ok = await handleUpdateCity(id, name, countryId, stateId);
+    if (ok) setEditCityModalOpen(false);
+  };
+
+  // Inline create from add/edit dropdowns
   const inlineCreateCountryFromAdd = async () => {
     const name = countrySearchAdd.trim();
     if (!name) return;
@@ -674,27 +944,25 @@ if (sortOrder === "asc") {
     }
   };
 
-  // column picker open
-  const openColumnPicker = () => {
-    setTempVisibleColumns(visibleColumns);
-    setColumnModalOpen(true);
-  };
-
-  // Helpers to get names
+  // ================================
+  // Helper Getters
+  // ================================
   const getCountryName = (id) => {
     const c = countries.find((x) => String(x.id) === String(id));
     return c ? c.name : "";
   };
+
   const getStateName = (id) => {
     const s = states.find((x) => String(x.id) === String(id));
     return s ? s.name : "";
   };
+
   const getCityName = (id) => {
     const c = cities.find((x) => String(x.id) === String(id));
     return c ? c.name : "";
   };
 
-  // filtered lists for dropdowns
+  // filtered lists for searchable dropdowns
   const filteredCountriesAdd = countries.filter((c) =>
     String(c.name ?? "")
       .toLowerCase()
@@ -705,12 +973,15 @@ if (sortOrder === "asc") {
       .toLowerCase()
       .includes(countrySearchEdit.toLowerCase())
   );
+  const filteredCountriesFilter = countries.filter((c) =>
+    String(c.name ?? "")
+      .toLowerCase()
+      .includes(countrySearchFilter.toLowerCase())
+  );
 
   const filteredStatesAdd = states
     .filter((s) =>
-      newItem.countryId
-        ? String(s.countryId) === String(newItem.countryId)
-        : true
+      newItem.countryId ? String(s.countryId) === String(newItem.countryId) : true
     )
     .filter((s) =>
       String(s.name ?? "")
@@ -720,14 +991,22 @@ if (sortOrder === "asc") {
 
   const filteredStatesEdit = states
     .filter((s) =>
-      editItem.countryId
-        ? String(s.countryId) === String(editItem.countryId)
-        : true
+      editItem.countryId ? String(s.countryId) === String(editItem.countryId) : true
     )
     .filter((s) =>
       String(s.name ?? "")
         .toLowerCase()
         .includes(stateSearchEdit.toLowerCase())
+    );
+
+  const filteredStatesFilter = states
+    .filter((s) =>
+      filterCountry ? String(s.countryId) === String(filterCountry) : true
+    )
+    .filter((s) =>
+      String(s.name ?? "")
+        .toLowerCase()
+        .includes(stateSearchFilter.toLowerCase())
     );
 
   const filteredCitiesAdd = cities
@@ -750,12 +1029,26 @@ if (sortOrder === "asc") {
         .includes(citySearchEdit.toLowerCase())
     );
 
-  // ===============================
+  const filteredCitiesFilter = cities
+    .filter((c) => (filterState ? String(c.stateId) === String(filterState) : true))
+    .filter((c) =>
+      String(c.name ?? "")
+        .toLowerCase()
+        .includes(citySearchFilter.toLowerCase())
+    );
+
+  // Column picker helpers
+  const openColumnPicker = () => {
+    setTempVisibleColumns(visibleColumns);
+    setColumnModalOpen(true);
+  };
+
+  // ================================
   // RENDER
-  // ===============================
+  // ================================
   return (
     <>
-      {/* ADD MODAL */}
+      {/* ========================= ADD MODAL ========================= */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -779,7 +1072,7 @@ if (sortOrder === "asc") {
                 />
               </div>
 
-              {/* Country (searchable + inline create + star modal) */}
+              {/* Country (searchable + star modal) */}
               <div>
                 <label className="text-sm">Country *</label>
                 <div className="flex items-center gap-2 mt-1">
@@ -815,8 +1108,7 @@ if (sortOrder === "asc") {
                                 }));
                                 setCountryDropdownOpenAdd(false);
                                 setCountrySearchAdd("");
-                                loadStates();
-                                loadCities();
+                                awaitLoadStatesForCountry(c.id);
                               }}
                               className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
                             >
@@ -827,11 +1119,12 @@ if (sortOrder === "asc") {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={inlineCreateCountryFromAdd}
+                              onClick={() =>
+                                openAddCountryModalFromDropdown("add", countrySearchAdd)
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new country &quot;{countrySearchAdd}&quot;
-                              and select
+                              Create new country &quot;{countrySearchAdd}&quot; (open modal)
                             </button>
                           </div>
                         )}
@@ -844,6 +1137,7 @@ if (sortOrder === "asc") {
                     className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
                     onClick={() => {
                       setCountryFormName("");
+                      setCountryModalOrigin("add");
                       setAddCountryModalOpen(true);
                     }}
                   >
@@ -852,7 +1146,7 @@ if (sortOrder === "asc") {
                 </div>
               </div>
 
-              {/* State (searchable + inline create + star modal) */}
+              {/* State (searchable + star modal) */}
               <div>
                 <label className="text-sm">State *</label>
                 <div className="flex items-center gap-2 mt-1">
@@ -887,7 +1181,7 @@ if (sortOrder === "asc") {
                                 }));
                                 setStateDropdownOpenAdd(false);
                                 setStateSearchAdd("");
-                                loadCities();
+                                awaitLoadCitiesForState(s.id);
                               }}
                               className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
                             >
@@ -898,11 +1192,12 @@ if (sortOrder === "asc") {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={inlineCreateStateFromAdd}
+                              onClick={() =>
+                                openAddStateModalFromDropdown("add", stateSearchAdd, newItem.countryId)
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new state &quot;{stateSearchAdd}&quot; and
-                              select
+                              Create new state &quot;{stateSearchAdd}&quot; (open modal)
                             </button>
                           </div>
                         )}
@@ -919,6 +1214,7 @@ if (sortOrder === "asc") {
                         ...p,
                         countryId: newItem.countryId || "",
                       }));
+                      setStateModalOrigin("add");
                       setAddStateModalOpen(true);
                     }}
                   >
@@ -927,7 +1223,7 @@ if (sortOrder === "asc") {
                 </div>
               </div>
 
-              {/* City (searchable + inline create + star modal) */}
+              {/* City (searchable + star modal) */}
               <div>
                 <label className="text-sm">City *</label>
                 <div className="flex items-center gap-2 mt-1">
@@ -968,11 +1264,12 @@ if (sortOrder === "asc") {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={inlineCreateCityFromAdd}
+                              onClick={() =>
+                                openAddCityModalFromDropdown("add", citySearchAdd, newItem.countryId, newItem.stateId)
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new city &quot;{citySearchAdd}&quot; and
-                              select
+                              Create new city &quot;{citySearchAdd}&quot; (open modal)
                             </button>
                           </div>
                         )}
@@ -990,6 +1287,7 @@ if (sortOrder === "asc") {
                         countryId: newItem.countryId || "",
                         stateId: newItem.stateId || "",
                       }));
+                      setCityModalOrigin("add");
                       setAddCityModalOpen(true);
                     }}
                   >
@@ -1055,12 +1353,14 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* EDIT MODAL */}
+      {/* ========================= EDIT MODAL ========================= */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Location</h2>
+              <h2 className="text-lg font-semibold">
+                {editItem.isInactive ? "Restore Location" : "Edit Location"}
+              </h2>
               <button onClick={() => setEditModalOpen(false)}>
                 <X className="text-gray-300 hover:text-white" />
               </button>
@@ -1071,11 +1371,14 @@ if (sortOrder === "asc") {
               <div>
                 <label className="text-sm">Name *</label>
                 <input
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   value={editItem.name}
                   onChange={(e) =>
                     setEditItem({ ...editItem, name: e.target.value })
                   }
+                  disabled={editItem.isInactive}
                 />
               </div>
 
@@ -1098,6 +1401,7 @@ if (sortOrder === "asc") {
                       onFocus={() => setCountryDropdownOpenEdit(true)}
                       placeholder="Search or type to create..."
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+                      disabled={editItem.isInactive}
                     />
 
                     {countryDropdownOpenEdit && (
@@ -1107,16 +1411,10 @@ if (sortOrder === "asc") {
                             <div
                               key={c.id}
                               onClick={() => {
-                                setEditItem((p) => ({
-                                  ...p,
-                                  countryId: c.id,
-                                  stateId: "",
-                                  cityId: "",
-                                }));
+                                setEditItem((p) => ({ ...p, countryId: c.id }));
                                 setCountryDropdownOpenEdit(false);
                                 setCountrySearchEdit("");
-                                loadStates();
-                                loadCities();
+                                awaitLoadStatesForCountry(c.id);
                               }}
                               className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
                             >
@@ -1127,11 +1425,12 @@ if (sortOrder === "asc") {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={inlineCreateCountryFromEdit}
+                              onClick={() =>
+                                openAddCountryModalFromDropdown("edit", countrySearchEdit)
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new country &quot;{countrySearchEdit}&quot;
-                              and select
+                              Create new country &quot;{countrySearchEdit}&quot; (open modal)
                             </button>
                           </div>
                         )}
@@ -1141,7 +1440,9 @@ if (sortOrder === "asc") {
 
                   <button
                     type="button"
-                    className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                    className={`p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition ${
+                      editItem.isInactive ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     onClick={() => {
                       const id = editItem.countryId;
                       const c = countries.find(
@@ -1158,6 +1459,7 @@ if (sortOrder === "asc") {
 
                       setEditCountryModalOpen(true);
                     }}
+                    disabled={editItem.isInactive}
                   >
                     <Pencil size={18} className="text-blue-400" />
                   </button>
@@ -1183,6 +1485,7 @@ if (sortOrder === "asc") {
                       onFocus={() => setStateDropdownOpenEdit(true)}
                       placeholder="Search or type to create..."
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+                      disabled={editItem.isInactive}
                     />
 
                     {stateDropdownOpenEdit && (
@@ -1192,14 +1495,10 @@ if (sortOrder === "asc") {
                             <div
                               key={s.id}
                               onClick={() => {
-                                setEditItem((p) => ({
-                                  ...p,
-                                  stateId: s.id,
-                                  cityId: "",
-                                }));
+                                setEditItem((p) => ({ ...p, stateId: s.id }));
                                 setStateDropdownOpenEdit(false);
                                 setStateSearchEdit("");
-                                loadCities();
+                                awaitLoadCitiesForState(s.id);
                               }}
                               className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
                             >
@@ -1210,11 +1509,12 @@ if (sortOrder === "asc") {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={inlineCreateStateFromEdit}
+                              onClick={() =>
+                                openAddStateModalFromDropdown("edit", stateSearchEdit, editItem.countryId)
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new state &quot;{stateSearchEdit}&quot; and
-                              select
+                              Create new state &quot;{stateSearchEdit}&quot; (open modal)
                             </button>
                           </div>
                         )}
@@ -1237,6 +1537,7 @@ if (sortOrder === "asc") {
                       setStateSearchEdit(s?.name ?? "");
                       setEditStateModalOpen(true);
                     }}
+                    disabled={editItem.isInactive}
                   >
                     <Pencil size={18} className="text-blue-400" />
                   </button>
@@ -1262,6 +1563,7 @@ if (sortOrder === "asc") {
                       onFocus={() => setCityDropdownOpenEdit(true)}
                       placeholder="Search or type to create..."
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+                      disabled={editItem.isInactive}
                     />
 
                     {cityDropdownOpenEdit && (
@@ -1284,11 +1586,12 @@ if (sortOrder === "asc") {
                           <div className="px-3 py-2 text-sm">
                             <div className="mb-2 text-gray-300">No matches</div>
                             <button
-                              onClick={inlineCreateCityFromEdit}
+                              onClick={() =>
+                                openAddCityModalFromDropdown("edit", citySearchEdit, editItem.countryId, editItem.stateId)
+                              }
                               className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
                             >
-                              Create new city &quot;{citySearchEdit}&quot; and
-                              select
+                              Create new city &quot;{citySearchEdit}&quot; (open modal)
                             </button>
                           </div>
                         )}
@@ -1313,6 +1616,7 @@ if (sortOrder === "asc") {
                       setCitySearchEdit(c?.name ?? c?.CityName ?? "");
                       setEditCityModalOpen(true);
                     }}
+                    disabled={editItem.isInactive}
                   >
                     <Pencil size={18} className="text-blue-400" />
                   </button>
@@ -1323,11 +1627,14 @@ if (sortOrder === "asc") {
               <div>
                 <label className="text-sm">Address</label>
                 <textarea
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   value={editItem.address}
                   onChange={(e) =>
                     setEditItem({ ...editItem, address: e.target.value })
                   }
+                  disabled={editItem.isInactive}
                 />
               </div>
 
@@ -1336,34 +1643,49 @@ if (sortOrder === "asc") {
                 <div>
                   <label className="text-sm">Latitude</label>
                   <input
-                    className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                    className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                      editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
                     value={editItem.latitude}
                     onChange={(e) =>
                       setEditItem({ ...editItem, latitude: e.target.value })
                     }
+                    disabled={editItem.isInactive}
                   />
                 </div>
 
                 <div>
                   <label className="text-sm">Longitude</label>
                   <input
-                    className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                    className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                      editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
                     value={editItem.longitude}
                     onChange={(e) =>
                       setEditItem({ ...editItem, longitude: e.target.value })
                     }
+                    disabled={editItem.isInactive}
                   />
                 </div>
               </div>
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
+              {editItem.isInactive ? (
+                <button
+                  onClick={handleRestore}
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
 
               <div className="flex gap-2">
                 <button
@@ -1372,27 +1694,35 @@ if (sortOrder === "asc") {
                 >
                   Cancel
                 </button>
-
-                <button
-                  onClick={handleUpdate}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  <Save size={16} /> Save
-                </button>
+                {!editItem.isInactive && (
+                  <button
+                    onClick={handleUpdate}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+                  >
+                    <Save size={16} /> Save
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ADD / EDIT COUNTRY MODALS */}
+      {/* ========================= ADD / EDIT COUNTRY MODALS ========================= */}
       {addCountryModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Country</h2>
-              <button onClick={() => setAddCountryModalOpen(false)}>
-                <X size={20} className="text-gray-300 hover:text-white" />
+              <button
+                onClick={() => {
+                  setAddCountryModalOpen(false);
+                  setCountryModalOrigin(null);
+                  setCountryFormName("");
+                }}
+                className="text-gray-300 hover:text-white"
+              >
+                <X size={20} />
               </button>
             </div>
 
@@ -1403,29 +1733,14 @@ if (sortOrder === "asc") {
                 value={countryFormName}
                 onChange={(e) => setCountryFormName(e.target.value)}
                 placeholder="Enter country name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
               <button
-                onClick={async () => {
-                  const created = await handleAddCountry(
-                    countryFormName.trim()
-                  );
-                  if (created) {
-                    setAddCountryModalOpen(false);
-                    setCountryFormName("");
-                    // if add modal open preselect
-                    if (modalOpen)
-                      setNewItem((p) => ({
-                        ...p,
-                        countryId:
-                          created.id ?? created.Id ?? created.countryId,
-                      }));
-                  }
-                }}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
+                onClick={handleAddCountryModalSave}
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
@@ -1438,9 +1753,9 @@ if (sortOrder === "asc") {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Country</h2>
-              <button onClick={() => setEditCountryModalOpen(false)}>
-                <X size={20} className="text-gray-300 hover:text-white" />
+              <h2 className="text-lg font-semibold">Edit Country ({countryEditData.name})</h2>
+              <button onClick={() => setEditCountryModalOpen(false)} className="text-gray-300 hover:text-white">
+                <X size={20} />
               </button>
             </div>
 
@@ -1453,20 +1768,14 @@ if (sortOrder === "asc") {
                   setCountryEditData((p) => ({ ...p, name: e.target.value }))
                 }
                 placeholder="Enter country name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
               <button
-                onClick={async () => {
-                  const ok = await handleUpdateCountry(
-                    countryEditData.id,
-                    countryEditData.name
-                  );
-                  if (ok) setEditCountryModalOpen(false);
-                }}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
+                onClick={handleEditCountryModalSave}
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
@@ -1475,14 +1784,21 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* ADD / EDIT STATE MODALS */}
+      {/* ========================= ADD / EDIT STATE MODALS ========================= */}
       {addStateModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New State</h2>
-              <button onClick={() => setAddStateModalOpen(false)}>
-                <X size={20} className="text-gray-300 hover:text-white" />
+              <button
+                onClick={() => {
+                  setAddStateModalOpen(false);
+                  setStateModalOrigin(null);
+                  setStateFormName("");
+                }}
+                className="text-gray-300 hover:text-white"
+              >
+                <X size={20} />
               </button>
             </div>
 
@@ -1493,7 +1809,7 @@ if (sortOrder === "asc") {
                 value={stateFormName}
                 onChange={(e) => setStateFormName(e.target.value)}
                 placeholder="Enter state name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
 
               <label className="block text-sm mb-1">Country *</label>
@@ -1515,26 +1831,8 @@ if (sortOrder === "asc") {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
               <button
-                onClick={async () => {
-                  if (!stateFormName.trim())
-                    return toast.error("Name required");
-                  if (!stateEditData.countryId)
-                    return toast.error("Select country");
-                  const created = await handleAddState(
-                    stateFormName.trim(),
-                    stateEditData.countryId
-                  );
-                  if (created) {
-                    setAddStateModalOpen(false);
-                    setStateFormName("");
-                    if (modalOpen)
-                      setNewItem((p) => ({
-                        ...p,
-                        stateId: created.id ?? created.Id ?? created.stateId,
-                      }));
-                  }
-                }}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
+                onClick={handleAddStateModalSave}
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
@@ -1547,9 +1845,9 @@ if (sortOrder === "asc") {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit State</h2>
-              <button onClick={() => setEditStateModalOpen(false)}>
-                <X size={20} className="text-gray-300 hover:text-white" />
+              <h2 className="text-lg font-semibold">Edit State ({stateEditData.name})</h2>
+              <button onClick={() => setEditStateModalOpen(false)} className="text-gray-303 hover:text-white">
+                <X size={20} />
               </button>
             </div>
 
@@ -1562,7 +1860,7 @@ if (sortOrder === "asc") {
                   setStateEditData((p) => ({ ...p, name: e.target.value }))
                 }
                 placeholder="Enter state name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
 
               <label className="block text-sm mb-1">Country *</label>
@@ -1584,15 +1882,8 @@ if (sortOrder === "asc") {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
               <button
-                onClick={async () => {
-                  const ok = await handleUpdateState(
-                    stateEditData.id,
-                    stateEditData.name,
-                    stateEditData.countryId
-                  );
-                  if (ok) setEditStateModalOpen(false);
-                }}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
+                onClick={handleEditStateModalSave}
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
@@ -1601,7 +1892,7 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* ADD / EDIT CITY MODALS */}
+      {/* ========================= ADD / EDIT CITY MODALS ========================= */}
       {addCityModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
@@ -1619,7 +1910,7 @@ if (sortOrder === "asc") {
                 value={cityFormName}
                 onChange={(e) => setCityFormName(e.target.value)}
                 placeholder="Enter city name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
 
               <label className="block text-sm mb-1">Country *</label>
@@ -1663,26 +1954,8 @@ if (sortOrder === "asc") {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
               <button
-                onClick={async () => {
-                  if (!cityFormName.trim()) return toast.error("Name required");
-                  if (!cityEditData.countryId || !cityEditData.stateId)
-                    return toast.error("Select country & state");
-                  const created = await handleAddCity(
-                    cityFormName.trim(),
-                    cityEditData.countryId,
-                    cityEditData.stateId
-                  );
-                  if (created) {
-                    setAddCityModalOpen(false);
-                    setCityFormName("");
-                    if (modalOpen)
-                      setNewItem((p) => ({
-                        ...p,
-                        cityId: created.id ?? created.Id ?? created.cityId,
-                      }));
-                  }
-                }}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
+                onClick={handleAddCityModalSave}
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
@@ -1695,7 +1968,7 @@ if (sortOrder === "asc") {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit City</h2>
+              <h2 className="text-lg font-semibold">Edit City ({cityEditData.name})</h2>
               <button onClick={() => setEditCityModalOpen(false)}>
                 <X size={20} className="text-gray-300 hover:text-white" />
               </button>
@@ -1710,7 +1983,7 @@ if (sortOrder === "asc") {
                   setCityEditData((p) => ({ ...p, name: e.target.value }))
                 }
                 placeholder="Enter city name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
 
               <label className="block text-sm mb-1">Country *</label>
@@ -1754,16 +2027,8 @@ if (sortOrder === "asc") {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
               <button
-                onClick={async () => {
-                  const ok = await handleUpdateCity(
-                    cityEditData.id,
-                    cityEditData.name,
-                    cityEditData.countryId,
-                    cityEditData.stateId
-                  );
-                  if (ok) setEditCityModalOpen(false);
-                }}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
+                onClick={handleEditCityModalSave}
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
@@ -1772,10 +2037,10 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* COLUMN PICKER (scrollable when many columns) */}
+      {/* ========================= COLUMN PICKER ========================= */}
       {columnModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center">
-          <div className="w-[700px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+          <div className="w-[700px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
             <div className="sticky top-0 bg-gray-900 flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">Column Picker</h2>
               <button onClick={() => setColumnModalOpen(false)}>
@@ -1794,7 +2059,7 @@ if (sortOrder === "asc") {
             </div>
 
             <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
+              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
                 <h3 className="font-semibold mb-2">Visible Columns</h3>
                 <div className="space-y-2">
                   {Object.keys(tempVisibleColumns)
@@ -1822,7 +2087,7 @@ if (sortOrder === "asc") {
                 </div>
               </div>
 
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
+              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
                 <h3 className="font-semibold mb-2">Hidden Columns</h3>
                 <div className="space-y-2">
                   {Object.keys(tempVisibleColumns)
@@ -1882,82 +2147,9 @@ if (sortOrder === "asc") {
         </div>
       )}
 
-      {/* MAIN PAGE */}
+      {/* ========================= MAIN PAGE ========================= */}
       <div className="p-4 sm:p-6 text-white min-h-[calc(100vh-64px)] bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col">
         <h2 className="text-2xl font-semibold mb-4">Locations</h2>
-
-        {/* FILTER BAR */}
-        <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {/* Country filter */}
-          <select
-            value={filterCountry}
-            onChange={(e) => {
-              setFilterCountry(e.target.value);
-              setFilterState("");
-              setFilterCity("");
-            }}
-            className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
-          >
-            <option value="">Filter by Country</option>
-            {countries.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-
-          {/* State filter */}
-          <select
-            value={filterState}
-            onChange={(e) => {
-              setFilterState(e.target.value);
-              setFilterCity("");
-            }}
-            className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
-          >
-            <option value="">Filter by State</option>
-            {states
-              .filter(
-                (s) =>
-                  !filterCountry ||
-                  String(s.countryId) === String(filterCountry)
-              )
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-          </select>
-
-          {/* City filter */}
-          <select
-            value={filterCity}
-            onChange={(e) => setFilterCity(e.target.value)}
-            className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
-          >
-            <option value="">Filter by City</option>
-            {cities
-              .filter(
-                (c) => !filterState || String(c.stateId) === String(filterState)
-              )
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
-
-          <button
-            onClick={() => {
-              setFilterCountry("");
-              setFilterState("");
-              setFilterCity("");
-            }}
-            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm"
-          >
-            Clear Filters
-          </button>
-        </div>
 
         {/* ACTION BAR */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1973,7 +2165,7 @@ if (sortOrder === "asc") {
 
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded"
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Location
           </button>
@@ -1982,6 +2174,7 @@ if (sortOrder === "asc") {
             onClick={() => {
               setSearchText("");
               loadRows();
+              if (showInactive) loadInactiveRows();
             }}
             className="p-2 bg-gray-700 border border-gray-600 rounded"
           >
@@ -1994,128 +2187,305 @@ if (sortOrder === "asc") {
           >
             <List size={16} className="text-blue-300" />
           </button>
+
+          {/* Active/Inactive toggle */}
+          <button
+            onClick={async () => {
+              if (!showInactive) await loadInactiveRows();
+              setShowInactive((s) => !s);
+            }}
+            className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
+          >
+            <ArchiveRestore size={16} className="text-yellow-300" />
+            <span className="text-xs opacity-80">Inactive</span>
+          </button>
+        </div>
+
+        {/* FILTER BAR (searchable) */}
+        <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
+          {/* Country filter (searchable) */}
+          <div className="relative w-48" ref={filterCountryRef}>
+            <input
+              type="text"
+              value={countrySearchFilter || getCountryName(filterCountry) || countrySearchFilter}
+              onChange={(e) => {
+                setCountrySearchFilter(e.target.value);
+                setCountryDropdownOpenFilter(true);
+              }}
+              onFocus={() => setCountryDropdownOpenFilter(true)}
+              placeholder="Filter by Country..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+            {countryDropdownOpenFilter && (
+              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
+                {filteredCountriesFilter.length > 0 ? (
+                  filteredCountriesFilter.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setFilterCountry(c.id);
+                        setCountryDropdownOpenFilter(false);
+                        setCountrySearchFilter("");
+                        setFilterState("");
+                        setFilterCity("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {c.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm">
+                    <div className="mb-2 text-gray-300">No matches</div>
+                    <button
+                      onClick={() => {
+                        setCountryFormName(countrySearchFilter);
+                        setCountryModalOrigin("filter");
+                        setAddCountryModalOpen(true);
+                        setCountryDropdownOpenFilter(false);
+                      }}
+                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
+                    >
+                      Create new country &quot;{countrySearchFilter}&quot; (open modal)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* State filter */}
+          <div className="relative w-48" ref={filterStateRef}>
+            <input
+              type="text"
+              value={stateSearchFilter || getStateName(filterState) || stateSearchFilter}
+              onChange={(e) => {
+                setStateSearchFilter(e.target.value);
+                setStateDropdownOpenFilter(true);
+              }}
+              onFocus={() => setStateDropdownOpenFilter(true)}
+              placeholder="Filter by State..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+            {stateDropdownOpenFilter && (
+              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
+                {filteredStatesFilter.length > 0 ? (
+                  filteredStatesFilter.map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => {
+                        setFilterState(s.id);
+                        setStateDropdownOpenFilter(false);
+                        setStateSearchFilter("");
+                        setFilterCity("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {s.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm">
+                    <div className="mb-2 text-gray-300">No matches</div>
+                    <button
+                      onClick={() => {
+                        setStateFormName(stateSearchFilter);
+                        setStateEditData((p) => ({
+                          ...p,
+                          countryId: filterCountry || "",
+                        }));
+                        setStateModalOrigin("filter");
+                        setAddStateModalOpen(true);
+                        setStateDropdownOpenFilter(false);
+                      }}
+                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
+                    >
+                      Create new state &quot;{stateSearchFilter}&quot; (open modal)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* City filter */}
+          <div className="relative w-48" ref={filterCityRef}>
+            <input
+              type="text"
+              value={citySearchFilter || getCityName(filterCity) || citySearchFilter}
+              onChange={(e) => {
+                setCitySearchFilter(e.target.value);
+                setCityDropdownOpenFilter(true);
+              }}
+              onFocus={() => setCityDropdownOpenFilter(true)}
+              placeholder="Filter by City..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+            {cityDropdownOpenFilter && (
+              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
+                {filteredCitiesFilter.length > 0 ? (
+                  filteredCitiesFilter.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setFilterCity(c.id);
+                        setCityDropdownOpenFilter(false);
+                        setCitySearchFilter("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {c.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm">
+                    <div className="mb-2 text-gray-300">No matches</div>
+                    <button
+                      onClick={() => {
+                        setCityFormName(citySearchFilter);
+                        setCityEditData((p) => ({
+                          ...p,
+                          countryId: filterCountry || "",
+                          stateId: filterState || "",
+                        }));
+                        setCityModalOrigin("filter");
+                        setAddCityModalOpen(true);
+                        setCityDropdownOpenFilter(false);
+                      }}
+                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
+                    >
+                      Create new city &quot;{citySearchFilter}&quot; (open modal)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              setFilterCountry("");
+              setFilterState("");
+              setFilterCity("");
+            }}
+            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm"
+          >
+            Clear Filters
+          </button>
         </div>
 
         {/* TABLE */}
         <div className="flex-grow overflow-auto w-full min-h-0">
-  <div className="w-full overflow-x-auto">
-    <table className="min-w-[1200px] text-left border-separate border-spacing-y-1 text-sm table-fixed">
+          <div className="w-full overflow-x-auto">
+            <table className="w-[1200px] table-fixed border-separate border-spacing-y-1 text-sm">
+              <colgroup>
+                {visibleColumns.id && <col className="w-[80px]" />}
+                {visibleColumns.name && <col className="w-[220px]" />}
+                {visibleColumns.country && <col className="w-[160px]" />}
+                {visibleColumns.state && <col className="w-[160px]" />}
+                {visibleColumns.city && <col className="w-[160px]" />}
+                {visibleColumns.address && <col className="w-[200px]" />}
+                {visibleColumns.latitude && <col className="w-[140px]" />}
+                {visibleColumns.longitude && <col className="w-[140px]" />}
+              </colgroup>
 
-      {/* Column widths */}
-      <colgroup>
-        {visibleColumns.id && <col className="w-[80px]" />}
-        {visibleColumns.name && <col className="w-[220px]" />}
-        {visibleColumns.country && <col className="w-[160px]" />}
-        {visibleColumns.state && <col className="w-[160px]" />}
-        {visibleColumns.city && <col className="w-[160px]" />}
-        {visibleColumns.address && <col className="w-[200px]" />}
-        {visibleColumns.latitude && <col className="w-[140px]" />}
-        {visibleColumns.longitude && <col className="w-[140px]" />}
-      </colgroup>
+              {/* HEADER */}
+              <thead className="sticky top-0 bg-gray-900 z-10">
+                <tr className="text-white text-center">
+                  {visibleColumns.id && (
+                    <SortableHeader
+                      label="ID"
+                      sortOrder={sortOrder}
+                      onClick={() =>
+                        setSortOrder((prev) => (prev === "asc" ? null : "asc"))
+                      }
+                    />
+                  )}
 
-      {/* HEADER */}
-      <thead className="sticky top-0 bg-gray-900 z-10">
-        <tr className="text-white text-center">
+                  {visibleColumns.name && (
+                    <th className="pb-2 border-b border-white">Name</th>
+                  )}
 
-          {visibleColumns.id && (
-            <SortableHeader
-              label="ID"
-              sortOrder={sortOrder}
-              onClick={() =>
-                setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-              }
-            />
-          )}
+                  {visibleColumns.country && (
+                    <th className="pb-2 border-b border-white">Country</th>
+                  )}
 
-          {visibleColumns.name && (
-            <th className="pb-2 border-b border-white">Name</th>
-          )}
+                  {visibleColumns.state && (
+                    <th className="pb-2 border-b border-white">State</th>
+                  )}
 
-          {visibleColumns.country && (
-            <th className="pb-2 border-b border-white">Country</th>
-          )}
+                  {visibleColumns.city && (
+                    <th className="pb-2 border-b border-white">City</th>
+                  )}
 
-          {visibleColumns.state && (
-            <th className="pb-2 border-b border-white">State</th>
-          )}
+                  {visibleColumns.address && (
+                    <th className="pb-2 border-b border-white">Address</th>
+                  )}
 
-          {visibleColumns.city && (
-            <th className="pb-2 border-b border-white">City</th>
-          )}
+                  {visibleColumns.latitude && (
+                    <th className="pb-2 border-b border-white">Lat</th>
+                  )}
 
-          {visibleColumns.address && (
-            <th className="pb-2 border-b border-white">Address</th>
-          )}
+                  {visibleColumns.longitude && (
+                    <th className="pb-2 border-b border-white">Long</th>
+                  )}
+                </tr>
+              </thead>
 
-          {visibleColumns.latitude && (
-            <th className="pb-2 border-b border-white">Lat</th>
-          )}
+              {/* BODY */}
+              <tbody className="text-center">
+                {/* No records at all */}
+                {sortedRows.length === 0 && inactiveRows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={Object.values(visibleColumns).filter(Boolean).length}
+                      className="px-4 py-6 text-center text-gray-400"
+                    >
+                      No records found
+                    </td>
+                  </tr>
+                )}
 
-          {visibleColumns.longitude && (
-            <th className="pb-2 border-b border-white">Long</th>
-          )}
-        </tr>
-      </thead>
+                {/* ACTIVE ROWS */}
+                {sortedRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                    onClick={() => openEdit(row, false)}
+                  >
+                    {visibleColumns.id && <td className="px-2 py-3">{row.id}</td>}
+                    {visibleColumns.name && <td className="px-2 py-3">{row.name}</td>}
+                    {visibleColumns.country && <td className="px-2 py-3">{row.countryName}</td>}
+                    {visibleColumns.state && <td className="px-2 py-3">{row.stateName}</td>}
+                    {visibleColumns.city && <td className="px-2 py-3">{row.cityName}</td>}
+                    {visibleColumns.address && <td className="px-2 py-3">{row.address}</td>}
+                    {visibleColumns.latitude && <td className="px-2 py-3">{row.latitude}</td>}
+                    {visibleColumns.longitude && <td className="px-2 py-3">{row.longitude}</td>}
+                  </tr>
+                ))}
 
-      {/* BODY */}
-      <tbody className="text-center">
-
-        {sortedRows.length === 0 && (
-          <tr>
-            <td
-              colSpan={Object.values(visibleColumns).filter(Boolean).length}
-              className="px-4 py-6 text-center text-gray-400"
-            >
-              No records found
-            </td>
-          </tr>
-        )}
-
-        {sortedRows.map((row) => (
-          <tr
-            key={row.id}
-            className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-            onClick={() => openEdit(row)}
-          >
-            {visibleColumns.id && (
-              <td className="px-2 py-3">{row.id}</td>
-            )}
-
-            {visibleColumns.name && (
-              <td className="px-2 py-3">{row.name}</td>
-            )}
-
-            {visibleColumns.country && (
-              <td className="px-2 py-3">{row.countryName}</td>
-            )}
-
-            {visibleColumns.state && (
-              <td className="px-2 py-3">{row.stateName}</td>
-            )}
-
-            {visibleColumns.city && (
-              <td className="px-2 py-3">{row.cityName}</td>
-            )}
-
-            {visibleColumns.address && (
-              <td className="px-2 py-3">{row.address}</td>
-            )}
-
-            {visibleColumns.latitude && (
-              <td className="px-2 py-3">{row.latitude}</td>
-            )}
-
-            {visibleColumns.longitude && (
-              <td className="px-2 py-3">{row.longitude}</td>
-            )}
-          </tr>
-        ))}
-
-      </tbody>
-    </table>
-  </div>
-</div>
-
+                {/* INACTIVE ROWS (inside same table) */}
+                {showInactive &&
+                  inactiveRows.map((row) => (
+                    <tr
+                      key={`inactive-${row.id}`}
+                      className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
+                      onClick={() => openEdit(row, true)}
+                    >
+                      {visibleColumns.id && <td className="px-2 py-3">{row.id}</td>}
+                      {visibleColumns.name && <td className="px-2 py-3">{row.name}</td>}
+                      {visibleColumns.country && <td className="px-2 py-3">{row.countryName}</td>}
+                      {visibleColumns.state && <td className="px-2 py-3">{row.stateName}</td>}
+                      {visibleColumns.city && <td className="px-2 py-3">{row.cityName}</td>}
+                      {visibleColumns.address && <td className="px-2 py-3">{row.address}</td>}
+                      {visibleColumns.latitude && <td className="px-2 py-3">{row.latitude}</td>}
+                      {visibleColumns.longitude && <td className="px-2 py-3">{row.longitude}</td>}
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* PAGINATION */}
         <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
@@ -2141,6 +2511,7 @@ if (sortOrder === "asc") {
           >
             <ChevronsLeft size={16} />
           </button>
+
           <button
             disabled={page === 1}
             onClick={() => setPage(page - 1)}
@@ -2170,6 +2541,7 @@ if (sortOrder === "asc") {
           >
             <ChevronRight size={16} />
           </button>
+
           <button
             disabled={page === totalPages}
             onClick={() => setPage(totalPages)}
@@ -2179,8 +2551,8 @@ if (sortOrder === "asc") {
           </button>
 
           <span>
-            Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b>{" "}
-            of <b>{totalRecords}</b> records
+            Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of{" "}
+            <b>{totalRecords}</b> records
           </span>
         </div>
       </div>

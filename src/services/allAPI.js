@@ -1,6 +1,5 @@
 import { commonAPI } from "../services/commonAPI";
 import { serverURL } from "../services/serverURL";
-import axios from "axios";
 
 // Login API
 export const LoginApi = async (reqBody) => {
@@ -19,6 +18,38 @@ export const requestResetApi = async (data) =>
 
 export const resetPasswordApi = async (data) =>
   await commonAPI("PUT", `${serverURL}/auth/reset-password`, data);
+
+
+
+// LIST (Paginated)
+export const getUsersApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/users/all?page=${page}&limit=${limit}`);
+
+// ADD USER (with image)
+export const addUserApi = (data) =>
+  commonAPI("POST", `${serverURL}/users/add`, data, true); // true = multipart
+
+// UPDATE USER
+export const updateUserApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/users/update/${id}`, data, true);
+
+// DELETE USER (soft delete)
+export const deleteUserApi = (id, body) =>
+  commonAPI("PUT", `${serverURL}/users/delete/${id}`, body);
+
+// INACTIVE USERS
+export const getInactiveUsersApi = () =>
+  commonAPI("GET", `${serverURL}/users/inactive`);
+
+// RESTORE USER
+export const restoreUserApi = (id, body) =>
+  commonAPI("PUT", `${serverURL}/users/restore/${id}`, body);
+
+// SEARCH USERS
+export const searchUserApi = (q) =>
+  commonAPI("GET", `${serverURL}/users/search?q=${encodeURIComponent(q)}`);
+
+
 
 
 /* ============================================================
@@ -625,6 +656,15 @@ export const deleteLocationApi = (id, data) =>
 export const searchLocationApi = (q) =>
   commonAPI("GET", `${serverURL}/locations/search?q=${encodeURIComponent(q)}`, "", "");
 
+// ⭐ GET INACTIVE LOCATIONS
+export const getInactiveLocationsApi = () =>
+  commonAPI("GET", `${serverURL}/locations/inactive`, "", "");
+
+// ♻ RESTORE LOCATION
+export const restoreLocationApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/locations/restore/${id}`, data, "");
+
+
 
 
 // ===============================
@@ -773,3 +813,271 @@ export const getInactiveProductsApi = () =>
 // RESTORE PRODUCT
 export const restoreProductApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/products/restore/${id}`, data, "");
+
+
+
+
+// =================== STOCKS ===================
+// Get paginated stocks
+export const getStocksApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/stocks/all?page=${page}&limit=${limit}`, "", "");
+
+// Add stock
+export const addStockApi = (data) =>
+  commonAPI("POST", `${serverURL}/stocks/add`, data, "");
+
+// Update stock
+export const updateStockApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/stocks/update/${id}`, data, "");
+
+// Delete stock (soft delete)
+export const deleteStockApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/stocks/delete/${id}`, data, "");
+
+// Search stocks
+export const searchStockApi = (q) =>
+  commonAPI("GET", `${serverURL}/stocks/search?q=${encodeURIComponent(q)}`, "", "");
+
+// Get inactive stocks
+export const getInactiveStocksApi = () =>
+  commonAPI("GET", `${serverURL}/stocks/inactive`, "", "");
+
+// Restore stock
+export const restoreStockApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/stocks/restore/${id}`, data, "");
+
+
+
+
+// ADD DAMAGED PRODUCT
+export const addDamagedProductApi = (data) =>
+  commonAPI("POST", `${serverURL}/damaged-products/add`, data, "");
+
+// GET DAMAGED PRODUCTS (Paginated)
+export const getDamagedProductsApi = (page, limit) =>
+  commonAPI("GET",`${serverURL}/damaged-products/all?page=${page}&limit=${limit}`,"","");
+
+
+// UPDATE DAMAGED PRODUCT
+export const updateDamagedProductApi = (id, data) =>
+  commonAPI("PUT",`${serverURL}/damaged-products/update/${id}`,data,"");
+
+// DELETE DAMAGED PRODUCT (Soft Delete)
+export const deleteDamagedProductApi = (id, data) =>
+  commonAPI("PUT",`${serverURL}/damaged-products/delete/${id}`,data,"");
+
+// SEARCH DAMAGED PRODUCT
+export const searchDamagedProductsApi = (query) =>
+  commonAPI("GET",`${serverURL}/damaged-products/search?q=${query}`,"","");
+
+// GET INACTIVE DAMAGED PRODUCTS
+export const getInactiveDamagedProductsApi = () =>
+  commonAPI("GET",`${serverURL}/damaged-products/inactive`,"","");
+
+// RESTORE DAMAGED PRODUCT
+export const restoreDamagedProductApi = (id, data) =>
+  commonAPI( "PUT", `${serverURL}/damaged-products/restore/${id}`, data, "");
+
+
+
+// =================== human resource ===================
+
+// ===============================
+// DEPARTMENTS API
+// ===============================
+
+// ADD DEPARTMENT
+export const addDepartmentApi = (data) =>
+  commonAPI("POST", `${serverURL}/departments/add`, data, "");
+
+// GET DEPARTMENTS (Paginated)
+export const getDepartmentsApi = (page, limit) =>
+  commonAPI("GET",`${serverURL}/departments?page=${page}&limit=${limit}`,"","");
+
+// UPDATE DEPARTMENT
+export const updateDepartmentApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/departments/update/${id}`, data, "");
+
+// DELETE DEPARTMENT (Soft Delete)
+export const deleteDepartmentApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/departments/delete/${id}`, data, "");
+
+// SEARCH DEPARTMENTS
+export const searchDepartmentApi = (q) =>
+  commonAPI("GET", `${serverURL}/departments/search?q=${q}`, "", "");
+
+// GET INACTIVE DEPARTMENTS
+export const getInactiveDepartmentsApi = () =>
+  commonAPI("GET", `${serverURL}/departments/inactive`, "", "");
+
+// RESTORE DEPARTMENT
+export const restoreDepartmentApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/departments/restore/${id}`, data, "");
+
+
+
+// =========designations API======================
+
+// ADD DESIGNATION
+export const addDesignationApi = (data) =>
+  commonAPI("POST", `${serverURL}/designations/add`, data, "");
+
+// GET DESIGNATIONS (Paginated)
+export const getDesignationsApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/designations?page=${page}&limit=${limit}`, "", "");
+
+// UPDATE DESIGNATION
+export const updateDesignationApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/designations/update/${id}`, data, "");
+
+// DELETE DESIGNATION (Soft Delete)
+export const deleteDesignationApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/designations/delete/${id}`, data, "");
+
+// SEARCH DESIGNATIONS
+export const searchDesignationApi = (q) =>
+  commonAPI("GET", `${serverURL}/designations/search?q=${q}`, "", "");
+
+// GET INACTIVE DESIGNATIONS
+export const getInactiveDesignationsApi = () =>
+  commonAPI("GET", `${serverURL}/designations/inactive`, "", "");
+
+// RESTORE DESIGNATION
+export const restoreDesignationApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/designations/restore/${id}`, data, "");
+
+
+
+
+// ---------------------------------------------------------
+// Employee APIs
+// ---------------------------------------------------------
+
+// ADD EMPLOYEE (with picture + incomes + deductions)
+export const addEmployeeApi = (formData) =>
+  commonAPI("POST", `${serverURL}/employees`, formData, true);
+
+// GET ALL EMPLOYEES (Paginated)
+export const getEmployeesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/employees?page=${page}&limit=${limit}`, "", "");
+
+// GET SINGLE EMPLOYEE
+export const getEmployeeByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/employees/${id}`, "", "");
+
+// UPDATE EMPLOYEE (PUT - with optional picture file)
+export const updateEmployeeApi = (id, formData) =>
+  commonAPI("PUT", `${serverURL}/employees/${id}`, formData, true);
+
+// DELETE EMPLOYEE (Soft Delete)
+export const deleteEmployeeApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/employees/${id}`, data, "");
+
+
+
+// ROLES
+export const addRoleApi = (data) =>
+  commonAPI("POST", `${serverURL}/roles/add`, data, "");
+
+export const getRolesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/roles?page=${page}&limit=${limit}`, "", "");
+
+export const updateRoleApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/roles/update/${id}`, data, "");
+
+export const deleteRoleApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/roles/delete/${id}`, data, "");
+
+export const searchRoleApi = (q) =>
+  commonAPI("GET", `${serverURL}/roles/search?q=${encodeURIComponent(q)}`, "", "");
+
+// inactive
+export const getInactiveRolesApi = () =>
+  commonAPI("GET", `${serverURL}/roles/inactive`, "", "");
+
+export const restoreRoleApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/roles/restore/${id}`, data, "");
+
+
+
+// CURRENCIES
+export const addCurrencyApi = (data) =>
+  commonAPI("POST", `${serverURL}/currencies/add`, data, "");
+
+export const getCurrenciesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/currencies?page=${page}&limit=${limit}`, "", "");
+
+export const updateCurrencyApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/currencies/update/${id}`, data, "");
+
+export const deleteCurrencyApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/currencies/delete/${id}`, data, "");
+
+export const searchCurrencyApi = (q) =>
+  commonAPI("GET", `${serverURL}/currencies/search?q=${encodeURIComponent(q)}`, "", "");
+
+export const getInactiveCurrenciesApi = () =>
+  commonAPI("GET", `${serverURL}/currencies/inactive`, "", "");
+
+export const restoreCurrencyApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/currencies/restore/${id}`, data, "");
+
+
+
+// LANGUAGES
+export const addLanguageApi = (data) =>
+  commonAPI("POST", `${serverURL}/languages/add`, data, "");
+
+export const getLanguagesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/languages?page=${page}&limit=${limit}`, "", "");
+
+export const updateLanguageApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/languages/update/${id}`, data, "");
+
+export const deleteLanguageApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/languages/delete/${id}`, data, "");
+
+export const searchLanguageApi = (q) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/languages/search?q=${encodeURIComponent(q)}`,
+    "",
+    ""
+  );
+
+export const getInactiveLanguagesApi = () =>
+  commonAPI("GET", `${serverURL}/languages/inactive`, "", "");
+
+export const restoreLanguageApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/languages/restore/${id}`, data, "");
+
+
+
+
+
+// EXPENSES
+export const addExpenseApi = (data) =>
+  commonAPI("POST", `${serverURL}/expenses/add`, data, "");
+
+export const getExpensesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/expenses?page=${page}&limit=${limit}`, "", "");
+
+export const updateExpenseApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/expenses/update/${id}`, data, "");
+
+export const deleteExpenseApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/expenses/delete/${id}`, data, "");
+
+export const searchExpenseApi = (q) =>
+  commonAPI("GET", `${serverURL}/expenses/search?q=${encodeURIComponent(q)}`, "", "");
+
+export const getInactiveExpensesApi = () =>
+  commonAPI("GET", `${serverURL}/expenses/inactive`, "", "");
+
+export const restoreExpenseApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/expenses/restore/${id}`, data, "");
+
+export const getExpenseTypesSimpleApi = () =>
+  commonAPI("GET", `${serverURL}/expense-types/simple`, "", "");
+
+
