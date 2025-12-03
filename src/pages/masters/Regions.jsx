@@ -24,6 +24,7 @@ import {
   getInactiveRegionsApi,
   restoreRegionApi,
 } from "../../services/allAPI";
+import PageLayout from "../../layout/PageLayout";
 
 const Regions = () => {
   // MODALS
@@ -386,194 +387,199 @@ const Regions = () => {
         </div>
       )}
 
-      {/* MAIN PAGE */}
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col h-[calc(100vh-80px)] overflow-hidden">
+      <PageLayout>
+{/* MAIN PAGE */}
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
 
-        <h2 className="text-2xl font-semibold mb-4">Regions</h2>
+    <h2 className="text-2xl font-semibold mb-4">Regions</h2>
 
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+    {/* ACTION BAR */}
+    <div className="flex flex-wrap items-center gap-2 mb-4">
 
-          {/* SEARCH */}
-          <div className="flex items-center bg-gray-700 rounded-md border border-gray-600 px-2 py-1.5 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              type="text"
-              placeholder="search..."
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-            />
-          </div>
-
-          {/* ADD */}
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
-          >
-            <Plus size={16} /> New Region
-          </button>
-
-          {/* REFRESH */}
-          <button
-            onClick={() => {
-              setSearchText("");
-              setPage(1);
-              loadRegions();
-            }}
-            className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          {/* COLUMNS */}
-          <button
-            onClick={() => setColumnModal(true)}
-            className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          {/* INACTIVE TOGGLE */}
-          <button
-            onClick={async () => {
-              if (!showInactive) await loadInactive();
-              setShowInactive(!showInactive);
-            }}
-            className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 flex items-center gap-1"
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
-
-        </div>
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto min-h-0 w-full">
-          <table className="w-[400px] border-separate border-spacing-y-1 text-sm">
-            <thead className="sticky top-0 bg-gray-900 z-10">
-              <tr className="text-white">
-
-                {visibleColumns.id && (
-                  <th
-                    className="pb-1 border-b border-white text-center cursor-pointer select-none"
-                    onClick={() =>
-                      setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-                    }
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      {sortOrder === "asc" && <span>▲</span>}
-                      {sortOrder === null && <span className="opacity-40">⬍</span>}
-                      <span>ID</span>
-                    </div>
-                  </th>
-                )}
-
-                {visibleColumns.name && (
-                  <th className="pb-1 border-b border-white text-center">
-                    Name
-                  </th>
-                )}
-
-              </tr>
-            </thead>
-
-            <tbody>
-
-              {/* ACTIVE ROWS */}
-              {sortedRegions.map((r) => (
-                <tr
-                  key={r.regionId}
-                  className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded"
-                  onClick={() => openEdit(r, false)}
-                >
-                  {visibleColumns.id && (
-                    <td className="px-2 py-1 text-center">{r.regionId}</td>
-                  )}
-                  {visibleColumns.name && (
-                    <td className="px-2 py-1 text-center">{r.regionName}</td>
-                  )}
-                </tr>
-              ))}
-
-              {/* INACTIVE ROWS */}
-              {showInactive &&
-                inactiveRegions.map((r) => (
-                  <tr
-                    key={`inactive-${r.regionId}`}
-                    className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded"
-                    onClick={() => openEdit(r, true)}
-                  >
-                    {visibleColumns.id && (
-                      <td className="px-2 py-1 text-center">{r.regionId}</td>
-                    )}
-                    {visibleColumns.name && (
-                      <td className="px-2 py-1 text-center">{r.regionName}</td>
-                    )}
-                  </tr>
-                ))}
-
-            </tbody>
-          </table>
-        </div>
-
-        {/* PAGINATION */}
-        <div className="mt-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
-
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-            className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
-          >
-            {[10, 25, 50, 100].map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-
-          <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronsLeft size={16} />
-          </button>
-
-          <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronLeft size={16} />
-          </button>
-
-          <span>Page</span>
-
-          <input
-            type="number"
-            className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
-            value={page}
-            onChange={(e) => {
-              const value = Number(e.target.value);
-              if (value >= 1 && value <= totalPages) setPage(value);
-            }}
-          />
-
-          <span>/ {totalPages}</span>
-
-          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronRight size={16} />
-          </button>
-
-          <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronsRight size={16} />
-          </button>
-
-          <button onClick={() => loadRegions()} className="p-1 bg-gray-800 border border-gray-700 rounded">
-            <RefreshCw size={16} />
-          </button>
-
-          <span>
-            Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records
-          </span>
-
-        </div>
-
+      {/* SEARCH */}
+      <div className="flex items-center bg-gray-700 rounded-md border border-gray-600 px-2 py-1.5 w-full sm:w-60">
+        <Search size={16} className="text-gray-300" />
+        <input
+          type="text"
+          placeholder="search..."
+          value={searchText}
+          onChange={(e) => handleSearch(e.target.value)}
+          className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
+        />
       </div>
+
+      {/* ADD */}
+      <button
+        onClick={() => setModalOpen(true)}
+        className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
+      >
+        <Plus size={16} /> New Region
+      </button>
+
+      {/* REFRESH */}
+      <button
+        onClick={() => {
+          setSearchText("");
+          setPage(1);
+          loadRegions();
+        }}
+        className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
+      >
+        <RefreshCw size={16} className="text-blue-400" />
+      </button>
+
+      {/* COLUMNS */}
+      <button
+        onClick={() => setColumnModal(true)}
+        className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
+      >
+        <List size={16} className="text-blue-300" />
+      </button>
+
+      {/* INACTIVE TOGGLE */}
+      <button
+        onClick={async () => {
+          if (!showInactive) await loadInactive();
+          setShowInactive(!showInactive);
+        }}
+        className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 flex items-center gap-1"
+      >
+        <ArchiveRestore size={16} className="text-yellow-300" />
+        <span className="text-xs opacity-80">Inactive</span>
+      </button>
+
+    </div>
+
+    {/* TABLE */}
+    <div className="flex-grow overflow-auto min-h-0 w-full">
+      <table className="w-[400px] border-separate border-spacing-y-1 text-sm">
+        <thead className="sticky top-0 bg-gray-900 z-10">
+          <tr className="text-white">
+
+            {visibleColumns.id && (
+              <th
+                className="pb-1 border-b border-white text-center cursor-pointer select-none"
+                onClick={() =>
+                  setSortOrder((prev) => (prev === "asc" ? null : "asc"))
+                }
+              >
+                <div className="flex items-center justify-center gap-1">
+                  {sortOrder === "asc" && <span>▲</span>}
+                  {sortOrder === null && <span className="opacity-40">⬍</span>}
+                  <span>ID</span>
+                </div>
+              </th>
+            )}
+
+            {visibleColumns.name && (
+              <th className="pb-1 border-b border-white text-center">
+                Name
+              </th>
+            )}
+
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {/* ACTIVE ROWS */}
+          {sortedRegions.map((r) => (
+            <tr
+              key={r.regionId}
+              className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded"
+              onClick={() => openEdit(r, false)}
+            >
+              {visibleColumns.id && (
+                <td className="px-2 py-1 text-center">{r.regionId}</td>
+              )}
+              {visibleColumns.name && (
+                <td className="px-2 py-1 text-center">{r.regionName}</td>
+              )}
+            </tr>
+          ))}
+
+          {/* INACTIVE ROWS */}
+          {showInactive &&
+            inactiveRegions.map((r) => (
+              <tr
+                key={`inactive-${r.regionId}`}
+                className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded"
+                onClick={() => openEdit(r, true)}
+              >
+                {visibleColumns.id && (
+                  <td className="px-2 py-1 text-center">{r.regionId}</td>
+                )}
+                {visibleColumns.name && (
+                  <td className="px-2 py-1 text-center">{r.regionName}</td>
+                )}
+              </tr>
+            ))}
+
+        </tbody>
+      </table>
+    </div>
+
+    {/* PAGINATION */}
+    <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
+
+      <select
+        value={limit}
+        onChange={(e) => {
+          setLimit(Number(e.target.value));
+          setPage(1);
+        }}
+        className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
+      >
+        {[10, 25, 50, 100].map((n) => (
+          <option key={n} value={n}>{n}</option>
+        ))}
+      </select>
+
+      <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+        <ChevronsLeft size={16} />
+      </button>
+
+      <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+        <ChevronLeft size={16} />
+      </button>
+
+      <span>Page</span>
+
+      <input
+        type="number"
+        className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
+        value={page}
+        onChange={(e) => {
+          const value = Number(e.target.value);
+          if (value >= 1 && value <= totalPages) setPage(value);
+        }}
+      />
+
+      <span>/ {totalPages}</span>
+
+      <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+        <ChevronRight size={16} />
+      </button>
+
+      <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
+        <ChevronsRight size={16} />
+      </button>
+
+      <button onClick={() => loadRegions()} className="p-1 bg-gray-800 border border-gray-700 rounded">
+        <RefreshCw size={16} />
+      </button>
+
+      <span>
+        Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records
+      </span>
+
+    </div>
+
+  </div>
+</div>
+</PageLayout>
+
     </>
   );
 };

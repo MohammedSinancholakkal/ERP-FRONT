@@ -40,6 +40,35 @@ import Languages from "./pages/Administration/Languages"  ;
 import Expenses from "./pages/Cash Bank/Expenses"  ;
 import Customers from "./pages/business partners/Customers"  ;
 import Suppliers from "./pages/business partners/Suppliers"  ;
+import BankTransactions from "./pages/Cash Bank/BankTransactions"  ;
+import CustomerReceive from "./pages/Cash Bank/CustomerReceive"  ;
+import SupplierPayment from "./pages/Cash Bank/SupplierPayment"  ;
+import CashAdjustment from "./pages/Cash Bank/CashAdjustment"  ;
+import GoodsReceipt from "./pages/inventory/GoodsReceipt";
+import GoodsIssue from "./pages/inventory/GoodsIssue";
+import Employees from "./pages/human resource/Employees";
+import Attendance from "./pages/human resource/Attendance";
+import Payroll from "./pages/human resource/Payroll";
+import JournalVoucher from "./pages/Financial/JournalVoucher";
+import ContraVoucher from "./pages/Financial/ContraVoucher";
+import CreditVoucher from "./pages/Financial/CreditVoucher";
+import DebitVoucher from "./pages/Financial/DebitVoucher";
+import OpeningBalance from "./pages/Financial/OpeningBalance";
+import ChartOfAccounts from "./pages/Financial/ChartOfAccounts";
+import Sales from "./pages/Sales/Sales";
+import SalesQuotation from "./pages/Sales/SalesQuotation";
+import Purchase from "./pages/Purchases/Purchase"
+import Invoices from "./pages/Services/Invoices";
+import Meetings from "./pages/Meeting/Meetings";
+import SuppliersPayableReport from "./pages/reports/SuppliersPayableReport";
+import CustomerReceivableReport from "./pages/reports/CustomerReceivableReport";
+import StockReport from "./pages/reports/StockReport";
+import DailyClosingReport from "./pages/reports/DailyClosingReport";
+import DayClosing from "./pages/reports/DayClosing";
+
+
+
+
 
 function App() {
   return (
@@ -84,6 +113,8 @@ function App() {
           <Route path="inventory/products" element={<Products />} />
           <Route path="inventory/updatestock" element={<UpdateStocks />} />
           <Route path="inventory/damagedproducts" element={<DamagedProducts />} />
+          <Route path="inventory/goodsreceipts" element={<GoodsReceipt />} />
+          <Route path="inventory/goodsissue" element={<GoodsIssue />} />
 
 
 
@@ -92,6 +123,9 @@ function App() {
           <Route path="hr/departments" element={<Departments />} />
           <Route path="hr/designations" element={<Designations />} />
           <Route path="hr/newemployee" element={<NewEmployee />} />
+          <Route path="hr/employees" element={<Employees />} />
+          <Route path="hr/attendance" element={<Attendance />} />
+          <Route path="hr/payroll" element={<Payroll />} />
 
 
         {/* administration */}
@@ -102,12 +136,55 @@ function App() {
 
         {/* cash/bank */}
         <Route path="cashbank/expenses" element={<Expenses />} />
+        <Route path="cashbank/banktransaction" element={<BankTransactions />} />
+        <Route path="cashbank/customerreceive" element={<CustomerReceive />} />
+        <Route path="cashbank/supplierpayment" element={<SupplierPayment />} />
+        <Route path="cashbank/cashadjustment" element={<CashAdjustment />} />
 
+
+
+        {/* Financial */}
+        <Route path="financial/journalvoucher" element={<JournalVoucher />} />
+        <Route path="financial/contravoucher" element={<ContraVoucher />} />
+        <Route path="financial/creditvoucher" element={<CreditVoucher />} />
+        <Route path="financial/debitvoucher" element={<DebitVoucher />} />
+        <Route path="financial/openingbalance" element={<OpeningBalance />} />
+        <Route path="financial/chartofaccounts" element={<ChartOfAccounts />} />
+
+        
+
+      {/* sales */}
+
+        <Route path="sales/sales" element={<Sales />} />
+        <Route path="sales/salesquotations" element={<SalesQuotation />} />
+
+
+
+        {/* purchases */}
+
+      <Route path="purchasing/purchases" element={<Purchase />} />
+
+
+      {/* services */}
+      <Route path="services/invoices" element={<Invoices />} />
+
+      {/* meetings */}
+
+      <Route path="meeting/meetings" element={<Meetings />} />
 
 
         {/* business partners */}
         <Route path="businesspartners/customers" element={<Customers />} />
         <Route path="businesspartners/suppliers" element={<Suppliers />} />
+
+
+        {/* reports */}
+
+        <Route path="reports/supplierpayablereport" element={<SuppliersPayableReport />} />
+        <Route path="reports/customerreceivablereport" element={<CustomerReceivableReport />} />
+        <Route path="reports/stockreports" element={<StockReport />} />
+        <Route path="reports/dailyclosingreports" element={<DailyClosingReport />} />
+        <Route path="reports/dayclosing" element={<DayClosing />} />
 
         </Route>
       </Routes>

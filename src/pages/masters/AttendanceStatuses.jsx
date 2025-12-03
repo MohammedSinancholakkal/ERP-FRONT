@@ -27,6 +27,7 @@ import {
   restoreAttendanceStatusApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
 
 const AttendanceStatuses = () => {
   // Modals
@@ -450,8 +451,10 @@ const AttendanceStatuses = () => {
       )}
 
       {/* ---------------- MAIN PAGE ------------------- */}
+<PageLayout>
 
-      <div className="p-4 sm:p-6 text-white min-h-[calc(100vh-64px)] bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col">
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
 
         <h2 className="text-2xl font-semibold mb-4">Attendance Statuses</h2>
 
@@ -592,7 +595,7 @@ const AttendanceStatuses = () => {
         </div>
 
         {/* PAGINATION */}
-        <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
+    <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
 
           {/* Limit */}
           <select
@@ -665,10 +668,10 @@ const AttendanceStatuses = () => {
             Showing <b>{Math.min(start, totalRecords)}</b> to <b>{end}</b> of{" "}
             <b>{totalRecords}</b> records
           </span>
-
         </div>
-
       </div>
+      </div>
+      </PageLayout>
     </>
   );
 };

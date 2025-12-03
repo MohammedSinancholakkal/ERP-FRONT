@@ -42,6 +42,7 @@ import {
   restoreWarehouseApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
 
 const Warehouses = () => {
   // ================================
@@ -2133,7 +2134,11 @@ const Warehouses = () => {
       )}
 
       {/* ========================= MAIN PAGE ========================= */}
-      <div className="p-4 sm:p-6 text-white min-h-[calc(100vh-64px)] bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col">
+      <PageLayout>
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden"> 
+
+    
         <h2 className="text-2xl font-semibold mb-4">Warehouses</h2>
 
         {/* ACTION BAR */}
@@ -2185,10 +2190,7 @@ const Warehouses = () => {
             <span className="text-xs opacity-80">Inactive</span>
           </button>
         </div>
-
-        
-
-                    {/* FILTER BAR */}
+          {/* FILTER BAR */}
         <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
           {/* Country filter (searchable) */}
           <div className="relative w-48" ref={filterCountryRef}>
@@ -2372,8 +2374,7 @@ const Warehouses = () => {
           >
             Clear Filters
           </button>
-        </div>
-        
+        </div>     
         {/* TABLE */}
         <div className="flex-grow overflow-auto w-full min-h-0">
           <div className="w-full overflow-x-auto">
@@ -2532,8 +2533,14 @@ const Warehouses = () => {
           </div>
         </div>
 
+
+
         {/* PAGINATION */}
-        <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
+        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
+ 
+
+
+ 
           <select
             value={limit}
             onChange={(e) => {
@@ -2601,6 +2608,8 @@ const Warehouses = () => {
           </span>
         </div>
       </div>
+</div>
+</PageLayout>
     </>
   );
 };

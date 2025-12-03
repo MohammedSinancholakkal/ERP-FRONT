@@ -33,6 +33,7 @@ import {
   restoreTerritoryApi, // <- new
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
 
 const Territories = () => {
   // DATA STATES
@@ -852,6 +853,7 @@ const Territories = () => {
       )}
 
       {/* MAIN PAGE */}
+      <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
         <div className="flex flex-col h-[calc(100vh-97px)] overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">Territories</h2>
@@ -1005,7 +1007,7 @@ const Territories = () => {
           </div>
 
           {/* PAGINATION (Sticky bottom) */}
-          <div className="mt-5 sticky bottom-0 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
+          <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
             <div className="flex flex-wrap items-center gap-3 bg-transparent rounded text-sm">
               <select
                 value={limit}
@@ -1072,6 +1074,7 @@ const Territories = () => {
           {/* end pagination */}
         </div>
       </div>
+      </PageLayout>
     </>
   );
 };

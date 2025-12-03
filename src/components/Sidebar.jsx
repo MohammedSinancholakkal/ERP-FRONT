@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import React, { useEffect, useState } from "react";
 import {
   ChevronDown,
@@ -160,7 +159,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         {sidebarOpen && (
           <ul
             className={`ml-6 space-y-1 overflow-hidden transition-all duration-300 
-              ${isOpen ? "max-h-[500px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-95"}
+              ${isOpen ? "max-h-[1000px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-95"}
             `}
           >
             {items.map((item, index) => {

@@ -28,6 +28,7 @@ import {
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 import { serverURL } from "../../services/serverURL";
+import PageLayout from "../../layout/PageLayout";
 
 // Convert image to Base64 (preview only)
 const fileToBase64 = (file) =>
@@ -748,6 +749,8 @@ const Banks = () => {
         </div>
       )}
 
+
+      <PageLayout>
       {/* ------------------------------ MAIN PAGE -------------------------------- */}
       <div className="p-4 sm:p-6 text-white bg-gradient-to-b from-gray-900 to-gray-700">
         <div className="flex flex-col h-[calc(100vh-112px)] overflow-hidden">
@@ -912,7 +915,7 @@ const Banks = () => {
           </div>
 
           {/* PAGINATION */}
-          <div className="mt-5 sticky bottom-0 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
+          <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <select
                 value={limit}
@@ -995,6 +998,7 @@ const Banks = () => {
           </div>
         </div>
       </div>
+      </PageLayout>
     </>
   );
 };

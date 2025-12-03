@@ -26,6 +26,7 @@ import {
   restoreMeetingTypeApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
 
 const MeetingTypes = () => {
   // UI states
@@ -460,7 +461,10 @@ const MeetingTypes = () => {
       )}
 
       {/* MAIN PAGE */}
-      <div className="p-4 sm:p-6 text-white min-h-[calc(100vh-64px)] bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col">
+      <PageLayout>
+
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
         <h2 className="text-2xl font-semibold mb-4">Meeting Types</h2>
 
         {/* ACTION BAR */}
@@ -562,7 +566,7 @@ const MeetingTypes = () => {
         </div>
 
         {/* PAGINATION */}
-        <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
+           <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
           <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="bg-gray-800 border border-gray-600 rounded px-2 py-1">
             {[10, 25, 50, 100].map((n) => (<option key={n} value={n}>{n}</option>))}
           </select>
@@ -597,6 +601,9 @@ const MeetingTypes = () => {
           <span>Showing <b>{Math.min(start <= totalRecords ? start : 0, totalRecords)}</b> to <b>{end}</b> of <b>{totalRecords}</b> records</span>
         </div>
       </div>
+      </div>
+       </PageLayout>
+
     </>
   );
 };

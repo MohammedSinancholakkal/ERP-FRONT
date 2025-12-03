@@ -25,6 +25,7 @@ import {
   restoreSupplierGroupApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
 
 const SupplierGroups = () => {
   // modals
@@ -474,146 +475,231 @@ const SupplierGroups = () => {
         </div>
       )}
 
-      {/* MAIN PAGE */}
-      <div className="p-4 sm:p-6 text-white min-h-[calc(100vh-64px)] bg-gradient-to-b from-gray-900 to-gray-700 flex flex-col">
-        <h2 className="text-2xl font-semibold mb-4">Supplier Groups</h2>
+{/* MAIN PAGE */}
+<PageLayout>
 
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search..."
-              className="bg-transparent pl-2 text-sm w-full outline-none"
-            />
-          </div>
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
 
-          <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
-            <Plus size={16} /> New Group
-          </button>
+    <h2 className="text-2xl font-semibold mb-4">Supplier Groups</h2>
 
-          <button onClick={() => {
-              setSearchText("");
-              setPage(1);
-              loadGroups();
-            }} className="p-2 bg-gray-700 border border-gray-600 rounded">
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          <button onClick={openColumnModal} className="p-2 bg-gray-700 border border-gray-600 rounded">
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          {/* INACTIVE TOGGLE (Option A placement) */}
-          <button
-            onClick={async () => {
-              if (!showInactive) await loadInactive();
-              setShowInactive((s) => !s);
-            }}
-            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? "ring-1 ring-yellow-300" : ""}`}
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
-        </div>
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto">
-          <table className="w-[450px] border-separate border-spacing-y-1 text-sm">
-            {/* HEADER */}
-            <thead className="sticky top-0 bg-gray-900 z-10">
-              <tr className="text-white text-center">
-                {visibleColumns.id && (
-                  <SortableHeader
-                    label="ID"
-                    sortOrder={sortOrder}
-                    onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}
-                  />
-                )}
-
-                {visibleColumns.name && <th className="pb-1 border-b border-white">Name</th>}
-                {visibleColumns.description && <th className="pb-1 border-b border-white">Description</th>}
-              </tr>
-            </thead>
-
-            {/* BODY */}
-            <tbody className="text-center">
-              {sortedGroups.length === 0 && (
-                <tr>
-                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-6 text-center text-gray-400">
-                    No records found
-                  </td>
-                </tr>
-              )}
-
-              {sortedGroups.map((row) => (
-                <tr key={row.id} className="bg-gray-900 hover:bg-gray-700 cursor-pointer" onClick={() => openEdit(row, false)}>
-                  {visibleColumns.id && <td className="px-2 py-1 align-middle">{row.id}</td>}
-                  {visibleColumns.name && <td className="px-2 py-1 align-middle">{row.name}</td>}
-                  {visibleColumns.description && <td className="px-2 py-1 align-middle">{row.description}</td>}
-                </tr>
-              ))}
-
-              {/* INACTIVE ROWS */}
-              {showInactive &&
-                inactiveGroups.map((row) => (
-                  <tr
-                    key={`inactive-${row.id}`}
-                    className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
-                    onClick={() => openEdit(row, true)}
-                  >
-                    {visibleColumns.id && <td className="px-2 py-1 align-middle">{row.id}</td>}
-                    {visibleColumns.name && <td className="px-2 py-1 align-middle">{row.name}</td>}
-                    {visibleColumns.description && <td className="px-2 py-1 align-middle">{row.description}</td>}
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* PAGINATION */}
-        <div className="mt-5 flex flex-wrap items-center gap-3 bg-gray-900/50 px-4 py-2 border border-gray-700 rounded text-sm">
-          <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="bg-gray-800 border border-gray-600 rounded px-2 py-1">
-            {[10, 25, 50, 100].map((n) => (<option key={n} value={n}>{n}</option>))}
-          </select>
-
-          <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronsLeft size={16} />
-          </button>
-
-          <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronLeft size={16} />
-          </button>
-
-          <span>Page</span>
-          <input
-            type="number"
-            className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
-            value={page}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              if (v >= 1 && v <= totalPages) setPage(v);
-            }}
-          />
-          <span>/ {totalPages}</span>
-
-          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronRight size={16} />
-          </button>
-
-          <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronsRight size={16} />
-          </button>
-
-          <button onClick={() => loadGroups()} className="p-1 bg-gray-800 border border-gray-700 rounded">
-            <RefreshCw size={16} />
-          </button>
-
-          <span>Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records</span>
-        </div>
+    {/* ACTION BAR */}
+    <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
+        <Search size={16} className="text-gray-300" />
+        <input
+          value={searchText}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Search..."
+          className="bg-transparent pl-2 text-sm w-full outline-none"
+        />
       </div>
+
+      <button
+        onClick={() => setModalOpen(true)}
+        className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded"
+      >
+        <Plus size={16} /> New Group
+      </button>
+
+      <button
+        onClick={() => {
+          setSearchText("");
+          setPage(1);
+          loadGroups();
+        }}
+        className="p-2 bg-gray-700 border border-gray-600 rounded"
+      >
+        <RefreshCw size={16} className="text-blue-400" />
+      </button>
+
+      <button
+        onClick={openColumnModal}
+        className="p-2 bg-gray-700 border border-gray-600 rounded"
+      >
+        <List size={16} className="text-blue-300" />
+      </button>
+
+      {/* INACTIVE TOGGLE */}
+      <button
+        onClick={async () => {
+          if (!showInactive) await loadInactive();
+          setShowInactive((s) => !s);
+        }}
+        className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? "ring-1 ring-yellow-300" : ""}`}
+      >
+        <ArchiveRestore size={16} className="text-yellow-300" />
+        <span className="text-xs opacity-80">Inactive</span>
+      </button>
+    </div>
+
+    {/* TABLE */}
+    <div className="flex-grow overflow-auto min-h-0">
+      <table className="w-[450px] border-separate border-spacing-y-1 text-sm">
+
+        {/* HEADER */}
+        <thead className="sticky top-0 bg-gray-900 z-10">
+          <tr className="text-white text-center">
+            {visibleColumns.id && (
+              <SortableHeader
+                label="ID"
+                sortOrder={sortOrder}
+                onClick={() =>
+                  setSortOrder((prev) => (prev === "asc" ? null : "asc"))
+                }
+              />
+            )}
+
+            {visibleColumns.name && (
+              <th className="pb-1 border-b border-white">Name</th>
+            )}
+
+            {visibleColumns.description && (
+              <th className="pb-1 border-b border-white">Description</th>
+            )}
+          </tr>
+        </thead>
+
+        {/* BODY */}
+        <tbody className="text-center">
+
+          {/* No records */}
+          {sortedGroups.length === 0 && inactiveGroups.length === 0 && (
+            <tr>
+              <td
+                colSpan={Object.values(visibleColumns).filter(Boolean).length}
+                className="px-4 py-6 text-center text-gray-400"
+              >
+                No records found
+              </td>
+            </tr>
+          )}
+
+          {/* ACTIVE ROWS */}
+          {sortedGroups.map((row) => (
+            <tr
+              key={row.id}
+              className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+              onClick={() => openEdit(row, false)}
+            >
+              {visibleColumns.id && (
+                <td className="px-2 py-1 align-middle">{row.id}</td>
+              )}
+              {visibleColumns.name && (
+                <td className="px-2 py-1 align-middle">{row.name}</td>
+              )}
+              {visibleColumns.description && (
+                <td className="px-2 py-1 align-middle">{row.description}</td>
+              )}
+            </tr>
+          ))}
+
+          {/* INACTIVE ROWS */}
+          {showInactive &&
+            inactiveGroups.map((row) => (
+              <tr
+                key={`inactive-${row.id}`}
+                className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
+                onClick={() => openEdit(row, true)}
+              >
+                {visibleColumns.id && (
+                  <td className="px-2 py-1 align-middle">{row.id}</td>
+                )}
+                {visibleColumns.name && (
+                  <td className="px-2 py-1 align-middle">{row.name}</td>
+                )}
+                {visibleColumns.description && (
+                  <td className="px-2 py-1 align-middle">
+                    {row.description}
+                  </td>
+                )}
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* PAGINATION */}
+    <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
+
+      <select
+        value={limit}
+        onChange={(e) => {
+          setLimit(Number(e.target.value));
+          setPage(1);
+        }}
+        className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
+      >
+        {[10, 25, 50, 100].map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+
+      <button
+        disabled={page === 1}
+        onClick={() => setPage(1)}
+        className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+      >
+        <ChevronsLeft size={16} />
+      </button>
+
+      <button
+        disabled={page === 1}
+        onClick={() => setPage(page - 1)}
+        className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+      >
+        <ChevronLeft size={16} />
+      </button>
+
+      <span>Page</span>
+
+      <input
+        type="number"
+        className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
+        value={page}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          if (v >= 1 && v <= totalPages) setPage(v);
+        }}
+      />
+
+      <span>/ {totalPages}</span>
+
+      <button
+        disabled={page === totalPages}
+        onClick={() => setPage(page + 1)}
+        className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+      >
+        <ChevronRight size={16} />
+      </button>
+
+      <button
+        disabled={page === totalPages}
+        onClick={() => setPage(totalPages)}
+        className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
+      >
+        <ChevronsRight size={16} />
+      </button>
+
+      <button
+        onClick={() => loadGroups()}
+        className="p-1 bg-gray-800 border border-gray-700 rounded"
+      >
+        <RefreshCw size={16} />
+      </button>
+
+      <span>
+        Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of{" "}
+        <b>{totalRecords}</b> records
+      </span>
+    </div>
+
+  </div>
+</div>
+</PageLayout>
+
     </>
   );
 };

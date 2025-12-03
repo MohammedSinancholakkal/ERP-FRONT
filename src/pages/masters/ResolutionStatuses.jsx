@@ -27,6 +27,7 @@ import {
 } from "../../services/allAPI";
 
 import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
 
 const ResolutionStatuses = () => {
   // Modals
@@ -466,8 +467,10 @@ const ResolutionStatuses = () => {
       {/* =============================
               MAIN PAGE
       ============================== */}
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-        <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+    <PageLayout>
+
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
 
           <h2 className="text-2xl font-semibold mb-4">Resolution Statuses</h2>
 
@@ -599,10 +602,9 @@ const ResolutionStatuses = () => {
           </div>
 
           {/* =============================
-                PAGINATION (same as countries)
+                PAGINATION 
           ============================== */}
-          <div className="mt-5 sticky bottom-0 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
-            <div className="flex flex-wrap items-center gap-3 text-sm">
+         <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
 
               <select
                 value={limit}
@@ -666,7 +668,7 @@ const ResolutionStatuses = () => {
           </div>
 
         </div>
-      </div>
+</PageLayout>
     </>
   );
 };

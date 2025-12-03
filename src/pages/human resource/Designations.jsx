@@ -25,6 +25,7 @@ import {
   getInactiveDesignationsApi,
   restoreDesignationApi
 } from "../../services/allAPI";
+import PageLayout from "../../layout/PageLayout";
 
 const Designations = () => {
   // =============================
@@ -559,8 +560,9 @@ const Designations = () => {
       {/* ===================================
               MAIN PAGE
       =================================== */}
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-        <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+      <PageLayout>
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">Designations</h2>
 
           {/* ACTION BAR */}
@@ -648,8 +650,7 @@ const Designations = () => {
           </div>
 
           {/* PAGINATION */}
-          <div className="mt-5 sticky bottom-0 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
-            <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">            <div className="flex flex-wrap items-center gap-3 text-sm">
               <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="bg-gray-800 border border-gray-600 rounded px-2 py-1">
                 {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
@@ -672,6 +673,7 @@ const Designations = () => {
           </div>
         </div>
       </div>
+      </PageLayout>
     </>
   );
 };

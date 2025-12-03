@@ -28,6 +28,7 @@ import {
   restoreDeductionApi,
 } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
 
 const Deductions = () => {
   // UI States
@@ -530,6 +531,7 @@ const Deductions = () => {
       {/* ========================================================= */}
       {/* MAIN PAGE */}
       {/* ========================================================= */}
+      <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
         <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
 
@@ -596,6 +598,7 @@ const Deductions = () => {
           {/* ========================================================= */}
           {/* TABLE */}
           {/* ========================================================= */}
+        
           <div className="flex-grow overflow-auto min-h-0 w-full">
             <div className="w-full overflow-auto">
 
@@ -689,7 +692,7 @@ const Deductions = () => {
           {/* ========================================================= */}
           {/* PAGINATION */}
           {/* ========================================================= */}
-          <div className="mt-5 sticky bottom-0 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
+          <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
             <div className="flex flex-wrap items-center gap-3 text-sm">
 
               {/* LIMIT */}
@@ -783,6 +786,7 @@ const Deductions = () => {
 
         </div>
       </div>
+      </PageLayout>
     </>
   );
 };

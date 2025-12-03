@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+import Footer from "../components/Footer";
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
