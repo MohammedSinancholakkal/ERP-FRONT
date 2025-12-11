@@ -221,9 +221,9 @@ const GoodsReceipt = () => {
   });
 
   /* -------------------- small helpers -------------------- */
-  const openSupplierCreate = () => navigate("/masters/new-supplier");
-  const openPurchaseCreate = () => navigate("/purchases/new-purchase");
-  const openEmployeeCreate = () => navigate("/human-resource/new-employee");
+  // const openSupplierCreate = () => navigate("/masters/new-supplier");
+  // const openPurchaseCreate = () => navigate("/purchases/new-purchase");
+  // const openEmployeeCreate = () => navigate("/human-resource/new-employee");
 
   /* -------------------- render -------------------- */
   return (

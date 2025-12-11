@@ -12,7 +12,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
-
+import { useParams, useNavigate } from "react-router-dom";
 import {
   getDesignationsApi,
   getDepartmentsApi,
@@ -25,16 +25,23 @@ import {
   searchBankApi,
   getIncomesApi,
   getDeductionsApi,
+  getUsersApi,
   addCountryApi,
   addStateApi,
   addCityApi,
   addRegionApi,
   addTerritoryApi,
-  addEmployeeApi,
+ addEmployeeApi,
+updateEmployeeApi,
+getEmployeeByIdApi,
+deleteEmployeeApi,
+
 } from "../../services/allAPI";
+import { serverURL } from "../../services/serverURL";
+
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-
+ 
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
   if (Array.isArray(res)) return res;
@@ -45,12 +52,102 @@ const parseArrayFromResponse = (res) => {
   return Array.isArray(maybeArray) ? maybeArray : [];
 };
 
-const fullImageURL = (path) => (path ? `${path}` : "");
+const fullImageURL = (path) => {
+  if (!path) return "";
+  // normalize type and slashes
+  const raw = String(path).trim().replace(/\\\\/g, "/").replace(/\\/g, "/");
+  if (raw.startsWith("blob:")) return raw; // for newly selected files
+  if (/^https?:\/\//i.test(raw)) return raw; // already full URL
+  if (raw.startsWith("//")) return window.location.protocol + raw; // protocol-less URL
 
+  // Some APIs expose uploads at the server root while `serverURL` may include
+  // a `/api` prefix. Remove a trailing `/api` and any trailing slash from serverURL
+  // then join with the normalized path.
+  const host = serverURL.replace(/\/api\/?$/i, "").replace(/\/$/, "");
+  const normalizedPath = raw.startsWith("/") ? raw : `/${raw}`;
+  return `${host}${normalizedPath}`;
+};
 const NewEmployee = () => {
+
+  const { id } = useParams();        
+  const navigate = useNavigate();
+  const isEditMode = Boolean(id);
+
+
+  // ✅ LOAD EMPLOYEE ON EDIT PAGE LOAD
+useEffect(() => {
+  if (!isEditMode || !id) return;
+
+  loadEmployeeForEdit();
+}, [id, isEditMode]);
+
+
+const [isEditLoading, setIsEditLoading] = useState(false);
+
+
+const loadEmployeeForEdit = async () => {
+  try {
+    setIsEditLoading(true);
+
+    const res = await getEmployeeByIdApi(id);
+    const emp = res.data;
+
+    // ✅ Load EVERYTHING needed for dropdown labels BEFORE setting form
+    await Promise.all([
+      loadStates(emp.CountryId),
+      loadCities(emp.StateId),
+      loadRegions(emp.StateId),
+      loadTerritories(emp.RegionId),
+      loadUsers(),
+      loadBanks(),
+    ]);
+
+    // ✅ SINGLE form update (no flicker)
+    console.debug("loadEmployeeForEdit - emp.Picture:", emp.Picture);
+    console.debug("loadEmployeeForEdit - fullImageURL(emp.Picture):", fullImageURL(emp.Picture));
+
+    setForm({
+      firstName: emp.FirstName || "",
+      lastName: emp.LastName || "",
+      designationId: emp.DesignationId || "",
+      departmentId: emp.DepartmentId || "",
+      rateType: emp.RateType || "",
+hourlyRate: emp.HoureRateSalary ?? emp.HourlyRateSalary ?? "",
+salary: emp.BasicSalary ?? emp.salary ?? "",
+
+      bloodGroup: emp.BloodGroup || "",
+      phone: emp.Phone || "",
+      email: emp.Email || "",
+      countryId: emp.CountryId || "",
+      stateId: emp.StateId || "",
+      cityId: emp.CityId || "",
+      regionId: emp.RegionId || "",
+      territoryId: emp.TerritoryId || "",
+      zipCode: emp.ZipCode || "",
+      address: emp.Address || "",
+      payrollBankId: emp.PayrollBankId || "",
+      payrollBankAccount: emp.BankAccountForPayroll || "",
+      userId: emp.UserId || 1,
+      picturePreview: emp.Picture ? fullImageURL(emp.Picture) : null,
+      pictureFile: null,
+    });
+
+    setIncomes(emp.incomes || []);
+    setDeductions(emp.deductions || []);
+  } catch (err) {
+    console.error("Edit load failed:", err);
+    toast.error("Failed to load employee");
+  } finally {
+    setIsEditLoading(false);
+  }
+};
+
+
+
   // ----- tabs + form -----
   const [basicTab, setBasicTab] = useState(true);
   const [form, setForm] = useState({
+    
     firstName: "",
     lastName: "",
     designationId: "",
@@ -86,6 +183,7 @@ const NewEmployee = () => {
   const [banks, setBanks] = useState([]);
   const [incomeTypes, setIncomeTypes] = useState([]);
   const [deductionTypes, setDeductionTypes] = useState([]);
+  const [users, setUsers] = useState([]);
 
   // incomes/deductions rows
   const [incomes, setIncomes] = useState([]);
@@ -109,6 +207,7 @@ const NewEmployee = () => {
     bank: "",
     incomeType: "",
     deductionType: "",
+    user: "",
   });
 
   const [open, setOpen] = useState({
@@ -122,6 +221,7 @@ const NewEmployee = () => {
     bank: false,
     incomeType: false,
     deductionType: false,
+    user: false,
   });
 
   const refs = {
@@ -135,6 +235,7 @@ const NewEmployee = () => {
     bank: useRef(null),
     incomeType: useRef(null),
     deductionType: useRef(null),
+    user: useRef(null),
   };
 
   // INCOME MODAL STATES
@@ -197,12 +298,7 @@ const NewEmployee = () => {
         await loadBanks();
         await loadIncomeTypes();
         await loadDeductionTypes();
-
-        const inc = await getIncomesApi(1, 5000);
-        setIncomeTypes(parseArrayFromResponse(inc));
-
-        const ded = await getDeductionsApi(1, 5000);
-        setDeductionTypes(parseArrayFromResponse(ded));
+        await loadUsers();
       } catch (err) {
         console.error("lookup load error", err);
       }
@@ -373,7 +469,7 @@ const loadDeductionTypes = async () => {
 
     const normalized = items.map(r => ({
       id: r.Id,
-      name: r.Name           // API key → dropdown key
+      name: r.DeductionName || r.Name  // Try DeductionName first, fallback to Name
     }));
 
     setDeductionTypes(normalized);
@@ -383,20 +479,32 @@ const loadDeductionTypes = async () => {
   }
 };
 
+const loadUsers = async () => {
+  try {
+    const res = await getUsersApi(1, 5000);
+    const arr = parseArrayFromResponse(res);
+    setUsers(arr);
+    return arr;
+  } catch (err) {
+    console.error("loadUsers error", err);
+    toast.error("Failed to load users");
+    setUsers([]);
+    return [];
+  }
+};
+
 
   // ---------- cascade helpers ----------
   const awaitLoadStatesForCountry = async (countryId) => {
     await loadStates(countryId);
-    setForm((p) => ({ ...p, stateId: "", cityId: "", regionId: "", territoryId: "" }));
+    setForm((p) => ({ ...p, stateId: "", cityId: "", territoryId: "" }));
     setCities([]);
-    setRegions([]);
     setTerritories([]);
   };
 
   const awaitLoadCitiesForState = async (stateId) => {
     await loadCities(stateId);
-    await loadRegions(stateId);
-    setForm((p) => ({ ...p, cityId: "", regionId: "", territoryId: "" }));
+    setForm((p) => ({ ...p, cityId: "", territoryId: "" }));
     setTerritories([]);
   };
 
@@ -416,31 +524,56 @@ const loadDeductionTypes = async () => {
   const removePicture = () => handlePictureChange(null);
 
   // ---------- submit employee ----------
-  const submitEmployee = async () => {
-    if (!form.firstName.trim()) return toast.error("First name required");
-    if (!form.lastName.trim()) return toast.error("Last name required");
-    if (!String(form.salary).trim()) return toast.error("Basic Salary required");
-    if (!form.payrollBankId) return toast.error("Payroll Bank required");
-    if (!form.payrollBankAccount.trim()) return toast.error("Bank Account required");
+const submitEmployee = async () => {
+  if (!form.firstName.trim()) return toast.error("First name required");
+  if (!form.lastName.trim()) return toast.error("Last name required");
+  if (!String(form.salary).trim()) return toast.error("Basic Salary required");
+  if (!form.payrollBankId) return toast.error("Payroll Bank required");
+  if (!form.payrollBankAccount.trim()) return toast.error("Bank Account required");
 
-    try {
-      const fd = new FormData();
-      fd.append("data", JSON.stringify({ ...form, incomes, deductions }));
+  try {
+    const fd = new FormData();
+    fd.append("data", JSON.stringify({ ...form, incomes, deductions }));
 
-      if (form.pictureFile) fd.append("pictureFile", form.pictureFile);
+    if (form.pictureFile) fd.append("pictureFile", form.pictureFile);
 
-      const res = await addEmployeeApi(fd);
-
-      if (res?.status === 201 || res?.status === 200) {
-        toast.success("Employee saved");
-      } else {
-        toast.error(res?.data?.message || "Save failed");
-      }
-    } catch (err) {
-      console.error("submitEmployee error", err);
-      toast.error("Server error");
+    let res;
+    if (isEditMode) {
+      res = await updateEmployeeApi(id, fd);   // ✅ UPDATE
+    } else {
+      res = await addEmployeeApi(fd);          // ✅ CREATE
     }
-  };
+
+    if (res?.status === 201 || res?.status === 200) {
+      toast.success(isEditMode ? "Employee updated" : "Employee created");
+      navigate("/app/hr/employees");          // ✅ REDIRECT
+    } else {
+      toast.error(res?.data?.message || "Save failed");
+    }
+  } catch (err) {
+    console.error("submitEmployee error", err);
+    toast.error("Server error");
+  }
+};
+
+
+
+const handleDelete = async () => {
+  if (!window.confirm("Are you sure you want to delete this employee?")) return;
+
+  try {
+    await deleteEmployeeApi(id, { userId: form.userId });
+    toast.success("Employee deleted");
+    navigate("/app/hr/employees");
+  } catch (err) {
+    console.error("Delete failed", err);
+    toast.error("Delete failed");
+  }
+};
+
+
+
+
 
   // ---------- helper to find label for selected id ----------
   const findLabel = (key, id) => {
@@ -456,116 +589,205 @@ const loadDeductionTypes = async () => {
       bank: banks,
       incomeType: incomeTypes,
       deductionType: deductionTypes,
+      user: users,
     };
     const list = map[key] || [];
     const f = list.find((x) => {
-      const candidateId = x.id ?? x.Id ?? x.regionId ?? x.territoryId ?? x.countryId ?? x.stateId;
+      const candidateId = x.id ?? x.Id ?? x.regionId ?? x.territoryId ?? x.countryId ?? x.stateId ?? x.userId;
       return String(candidateId) === String(id);
     });
     if (key === "bank" && f) {
       return f.BankName || f.name || "";
     }
-    return f ? (f.name || f.designation || f.department || f.regionName || f.territoryDescription) : "";
+    if (key === "user" && f) {
+      return f.username || f.name || f.email || "";
+    }
+    // return f ? (f.name || f.designation || f.department || f.regionName || f.territoryDescription) : "";
+    return f
+  ? (f.territoryDescription ||
+     f.regionName ||
+     f.name ||
+     f.designation ||
+     f.department)
+  : "";
+
   };
   // ================================
   // PART 2: SearchableDropdown + Modal Components
   // ================================
 
-  // ---------------- SearchableDropdown (matches Locations pattern) ----------------
-  const SearchableDropdown = ({ label, keyName, list = [], valueId, required = false, onSelect, showStar = true, showPencil = true }) => {
-    const [inputValue, setInputValue] = useState("");
-    const [localSearch, setLocalSearch] = useState("");
-    const inputRef = useRef(null);
+  // ---------------- CustomDropdown (matches Locations pattern) ----------------
+  const CustomDropdown = ({ label, keyName, list = [], valueId, required = false, onSelect, showStar = true, showPencil = true }) => {
+    // Debug log
+    // console.log(`Rendering Dropdown: ${label}, ValueId: ${valueId}`);
+    const [inputValue, setInputValue] = useState(""); // Display text for trigger
+    const [localSearch, setLocalSearch] = useState(""); // Search input text
+    const [openUpward, setOpenUpward] = useState(false); // Track if dropdown should open upward
+    const searchInputRef = useRef(null);
+    const containerRef = useRef(null);
+    const dropdownRef = useRef(null);
     const isOpen = !!open[keyName];
 
+    // Sync trigger text with selected value
+    useEffect(() => {
+      const labelText = findLabel(keyName, valueId);
+      setInputValue(labelText || "");
+    }, [valueId, keyName, label]);
+
+    // Focus search input when opened
     useEffect(() => {
       if (isOpen) {
-        setInputValue(localSearch || "");
-      } else {
-        const labelText = findLabel(keyName, valueId);
-        setInputValue(labelText || "");
-        if (localSearch) setLocalSearch("");
+        setLocalSearch(""); // Clear search on open
+        setTimeout(() => searchInputRef.current?.focus(), 50);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, valueId, keyName]);
+    }, [isOpen]);
+
+    // Click outside to close
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (containerRef.current && !containerRef.current.contains(event.target)) {
+          if (isOpen) setOpen((o) => ({ ...o, [keyName]: false }));
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isOpen, keyName]);
 
     const filtered = (list || []).filter((x) => {
       let labelText = "";
       if (keyName === "bank") {
         labelText = (x.BankName || x.name || "").toString().toLowerCase();
+      } else if (keyName === "user") {
+        labelText = (x.username || x.email || x.name || "").toString().toLowerCase();
       } else {
         labelText = (x.name || x.designation || x.department || x.regionName || x.territoryDescription || "").toString().toLowerCase();
       }
-      return labelText.includes((localSearch || inputValue || "").toLowerCase());
+      return labelText.includes(localSearch.toLowerCase());
     });
+
+    // Toggle dropdown with position calculation
+    const toggleOpen = () => {
+      const willBeOpen = !open[keyName];
+      
+      // Calculate position BEFORE opening to prevent flash
+      if (willBeOpen && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const dropdownHeight = 192; // max-h-48 = 12rem = 192px
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        
+        // Set position before opening
+        setOpenUpward(spaceBelow < dropdownHeight && spaceAbove > spaceBelow);
+      }
+      
+      setOpen((o) => ({ ...o, [keyName]: !o[keyName] }));
+    };
+
 
     return (
       <div className="w-full">
-        <label className="text-sm block mb-1">
+        <label className="text-sm block mb-1 text-gray-300">
           {label} {required && <span className="text-red-400"> *</span>}
         </label>
 
         <div className="flex items-start gap-2">
-          <div
-            className="relative w-full"
-            ref={refs[keyName]}
-            onClick={() => {
-              setOpen((o) => ({ ...o, [keyName]: true }));
-              setTimeout(() => inputRef.current?.focus(), 0);
-            }}
-          >
-            <input
-              type="text"
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                setLocalSearch(e.target.value);
-                setOpen((o) => ({ ...o, [keyName]: true }));
-              }}
-              onFocus={() => setOpen((o) => ({ ...o, [keyName]: true }))}
-              placeholder={`Search ${label.toLowerCase()}...`}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-            />
-
-            {open[keyName] && (
-              <div className="absolute left-0 right-0 mt-1 max-h-56 overflow-auto bg-gray-800 border border-gray-700 rounded z-50 text-sm">
-                {filtered.length > 0 ? (
-                  filtered.map((opt) => {
-                    const optId = opt.id ?? opt.Id ?? opt.regionId ?? opt.territoryId ?? opt.countryId ?? opt.stateId;
-                    let labelText = "";
-                    if (keyName === "bank") {
-                      labelText = opt.BankName ?? opt.name ?? opt.designation ?? opt.department ?? opt.regionName ?? opt.territoryDescription;
-                    } else {
-                      labelText = opt.name ?? opt.designation ?? opt.department ?? opt.regionName ?? opt.territoryDescription;
-                    }
-                    return (
-                      <div
-                        key={String(optId) + (labelText || "")}
-                        onClick={() => {
-                          onSelect(opt);
-                          setOpen((o) => ({ ...o, [keyName]: false }));
-                          setInputValue(labelText || "");
-                          setLocalSearch("");
-                        }}
-                        className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                      >
-                        {labelText}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="px-3 py-2 text-sm">
-                    <div className="mb-1 text-gray-300">No matches</div>
-                    {showStar && (
-                      <div className="text-xs text-gray-400">No results. (creation allowed via star)</div>
-                    )}
+          <div className="relative w-full" ref={containerRef}>
+            {/* Trigger Field */}
+            <div
+              onClick={toggleOpen}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm flex justify-between items-center cursor-pointer hover:border-gray-600 transition-colors"
+            >
+              <span className={inputValue ? "text-white" : "text-gray-500"}>
+                {inputValue || "--select--"}
+              </span>
+              <div className="flex items-center gap-1">
+                {/* Clear Button */}
+                {inputValue && inputValue !== "--select--" && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(null);
+                      setInputValue("");
+                      setLocalSearch("");
+                    }}
+                    className="p-1 hover:bg-gray-700 rounded-full transition-colors"
+                    title="Clear"
+                  >
+                    <X size={14} className="text-gray-400 hover:text-red-400" />
                   </div>
                 )}
+                 {/* Chevron Icon */}
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </div>
+            </div>
+
+            {/* Dropdown Menu */}
+            {isOpen && (
+              <div 
+                ref={dropdownRef}
+                className={`absolute left-0 right-0 max-h-48 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 flex flex-col transition-all duration-150 ease-out ${
+                  openUpward ? 'bottom-full mb-1 animate-slideUp' : 'mt-1 animate-slideDown'
+                }`}
+                style={{
+                  animation: openUpward ? 'slideUp 150ms ease-out' : 'slideDown 150ms ease-out'
+                }}
+              >
+                {/* Search Input */}
+                <div className="p-2 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+                  <input
+                    type="text"
+                    ref={searchInputRef}
+                    value={localSearch}
+                    onChange={(e) => setLocalSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                    onClick={(e) => e.stopPropagation()} // Prevent closing when clicking input
+                  />
+                </div>
+
+                {/* Options List */}
+                <div className="overflow-auto flex-1">
+                  {filtered.length > 0 ? (
+                    filtered.map((opt) => {
+                      const optId = opt.id ?? opt.Id ?? opt.regionId ?? opt.territoryId ?? opt.countryId ?? opt.stateId ?? opt.userId;
+                      let labelText = "";
+                      if (keyName === "bank") {
+                        labelText = opt.BankName ?? opt.name ?? opt.designation ?? opt.department ?? opt.regionName ?? opt.territoryDescription;
+                      } else if (keyName === "user") {
+                        labelText = opt.username ?? opt.email ?? opt.name ?? "";
+                      } else {
+                        labelText = opt.name ?? opt.designation ?? opt.department ?? opt.regionName ?? opt.territoryDescription;
+                      }
+                      return (
+                        <div
+                          key={String(optId) + (labelText || "")}
+                          onClick={() => {
+                            onSelect(opt);
+                            setOpen((o) => ({ ...o, [keyName]: false }));
+                            setLocalSearch("");
+                          }}
+                          className="px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm text-gray-200"
+                        >
+                          {labelText}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-400">
+                      <div className="mb-1">No matches found</div>
+                      {showStar && (
+                        <div className="text-xs text-gray-500">(Use star to create)</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
+          {/* Action Buttons */}
           <div className="flex flex-col gap-2 mt-1">
             {showStar && (
               <button
@@ -573,11 +795,10 @@ const loadDeductionTypes = async () => {
                 onClick={() => {
                   setLookupCreateContext({
                     key: keyName,
-                    typedName: "",
+                    typedName: localSearch, // Pass current search text if any
                     callback: (created) => {
                       if (!created) return;
                       onSelect(created);
-                      setInputValue(created.name || created.designation || "");
                     },
                   });
                   setShowLookupCreateModal(true);
@@ -601,7 +822,6 @@ const loadDeductionTypes = async () => {
                     callback: (updated) => {
                       if (!updated) return;
                       onSelect(updated);
-                      setInputValue(updated.name || updated.designation || updated.BankName || "");
                     },
                   });
                   setShowLookupCreateModal(true);
@@ -920,6 +1140,25 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
             <button onClick={() => setShowLookupCreateModal(false)} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Cancel</button>
             <button onClick={save} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-blue-300 text-sm"><Save size={14} /> Save</button>
           </div>
+
+          {/* <div className="flex gap-3 mt-6">
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-blue-600 rounded text-white"
+          >
+            {isEditMode ? "Update Employee" : "Save Employee"}
+          </button>
+
+          {isEditMode && (
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-600 rounded text-white"
+            >
+              Delete Employee
+            </button>
+          )}
+        </div> */}
+
         </div>
       </div>
     );
@@ -927,84 +1166,9 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
 
   // ---------------- Income modal ----------------
   const IncomeModal = () => {
-    const [incomeDDOpen, setIncomeDDOpen] = useState(false);
-    const [incomeDDSearch, setIncomeDDSearch] = useState("");
-    const inputRef = useRef(null);
-    const modalRef = useRef(null);
-
-    // Dropdown position state (fixed)
-    const [dropdownPos, setDropdownPos] = useState({ left: 0, top: 0, width: 0 });
-
-    // compute and set dropdown position based on inputRef
-    const computeDropdownPos = () => {
-      const el = inputRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      setDropdownPos({
-        left: Math.max(8, rect.left), // keep small margin from viewport edge
-        top: rect.bottom + 6,
-        width: rect.width,
-      });
-    };
-
-    // Open dropdown and compute position
-    const openIncomeDropdown = () => {
-      setIncomeDDOpen(true);
-      // compute after next paint
-      requestAnimationFrame(() => computeDropdownPos());
-    };
-
-    // close on outside click (detect clicks outside the modal or outside the dropdown)
-    useEffect(() => {
-      const handler = (e) => {
-        // if click inside modalRef => do nothing (we want clicks in modal to keep it open)
-        if (modalRef.current && modalRef.current.contains(e.target)) return;
-        // clicked outside modal => close dropdown
-        setIncomeDDOpen(false);
-      };
-      document.addEventListener("mousedown", handler);
-      return () => document.removeEventListener("mousedown", handler);
-    }, []);
-
-    // reposition on scroll/resize
-    useEffect(() => {
-      const onScroll = () => {
-        if (!incomeDDOpen) return;
-        computeDropdownPos();
-      };
-      const onResize = () => {
-        if (!incomeDDOpen) return;
-        computeDropdownPos();
-      };
-      window.addEventListener("scroll", onScroll, true);
-      window.addEventListener("resize", onResize);
-      return () => {
-        window.removeEventListener("scroll", onScroll, true);
-        window.removeEventListener("resize", onResize);
-      };
-    }, [incomeDDOpen]);
-
-    // close dropdown when LookupCreateModal opens
-    useEffect(() => {
-      if (showLookupCreateModal) {
-        setIncomeDDOpen(false);
-      }
-    }, [showLookupCreateModal]);
-
-    // close dropdown on Escape
-    useEffect(() => {
-      const onKey = (e) => {
-        if (e.key === "Escape") {
-          setIncomeDDOpen(false);
-        }
-      };
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }, []);
-
     return (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[10400]">
-        <div ref={modalRef} className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+        <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
           <div className="flex justify-between px-4 py-2 border-b border-gray-700">
             <h2 className="text-lg font-semibold">
               {editingIncomeId ? "Edit Income" : "Add Income"}
@@ -1015,90 +1179,18 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
           </div>
 
           <div className="p-4 space-y-3">
-
             {/* INCOME TYPE DROPDOWN */}
             <div>
-              <label className="text-sm">Income *</label>
-
-              <div className="flex items-center gap-2 mt-1">
-                <div className="relative w-full">
-
-                  {/* Input field */}
-                  <input
-                    id="income-dropdown-input"
-                    ref={inputRef}
-                    type="text"
-                    placeholder="Search income type..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-yellow-400 outline-none"
-                    value={incomeDDOpen ? incomeDDSearch : findLabel("incomeType", incomeForm.typeId) || ""}
-                    onChange={(e) => {
-                      setIncomeDDSearch(e.target.value);
-                      openIncomeDropdown();
-                    }}
-                    onFocus={openIncomeDropdown}
-                    autoComplete="off"
-                  />
-
-                  {/* Fixed-position dropdown so it doesn't affect modal/layout */}
-                  {incomeDDOpen && (
-                    <div
-                      className="fixed bg-gray-800 border border-gray-700 rounded max-h-48 overflow-auto z-[12000] text-sm shadow-lg"
-                      style={{
-                        left: dropdownPos.left,
-                        top: dropdownPos.top,
-                        width: dropdownPos.width,
-                      }}
-                    >
-                      {incomeTypes
-                        .filter((i) =>
-                          (i.name || "").toLowerCase().includes(incomeDDSearch.toLowerCase())
-                        )
-                        .map((i) => (
-                          <div
-                            key={i.id}
-                            className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                            onClick={() => {
-                              setIncomeForm((p) => ({ ...p, typeId: i.id }));
-                              setIncomeDDSearch("");
-                              setIncomeDDOpen(false);
-                              // return focus to input so label shows correctly if needed
-                              inputRef.current?.focus();
-                            }}
-                          >
-                            {i.name}
-                          </div>
-                        ))}
-
-                      {incomeTypes.filter((i) =>
-                        (i.name || "").toLowerCase().includes(incomeDDSearch.toLowerCase())
-                      ).length === 0 && (
-                        <div className="px-3 py-2 text-gray-300">No matches</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* STAR BUTTON */}
-                <button
-                  type="button"
-                  className="flex-shrink-0 p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-                  onClick={() => {
-                    setLookupCreateContext({
-                      key: "incomeType",
-                      typedName: incomeDDSearch,
-                      callback: (created) => {
-                        if (!created) return;
-                        setIncomeForm((p) => ({ ...p, typeId: created.id }));
-                        setIncomeDDSearch("");
-                      },
-                    });
-                    setShowLookupCreateModal(true);
-                  }}
-                  title="Create new income type"
-                >
-                  <Star size={18} className="text-yellow-400" />
-                </button>
-              </div>
+              <CustomDropdown
+                label="Income"
+                keyName="incomeType"
+                list={incomeTypes}
+                valueId={incomeForm.typeId}
+                required={true}
+                onSelect={(item) => setIncomeForm({ ...incomeForm, typeId: item?.id || "" })}
+              showStar={!isEditMode}
+                showPencil={false}
+              />
             </div>
 
             {/* AMOUNT + DESCRIPTION */}
@@ -1108,9 +1200,7 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
                 <input
                   type="number"
                   value={incomeForm.amount}
-                  onChange={(e) =>
-                    setIncomeForm((p) => ({ ...p, amount: e.target.value }))
-                  }
+                  onChange={(e) => setIncomeForm((p) => ({ ...p, amount: e.target.value }))}
                   className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm"
                 />
               </div>
@@ -1120,9 +1210,7 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
                 <input
                   type="text"
                   value={incomeForm.description}
-                  onChange={(e) =>
-                    setIncomeForm((p) => ({ ...p, description: e.target.value }))
-                  }
+                  onChange={(e) => setIncomeForm((p) => ({ ...p, description: e.target.value }))}
                   className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm"
                 />
               </div>
@@ -1171,7 +1259,7 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
                   setShowIncomeModal(false);
                   setEditingIncomeId(null);
                 }}
-                  className="w-[100px] h-[40px] gap-2 px-3 py-1 bg-gray-800 border border-gray-600 rounded text-blue-300 text-sm flex items-center justify-center"
+                className="w-[100px] h-[40px] gap-2 px-3 py-1 bg-gray-800 border border-gray-600 rounded text-blue-300 text-sm flex items-center justify-center"
               >
                 <Save size={14} /> Save
               </button>
@@ -1208,6 +1296,11 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
       }
     }, [showLookupCreateModal]);
 
+
+
+
+
+
     return (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[10400]">
         <div ref={deductionRef} className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
@@ -1224,81 +1317,17 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
 
             {/* TYPE DROPDOWN */}
             <div>
-              <label className="text-sm">Deduction *</label>
+              <CustomDropdown
+                label="Deduction"
+                keyName="deductionType"
+                list={deductionTypes}
+                valueId={deductionForm.typeId}
+                required={true}
+                onSelect={(item) => setDeductionForm({ ...deductionForm, typeId: item?.id || "" })}
+               showStar={!isEditMode}
 
-              <div className="flex items-center gap-2 mt-1">
-                <div className="relative w-full">
-
-                  <input
-                    type="text"
-                    placeholder="Search deduction type..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                    value={
-                      deductionDDOpen
-                        ? deductionDDSearch
-                        : findLabel("deductionType", deductionForm.typeId) || ""
-                    }
-                    onChange={(e) => {
-                      setDeductionDDSearch(e.target.value);
-                      setDeductionDDOpen(true);
-                    }}
-                    onFocus={() => setDeductionDDOpen(true)}
-                  />
-
-                  {deductionDDOpen && (
-                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto bg-gray-800 border border-gray-700 rounded z-50 text-sm">
-                      {deductionTypes
-                        .filter((i) =>
-                          (i.name || "")
-                            .toLowerCase()
-                            .includes(deductionDDSearch.toLowerCase())
-                        )
-                        .map((i) => (
-                          <div
-                            key={i.id}
-                            className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                            onClick={() => {
-                              setDeductionForm((p) => ({ ...p, typeId: i.id }));
-                              setDeductionDDSearch("");
-                              setDeductionDDOpen(false);
-                            }}
-                          >
-                            {i.name}
-                          </div>
-                        ))}
-
-                      {deductionTypes.filter((i) =>
-                        (i.name || "")
-                          .toLowerCase()
-                          .includes(deductionDDSearch.toLowerCase())
-                      ).length === 0 && (
-                        <div className="px-3 py-2 text-gray-300">No matches</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* STAR BUTTON */}
-                <button
-                  type="button"
-                  className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-                  onClick={() => {
-                    setLookupCreateContext({
-                      key: "deductionType",
-                      typedName: deductionDDSearch,
-                      callback: (created) => {
-                        if (!created) return;
-                        setDeductionForm((p) => ({ ...p, typeId: created.id }));
-                        setDeductionDDSearch("");
-                      },
-                    });
-                    setShowLookupCreateModal(true);
-                  }}
-                  title="Create new deduction type"
-                >
-                  <Star size={18} className="text-yellow-400" />
-                </button>
-              </div>
+                showPencil={false}
+              />
             </div>
 
             {/* AMOUNT & DESCRIPTION */}
@@ -1381,18 +1410,45 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
       </div>
     );
   };
+
+
+
+  if (isEditMode && isEditLoading) {
+  return (
+    <div className="h-[90vh] flex items-center  bg-gray-900 justify-center text-white">
+      <div className="flex flex-col items-center  gap-3">
+        <div className="w-10 h-10 border-4 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-gray-300">Loading employee data...</span>
+      </div>
+    </div>
+  );
+}
+
   // PART 3 — Final JSX UI (main page)
   return (
     <>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
         <div className="flex flex-col h-[calc(100vh-110px)] overflow-hidden">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-2xl font-semibold">New Employee</h2>
-            <div>
-              <button onClick={submitEmployee} className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded text-blue-300">
-                <Save size={16} /> Save
+           <h2 className="text-2xl font-semibold">
+            {isEditMode ? "Edit Employee" : "New Employee"}
+          </h2>
+
+            <div className="flex gap-3">
+            <button onClick={submitEmployee} className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded text-blue-300">
+              <Save size={16} /> {isEditMode ? "Update" : "Save"}
+            </button>
+
+            {isEditMode && (
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2 bg-red-800 border border-red-600 px-3 py-2 rounded text-red-200"
+              >
+                <Trash2 size={16} /> Delete
               </button>
-            </div>
+            )}
+          </div>
+
           </div>
 
           {/* tabs */}
@@ -1416,55 +1472,17 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
 
                    {/* DESIGNATION */}
                     <div>
-                      <label className="text-sm">Designation *</label>
+                      <CustomDropdown
+                        label="Designation"
+                        keyName="designation"
+                        list={designations}
+                        valueId={form.designationId}
+                        required={true}
+                        onSelect={(item) => setForm({ ...form, designationId: item?.id || "" })}
+                       showStar={!isEditMode}
 
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="relative w-full" ref={refs.designation}>
-                          <input
-                            type="text"
-                            value={search.designation || findLabel("designation", form.designationId) || ""}
-                            onChange={(e) => {
-                              setSearch((s) => ({ ...s, designation: e.target.value }));
-                              setOpen((o) => ({ ...o, designation: true }));
-                            }}
-                            onFocus={() => setOpen((o) => ({ ...o, designation: true }))}
-                            placeholder="Search designation..."
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                          />
-
-                          {open.designation && (
-                            <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                              {designations
-                                .filter((d) =>
-                                  String(d.designation ?? d.name ?? "")
-                                    .toLowerCase()
-                                    .includes((search.designation || "").toLowerCase())
-                                )
-                                .map((d) => (
-                                  <div
-                                    key={d.id}
-                                    onClick={() => {
-                                      setForm((p) => ({ ...p, designationId: d.id }));
-                                      setSearch((s) => ({ ...s, designation: "" }));
-                                      setOpen((o) => ({ ...o, designation: false }));
-                                    }}
-                                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                  >
-                                    {d.designation ?? d.name}
-                                  </div>
-                                ))}
-
-                              {designations.filter((d) =>
-                                String(d.designation ?? d.name ?? "")
-                                  .toLowerCase()
-                                  .includes((search.designation || "").toLowerCase())
-                              ).length === 0 && (
-                                <div className="px-3 py-2 text-gray-400">No matches</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        showPencil={isEditMode}
+                      />
                     </div>
 
                     <div>
@@ -1499,55 +1517,17 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
 
                     {/* DEPARTMENT */}
                     <div>
-                      <label className="text-sm">Department *</label>
+                      <CustomDropdown
+                        label="Department"
+                        keyName="department" 
+                        list={departments}
+                        valueId={form.departmentId}
+                        required={true}
+                        onSelect={(item) => setForm({ ...form, departmentId: item?.id || "" })}
+                      showStar={!isEditMode}
 
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="relative w-full" ref={refs.department}>
-                          <input
-                            type="text"
-                            value={search.department || findLabel("department", form.departmentId) || ""}
-                            onChange={(e) => {
-                              setSearch((s) => ({ ...s, department: e.target.value }));
-                              setOpen((o) => ({ ...o, department: true }));
-                            }}
-                            onFocus={() => setOpen((o) => ({ ...o, department: true }))}
-                            placeholder="Search department..."
-                            className="w-full bg-gray-900 border border-gray-100 rounded px-3 py-2 text-sm"
-                          />
-
-                          {open.department && (
-                            <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                              {departments
-                                .filter((d) =>
-                                  String(d.department ?? d.name ?? "")
-                                    .toLowerCase()
-                                    .includes((search.department || "").toLowerCase())
-                                )
-                                .map((d) => (
-                                  <div
-                                    key={d.id}
-                                    onClick={() => {
-                                      setForm((p) => ({ ...p, departmentId: d.id }));
-                                      setSearch((s) => ({ ...s, department: "" }));
-                                      setOpen((o) => ({ ...o, department: false }));
-                                    }}
-                                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                  >
-                                    {d.department ?? d.name}
-                                  </div>
-                                ))}
-
-                              {departments.filter((d) =>
-                                String(d.department ?? d.name ?? "")
-                                  .toLowerCase()
-                                  .includes((search.department || "").toLowerCase())
-                              ).length === 0 && (
-                                <div className="px-3 py-2 text-gray-400">No matches</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        showPencil={true}
+                      />
                     </div>
 
                     <div>
@@ -1564,14 +1544,28 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
                       <label className="text-sm">Picture</label>
                       <div className="mt-2">
                         <div className="border-dashed border-2 border-gray-700 rounded p-2 bg-gray-900 flex items-center gap-3">
-                          <div className="w-16 h-16 flex items-center justify-center bg-gray-800 rounded overflow-hidden">
-                            {form.picturePreview ? <img src={form.picturePreview} alt="preview" className="w-full h-full object-cover" /> : <ImageIcon size={24} className="text-gray-400" />}
-                          </div>
+                 <div className="w-16 h-16 flex items-center justify-center bg-gray-800 rounded overflow-hidden">
+                     {form.picturePreview ? (
+                    <img
+                      src={form.picturePreview}   // ✅ USE DIRECT VALUE
+                      alt="preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ImageIcon size={24} className="text-gray-400" />
+                  )}
+
+                  </div>
+
+
 
                           <div className="flex-1">
-                            <div className="text-sm text-gray-300 mb-1">{form.pictureFile ? form.pictureFile.name : "No image selected"}</div>
+                            {/* Hidden file info - shown as tooltip on the Select Image button */}
                             <div className="flex gap-2">
-                              <label className="px-3 py-1 bg-gray-800 border border-gray-700 rounded cursor-pointer text-sm">
+                              <label
+                                className="px-3 py-1 bg-gray-800 border border-gray-700 rounded cursor-pointer text-sm"
+                                title={form.pictureFile ? form.pictureFile.name : form.picturePreview ? 'Current image' : 'No image selected'}
+                              >
                                 Select Image
                                 <input type="file" accept="image/*" onChange={(e) => handlePictureChange(e.target.files?.[0])} className="hidden" />
                               </label>
@@ -1590,411 +1584,110 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
                     <div className="grid grid-cols-2 gap-3">
                       {/* Country */}
                       <div>
-                        <label className="text-sm">Country *</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="relative w-full" ref={refs.country}>
-                            <input
-                              type="text"
-                              value={search.country || findLabel("country", form.countryId) || search.country}
-                              onChange={(e) => { setSearch((s) => ({ ...s, country: e.target.value })); setOpen((o) => ({ ...o, country: true })); }}
-                              onFocus={() => setOpen((o) => ({ ...o, country: true }))}
-                              placeholder="Search or type to create..."
-                              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                            />
+                        <CustomDropdown
+                          label="Country"
+                          keyName="country"
+                          list={countries}
+                          valueId={form.countryId}
+                          required={true}
+                          onSelect={(item) => {
+                            setForm({ ...form, countryId: item?.id || "" });
+                            if (item?.id) awaitLoadStatesForCountry(item.id);
+                          }}
+                        showStar={!isEditMode}
 
-                            {open.country && (
-                              <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                                {countries.filter(c => String(c.name ?? "").toLowerCase().includes((search.country || "").toLowerCase())).length > 0 ? (
-                                  countries.filter(c => String(c.name ?? "").toLowerCase().includes((search.country || "").toLowerCase())).map((c) => (
-                                    <div
-                                      key={c.id}
-                                      onClick={() => {
-                                        setForm((p) => ({ ...p, countryId: c.id }));
-                                        setOpen((o) => ({ ...o, country: false }));
-                                        setSearch((s) => ({ ...s, country: "" }));
-                                        awaitLoadStatesForCountry(c.id);
-                                      }}
-                                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                    >
-                                      {c.name}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="px-3 py-2 text-sm">
-                                    <div className="mb-2 text-gray-300">No matches</div>
-                                    <button
-                                      onClick={() => {
-                                        setLookupCreateContext({
-                                          key: "country",
-                                          typedName: search.country || "",
-                                          callback: (created) => {
-                                            if (!created) return;
-                                            setForm((p) => ({ ...p, countryId: created.id }));
-                                            setOpen((o) => ({ ...o, country: false }));
-                                            setSearch((s) => ({ ...s, country: "" }));
-                                            awaitLoadStatesForCountry(created.id);
-                                          },
-                                        });
-                                        setShowLookupCreateModal(true);
-                                      }}
-                                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-                                    >
-                                      Create new "{search.country}" (open modal)
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-                            onClick={() => {
-                              setLookupCreateContext({
-                                key: "country",
-                                typedName: "",
-                                callback: (created) => {
-                                  if (!created) return;
-                                  setForm((p) => ({ ...p, countryId: created.id }));
-                                  setSearch((s) => ({ ...s, country: "" }));
-                                  awaitLoadStatesForCountry(created.id);
-                                },
-                              });
-                              setShowLookupCreateModal(true);
-                            }}
-                          >
-                            <Star size={18} className="text-yellow-400" />
-                          </button>
-                        </div>
+                          showPencil={true}
+                        />
                       </div>
 
                       {/* State */}
                       <div>
-                        <label className="text-sm">State *</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="relative w-full" ref={refs.state}>
-                            <input
-                              type="text"
-                              value={search.state || findLabel("state", form.stateId) || search.state}
-                              onChange={(e) => { setSearch((s) => ({ ...s, state: e.target.value })); setOpen((o) => ({ ...o, state: true })); }}
-                              onFocus={() => setOpen((o) => ({ ...o, state: true }))}
-                              placeholder="Search or type to create..."
-                              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                            />
+                        <CustomDropdown
+                          label="State"
+                          keyName="state"
+                          list={states.filter(s => (form.countryId ? String(s.countryId) === String(form.countryId) : true))}
+                          valueId={form.stateId}
+                          required={true}
+                          onSelect={(item) => {
+                            setForm({ ...form, stateId: item?.id || "" });
+                            if (item?.id) awaitLoadCitiesForState(item.id);
+                          }}
+                         showStar={!isEditMode}
 
-                            {open.state && (
-                              <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                                {states.filter(s => (form.countryId ? String(s.countryId) === String(form.countryId) : true)).filter(s => String(s.name ?? "").toLowerCase().includes((search.state || "").toLowerCase())).length > 0 ? (
-                                  states.filter(s => (form.countryId ? String(s.countryId) === String(form.countryId) : true)).filter(s => String(s.name ?? "").toLowerCase().includes((search.state || "").toLowerCase())).map((s) => (
-                                    <div
-                                      key={s.id}
-                                      onClick={() => {
-                                        setForm((p) => ({ ...p, stateId: s.id }));
-                                        setOpen((o) => ({ ...o, state: false }));
-                                        setSearch((s) => ({ ...s, state: "" }));
-                                        awaitLoadCitiesForState(s.id);
-                                      }}
-                                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                    >
-                                      {s.name}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="px-3 py-2 text-sm">
-                                    <div className="mb-2 text-gray-300">No matches</div>
-                                    <button
-                                      onClick={() => {
-                                        setLookupCreateContext({
-                                          key: "state",
-                                          typedName: search.state || "",
-                                          callback: (created) => {
-                                            if (!created) return;
-                                            setForm((p) => ({ ...p, stateId: created.id }));
-                                            setOpen((o) => ({ ...o, state: false }));
-                                            setSearch((s) => ({ ...s, state: "" }));
-                                            awaitLoadCitiesForState(created.id);
-                                          },
-                                        });
-                                        setShowLookupCreateModal(true);
-                                      }}
-                                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-                                    >
-                                      Create new "{search.state}" (open modal)
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-                            onClick={() => {
-                              setLookupCreateContext({
-                                key: "state",
-                                typedName: "",
-                                callback: (created) => {
-                                  if (!created) return;
-                                  setForm((p) => ({ ...p, stateId: created.id }));
-                                  setSearch((s) => ({ ...s, state: "" }));
-                                  awaitLoadCitiesForState(created.id);
-                                },
-                              });
-                              setShowLookupCreateModal(true);
-                            }}
-                          >
-                            <Star size={18} className="text-yellow-400" />
-                          </button>
-                        </div>
+                          showPencil={true}
+                        />
                       </div>
 
                       {/* City */}
                       <div>
-                        <label className="text-sm">City *</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="relative w-full" ref={refs.city}>
-                            <input
-                              type="text"
-                              value={search.city || findLabel("city", form.cityId) || search.city}
-                              onChange={(e) => { setSearch((s) => ({ ...s, city: e.target.value })); setOpen((o) => ({ ...o, city: true })); }}
-                              onFocus={() => setOpen((o) => ({ ...o, city: true }))}
-                              placeholder="Search or type to create..."
-                              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                            />
+                        <CustomDropdown
+                          label="City"
+                          keyName="city"
+                          list={cities.filter(c => (form.stateId ? String(c.stateId) === String(form.stateId) : true))}
+                          valueId={form.cityId}
+                          required={true}
+                          onSelect={(item) => setForm({ ...form, cityId: item?.id || "" })}
+                         showStar={!isEditMode}
 
-                            {open.city && (
-                              <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                                {cities.filter(c => (form.stateId ? String(c.stateId) === String(form.stateId) : true)).filter(c => String(c.name ?? "").toLowerCase().includes((search.city || "").toLowerCase())).length > 0 ? (
-                                  cities.filter(c => (form.stateId ? String(c.stateId) === String(form.stateId) : true)).filter(c => String(c.name ?? "").toLowerCase().includes((search.city || "").toLowerCase())).map((c) => (
-                                    <div
-                                      key={c.id}
-                                      onClick={() => {
-                                        setForm((p) => ({ ...p, cityId: c.id }));
-                                        setOpen((o) => ({ ...o, city: false }));
-                                        setSearch((s) => ({ ...s, city: "" }));
-                                      }}
-                                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                    >
-                                      {c.name}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="px-3 py-2 text-sm">
-                                    <div className="mb-2 text-gray-300">No matches</div>
-                                    <button
-                                      onClick={() => {
-                                        setLookupCreateContext({
-                                          key: "city",
-                                          typedName: search.city || "",
-                                          callback: (created) => {
-                                            if (!created) return;
-                                            setForm((p) => ({ ...p, cityId: created.id }));
-                                            setOpen((o) => ({ ...o, city: false }));
-                                            setSearch((s) => ({ ...s, city: "" }));
-                                          },
-                                        });
-                                        setShowLookupCreateModal(true);
-                                      }}
-                                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-                                    >
-                                      Create new "{search.city}" (open modal)
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-                            onClick={() => {
-                              setLookupCreateContext({
-                                key: "city",
-                                typedName: "",
-                                callback: (created) => {
-                                  if (!created) return;
-                                  setForm((p) => ({ ...p, cityId: created.id }));
-                                  setSearch((s) => ({ ...s, city: "" }));
-                                },
-                              });
-                              setShowLookupCreateModal(true);
-                            }}
-                          >
-                            <Star size={18} className="text-yellow-400" />
-                          </button>
-                        </div>
+                          showPencil={true}
+                        />
                       </div>
 
                       {/* Region */}
                       <div>
-                        <label className="text-sm">Region</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="relative w-full" ref={refs.region}>
-                            <input
-                              type="text"
-                              value={search.region || findLabel("region", form.regionId) || search.region}
-                              onChange={(e) => { setSearch((s) => ({ ...s, region: e.target.value })); setOpen((o) => ({ ...o, region: true })); }}
-                              onFocus={() => setOpen((o) => ({ ...o, region: true }))}
-                              placeholder="Search or type to create..."
-                              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                            />
-
-                            {open.region && (
-                              <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                                {regions.filter(r => String(r.regionName ?? r.name ?? "").toLowerCase().includes((search.region || "").toLowerCase())).length > 0 ? (
-                                  regions.filter(r => String(r.regionName ?? r.name ?? "").toLowerCase().includes((search.region || "").toLowerCase())).map((r) => (
-                                    <div
-                                      key={r.regionId ?? r.id}
-                                      onClick={() => {
-                                        setForm((p) => ({ ...p, regionId: r.regionId ?? r.id }));
-                                        setOpen((o) => ({ ...o, region: false }));
-                                        setSearch((s) => ({ ...s, region: "" }));
-                                        awaitLoadTerritoriesForRegion(r.regionId ?? r.id);
-                                      }}
-                                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                    >
-                                      {r.regionName ?? r.name}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="px-3 py-2 text-sm">
-                                    <div className="mb-2 text-gray-300">No matches</div>
-                                    <button
-                                      onClick={() => {
-                                        setLookupCreateContext({
-                                          key: "region",
-                                          typedName: search.region || "",
-                                          callback: (created) => {
-                                            if (!created) return;
-                                            setForm((p) => ({ ...p, regionId: created.regionId ?? created.id }));
-                                            setOpen((o) => ({ ...o, region: false }));
-                                            setSearch((s) => ({ ...s, region: "" }));
-                                            awaitLoadTerritoriesForRegion(created.regionId ?? created.id);
-                                          },
-                                        });
-                                        setShowLookupCreateModal(true);
-                                      }}
-                                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-                                    >
-                                      Create new "{search.region}" (open modal)
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-                            onClick={() => {
-                              setLookupCreateContext({
-                                key: "region",
-                                typedName: "",
-                                callback: (created) => {
-                                  if (!created) return;
-                                  setForm((p) => ({ ...p, regionId: created.regionId ?? created.id }));
-                                  setSearch((s) => ({ ...s, region: "" }));
-                                  awaitLoadTerritoriesForRegion(created.regionId ?? created.id);
-                                },
-                              });
-                              setShowLookupCreateModal(true);
-                            }}
-                          >
-                            <Star size={18} className="text-yellow-400" />
-                          </button>
+                        <CustomDropdown
+                          label="Region"
+                          keyName="region"
+                          list={regions}
+                          valueId={form.regionId}
+                          required={false}
+                          onSelect={(item) => {
+                            setForm({ ...form, regionId: item?.regionId ?? item?.id ?? "" });
+                            if (item) awaitLoadTerritoriesForRegion(item.regionId ?? item.id);
+                          }}
+                         showStar={!isEditMode}
+                          showPencil={true}
+                        />
+                      </div>
+                      
+                        <div className="flex-1">
+                          <CustomDropdown
+                            label="User"
+                            keyName="user"
+                            list={users}
+                            valueId={form.userId}
+                            required={false}
+                            onSelect={(item) => setForm({ ...form, userId: item?.userId || item?.id || "" })}
+                            showStar={false}
+                            showPencil={false}
+                          />
                         </div>
-                      </div>
-
-                      <div className="mt-2">
-                        <label className="text-sm">Zip Code</label>
-                        <input value={form.zipCode} onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
-                      </div>
 
                       {/* Territory */}
                       <div>
-                        <label className="text-sm">Territory</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="relative w-full" ref={refs.territory}>
-                            <input
-                              type="text"
-                              value={search.territory || findLabel("territory", form.territoryId) || search.territory}
-                              onChange={(e) => { setSearch((s) => ({ ...s, territory: e.target.value })); setOpen((o) => ({ ...o, territory: true })); }}
-                              onFocus={() => setOpen((o) => ({ ...o, territory: true }))}
-                              placeholder="Search or type to create..."
-                              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                            />
+                        <CustomDropdown
+                          label="Territory"
+                          keyName="territory"
+                          list={territories}
+                          valueId={form.territoryId}
+                          required={false}
+                          onSelect={(item) => setForm({ ...form, territoryId: item?.id || "" })}
+                         showStar={!isEditMode}
 
-                            {open.territory && (
-                              <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                                {territories.filter(t => String(t.territoryDescription ?? t.name ?? "").toLowerCase().includes((search.territory || "").toLowerCase())).length > 0 ? (
-                                  territories.filter(t => String(t.territoryDescription ?? t.name ?? "").toLowerCase().includes((search.territory || "").toLowerCase())).map((t) => (
-                                    <div
-                                      key={t.id}
-                                      onClick={() => {
-                                        setForm((p) => ({ ...p, territoryId: t.id }));
-                                        setOpen((o) => ({ ...o, territory: false }));
-                                        setSearch((s) => ({ ...s, territory: "" }));
-                                      }}
-                                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                    >
-                                      {t.territoryDescription ?? t.name}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="px-3 py-2 text-sm">
-                                    <div className="mb-2 text-gray-300">No matches</div>
-                                    <button
-                                      onClick={() => {
-                                        setLookupCreateContext({
-                                          key: "territory",
-                                          typedName: search.territory || "",
-                                          callback: (created) => {
-                                            if (!created) return;
-                                            setForm((p) => ({ ...p, territoryId: created.id }));
-                                            setOpen((o) => ({ ...o, territory: false }));
-                                            setSearch((s) => ({ ...s, territory: "" }));
-                                          },
-                                        });
-                                        setShowLookupCreateModal(true);
-                                      }}
-                                      className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-                                    >
-                                      Create new "{search.territory}" (open modal)
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-                            onClick={() => {
-                              setLookupCreateContext({
-                                key: "territory",
-                                typedName: "",
-                                callback: (created) => {
-                                  if (!created) return;
-                                  setForm((p) => ({ ...p, territoryId: created.id }));
-                                  setSearch((s) => ({ ...s, territory: "" }));
-                                },
-                              });
-                              setShowLookupCreateModal(true);
-                            }}
-                          >
-                            <Star size={18} className="text-yellow-400" />
-                          </button>
-                        </div>
+                          showPencil={true}
+                        />
                       </div>
 
-                      <div className="col-span-2">
-                        <label className="text-sm">Address</label>
-                        <input value={form.address} onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                      <div className="col-span-2 flex gap-3">
+                        <div className="flex-1">
+                          <label className="text-sm">Address</label>
+                          <input value={form.address} onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                        </div>
+
+                        <div className="flex-1">
+                          <label className="text-sm">Zip Code</label>
+                          <input value={form.zipCode} onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2010,43 +1703,16 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
 
                     {/* Payroll Bank */}
                     <div>
-                      <label className="text-sm">Payroll Bank *</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="relative w-full" ref={refs.bank}>
-                          <input
-                            type="text"
-                            value={search.bank || findLabel("bank", form.payrollBankId) || search.bank}
-                            onChange={(e) => { setSearch((s) => ({ ...s, bank: e.target.value })); setOpen((o) => ({ ...o, bank: true })); }}
-                            onFocus={() => setOpen((o) => ({ ...o, bank: true }))}
-                            placeholder="Search bank..."
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                          />
-
-                          {open.bank && (
-                            <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                              {banks.filter(b => String(b.BankName ?? b.name ?? "").toLowerCase().includes((search.bank || "").toLowerCase())).length > 0 ? (
-                                banks.filter(b => String(b.BankName ?? b.name ?? "").toLowerCase().includes((search.bank || "").toLowerCase())).map((b) => (
-                                  <div
-                                    key={b.id ?? b.Id}
-                                    onClick={() => {
-                                      setForm((p) => ({ ...p, payrollBankId: b.id ?? b.Id }));
-                                      setOpen((o) => ({ ...o, bank: false }));
-                                      setSearch((s) => ({ ...s, bank: "" }));
-                                    }}
-                                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                                  >
-                                    {b.BankName ?? b.name}
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="px-3 py-2 text-sm">
-                                  <div className="mb-2 text-gray-300">No matches</div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <CustomDropdown
+                        label="Payroll Bank"
+                        keyName="bank"
+                        list={banks}
+                        valueId={form.payrollBankId}
+                        required={true}
+                        onSelect={(item) => setForm({ ...form, payrollBankId: item?.id ?? item?.Id ?? "" })}
+                        showStar={false}
+                        showPencil={false}
+                      />
                     </div>
 
                     <div>

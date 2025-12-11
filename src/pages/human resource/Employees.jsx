@@ -10,9 +10,20 @@ import {
   ChevronRight,
   ChevronsRight,
   ArchiveRestore,
+  ChevronDown,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import {
+  getEmployeesApi,
+  getDesignationsApi,
+  getDepartmentsApi,
+  getCountriesApi,
+  getStatesApi,
+  getCitiesApi,
+  getRegionsApi,
+  getTerritoriesApi,
+} from "../../services/allAPI";
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -39,7 +50,6 @@ const Employees = () => {
     userId: true,
     regionName: true,
     territory: true,
-    territoryDescription: true,
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
@@ -72,46 +82,29 @@ const Employees = () => {
     territory: useRef(),
   };
 
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Lookup states
+  const [designations, setDesignations] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [territories, setTerritories] = useState([]);
+
+  // Dropdown open state
   const [dropdownOpen, setDropdownOpen] = useState({
     designation: false,
     department: false,
-    rateType: false,
-    bloodGroup: false,
     country: false,
     state: false,
     city: false,
     region: false,
     territory: false,
   });
-
-  // -----------------------------------
-  // SAMPLE DATA
-  // -----------------------------------
-  const sampleEmployees = [
-    {
-      id: 1,
-      firstName: "Adam",
-      lastName: "Smith",
-      designation: "Sales Executive",
-      department: "Sales",
-      rateType: "Hourly",
-      phone: "1234567890",
-      hourRateSalary: 40,
-      email: "adam@company.com",
-      bloodGroup: "A+",
-      countryName: "USA",
-      stateName: "California",
-      cityName: "Los Angeles",
-      zipCode: "90001",
-      address: "Sunset Blvd",
-      userId: 101,
-      regionName: "West",
-      territory: "T01",
-      territoryDescription: "West Coast Territory",
-    },
-  ];
-
-  const [rows, setRows] = useState(sampleEmployees);
 
   // Search
   const [searchText, setSearchText] = useState("");
@@ -120,27 +113,293 @@ const Employees = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
-  const totalRecords = rows.length;
+  const totalRecords = filteredEmployees.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
+  const paginatedEmployees = filteredEmployees.slice((page - 1) * limit, page * limit);
+
+
+
 
   // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handler = (e) => {
-      Object.keys(dropdownRefs).forEach((key) => {
-        if (
-          dropdownRefs[key].current &&
-          !dropdownRefs[key].current.contains(e.target)
-        ) {
-          setDropdownOpen((prev) => ({ ...prev, [key]: false }));
-        }
-      });
-    };
+useEffect(() => {
+  const handler = (e) => {
+    // ✅ If clicking inside column modal → DO NOTHING
+    if (columnModalRef.current && columnModalRef.current.contains(e.target)) {
+      return;
+    }
 
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
+    // ✅ Close only dropdowns (NOT the modal)
+    Object.keys(dropdownRefs).forEach((key) => {
+      if (
+        dropdownRefs[key].current &&
+        !dropdownRefs[key].current.contains(e.target)
+      ) {
+        setDropdownOpen((prev) => ({ ...prev, [key]: false }));
+      }
+    });
+  };
+
+  document.addEventListener("click", handler);
+  return () => document.removeEventListener("click", handler);
+}, []);
+
+
+
+
+
+
+
+  // Helper to parse array from various response formats
+  const parseArrayFromResponse = (res) => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res.data)) return res.data;
+    if (res.data?.records) return res.data.records;
+    if (res.records) return res.records;
+    const maybeArray = Object.values(res).find((v) => Array.isArray(v));
+    return Array.isArray(maybeArray) ? maybeArray : [];
+  };
+
+  // Load all lookup data
+  const loadLookups = async () => {
+    try {
+      const [dsgRes, depRes, cntRes, stRes, citRes, regRes, terRes] = await Promise.all([
+        getDesignationsApi(1, 5000),
+        getDepartmentsApi(1, 5000),
+        getCountriesApi(1, 5000),
+        getStatesApi(1, 5000),
+        getCitiesApi(1, 5000),
+        getRegionsApi(1, 5000),
+        getTerritoriesApi(1, 5000),
+      ]);
+
+      setDesignations(parseArrayFromResponse(dsgRes));
+      setDepartments(parseArrayFromResponse(depRes));
+      setCountries(parseArrayFromResponse(cntRes));
+      setStates(parseArrayFromResponse(stRes));
+      setCities(parseArrayFromResponse(citRes));
+      setRegions(parseArrayFromResponse(regRes));
+      setTerritories(parseArrayFromResponse(terRes));
+    } catch (error) {
+      console.error("Failed to load lookups:", error);
+    }
+  };
+
+  // Fetch employees
+  // const getAllEmployees = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const result = await getEmployeesApi(1, 5000);
+  //     console.log("API Response:", result);
+  //     console.log("Result data:", result?.data); 
+      
+  //     let employees = [];
+  //     if (result?.data?.records) {
+  //       employees = result.data.records;
+  //     } else if (result?.data && Array.isArray(result.data)) {
+  //       employees = result.data;
+  //     } else if (Array.isArray(result)) {
+  //       employees = result;
+  //     }
+      
+  //     console.log("Parsed employees:", employees);
+  //     setAllEmployees(employees);
+  //   } catch (error) {
+  //     console.error("Failed to fetch employees:", error);
+  //     setAllEmployees([]);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+
+const getAllEmployees = async () => {
+  try {
+    setLoading(true);
+    const result = await getEmployeesApi(1, 5000);
+    // console.log(result);
+    
+
+    let employees = [];
+
+    if (result?.data?.records) {
+      employees = result.data.records;
+    } else if (Array.isArray(result?.data)) {
+      employees = result.data;
+    } else if (Array.isArray(result)) {
+      employees = result;
+    }
+
+// const normalizedEmployees = employees.map((emp) => {  
+//   const country = countries.find((c) => c.id === emp.CountryId);
+//   const state = states.find((s) => s.id === emp.StateId);
+//   const city = cities.find((c) => c.id === emp.CityId);
+//   const region = regions.find((r) => r.id === emp.RegionId);
+//   const territory = territories.find((t) => t.id === emp.TerritoryId);
+
+//   return {
+//     id: emp.Id,
+//     firstName: emp.FirstName,
+//     lastName: emp.LastName,
+
+//     // ✅ Already fixed
+//     designation: emp.designation || emp.Designation || "",
+//     department: emp.department || emp.Department || "",
+
+//     rateType: emp.RateType,
+//     phone: emp.Phone,
+//     hourRateSalary: emp.HoureRateSalary,
+//     email: emp.Email,
+//     bloodGroup: emp.BloodGroup,
+
+//     // ✅ ✅ ✅ ID → NAME CONVERSION HERE
+//     countryName: country?.name || country?.countryName || "",
+//     stateName: state?.name || state?.stateName || "",
+//     cityName: city?.name || city?.cityName || "",
+//     regionName: region?.name || region?.regionName || "",
+//     territory: territory?.name || territory?.territoryName || "",
+
+//     zipCode: emp.ZipCode,
+//     address: emp.Address,
+//     userId: emp.UserId,
+
+//     territoryDescription: territory?.description || "",
+//   };
+// });
+
+const normalizedEmployees = employees.map((emp) => {  
+  const country = countries.find((c) => (c.id ?? c.Id) === emp.CountryId);
+  const state = states.find((s) => (s.id ?? s.Id) === emp.StateId);
+  const city = cities.find((c) => (c.id ?? c.Id) === emp.CityId);
+
+  // ✅✅✅ EXACT MATCH FOR YOUR REGION STRUCTURE
+  const region = regions.find((r) => r.regionId === emp.RegionId);
+
+  // ✅✅✅ EXACT MATCH FOR YOUR TERRITORY STRUCTURE
+  const territory = territories.find((t) => t.id === emp.TerritoryId);
+
+  return {
+    id: emp.Id,
+    firstName: emp.FirstName,
+    lastName: emp.LastName,
+
+    designation: emp.designation || emp.Designation || "",
+    department: emp.department || emp.Department || "",
+
+    rateType: emp.RateType,
+    phone: emp.Phone,
+    hourRateSalary: emp.HoureRateSalary,
+    email: emp.Email,
+    bloodGroup: emp.BloodGroup,
+
+    countryName:
+      country?.name || country?.countryName || country?.CountryName || "",
+
+    stateName:
+      state?.name || state?.stateName || state?.StateName || "",
+
+    cityName:
+      city?.name || city?.cityName || city?.CityName || "",
+
+    // ✅✅✅ WILL NOW DISPLAY 100%
+    regionName: region?.regionName || "",
+
+territory: territory?.territoryDescription || "",
+
+    zipCode: emp.ZipCode,
+    address: emp.Address,
+    userId: emp.UserId,
+  };
+});
+
+
+
+
+    setAllEmployees(normalizedEmployees);
+  } catch (error) {
+    console.error("Failed to fetch employees:", error);
+    setAllEmployees([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  // Apply search and filter
+  useEffect(() => {
+    let filtered = allEmployees;
+
+    // Search filter
+    if (searchText.trim()) {
+      const search = searchText.toLowerCase();
+      filtered = filtered.filter((emp) =>
+        Object.values(emp).some(
+          (val) => val && String(val).toLowerCase().includes(search)
+        )
+      );
+    }
+
+    // Apply column filters (exact match)
+    if (filterDesignation)
+      filtered = filtered.filter((emp) => emp.designation === filterDesignation);
+    if (filterDepartment)
+      filtered = filtered.filter((emp) => emp.department === filterDepartment);
+    if (filterRateType)
+      filtered = filtered.filter((emp) => emp.rateType === filterRateType);
+    if (filterBloodGroup)
+      filtered = filtered.filter((emp) => emp.bloodGroup === filterBloodGroup);
+    if (filterCountry)
+      filtered = filtered.filter((emp) => emp.countryName === filterCountry);
+    if (filterState)
+      filtered = filtered.filter((emp) => emp.stateName === filterState);
+    if (filterCity)
+      filtered = filtered.filter((emp) => emp.cityName === filterCity);
+    if (filterRegion)
+      filtered = filtered.filter((emp) => emp.regionName === filterRegion);
+    if (filterTerritory)
+      filtered = filtered.filter((emp) => emp.territory === filterTerritory);
+
+    setFilteredEmployees(filtered);
+    setPage(1);
+  }, [
+    allEmployees,
+    searchText,
+    filterDesignation,
+    filterDepartment,
+    filterRateType,
+    filterBloodGroup,
+    filterCountry,
+    filterState,
+    filterCity,
+    filterRegion,
+    filterTerritory,
+  ]);
+
+  // Initial load
+useEffect(() => {
+  loadLookups();
+}, []);
+
+useEffect(() => {
+  if (
+    countries.length &&
+    states.length &&
+    cities.length &&
+    regions.length &&
+    territories.length
+  ) {
+    getAllEmployees();
+  }
+}, [countries, states, cities, regions, territories]);
+
+
+
+const columnModalRef = useRef(null);
+
+
 
   // -----------------------------------
   // RENDER
@@ -154,7 +413,11 @@ const Employees = () => {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setColumnModalOpen(false)}
           />
-          <div className="relative w-[700px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+        <div
+              ref={columnModalRef}
+              className="relative w-[700px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white"
+            >
+
             <div className="sticky top-0 bg-gray-900 flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">Column Picker</h2>
               <button
@@ -287,13 +550,19 @@ const Employees = () => {
           </div>
 
           <button
-            onClick={() => navigate("/employees/new")}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
+            type="button"
+            onClick={() => navigate("/app/hr/newemployee")}
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[33px]"
           >
             <Plus size={16} /> New Employee
           </button>
 
-          <button className="p-2 bg-gray-700 border border-gray-600 rounded">
+
+
+          <button
+            onClick={getAllEmployees}
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
+          >
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
@@ -314,77 +583,275 @@ const Employees = () => {
         </div>
 
         {/* FILTER BAR */}
-        <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {[
-            ["Designation", "designation"],
-            ["Department", "department"],
-            ["Rate Type", "rateType"],
-            ["Blood Group", "bloodGroup"],
-            ["Country", "country"],
-            ["State", "state"],
-            ["City", "city"],
-            ["Region", "region"],
-            ["Territory", "territory"],
-          ].map(([label, key]) => (
-            <div className="relative w-32" ref={dropdownRefs[key]} key={key}>
-              <input
-                readOnly
-                onClick={() =>
-                  setDropdownOpen((prev) => ({
-                    ...prev,
-                    [key]: !prev[key],
-                  }))
-                }
-                value={
-                  {
-                    designation: filterDesignation,
-                    department: filterDepartment,
-                    rateType: filterRateType,
-                    bloodGroup: filterBloodGroup,
-                    country: filterCountry,
-                    state: filterState,
-                    city: filterCity,
-                    region: filterRegion,
-                    territory: filterTerritory,
-                  }[key] || ""
-                }
-                placeholder={`By ${label}`}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs cursor-pointer"
-              />
-
-              {dropdownOpen[key] && (
-                <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto">
-                  {["A", "B", "C"].map((v) => (
-                    <div
-                      key={v}
-                      onClick={() => {
-                        const setter = {
-                          designation: setFilterDesignation,
-                          department: setFilterDepartment,
-                          rateType: setFilterRateType,
-                          bloodGroup: setFilterBloodGroup,
-                          country: setFilterCountry,
-                          state: setFilterState,
-                          city: setFilterCity,
-                          region: setFilterRegion,
-                          territory: setFilterTerritory,
-                        }[key];
-
-                        if (setter) setter(v);
-                        setDropdownOpen((prev) => ({
-                          ...prev,
-                          [key]: false,
-                        }));
-                      }}
-                      className="px-2 py-1 hover:bg-gray-700 cursor-pointer text-xs"
-                    >
-                      {v}
-                    </div>
-                  ))}
+        <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
+          {/* Designation */}
+          <div className="relative w-40" ref={dropdownRefs.designation}>
+            <button
+              onClick={() =>
+                setDropdownOpen((prev) => ({ ...prev, designation: !prev.designation }))
+              }
+              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+            >
+              <span className="truncate">{filterDesignation || "Designation"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {dropdownOpen.designation && (
+              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterDesignation("");
+                    setDropdownOpen((prev) => ({ ...prev, designation: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
+                >
+                  Clear
                 </div>
-              )}
+                {designations.map((item) => (
+                  <div
+                    key={item.designationId}
+                    onClick={() => {
+                      setFilterDesignation(item.designationName || "");
+                      setDropdownOpen((prev) => ({ ...prev, designation: false }));
+                    }}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                  >
+                    {item.designationName}
+                  </div>
+                ))}
+
+              </div>
+
+            )}
+          </div>
+
+          {/* Department */}
+          <div className="relative w-40" ref={dropdownRefs.department}>
+            <button
+              onClick={() =>
+                setDropdownOpen((prev) => ({ ...prev, department: !prev.department }))
+              }
+              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+            >
+              <span className="truncate">{filterDepartment || "Department"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {dropdownOpen.department && (
+              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterDepartment("");
+                    setDropdownOpen((prev) => ({ ...prev, department: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
+                >
+                  Clear
+                </div>
+               {departments.map((item) => (
+                <div
+                  key={item.departmentId}
+                  onClick={() => {
+                    setFilterDepartment(item.departmentName || "");
+                    setDropdownOpen((prev) => ({ ...prev, department: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                >
+                  {item.departmentName}
+                </div>
+              ))}
+
+              </div>
+            )}
             </div>
-          ))}
+
+          {/* Country */}
+          <div className="relative w-40" ref={dropdownRefs.country}>
+            <button
+              onClick={() =>
+                setDropdownOpen((prev) => ({ ...prev, country: !prev.country }))
+              }
+              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+            >
+              <span className="truncate">{filterCountry || "Country"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {dropdownOpen.country && (
+              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterCountry("");
+                    setDropdownOpen((prev) => ({ ...prev, country: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
+                >
+                  Clear
+                </div>
+                {countries.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setFilterCountry(item.name || item.countryName || "");
+                      setDropdownOpen((prev) => ({ ...prev, country: false }));
+                    }}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                  >
+                    {item.name || item.countryName || ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* State */}
+          <div className="relative w-40" ref={dropdownRefs.state}>
+            <button
+              onClick={() =>
+                setDropdownOpen((prev) => ({ ...prev, state: !prev.state }))
+              }
+              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+            >
+              <span className="truncate">{filterState || "State"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {dropdownOpen.state && (
+              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterState("");
+                    setDropdownOpen((prev) => ({ ...prev, state: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
+                >
+                  Clear
+                </div>
+                {states.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setFilterState(item.name || item.stateName || "");
+                      setDropdownOpen((prev) => ({ ...prev, state: false }));
+                    }}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                  >
+                    {item.name || item.stateName || ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* City */}
+          <div className="relative w-40" ref={dropdownRefs.city}>
+            <button
+              onClick={() =>
+                setDropdownOpen((prev) => ({ ...prev, city: !prev.city }))
+              }
+              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+            >
+              <span className="truncate">{filterCity || "City"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {dropdownOpen.city && (
+              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterCity("");
+                    setDropdownOpen((prev) => ({ ...prev, city: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
+                >
+                  Clear
+                </div>
+                {cities.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setFilterCity(item.name || item.cityName || "");
+                      setDropdownOpen((prev) => ({ ...prev, city: false }));
+                    }}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                  >
+                    {item.name || item.cityName || ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Region */}
+          <div className="relative w-40" ref={dropdownRefs.region}>
+            <button
+              onClick={() =>
+                setDropdownOpen((prev) => ({ ...prev, region: !prev.region }))
+              }
+              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+            >
+              <span className="truncate">{filterRegion || "Region"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {dropdownOpen.region && (
+              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterRegion("");
+                    setDropdownOpen((prev) => ({ ...prev, region: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
+                >
+                  Clear
+                </div>
+                {regions.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setFilterRegion(item.name || item.regionName || "");
+                      setDropdownOpen((prev) => ({ ...prev, region: false }));
+                    }}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                  >
+                    {item.name || item.regionName || ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Territory */}
+          <div className="relative w-40" ref={dropdownRefs.territory}>
+            <button
+              onClick={() =>
+                setDropdownOpen((prev) => ({ ...prev, territory: !prev.territory }))
+              }
+              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+            >
+              <span className="truncate">{filterTerritory || "Territory"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {dropdownOpen.territory && (
+              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterTerritory("");
+                    setDropdownOpen((prev) => ({ ...prev, territory: false }));
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
+                >
+                  Clear
+                </div>
+                {territories.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setFilterTerritory(item.name || item.territoryName || "");
+                      setDropdownOpen((prev) => ({ ...prev, territory: false }));
+                    }}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                  >
+                    {item.name || item.territoryName || ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => {
@@ -398,9 +865,9 @@ const Employees = () => {
               setFilterRegion("");
               setFilterTerritory("");
             }}
-            className="px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-xs"
+            className="px-3 py-1.5 bg-red-900/40 border border-red-700 rounded text-xs hover:bg-red-900/60"
           >
-            Clear
+            Clear All
           </button>
         </div>
 
@@ -408,7 +875,7 @@ const Employees = () => {
         <div className="flex-grow overflow-auto w-full min-h-0">
           <div className="w-full overflow-x-auto">
             <table className="min-w-[3500px] border-separate border-spacing-y-1 text-sm table-fixed">
-              <thead className="sticky top-0 bg-gray-900 z-10">
+              <thead className="sticky top-0 bg-gray-900 z-10 h-10">
                 <tr className="text-white text-center">
                   {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
                   {visibleColumns.firstName && (
@@ -449,7 +916,7 @@ const Employees = () => {
                   )}
                   {visibleColumns.zipCode && (
                     <th className="pb-2 border-b">Zip Code</th>
-                  )}
+                  )} 
                   {visibleColumns.address && (
                     <th className="pb-2 border-b">Address</th>
                   )}
@@ -460,73 +927,89 @@ const Employees = () => {
                     <th className="pb-2 border-b">Region</th>
                   )}
                   {visibleColumns.territory && (
-                    <th className="pb-2 border-b">Territory</th>
-                  )}
-                  {visibleColumns.territoryDescription && (
                     <th className="pb-2 border-b">Territory Description</th>
                   )}
+                  {/* {visibleColumns.territoryDescription && (
+                    <th className="pb-2 border-b">Territory Description</th>
+                  )} */}
                 </tr>
               </thead>
 
-              <tbody className="text-center">
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="bg-gray-900 hover:bg-gray-700 cursor-default"
-                  >
-                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                    {visibleColumns.firstName && (
-                      <td className="py-2">{r.firstName}</td>
-                    )}
-                    {visibleColumns.lastName && (
-                      <td className="py-2">{r.lastName}</td>
-                    )}
-                    {visibleColumns.designation && (
-                      <td className="py-2">{r.designation}</td>
-                    )}
-                    {visibleColumns.department && (
-                      <td className="py-2">{r.department}</td>
-                    )}
-                    {visibleColumns.rateType && (
-                      <td className="py-2">{r.rateType}</td>
-                    )}
-                    {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
-                    {visibleColumns.hourRateSalary && (
-                      <td className="py-2">{r.hourRateSalary}</td>
-                    )}
-                    {visibleColumns.email && <td className="py-2">{r.email}</td>}
-                    {visibleColumns.bloodGroup && (
-                      <td className="py-2">{r.bloodGroup}</td>
-                    )}
-                    {visibleColumns.countryName && (
-                      <td className="py-2">{r.countryName}</td>
-                    )}
-                    {visibleColumns.stateName && (
-                      <td className="py-2">{r.stateName}</td>
-                    )}
-                    {visibleColumns.cityName && (
-                      <td className="py-2">{r.cityName}</td>
-                    )}
-                    {visibleColumns.zipCode && (
-                      <td className="py-2">{r.zipCode}</td>
-                    )}
-                    {visibleColumns.address && (
-                      <td className="py-2">{r.address}</td>
-                    )}
-                    {visibleColumns.userId && (
-                      <td className="py-2">{r.userId}</td>
-                    )}
-                    {visibleColumns.regionName && (
-                      <td className="py-2">{r.regionName}</td>
-                    )}
-                    {visibleColumns.territory && (
-                      <td className="py-2">{r.territory}</td>
-                    )}
-                    {visibleColumns.territoryDescription && (
-                      <td className="py-2">{r.territoryDescription}</td>
-                    )}
+              <tbody className="text-center h-10">
+                {loading ? (
+                  <tr>
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
+                      Loading employees...
+                    </td>
                   </tr>
-                ))}
+                ) : paginatedEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400 text-left">
+                      No employees found
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedEmployees.map((r) => (
+                   <tr
+                    key={r.id}
+                    onClick={() => navigate(`/app/hr/editemployee/${r.id}`)}
+                    className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                  >
+
+                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
+                      {visibleColumns.firstName && (
+                        <td className="py-2">{r.firstName}</td>
+                      )}
+                      {visibleColumns.lastName && (
+                        <td className="py-2">{r.lastName}</td>
+                      )}
+                      {visibleColumns.designation && (
+                        <td className="py-2">{r.designation}</td>
+                      )}
+                      {visibleColumns.department && (
+                        <td className="py-2">{r.department}</td>
+                      )}
+                      {visibleColumns.rateType && (
+                        <td className="py-2">{r.rateType}</td>
+                      )}
+                      {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
+                      {visibleColumns.hourRateSalary && (
+                        <td className="py-2">{r.hourRateSalary}</td>
+                      )}
+                      {visibleColumns.email && <td className="py-2">{r.email}</td>}
+                      {visibleColumns.bloodGroup && (
+                        <td className="py-2">{r.bloodGroup}</td>
+                      )}
+                      {visibleColumns.countryName && (
+                        <td className="py-2">{r.countryName}</td>
+                      )}
+                      {visibleColumns.stateName && (
+                        <td className="py-2">{r.stateName}</td>
+                      )}
+                      {visibleColumns.cityName && (
+                        <td className="py-2">{r.cityName}</td>
+                      )}
+                      {visibleColumns.zipCode && (
+                        <td className="py-2">{r.zipCode}</td>
+                      )}
+                      {visibleColumns.address && (
+                        <td className="py-2">{r.address}</td>
+                      )}
+                      {visibleColumns.userId && (
+                        <td className="py-2">{r.userId}</td>
+                      )}
+                      {visibleColumns.regionName && (
+                        <td className="py-2">{r.regionName}</td>
+                      )}
+                      {visibleColumns.territory && (
+                        <td className="py-2">{r.territory}</td>
+                      )}
+                      {/* {visibleColumns.territoryDescription && (
+                        <td className="py-2">{r.territoryDescription}</td>
+                      )} */}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -12,6 +12,11 @@ import {
   ChevronRight,
   ChevronsRight,
   ArchiveRestore,
+  Lock,
+  CheckCircle2,
+  ChevronDown,
+  Check,
+  Ban,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -26,6 +31,99 @@ import {
   getInactiveRolesApi,
   restoreRoleApi,
 } from "../../services/allAPI";
+import PageLayout from "../../layout/PageLayout";
+
+const mockPermissions = [
+  {
+    id: 1,
+    name: "Administration",
+    granted: false,
+    children: [
+      { id: 11, name: "Administration:General", granted: true },
+      {
+        id: 12,
+        name: "Currencies",
+        granted: false,
+        children: [
+          { id: 121, name: "Create", granted: false },
+          { id: 122, name: "Delete", granted: false },
+          { id: 123, name: "Update", granted: false },
+          { id: 124, name: "View", granted: false },
+        ]
+      },
+       {
+        id: 13,
+        name: "Languages and Translations",
+        granted: false,
+      },
+       {
+        id: 14,
+        name: "Payroll Group",
+        granted: false,
+      },
+       {
+        id: 15,
+        name: "Settings",
+        granted: false,
+      },
+       {
+        id: 16,
+        name: "User, Role Management and Permissions",
+        granted: false,
+      },
+    ]
+  }
+];
+
+const PermissionItem = ({ item, level = 0, onToggle }) => {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = item.children && item.children.length > 0;
+
+  return (
+    <div className="select-none">
+      <div 
+        className={`flex items-center gap-2 py-1 hover:bg-white/5 rounded px-2 ${level > 0 ? "ml-6" : ""}`}
+      >
+        {/* Expand/Collapse */}
+        <div 
+          className="w-4 h-4 flex items-center justify-center cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {hasChildren && (
+            expanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />
+          )}
+        </div>
+
+        {/* Icon */}
+        {item.granted ? (
+           <Check size={16} className="text-green-500" />
+        ) : (
+           <Ban size={16} className="text-red-500" />
+        )}
+
+        {/* Name */}
+        <span className="text-sm text-gray-200 flex-1">{item.name}</span>
+
+        {/* Checkbox */}
+        <div 
+          onClick={() => onToggle(item.id)}
+          className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${item.granted ? "bg-blue-600 border-blue-600" : "border-gray-500 hover:border-gray-400"}`}
+        >
+             {item.granted && <Check size={12} className="text-white" />}
+        </div>
+      </div>
+
+      {/* Children */}
+      {hasChildren && expanded && (
+        <div>
+          {item.children.map(child => (
+            <PermissionItem key={child.id} item={child} level={level + 1} onToggle={onToggle} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Roles = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,6 +142,43 @@ const Roles = () => {
     roleName: "",
     isInactive: false,
   });
+
+  // PERMISSIONS MODAL
+  const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [permissions, setPermissions] = useState(mockPermissions);
+
+  const togglePermission = (id) => {
+    const updateRecursive = (items) => {
+      return items.map(item => {
+        if (item.id === id) {
+          const newGranted = !item.granted;
+          return {
+            ...item,
+            granted: newGranted,
+            children: item.children ? setAllChildren(item.children, newGranted) : item.children
+          };
+        }
+        if (item.children) {
+          return {
+            ...item,
+            children: updateRecursive(item.children)
+          };
+        }
+        return item;
+      });
+    };
+
+    const setAllChildren = (items, status) => {
+      return items.map(item => ({
+        ...item,
+        granted: status,
+        children: item.children ? setAllChildren(item.children, status) : item.children
+      }));
+    };
+
+    setPermissions(prev => updateRecursive(prev));
+  };
 
   //pagination
   const [page, setPage] = useState(1);
@@ -192,6 +327,11 @@ const Roles = () => {
     }
   };
 
+  // PERMISSIONS
+  const handleEditPermissions = () => {
+    setPermissionsModalOpen(true);
+  };
+
   return (
     <>
       {/* =============================
@@ -209,6 +349,27 @@ const Roles = () => {
               </button>
             </div>
 
+            {/* TOOLBAR */}
+            <div className="px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
+              <button
+                onClick={handleAddRole}
+                className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
+              >
+                <Save size={16} className="text-blue-400" /> Save
+              </button>
+              
+              {/* <button className="p-1.5 border border-gray-500 rounded text-gray-400 hover:text-white hover:bg-gray-700">
+                <CheckCircle2 size={18} className="text-purple-400" />
+              </button> */}
+
+              <button
+                disabled
+                className="flex items-center gap-2 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded text-gray-500 cursor-not-allowed"
+              >
+                <Lock size={16} /> Edit Permissions
+              </button>
+            </div>
+
             <div className="p-6">
               <label className="block text-sm mb-1">Role Name *</label>
 
@@ -219,15 +380,6 @@ const Roles = () => {
                 placeholder="Enter role name"
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
               />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              <button
-                onClick={handleAddRole}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
-              >
-                <Save size={16} /> Save
-              </button>
             </div>
           </div>
         </div>
@@ -250,6 +402,53 @@ const Roles = () => {
               </button>
             </div>
 
+            {/* TOOLBAR */}
+            <div className="px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
+              {!editRole.isInactive && (
+                <button
+                  onClick={handleUpdateRole}
+                  className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
+                >
+                  <Save size={16} className="text-blue-400" /> Save
+                </button>
+              )}
+
+              {editRole.isInactive && (
+                 <button
+                  onClick={handleRestoreRole}
+                  className="flex items-center gap-2 bg-green-600/20 border border-green-600 text-green-400 px-3 py-1.5 rounded hover:bg-green-600/30 transition-colors"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              )}
+              
+              {/* <button className="p-1.5 border border-gray-500 rounded text-gray-400 hover:text-white hover:bg-gray-700">
+                <CheckCircle2 size={18} className="text-purple-400" />
+              </button> */}
+
+              <button
+                onClick={handleEditPermissions}
+                disabled={editRole.isInactive}
+                className={`flex items-center gap-2 border border-gray-600 px-3 py-1.5 rounded transition-colors ${
+                  editRole.isInactive
+                    ? "bg-gray-800/50 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-700/50 text-green-300 hover:bg-gray-700 hover:text-grey-500"
+                }`}
+              >
+                <Lock size={16} /> Edit Permissions
+              </button>
+
+              {!editRole.isInactive && (
+                <button
+                  onClick={handleDeleteRole}
+                  className="ml-auto p-1.5 border border-red-900/50 bg-red-900/20 text-red-400 rounded hover:bg-red-900/40"
+                  title="Delete Role"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+
             <div className="p-6">
               <label className="block text-sm mb-1">Role Name *</label>
 
@@ -264,35 +463,6 @@ const Roles = () => {
                   editRole.isInactive ? "opacity-60 cursor-not-allowed" : ""
                 }`}
               />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-
-              {/* RESTORE OR DELETE */}
-              {editRole.isInactive ? (
-                <button
-                  onClick={handleRestoreRole}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-              ) : (
-                <button
-                  onClick={handleDeleteRole}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-              )}
-
-              {!editRole.isInactive && (
-                <button
-                  onClick={handleUpdateRole}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-                >
-                  <Save size={16} /> Save
-                </button>
-              )}
             </div>
 
           </div>
@@ -390,11 +560,73 @@ const Roles = () => {
         </div>
       )}
 
+
+      {/* =============================
+          PERMISSIONS MODAL
+      ============================== */}
+      {permissionsModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[70]">
+          <div className="w-[600px] max-h-[85vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b border-gray-700 bg-gray-900/50">
+              <h3 className="text-lg text-white font-normal">Edit Role Permissions ({editRole.roleName})</h3>
+              <button onClick={() => setPermissionsModalOpen(false)}>
+                <X size={20} className="text-gray-300 hover:text-white" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="p-4 border-b border-gray-700 bg-gray-800/30">
+              <div className="flex items-center bg-gray-800/50 rounded px-3 border border-gray-600 focus-within:border-blue-500 transition-colors">
+                <Search size={16} className="text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="search..."
+                  value={permissionSearch}
+                  onChange={(e) => setPermissionSearch(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm p-2 w-full text-white placeholder-gray-500"
+                />
+              </div>
+            </div>
+
+            {/* Header for List */}
+            <div className="flex justify-between px-4 py-2 bg-gray-800/50 border-b border-gray-700 text-sm font-semibold text-gray-300">
+                <span>Permission</span>
+                <span>Grant</span>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-1">
+              {permissions.map(item => (
+                  <PermissionItem key={item.id} item={item} onToggle={togglePermission} />
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-700 bg-gray-900/50">
+              <button
+                onClick={() => setPermissionsModalOpen(false)}
+                className="px-4 py-2 bg-transparent border border-gray-600 text-gray-300 rounded hover:bg-gray-800 hover:text-white text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setPermissionsModalOpen(false)}
+                className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 text-sm shadow-lg shadow-gray-900/20 transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* =============================
               MAIN PAGE
       ============================== */}
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-        <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+      <PageLayout>
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden"> 
 
           <h2 className="text-2xl font-semibold mb-4">Roles</h2>
 
@@ -534,7 +766,7 @@ const Roles = () => {
           </div>
 
           {/* PAGINATION */}
-          <div className="mt-5 sticky bottom-0 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
+        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
             <div className="flex flex-wrap items-center gap-3 text-sm">
 
               <select
@@ -600,6 +832,7 @@ const Roles = () => {
 
         </div>
       </div>
+</PageLayout>
     </>
   );
 };

@@ -13,6 +13,17 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import toast from "react-hot-toast";
+import {
+  getCountriesApi,
+  getStatesApi,
+  getCitiesApi,
+  getRegionsApi,
+  getCustomerGroupsApi,
+  getCustomersApi,
+  searchCustomerApi,
+  getInactiveCustomersApi,
+} from "../../services/allAPI";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -22,7 +33,7 @@ const Customers = () => {
   // -------------------------------
   const defaultColumns = {
     id: true,
-    name: true,
+    companyName: true,
     contactName: true,
     contactTitle: true,
     countryName: true,
@@ -75,36 +86,29 @@ const Customers = () => {
     group: false,
   });
 
-  // -------------------------------
-  // Sample Data
-  // -------------------------------
-  const sampleCustomers = [
-    {
-      id: 1,
-      name: "Tech Corp",
-      contactName: "John Doe",
-      contactTitle: "Manager",
-      countryName: "USA",
-      stateName: "California",
-      cityName: "Los Angeles",
-      regionName: "West",
-      customerGroupName: "Retail",
-      postalCode: "90001",
-      phone: "1234567890",
-      fax: "123-2222",
-      website: "https://techcorp.com",
-      email: "info@techcorp.com",
-      emailAddress: "accounts@techcorp.com",
-      previousCreditBalance: 5000,
-      cnic: "42101-1234567-1",
-      ntn: "1234567",
-      strn: "STRN-9988",
-      salesMan: "Ali Khan",
-      orderBooker: "Sara",
-    },
-  ];
-
-  const [rows, setRows] = useState(sampleCustomers);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lookupMaps, setLookupMaps] = useState({
+    countries: {},
+    states: {},
+    cities: {},
+    regions: {},
+    groups: {},
+  });
+  const [lookupLists, setLookupLists] = useState({
+    countries: [],
+    states: [],
+    cities: [],
+    regions: [],
+    groups: [],
+  });
+  const [filterSearch, setFilterSearch] = useState({
+    country: "",
+    state: "",
+    city: "",
+    region: "",
+    group: "",
+  });
 
   // Search
   const [searchText, setSearchText] = useState("");
@@ -113,11 +117,371 @@ const Customers = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
-  const totalRecords = rows.length;
+  // Filtering helper
+  const applyFilters = (data = []) => {
+    const t = (v) => (v || "").toString().toLowerCase();
+    return data.filter((r) => {
+      if (filterCountry && t(r.countryName) !== t(filterCountry)) return false;
+      if (filterState && t(r.stateName) !== t(filterState)) return false;
+      if (filterCity && t(r.cityName) !== t(filterCity)) return false;
+      if (filterRegion && t(r.regionName) !== t(filterRegion)) return false;
+      if (filterGroup && t(r.customerGroupName) !== t(filterGroup)) return false;
+      return true;
+    });
+  };
+
+
+  const [showInactive, setShowInactive] = useState(false);
+const [inactiveRows, setInactiveRows] = useState([]);
+
+
+const loadInactive = async () => {
+  try {
+    setLoading(true);
+    const res = await getInactiveCustomersApi();
+    const records = Array.isArray(res?.data?.records)
+      ? res.data.records
+      : [];
+
+    const normalized = records.map((r) => ({
+      ...normalizeRow(r),
+      isInactive: true, // <<< IMPORTANT
+    }));
+
+    setInactiveRows(normalized);
+  } catch (err) {
+    console.error("load inactive customers error", err);
+    toast.error("Failed to load inactive customers");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
+const dataSource = showInactive ? inactiveRows : rows;
+const filteredRows = applyFilters(dataSource);
+  const totalRecords = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
 
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
+
+  // --------------------------------------
+  // Helpers
+  // --------------------------------------
+  const normalizeRow = (r = {}) => ({
+    id: r.id ?? r.Id ?? null,
+    companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
+    contactName: r.contactName ?? r.ContactName ?? "",
+    contactTitle: r.contactTitle ?? r.ContactTitle ?? "",
+    countryName:
+      r.countryName ??
+      r.CountryName ??
+      r.country ??
+      r.Country ??
+      r.country_label ??
+      "",
+    stateName:
+      r.stateName ??
+      r.StateName ??
+      r.state ??
+      r.State ??
+      r.state_label ??
+      "",
+    cityName:
+      r.cityName ??
+      r.CityName ??
+      r.city ??
+      r.City ??
+      r.city_label ??
+      "",
+    regionName:
+      r.regionName ??
+      r.RegionName ??
+      r.region ??
+      r.Region ??
+      r.region_label ??
+      "",
+    customerGroupName:
+      r.customerGroupName ??
+      r.CustomerGroupName ??
+      r.groupName ??
+      r.GroupName ??
+      r.group ??
+      r.Group ??
+      "",
+    countryId: r.countryId ?? r.CountryId ?? r.country ?? "",
+    stateId: r.stateId ?? r.StateId ?? r.state ?? "",
+    cityId: r.cityId ?? r.CityId ?? r.city ?? "",
+    regionId: r.regionId ?? r.RegionId ?? r.region ?? "",
+    customerGroupId:
+      r.customerGroupId ?? r.CustomerGroupId ?? r.group ?? "",
+    address: r.address ?? r.Address ?? "",
+    postalCode: r.postalCode ?? r.PostalCode ?? "",
+    phone: r.phone ?? r.Phone ?? "",
+    fax: r.fax ?? r.Fax ?? "",
+    website: r.website ?? r.Website ?? "",
+    email: r.email ?? r.Email ?? "",
+    emailAddress: r.emailAddress ?? r.EmailAddress ?? "",
+    previousCreditBalance:
+      r.previousCreditBalance ??
+      r.PreviousCreditBalance ??
+      r.previousCredit ??
+      r.PreviousCredit ??
+      "",
+    cnic: r.cnic ?? r.CNIC ?? "",
+    ntn: r.ntn ?? r.NTN ?? "",
+    strn: r.strn ?? r.STRN ?? "",
+    salesMan:
+      r.salesMan ??
+      r.SalesMan ??
+      r.salesManId ??
+      r.SalesManId ??
+      "",
+    orderBooker:
+      r.orderBooker ??
+      r.OrderBooker ??
+      r.orderBookerId ??
+      r.OrderBookerId ??
+      "",
+    vat: r.vat ?? r.VAT ?? "",
+  });
+
+  const parseArrayFromResponse = (res) => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (res?.data?.records) return res.data.records;
+    if (res?.records) return res.records;
+    return [];
+  };
+
+  const toMap = (arr = [], idKeys = [], labelKeys = []) => {
+    const map = {};
+    arr.forEach((item) => {
+      const id =
+        idKeys
+          .map((k) => item[k])
+          .find((v) => v !== undefined && v !== null) ??
+        item.Id ??
+        item.id;
+      const label =
+        labelKeys
+          .map((k) => item[k])
+          .find((v) => v !== undefined && v !== null && v !== "") ??
+        item.name ??
+        item.label;
+      if (id !== undefined && id !== null) {
+        map[String(id)] = label ?? "";
+      }
+    });
+    return map;
+  };
+
+  const loadLookups = async () => {
+    try {
+      const [c, s, ci, r, g] = await Promise.all([
+        getCountriesApi(1, 5000),
+        getStatesApi(1, 5000),
+        getCitiesApi(1, 5000),
+        getRegionsApi(1, 5000),
+        getCustomerGroupsApi(1, 5000),
+      ]);
+
+      const countries = parseArrayFromResponse(c);
+      const states = parseArrayFromResponse(s);
+      const cities = parseArrayFromResponse(ci);
+      const regions = parseArrayFromResponse(r);
+      const groups = parseArrayFromResponse(g);
+
+      setLookupLists({
+        countries,
+        states,
+        cities,
+        regions,
+        groups,
+      });
+
+      setLookupMaps({
+        countries: toMap(countries, ["Id", "id", "CountryId"], ["CountryName", "name", "label"]),
+        states: toMap(states, ["Id", "id", "StateId"], ["StateName", "name", "label"]),
+        cities: toMap(cities, ["Id", "id", "CityId"], ["CityName", "name", "label"]),
+        regions: toMap(regions, ["Id", "id", "regionId", "RegionId"], ["RegionName", "regionName", "name", "label"]),
+        groups: toMap(groups, ["Id", "id", "CustomerGroupId", "groupId"], ["GroupName", "groupName", "CustomerGroupName", "name", "label"]),
+      });
+    } catch (err) {
+      console.error("lookup load error", err);
+    }
+  };
+
+  const loadCustomers = async (pageNo = page, pageSize = limit) => {
+    try {
+      setLoading(true);
+      const res = await getCustomersApi(pageNo, pageSize);
+      console.log('Customers API Response:', res);
+      
+      let records = [];
+      if (res?.data?.records) {
+        records = res.data.records;
+      } else if (Array.isArray(res?.data)) {
+        records = res.data;
+      } else if (Array.isArray(res)) {
+        records = res;
+      }
+      
+      // This line displays the data in the table
+setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
+      setPage(pageNo);
+    } catch (err) {
+      console.error("load customers error", err);
+      toast.error("Failed to load customers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchText.trim()) return loadCustomers(1, limit);
+    try {
+      setLoading(true);
+      const res = await searchCustomerApi(searchText.trim());
+      const records = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setRows(records.map(normalizeRow));
+      setPage(1);
+    } catch (err) {
+      console.error("search customers error", err);
+      toast.error("Search failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // reset pagination when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filterCountry, filterState, filterCity, filterRegion, filterGroup]);
+
+  useEffect(() => {
+    loadCustomers();
+    loadLookups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const renderFilterDropdown = (label, key, list = []) => {
+    const displayValue =
+      {
+        country: filterCountry,
+        state: filterState,
+        city: filterCity,
+        region: filterRegion,
+        group: filterGroup,
+      }[key] || "";
+
+    return (
+      <div className="relative w-48" ref={dropdownRefs[key]} key={key}>
+        <div
+          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm cursor-pointer flex justify-between items-center"
+          onClick={() =>
+            setDropdownOpen((prev) => ({ ...prev, [key]: !prev[key] }))
+          }
+        >
+          <span className={displayValue ? "text-white" : "text-gray-400"}>
+            {displayValue || `Select ${label}`}
+          </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-gray-400"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+
+        {dropdownOpen[key] && (
+          <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[220px] overflow-auto">
+            <div className="p-2">
+              <input
+                value={filterSearch[key]}
+                onChange={(e) =>
+                  setFilterSearch((p) => ({ ...p, [key]: e.target.value }))
+                }
+                placeholder={`Search ${label.toLowerCase()}...`}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm"
+              />
+            </div>
+            <div className="max-h-48 overflow-auto">
+              {list
+                .filter((item) => {
+                  const txt =
+                    item.CountryName ||
+                    item.StateName ||
+                    item.CityName ||
+                    item.RegionName ||
+                    item.regionName ||
+                    item.GroupName ||
+                    item.groupName ||
+                    item.CustomerGroupName ||
+                    item.name ||
+                    item.label ||
+                    "";
+                  return txt
+                    .toString()
+                    .toLowerCase()
+                    .includes(filterSearch[key].toLowerCase());
+                })
+                .map((item) => {
+                  const val =
+                    item.CountryName ||
+                    item.StateName ||
+                    item.CityName ||
+                    item.RegionName ||
+                    item.regionName ||
+                    item.GroupName ||
+                    item.groupName ||
+                    item.CustomerGroupName ||
+                    item.name ||
+                    item.label ||
+                    "";
+                  return (
+                    <div
+                      key={item.Id ?? item.id}
+                      onClick={() => {
+                        const setter = {
+                          country: setFilterCountry,
+                          state: setFilterState,
+                          city: setFilterCity,
+                          region: setFilterRegion,
+                          group: setFilterGroup,
+                        }[key];
+                        if (setter) setter(val);
+                        setDropdownOpen((prev) => ({ ...prev, [key]: false }));
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {val}
+                    </div>
+                  );
+                })}
+              {list.length === 0 && (
+                <div className="px-3 py-2 text-gray-400 text-sm">
+                  No options
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -277,18 +641,24 @@ const Customers = () => {
               placeholder="Search customers..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearch();
+              }}
               className="bg-transparent pl-2 text-sm w-full outline-none"
             />
           </div>
 
           <button
-            onClick={() => navigate("/human-resource/new-employee")}
+            onClick={() => navigate("/app/businesspartners/newcustomer")}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Customer
           </button>
 
-          <button className="p-2 bg-gray-700 border border-gray-600 rounded">
+          <button
+            onClick={() => loadCustomers(page, limit)}
+            className="p-2 bg-gray-700 border border-gray-600 rounded"
+          >
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
@@ -303,75 +673,28 @@ const Customers = () => {
           </button>
 
           {/* NEW — INACTIVE BUTTON */}
-                      {/* INACTIVE */}
-            <button
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1"
-            >
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
-            </button>
+<button
+  onClick={async () => {
+    if (!showInactive) await loadInactive();
+    setShowInactive(!showInactive);
+  }}
+  className={`p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1`}
+>
+  <ArchiveRestore size={16} className="text-yellow-300" />
+  <span className="text-xs opacity-80">
+    {showInactive ? "Active" : "Inactive"}
+  </span>
+</button>
+
         </div>
 
-        {/* FILTER BAR (UPDATED) */}
-        <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {[
-            ["Country", "country"],
-            ["State", "state"],
-            ["City", "city"],
-            ["Region", "region"],
-            ["Group", "group"],
-          ].map(([label, key]) => (
-            <div className="relative w-32" ref={dropdownRefs[key]} key={key}>
-              <input
-                readOnly
-                onClick={() =>
-                  setDropdownOpen((prev) => ({
-                    ...prev,
-                    [key]: !prev[key],
-                  }))
-                }
-                value={
-                  {
-                    country: filterCountry,
-                    state: filterState,
-                    city: filterCity,
-                    region: filterRegion,
-                    group: filterGroup,
-                  }[key] || ""
-                }
-                placeholder={`By ${label}`}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs cursor-pointer"
-              />
-
-              {dropdownOpen[key] && (
-                <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto">
-                  {["A", "B", "C"].map((v) => (
-                    <div
-                      key={v}
-                      onClick={() => {
-                        const setter = {
-                          country: setFilterCountry,
-                          state: setFilterState,
-                          city: setFilterCity,
-                          region: setFilterRegion,
-                          group: setFilterGroup,
-                        }[key];
-
-                        if (setter) setter(v);
-                        setDropdownOpen((prev) => ({
-                          ...prev,
-                          [key]: false,
-                        }));
-                      }}
-                      className="px-2 py-1 hover:bg-gray-700 cursor-pointer text-xs"
-                    >
-                      {v}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+        {/* FILTER BAR */}
+        <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
+          {renderFilterDropdown("Country", "country", lookupLists.countries)}
+          {renderFilterDropdown("State", "state", lookupLists.states)}
+          {renderFilterDropdown("City", "city", lookupLists.cities)}
+          {renderFilterDropdown("Region", "region", lookupLists.regions)}
+          {renderFilterDropdown("Group", "group", lookupLists.groups)}
 
           <button
             onClick={() => {
@@ -381,133 +704,135 @@ const Customers = () => {
               setFilterRegion("");
               setFilterGroup("");
             }}
-            className="px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-xs"
+            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm"
           >
-            Clear
+            Reset
           </button>
         </div>
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto w-full min-h-0">
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[3300px] border-separate border-spacing-y-1 text-sm table-fixed">
-              <thead className="sticky top-0 bg-gray-900 z-10">
-                <tr className="text-white text-center">
-                  {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-                  {visibleColumns.name && <th className="pb-2 border-b">Name</th>}
-                  {visibleColumns.contactName && (
-                    <th className="pb-2 border-b">Contact Name</th>
-                  )}
-                  {visibleColumns.contactTitle && (
-                    <th className="pb-2 border-b">Contact Title</th>
-                  )}
-                  {visibleColumns.countryName && (
-                    <th className="pb-2 border-b">Country</th>
-                  )}
-                  {visibleColumns.stateName && (
-                    <th className="pb-2 border-b">State</th>
-                  )}
-                  {visibleColumns.cityName && (
-                    <th className="pb-2 border-b">City</th>
-                  )}
-                  {visibleColumns.regionName && (
-                    <th className="pb-2 border-b">Region</th>
-                  )}
-                  {visibleColumns.customerGroupName && (
-                    <th className="pb-2 border-b">Group</th>
-                  )}
-                  {visibleColumns.postalCode && (
-                    <th className="pb-2 border-b">Postal Code</th>
-                  )}
-                  {visibleColumns.phone && (
-                    <th className="pb-2 border-b">Phone</th>
-                  )}
-                  {visibleColumns.fax && <th className="pb-2 border-b">Fax</th>}
-                  {visibleColumns.website && (
-                    <th className="pb-2 border-b">Website</th>
-                  )}
-                  {visibleColumns.email && (
-                    <th className="pb-2 border-b">Email</th>
-                  )}
-                  {visibleColumns.emailAddress && (
-                    <th className="pb-2 border-b">Email Address</th>
-                  )}
-                  {visibleColumns.previousCreditBalance && (
-                    <th className="pb-2 border-b">Prev. Credit</th>
-                  )}
-                  {visibleColumns.cnic && <th className="pb-2 border-b">CNIC</th>}
-                  {visibleColumns.ntn && <th className="pb-2 border-b">NTN</th>}
-                  {visibleColumns.strn && <th className="pb-2 border-b">STRN</th>}
-                  {visibleColumns.salesMan && (
-                    <th className="pb-2 border-b">Sales Man</th>
-                  )}
-                  {visibleColumns.orderBooker && (
-                    <th className="pb-2 border-b">Order Booker</th>
-                  )}
-                </tr>
-              </thead>
+{/* TABLE */}
+<div className="flex-grow overflow-auto w-full min-h-0">
+  <div className="w-full overflow-x-auto">
+    <table className="min-w-[3300px] border-separate border-spacing-y-1 text-sm table-fixed">
+      <thead className="sticky top-0 bg-gray-900 z-10 h-10">
+        <tr className="text-white text-center">
+          {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
+          {visibleColumns.companyName && <th className="pb-2 border-b">Company Name</th>}
+          {visibleColumns.contactName && <th className="pb-2 border-b">Contact Name</th>}
+          {visibleColumns.contactTitle && <th className="pb-2 border-b">Contact Title</th>}
+          {visibleColumns.countryName && <th className="pb-2 border-b">Country</th>}
+          {visibleColumns.stateName && <th className="pb-2 border-b">State</th>}
+          {visibleColumns.cityName && <th className="pb-2 border-b">City</th>}
+          {visibleColumns.regionName && <th className="pb-2 border-b">Region</th>}
+          {visibleColumns.customerGroupName && <th className="pb-2 border-b">Group</th>}
+          {visibleColumns.postalCode && <th className="pb-2 border-b">Postal Code</th>}
+          {visibleColumns.phone && <th className="pb-2 border-b">Phone</th>}
+          {visibleColumns.fax && <th className="pb-2 border-b">Fax</th>}
+          {visibleColumns.website && <th className="pb-2 border-b">Website</th>}
+          {visibleColumns.email && <th className="pb-2 border-b">Email</th>}
+          {visibleColumns.emailAddress && <th className="pb-2 border-b">Email Address</th>}
+          {visibleColumns.previousCreditBalance && <th className="pb-2 border-b">Prev. Credit</th>}
+          {visibleColumns.cnic && <th className="pb-2 border-b">CNIC</th>}
+          {visibleColumns.ntn && <th className="pb-2 border-b">NTN</th>}
+          {visibleColumns.strn && <th className="pb-2 border-b">STRN</th>}
+          {visibleColumns.salesMan && <th className="pb-2 border-b">Sales Man</th>}
+          {visibleColumns.orderBooker && <th className="pb-2 border-b">Order Booker</th>}
+        </tr>
+      </thead>
 
-              <tbody className="text-center">
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="bg-gray-900 hover:bg-gray-700 cursor-default"
-                  >
-                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                    {visibleColumns.name && <td className="py-2">{r.name}</td>}
-                    {visibleColumns.contactName && (
-                      <td className="py-2">{r.contactName}</td>
-                    )}
-                    {visibleColumns.contactTitle && (
-                      <td className="py-2">{r.contactTitle}</td>
-                    )}
-                    {visibleColumns.countryName && (
-                      <td className="py-2">{r.countryName}</td>
-                    )}
-                    {visibleColumns.stateName && (
-                      <td className="py-2">{r.stateName}</td>
-                    )}
-                    {visibleColumns.cityName && (
-                      <td className="py-2">{r.cityName}</td>
-                    )}
-                    {visibleColumns.regionName && (
-                      <td className="py-2">{r.regionName}</td>
-                    )}
-                    {visibleColumns.customerGroupName && (
-                      <td className="py-2">{r.customerGroupName}</td>
-                    )}
-                    {visibleColumns.postalCode && (
-                      <td className="py-2">{r.postalCode}</td>
-                    )}
-                    {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
-                    {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
-                    {visibleColumns.website && (
-                      <td className="py-2">{r.website}</td>
-                    )}
-                    {visibleColumns.email && <td className="py-2">{r.email}</td>}
-                    {visibleColumns.emailAddress && (
-                      <td className="py-2">{r.emailAddress}</td>
-                    )}
-                    {visibleColumns.previousCreditBalance && (
-                      <td className="py-2">{r.previousCreditBalance}</td>
-                    )}
-                    {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
-                    {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
-                    {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
-                    {visibleColumns.salesMan && (
-                      <td className="py-2">{r.salesMan}</td>
-                    )}
-                    {visibleColumns.orderBooker && (
-                      <td className="py-2">{r.orderBooker}</td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <tbody className="text-center h-14">
+        {loading ? (
+          <tr>
+            <td colSpan={20} className="py-6 text-center text-gray-300">
+              Loading...
+            </td>
+          </tr>
+        ) : filteredRows.length === 0 ? (
+          <tr>
+            <td colSpan={20} className="py-6 text-center text-gray-400">
+              No customers found
+            </td>
+          </tr>
+        ) : (
+          filteredRows.slice(start - 1, end).map((r) => (
+            <tr
+              key={r.id}
+              className={`cursor-pointer ${
+                r.isInactive
+                  ? "bg-gray-800 opacity-50 hover:opacity-80"
+                  : "bg-gray-900 hover:bg-gray-700"
+              }`}
+              onClick={() =>
+                navigate(
+                  r.isInactive
+                    ? `/app/businesspartners/restorecustomer/${r.id}`
+                    : `/app/businesspartners/newcustomer/${r.id}`,
+                  { state: { customer: r } }
+                )
+              }
+            >
+              {visibleColumns.id && <td className="py-2">{r.id}</td>}
+              {visibleColumns.companyName && <td className="py-2">{r.companyName}</td>}
+              {visibleColumns.contactName && <td className="py-2">{r.contactName}</td>}
+              {visibleColumns.contactTitle && <td className="py-2">{r.contactTitle}</td>}
+              {visibleColumns.countryName && (
+                <td className="py-2">
+                  {lookupMaps.countries[String(r.countryId)] || r.countryName || ""}
+                </td>
+              )}
+              {visibleColumns.stateName && (
+                <td className="py-2">
+                  {lookupMaps.states[String(r.stateId)] || r.stateName || ""}
+                </td>
+              )}
+              {visibleColumns.cityName && (
+                <td className="py-2">
+                  {lookupMaps.cities[String(r.cityId)] || r.cityName || ""}
+                </td>
+              )}
+              {visibleColumns.regionName && (
+                <td className="py-2">
+                  {lookupMaps.regions[String(r.regionId)] || r.regionName || ""}
+                </td>
+              )}
+              {visibleColumns.customerGroupName && (
+                <td className="py-2">
+                  {lookupMaps.groups[String(r.customerGroupId)] ||
+                    r.customerGroupName ||
+                    ""}
+                </td>
+              )}
+              {visibleColumns.postalCode && <td className="py-2">{r.postalCode}</td>}
+              {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
+              {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
+              {visibleColumns.website && (
+                <td className="py-2 truncate max-w-[150px]">{r.website}</td>
+              )}
+              {visibleColumns.email && (
+                <td className="py-2 truncate max-w-[150px]">{r.email}</td>
+              )}
+              {visibleColumns.emailAddress && (
+                <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
+              )}
+              {visibleColumns.previousCreditBalance && (
+                <td className="py-2">{r.previousCreditBalance}</td>
+              )}
+              {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
+              {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
+              {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
+              {visibleColumns.salesMan && <td className="py-2">{r.salesMan}</td>}
+              {visibleColumns.orderBooker && <td className="py-2">{r.orderBooker}</td>}
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
 
         {/* PAGINATION */}
-          <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
+        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
 
           <select
             value={limit}

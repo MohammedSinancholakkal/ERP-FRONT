@@ -12,6 +12,17 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import PageLayout from "../../layout/PageLayout";
+import toast from "react-hot-toast";
+import {
+  getSuppliersApi,
+  searchSupplierApi,
+  getCountriesApi,
+  getStatesApi,
+  getCitiesApi,
+  getRegionsApi,
+  getSupplierGroupsApi,
+} from "../../services/allAPI";
 
 const Suppliers = () => {
   const navigate = useNavigate();
@@ -72,35 +83,29 @@ const Suppliers = () => {
     group: false,
   });
 
-  // --------------------------------------
-  // Dummy Data
-  // --------------------------------------
-  const sampleSuppliers = [
-    {
-      id: 1,
-      companyName: "Mega Supplies",
-      contactName: "Ahmad Khan",
-      contactTitle: "Director",
-      countryName: "Pakistan",
-      stateName: "Sindh",
-      cityName: "Karachi",
-      regionName: "South",
-      supplierGroupName: "Wholesale",
-      postalCode: "75500",
-      phone: "03001234567",
-      fax: "021-99999",
-      website: "https://megasupplies.com",
-      email: "info@megasupplies.com",
-      emailAddress: "sales@megasupplies.com",
-      previousCreditBalance: 12000,
-      cnic: "42101-9876543-2",
-      ntn: "5544332",
-      strn: "STRN-1122",
-      orderBooker: "Hamza",
-    },
-  ];
-
-  const [rows, setRows] = useState(sampleSuppliers);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lookupMaps, setLookupMaps] = useState({
+    countries: {},
+    states: {},
+    cities: {},
+    regions: {},
+    groups: {},
+  });
+  const [lookupLists, setLookupLists] = useState({
+    countries: [],
+    states: [],
+    cities: [],
+    regions: [],
+    groups: [],
+  });
+  const [filterSearch, setFilterSearch] = useState({
+    country: "",
+    state: "",
+    city: "",
+    region: "",
+    group: "",
+  });
 
   // --------------------------------------
   // Search
@@ -117,6 +122,311 @@ const Suppliers = () => {
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
+
+  // --------------------------------------
+  // Helpers
+  // --------------------------------------
+  const normalizeRow = (r = {}) => ({
+    id: r.id ?? r.Id ?? null,
+    companyName: r.companyName ?? r.CompanyName ?? "",
+    contactName: r.contactName ?? r.ContactName ?? "",
+    contactTitle: r.contactTitle ?? r.ContactTitle ?? "",
+    countryName:
+      r.countryName ??
+      r.CountryName ??
+      r.country ??
+      r.Country ??
+      r.country_label ??
+      "",
+    stateName:
+      r.stateName ??
+      r.StateName ??
+      r.state ??
+      r.State ??
+      r.state_label ??
+      "",
+    cityName:
+      r.cityName ??
+      r.CityName ??
+      r.city ??
+      r.City ??
+      r.city_label ??
+      "",
+    regionName:
+      r.regionName ??
+      r.RegionName ??
+      r.region ??
+      r.Region ??
+      r.region_label ??
+      "",
+    supplierGroupName:
+      r.supplierGroupName ??
+      r.SupplierGroupName ??
+      r.groupName ??
+      r.GroupName ??
+      r.group ??
+      r.Group ??
+      r.supplierGroup ??
+      "",
+    countryId: r.countryId ?? r.CountryId ?? r.country ?? "",
+    stateId: r.stateId ?? r.StateId ?? r.state ?? "",
+    cityId: r.cityId ?? r.CityId ?? r.city ?? "",
+    regionId: r.regionId ?? r.RegionId ?? r.region ?? "",
+    supplierGroupId:
+      r.supplierGroupId ?? r.SupplierGroupId ?? r.supplierGroup ?? r.group ?? "",
+    address: r.address ?? r.Address ?? "",
+    postalCode: r.postalCode ?? r.PostalCode ?? "",
+    phone: r.phone ?? r.Phone ?? "",
+    fax: r.fax ?? r.Fax ?? "",
+    website: r.website ?? r.Website ?? "",
+    email: r.email ?? r.Email ?? "",
+    emailAddress: r.emailAddress ?? r.EmailAddress ?? "",
+    previousCreditBalance:
+      r.previousCreditBalance ??
+      r.PreviousCreditBalance ??
+      r.previousCredit ??
+      r.PreviousCredit ??
+      "",
+    cnic: r.cnic ?? r.CNIC ?? "",
+    ntn: r.ntn ?? r.NTN ?? "",
+    strn: r.strn ?? r.STRN ?? "",
+    orderBooker:
+      r.orderBooker ??
+      r.OrderBooker ??
+      r.orderBookerId ??
+      r.OrderBookerId ??
+      "",
+    vat: r.vat ?? r.VAT ?? "",
+  });
+
+
+  const parseArrayFromResponse = (res) => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (res?.data?.records) return res.data.records;
+    if (res?.records) return res.records;
+    return [];
+  };
+
+  const toMap = (arr = [], idKeys = [], labelKeys = []) => {
+    const map = {};
+    arr.forEach((item) => {
+      const id =
+        idKeys
+          .map((k) => item[k])
+          .find((v) => v !== undefined && v !== null) ??
+        item.Id ??
+        item.id;
+      const label =
+        labelKeys
+          .map((k) => item[k])
+          .find((v) => v !== undefined && v !== null && v !== "") ??
+        item.name ??
+        item.label;
+      if (id !== undefined && id !== null) {
+        map[String(id)] = label ?? "";
+      }
+    });
+    return map;
+  };
+
+  const loadLookups = async () => {
+    try {
+      const [c, s, ci, r, g] = await Promise.all([
+        getCountriesApi(1, 5000),
+        getStatesApi(1, 5000),
+        getCitiesApi(1, 5000),
+        getRegionsApi(1, 5000),
+        getSupplierGroupsApi(1, 5000),
+      ]);
+
+      const countries = parseArrayFromResponse(c);
+      const states = parseArrayFromResponse(s);
+      const cities = parseArrayFromResponse(ci);
+      const regions = parseArrayFromResponse(r);
+      const groups = parseArrayFromResponse(g);
+
+      setLookupLists({
+        countries,
+        states,
+        cities,
+        regions,
+        groups,
+      });
+
+      setLookupMaps({
+        countries: toMap(countries, ["Id", "id", "CountryId"], ["CountryName", "name", "label"]),
+        states: toMap(states, ["Id", "id", "StateId"], ["StateName", "name", "label"]),
+        cities: toMap(cities, ["Id", "id", "CityId"], ["CityName", "name", "label"]),
+        regions: toMap(regions, ["Id", "id", "regionId", "RegionId"], ["RegionName", "regionName", "name", "label"]),
+        groups: toMap(groups, ["Id", "id", "SupplierGroupId", "groupId"], ["GroupName", "groupName", "SupplierGroupName", "name", "label"]),
+      });
+    } catch (err) {
+      console.error("lookup load error", err);
+    }
+  };
+
+
+  const loadSuppliers = async (pageNo = page, pageSize = limit) => {
+    try {
+      setLoading(true);
+      const res = await getSuppliersApi(pageNo, pageSize);
+      console.log(res);
+      
+      let records = [];
+      if (res?.data?.records) {
+        records = res.data.records;
+      } else if (Array.isArray(res?.data)) {
+        records = res.data;
+      } else if (Array.isArray(res)) {
+        records = res;
+      }
+      setRows(records.map(normalizeRow));
+      setPage(pageNo);
+    } catch (err) {
+      console.error("load suppliers error", err);
+      toast.error("Failed to load suppliers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchText.trim()) return loadSuppliers(1, limit);
+    try {
+      setLoading(true);
+      const res = await searchSupplierApi(searchText.trim());
+      const records = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setRows(records.map(normalizeRow));
+      setPage(1);
+    } catch (err) {
+      console.error("search suppliers error", err);
+      toast.error("Search failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSuppliers();
+    loadLookups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const renderFilterDropdown = (label, key, list = []) => {
+    const displayValue =
+      {
+        country: filterCountry,
+        state: filterState,
+        city: filterCity,
+        region: filterRegion,
+        group: filterGroup,
+      }[key] || "";
+
+    return (
+      <div className="relative w-48" ref={dropdownRefs[key]} key={key}>
+        <div
+          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm cursor-pointer flex justify-between items-center"
+          onClick={() =>
+            setDropdownOpen((prev) => ({ ...prev, [key]: !prev[key] }))
+          }
+        >
+          <span className={displayValue ? "text-white" : "text-gray-400"}>
+            {displayValue || `Select ${label}`}
+          </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-gray-400"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+
+        {dropdownOpen[key] && (
+          <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[220px] overflow-auto">
+            <div className="p-2">
+              <input
+                value={filterSearch[key]}
+                onChange={(e) =>
+                  setFilterSearch((p) => ({ ...p, [key]: e.target.value }))
+                }
+                placeholder={`Search ${label.toLowerCase()}...`}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm"
+              />
+            </div>
+            <div className="max-h-48 overflow-auto">
+              {list
+                .filter((item) => {
+                  const txt =
+                    item.CountryName ||
+                    item.StateName ||
+                    item.CityName ||
+                    item.RegionName ||
+                    item.regionName ||
+                    item.GroupName ||
+                    item.groupName ||
+                    item.SupplierGroupName ||
+                    item.name ||
+                    item.label ||
+                    "";
+                  return txt
+                    .toString()
+                    .toLowerCase()
+                    .includes(filterSearch[key].toLowerCase());
+                })
+                .map((item) => {
+                  const val =
+                    item.CountryName ||
+                    item.StateName ||
+                    item.CityName ||
+                    item.RegionName ||
+                    item.regionName ||
+                    item.GroupName ||
+                    item.groupName ||
+                    item.SupplierGroupName ||
+                    item.name ||
+                    item.label ||
+                    "";
+                  return (
+                    <div
+                      key={item.Id ?? item.id}
+                      onClick={() => {
+                        const setter = {
+                          country: setFilterCountry,
+                          state: setFilterState,
+                          city: setFilterCity,
+                          region: setFilterRegion,
+                          group: setFilterGroup,
+                        }[key];
+                        if (setter) setter(val);
+                        setDropdownOpen((prev) => ({ ...prev, [key]: false }));
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {val}
+                    </div>
+                  );
+                })}
+              {list.length === 0 && (
+                <div className="px-3 py-2 text-gray-400 text-sm">
+                  No options
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // --------------------------------------
   // Close dropdown when clicking outside
@@ -269,24 +579,30 @@ const Suppliers = () => {
 
         {/* ACTION BAR */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
+            <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
             <Search size={16} className="text-gray-300" />
             <input
               placeholder="Search suppliers..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
               className="bg-transparent pl-2 text-sm w-full outline-none"
             />
           </div>
 
           <button
-            onClick={() => navigate("/human-resource/new-employee")}
+            onClick={() => navigate("/app/businesspartners/newsupplier")}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Supplier
           </button>
 
-          <button className="p-2 bg-gray-700 border border-gray-600 rounded">
+          <button
+            onClick={() => loadSuppliers(page, limit)}
+            className="p-2 bg-gray-700 border border-gray-600 rounded"
+          >
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
@@ -308,62 +624,11 @@ const Suppliers = () => {
 
         {/* FILTER BAR */}
         <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {[
-            ["Country", "country"],
-            ["State", "state"],
-            ["City", "city"],
-            ["Region", "region"],
-            ["Group", "group"],
-          ].map(([label, key]) => (
-            <div
-              className="relative w-40"
-              ref={dropdownRefs[key]}
-              key={key}
-            >
-              <input
-                readOnly
-                onClick={() =>
-                  setDropdownOpen((prev) => ({ ...prev, [key]: !prev[key] }))
-                }
-                value={
-                  {
-                    country: filterCountry,
-                    state: filterState,
-                    city: filterCity,
-                    region: filterRegion,
-                    group: filterGroup,
-                  }[key] || ""
-                }
-                placeholder={`Filter by ${label}`}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm cursor-pointer"
-              />
-
-              {dropdownOpen[key] && (
-                <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[180px] overflow-auto">
-                  {["A", "B", "C"].map((v) => (
-                    <div
-                      key={v}
-                      onClick={() => {
-                        const setter = {
-                          country: setFilterCountry,
-                          state: setFilterState,
-                          city: setFilterCity,
-                          region: setFilterRegion,
-                          group: setFilterGroup,
-                        }[key];
-
-                        if (setter) setter(v);
-                        setDropdownOpen((prev) => ({ ...prev, [key]: false }));
-                      }}
-                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                    >
-                      {v}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          {renderFilterDropdown("Country", "country", lookupLists.countries)}
+          {renderFilterDropdown("State", "state", lookupLists.states)}
+          {renderFilterDropdown("City", "city", lookupLists.cities)}
+          {renderFilterDropdown("Region", "region", lookupLists.regions)}
+          {renderFilterDropdown("Group", "group", lookupLists.groups)}
 
           <button
             onClick={() => {
@@ -382,8 +647,8 @@ const Suppliers = () => {
         {/* TABLE */}
         <div className="flex-grow overflow-auto w-full min-h-0">
           <div className="w-full overflow-x-auto">
-            <table className="min-w-[3300px] border-separate border-spacing-y-1 text-sm table-fixed">
-              <thead className="sticky top-0 bg-gray-900 z-10">
+            <table className="min-w-[2500px] border-separate border-spacing-y-1 text-sm table-fixed">
+              <thead className="sticky top-0 bg-gray-900 z-10 h-10">
                 <tr className="text-white text-center">
                   {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
                   {visibleColumns.companyName && (
@@ -408,7 +673,7 @@ const Suppliers = () => {
                     <th className="pb-2 border-b">Region</th>
                   )}
                   {visibleColumns.supplierGroupName && (
-                    <th className="pb-2 border-b">Group</th>
+                    <th className="pb-2 border-b">Supplier Group</th>
                   )}
                   {visibleColumns.postalCode && (
                     <th className="pb-2 border-b">Postal</th>
@@ -444,64 +709,106 @@ const Suppliers = () => {
                 </tr>
               </thead>
 
-              <tbody className="text-center">
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="bg-gray-900 hover:bg-gray-700 cursor-default"
-                  >
-                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                    {visibleColumns.companyName && (
-                      <td className="py-2">{r.companyName}</td>
-                    )}
-                    {visibleColumns.contactName && (
-                      <td className="py-2">{r.contactName}</td>
-                    )}
-                    {visibleColumns.contactTitle && (
-                      <td className="py-2">{r.contactTitle}</td>
-                    )}
-                    {visibleColumns.countryName && (
-                      <td className="py-2">{r.countryName}</td>
-                    )}
-                    {visibleColumns.stateName && (
-                      <td className="py-2">{r.stateName}</td>
-                    )}
-                    {visibleColumns.cityName && (
-                      <td className="py-2">{r.cityName}</td>
-                    )}
-                    {visibleColumns.regionName && (
-                      <td className="py-2">{r.regionName}</td>
-                    )}
-                    {visibleColumns.supplierGroupName && (
-                      <td className="py-2">{r.supplierGroupName}</td>
-                    )}
-                    {visibleColumns.postalCode && (
-                      <td className="py-2">{r.postalCode}</td>
-                    )}
-                    {visibleColumns.phone && (
-                      <td className="py-2">{r.phone}</td>
-                    )}
-                    {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
-                    {visibleColumns.website && (
-                      <td className="py-2">{r.website}</td>
-                    )}
-                    {visibleColumns.email && (
-                      <td className="py-2">{r.email}</td>
-                    )}
-                    {visibleColumns.emailAddress && (
-                      <td className="py-2">{r.emailAddress}</td>
-                    )}
-                    {visibleColumns.previousCreditBalance && (
-                      <td className="py-2">{r.previousCreditBalance}</td>
-                    )}
-                    {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
-                    {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
-                    {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
-                    {visibleColumns.orderBooker && (
-                      <td className="py-2">{r.orderBooker}</td>
-                    )}
+              <tbody className="text-center h-14">
+                {loading ? (
+                  <tr>
+                    <td colSpan={20} className="py-6 text-center text-gray-300">
+                      Loading...
+                    </td>
                   </tr>
-                ))}
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={20} className="py-6 text-center text-gray-400">
+                      No suppliers found
+                    </td>
+                  </tr>
+                ) : (
+                  rows.slice(start - 1, end).map((r) => (
+                    <tr
+                      key={r.id ?? Math.random()}
+                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                      onClick={() =>
+                        navigate(
+                          r.id
+                            ? `/app/businesspartners/newsupplier/${r.id}`
+                            : "/app/businesspartners/newsupplier",
+                          { state: { supplier: r } }
+                        )
+                      }
+                    >
+                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
+                      {visibleColumns.companyName && (
+                        <td className="py-2">{r.companyName}</td>
+                      )}
+                      {visibleColumns.contactName && (
+                        <td className="py-2">{r.contactName}</td>
+                      )}
+                      {visibleColumns.contactTitle && (
+                        <td className="py-2">{r.contactTitle}</td>
+                      )}
+                      {visibleColumns.countryName && (
+                        <td className="py-2">
+                          {lookupMaps.countries[String(r.countryId)] ||
+                            r.countryName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.stateName && (
+                        <td className="py-2">
+                          {lookupMaps.states[String(r.stateId)] ||
+                            r.stateName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.cityName && (
+                        <td className="py-2">
+                          {lookupMaps.cities[String(r.cityId)] ||
+                            r.cityName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.regionName && (
+                        <td className="py-2">
+                          {lookupMaps.regions[String(r.regionId)] ||
+                            r.regionName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.supplierGroupName && (
+                        <td className="py-2">
+                          {lookupMaps.groups[String(r.supplierGroupId)] ||
+                            r.supplierGroupName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.postalCode && (
+                        <td className="py-2">{r.postalCode}</td>
+                      )}
+                      {visibleColumns.phone && (
+                        <td className="py-2">{r.phone}</td>
+                      )}
+                      {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
+                      {visibleColumns.website && (
+                        <td className="py-2 truncate max-w-[150px]">{r.website}</td>
+                      )}
+                      {visibleColumns.email && (
+                        <td className="py-2 truncate max-w-[150px]">{r.email}</td>
+                      )}
+                      {visibleColumns.emailAddress && (
+                        <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
+                      )}
+                      {visibleColumns.previousCreditBalance && (
+                        <td className="py-2">{r.previousCreditBalance}</td>
+                      )}
+                      {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
+                      {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
+                      {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
+                      {visibleColumns.orderBooker && (
+                        <td className="py-2">{r.orderBooker}</td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

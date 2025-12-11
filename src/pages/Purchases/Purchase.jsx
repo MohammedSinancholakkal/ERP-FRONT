@@ -14,6 +14,9 @@ import {
   Eye
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
+import { useNavigate } from "react-router-dom";
+
+
 
 /* Searchable Dropdown */
 const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
@@ -146,6 +149,10 @@ const Purchase = () => {
     }
   ];
 
+
+  const navigate = useNavigate();
+
+
   return (
     <>
       {/* ======================================
@@ -170,12 +177,14 @@ const Purchase = () => {
               />
             </div>
 
-            <button
-              onClick={() => setModalOpen(true)}
+           <button
+              onClick={() => navigate("/app/purchasing/newpurchase")}
               className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600"
             >
               <Plus size={16} /> New Purchase
             </button>
+
+
 
             <button className="p-1.5 bg-gray-700 border border-gray-600 rounded">
               <RefreshCw size={16} className="text-blue-300" />

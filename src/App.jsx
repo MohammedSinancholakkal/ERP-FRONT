@@ -65,6 +65,12 @@ import CustomerReceivableReport from "./pages/reports/CustomerReceivableReport";
 import StockReport from "./pages/reports/StockReport";
 import DailyClosingReport from "./pages/reports/DailyClosingReport";
 import DayClosing from "./pages/reports/DayClosing";
+import Settings from "./pages/Administration/Settings";
+import Translations from "./pages/Administration/Translations";
+import NewSuppliers from "./pages/business partners/NewSuppliers";
+import NewCustomers from "./pages/business partners/NewCustomers";
+import NewMeeting from "./pages/Meeting/NewMeeting";
+import NewPurchases from "./pages/Purchases/NewPurchases";
 
 
 
@@ -123,71 +129,86 @@ function App() {
           <Route path="hr/departments" element={<Departments />} />
           <Route path="hr/designations" element={<Designations />} />
           <Route path="hr/newemployee" element={<NewEmployee />} />
+          <Route path="hr/editemployee/:id" element={<NewEmployee />} />
           <Route path="hr/employees" element={<Employees />} />
           <Route path="hr/attendance" element={<Attendance />} />
           <Route path="hr/payroll" element={<Payroll />} />
 
 
-        {/* administration */}
-        <Route path="administration/usermanagement" element={<UserManagement />} />
-        <Route path="administration/roles" element={<Roles />} />
-        <Route path="administration/currencies" element={<Currencies />} />
-        <Route path="administration/language" element={<Languages />} />
-
-        {/* cash/bank */}
-        <Route path="cashbank/expenses" element={<Expenses />} />
-        <Route path="cashbank/banktransaction" element={<BankTransactions />} />
-        <Route path="cashbank/customerreceive" element={<CustomerReceive />} />
-        <Route path="cashbank/supplierpayment" element={<SupplierPayment />} />
-        <Route path="cashbank/cashadjustment" element={<CashAdjustment />} />
+          {/* administration */}
+          <Route path="administration/usermanagement" element={<UserManagement />} />
+          <Route path="administration/roles" element={<Roles />} />
+          <Route path="administration/currencies" element={<Currencies />} />
+          <Route path="administration/language" element={<Languages />} />
+          <Route path="administration/settings" element={<Settings />} />
+          <Route path="administration/translations" element={<Translations />} />
 
 
 
-        {/* Financial */}
-        <Route path="financial/journalvoucher" element={<JournalVoucher />} />
-        <Route path="financial/contravoucher" element={<ContraVoucher />} />
-        <Route path="financial/creditvoucher" element={<CreditVoucher />} />
-        <Route path="financial/debitvoucher" element={<DebitVoucher />} />
-        <Route path="financial/openingbalance" element={<OpeningBalance />} />
-        <Route path="financial/chartofaccounts" element={<ChartOfAccounts />} />
-
-        
-
-      {/* sales */}
-
-        <Route path="sales/sales" element={<Sales />} />
-        <Route path="sales/salesquotations" element={<SalesQuotation />} />
+          {/* cash/bank */}
+          <Route path="cashbank/expenses" element={<Expenses />} />
+          <Route path="cashbank/banktransaction" element={<BankTransactions />} />
+          <Route path="cashbank/customerreceive" element={<CustomerReceive />} />
+          <Route path="cashbank/supplierpayment" element={<SupplierPayment />} />
+          <Route path="cashbank/cashadjustment" element={<CashAdjustment />} />
 
 
 
-        {/* purchases */}
+          {/* Financial */}
+          <Route path="financial/journalvoucher" element={<JournalVoucher />} />
+          <Route path="financial/contravoucher" element={<ContraVoucher />} />
+          <Route path="financial/creditvoucher" element={<CreditVoucher />} />
+          <Route path="financial/debitvoucher" element={<DebitVoucher />} />
+          <Route path="financial/openingbalance" element={<OpeningBalance />} />
+          <Route path="financial/chartofaccounts" element={<ChartOfAccounts />} />
 
-      <Route path="purchasing/purchases" element={<Purchase />} />
+          
 
+          {/* sales */}
 
-      {/* services */}
-      <Route path="services/invoices" element={<Invoices />} />
-
-      {/* meetings */}
-
-      <Route path="meeting/meetings" element={<Meetings />} />
-
-
-        {/* business partners */}
-        <Route path="businesspartners/customers" element={<Customers />} />
-        <Route path="businesspartners/suppliers" element={<Suppliers />} />
+          <Route path="sales/sales" element={<Sales />} />
+          <Route path="sales/salesquotations" element={<SalesQuotation />} />
 
 
-        {/* reports */}
 
-        <Route path="reports/supplierpayablereport" element={<SuppliersPayableReport />} />
-        <Route path="reports/customerreceivablereport" element={<CustomerReceivableReport />} />
-        <Route path="reports/stockreports" element={<StockReport />} />
-        <Route path="reports/dailyclosingreports" element={<DailyClosingReport />} />
-        <Route path="reports/dayclosing" element={<DayClosing />} />
+          {/* purchases */}
 
-        </Route>
-      </Routes>
+          <Route path="purchasing/purchases" element={<Purchase />} />
+          <Route path="purchasing/newpurchase" element={<NewPurchases />} />
+
+
+          {/* services */}
+          <Route path="services/invoices" element={<Invoices />} />
+
+          {/* meetings */}
+
+          <Route path="meeting/meetings" element={<Meetings />} />
+          <Route path="meeting/meetings/new" element={<NewMeeting />} />
+
+
+
+
+          {/* business partners */}
+          <Route path="businesspartners/customers" element={<Customers />} />
+          <Route path="businesspartners/suppliers" element={<Suppliers />} />
+          <Route path="businesspartners/newsupplier" element={<NewSuppliers />} />
+          <Route path="businesspartners/newsupplier/:id" element={<NewSuppliers />} />
+          <Route path="businesspartners/restorecustomer/:id" element={<NewSuppliers />} />
+          <Route path="businesspartners/newcustomer" element={<NewCustomers />} />
+          <Route path="businesspartners/newcustomer/:id" element={<NewCustomers />} />
+
+
+
+          {/* reports */}
+
+          <Route path="reports/supplierpayablereport" element={<SuppliersPayableReport />} />
+          <Route path="reports/customerreceivablereport" element={<CustomerReceivableReport />} />
+          <Route path="reports/stockreports" element={<StockReport />} />
+          <Route path="reports/dailyclosingreports" element={<DailyClosingReport />} />
+          <Route path="reports/dayclosing" element={<DayClosing />} />
+
+          </Route>
+        </Routes>
     </>
   );
 }

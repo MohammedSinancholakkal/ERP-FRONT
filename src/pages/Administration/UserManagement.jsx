@@ -13,6 +13,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ArchiveRestore,
+  CheckCircle2,
+  Users,
+  Lock,
+  Paperclip,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -24,10 +28,12 @@ import {
   searchUserApi,
   getInactiveUsersApi,
   restoreUserApi,
-} from "../../services/allAPI"; // make sure these exist and map to backend routes
+  getRolesApi,
+} from "../../services/allAPI"; 
 
 import SortableHeader from "../../components/SortableHeader";
 import { serverURL } from "../../services/serverURL";
+import PageLayout from "../../layout/PageLayout";
 
 // file -> base64 preview utility (same pattern as Banks)
 const fileToBase64 = (file) =>
@@ -87,6 +93,40 @@ const UserManagement = () => {
     userImagePreview: "",
     isInactive: false,
   });
+
+  // Roles Modal
+  const [rolesModalOpen, setRolesModalOpen] = useState(false);
+  const [rolesList, setRolesList] = useState([]);
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  const [roleSearch, setRoleSearch] = useState("");
+
+  const fetchRoles = async () => {
+    try {
+      const response = await getRolesApi(1, 100); 
+      if (response.status === 200) {
+        // Assuming response.data.roles or response.data.records based on other APIs
+        setRolesList(response.data.records || []); 
+      }
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      toast.error("Failed to load roles");
+    }
+  };
+
+  const handleEditRoles = () => {
+    setRolesModalOpen(true);
+    fetchRoles();
+    // TODO: Load existing roles for the user if available
+    setSelectedRoles([]); 
+  };
+
+  const toggleRole = (roleName) => {
+    setSelectedRoles((prev) =>
+      prev.includes(roleName)
+        ? prev.filter((r) => r !== roleName)
+        : [...prev, roleName]
+    );
+  };
 
   // Column Picker
   const defaultColumns = {
@@ -292,14 +332,10 @@ const UserManagement = () => {
       payload.append("source", editData.source || "site");
       payload.append("userId", currentUserId);
 
-      // Determine what to send for image:
-      // - if editData.userImage is a File -> new image uploaded
-      // - if editData.userImage === "" -> user removed image (send userImage empty string)
-      // - else (keep old): don't send any file or userImage signal
       if (editData.userImage instanceof File) {
         payload.append("userImage", editData.userImage);
       } else if (editData.userImage === "") {
-        payload.append("userImage", ""); // signal removal
+        payload.append("userImage", ""); 
       }
 
       const res = await updateUserApi(editData.userId, payload);
@@ -320,6 +356,8 @@ const UserManagement = () => {
       const res = await deleteUserApi(editData.userId, {
         userId: currentUserId,
       });
+      console.log(res);
+      
       if (res.status === 200) {
         toast.success("Deleted");
         setEditModalOpen(false);
@@ -378,123 +416,158 @@ const UserManagement = () => {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[95%] sm:w-[600px] md:w-[650px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
-            <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-20">
-              <h2 className="text-base sm:text-lg font-semibold">New User</h2>
+            {/* HEADER */}
+            <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-b border-gray-700 bg-gray-900/50">
+              <h2 className="text-lg text-white-500 font-normal">New User</h2>
               <button onClick={() => setModalOpen(false)}>
                 <X className="text-gray-300 hover:text-white" size={20} />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[60vh]">
-              <div>
-                <label className="block text-sm mb-1">Username *</label>
+            {/* TOOLBAR */}
+            <div className="px-4 sm:px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
+              <button
+                onClick={handleAdd}
+                className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
+              >
+                <Save size={16} className="text-blue-400" /> Save
+              </button>
+              {/* <button className="p-1.5 border border-gray-500 rounded text-gray-400 hover:text-white hover:bg-gray-700">
+                <CheckCircle2 size={18} className="text-purple-400" />
+              </button> */}
+              <button disabled className="flex items-center gap-2 bg-gray-800/50 border border-gray-700 text-gray-500 px-3 py-1.5 rounded cursor-not-allowed">
+                <Users size={16} /> Edit Roles
+              </button>
+              <button disabled className="flex items-center gap-2 bg-gray-800/50 border border-gray-700 text-gray-500 px-3 py-1.5 rounded cursor-not-allowed">
+                <Lock size={16} /> Edit Permissions
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+              
+              {/* Username */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">
+                  <span className="text-red-500">*</span> Username
+                </label>
                 <input
                   type="text"
                   value={newUser.username}
-                  onChange={(e) =>
-                    setNewUser((p) => ({ ...p, username: e.target.value }))
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
+                  onChange={(e) => setNewUser((p) => ({ ...p, username: e.target.value }))}
+                  className="w-full bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm mb-1">Display Name *</label>
+              {/* Display Name */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">
+                  <span className="text-red-500">*</span> Display Name
+                </label>
                 <input
                   type="text"
                   value={newUser.displayName}
-                  onChange={(e) =>
-                    setNewUser((p) => ({ ...p, displayName: e.target.value }))
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
+                  onChange={(e) => setNewUser((p) => ({ ...p, displayName: e.target.value }))}
+                  className="w-full bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm mb-1">Email</label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) =>
-                    setNewUser((p) => ({ ...p, email: e.target.value }))
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
-                />
+              {/* Email */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">Email</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))}
+                    className="flex-1 bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none"
+                  />
+                  {/* <span className="text-gray-400">@</span>
+                  <input
+                    disabled
+                    className="w-24 bg-gray-800/30 border border-gray-700 rounded px-3 py-2 text-sm cursor-not-allowed"
+                  /> */}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm mb-1">Password *</label>
+              {/* User Image */}
+              <div className="grid grid-cols-[120px_1fr] items-start gap-4">
+                <label className="text-right text-gray-300 text-sm pt-2">User Image</label>
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      id="userImageUpload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleNewFileChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById("userImageUpload").click()}
+                      className="flex items-center gap-2 bg-gray-700 border border-gray-600 text-white px-4 py-2 rounded hover:bg-gray-600 text-sm"
+                    >
+                      <Paperclip size={16} /> Select File
+                    </button>
+                    {newUser.userImagePreview && (
+                      <button
+                        onClick={removeNewImage}
+                        className="p-2 bg-gray-800 border border-gray-700 rounded text-red-400 hover:bg-gray-700"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Preview Area (Placeholder or Image) */}
+                  <div className="w-full h-32 bg-gray-800/30 border border-gray-700 rounded flex items-center justify-center overflow-hidden">
+                    {newUser.userImagePreview ? (
+                      <img
+                        src={newUser.userImagePreview}
+                        alt="preview"
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-gray-600 text-sm">No image selected</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">
+                  <span className="text-red-500">*</span> Password
+                </label>
                 <input
                   type="password"
                   value={newUser.password}
-                  onChange={(e) =>
-                    setNewUser((p) => ({ ...p, password: e.target.value }))
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
+                  onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))}
+                  className="w-full bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm mb-1">Confirm Password *</label>
+              {/* Confirm Password */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">
+                  <span className="text-red-500">*</span> Confirm Password
+                </label>
                 <input
                   type="password"
                   value={newUser.confirmPassword}
-                  onChange={(e) =>
-                    setNewUser((p) => ({
-                      ...p,
-                      confirmPassword: e.target.value,
-                    }))
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
+                  onChange={(e) => setNewUser((p) => ({ ...p, confirmPassword: e.target.value }))}
+                  className="w-full bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm mb-1">User Image</label>
-
-                <input
-                  id="userImageUpload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleNewFileChange}
-                  className="hidden"
-                />
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    document.getElementById("userImageUpload").click()
-                  }
-                  className="w-full bg-gray-800 border border-gray-700 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 text-sm sm:text-base"
-                >
-                  Select Image
-                </button>
-
-                {newUser.userImagePreview && (
-                  <div className="mt-3">
-                    <img
-                      src={newUser.userImagePreview}
-                      alt="preview"
-                      className="h-24 w-24 sm:h-32 sm:w-auto border border-gray-700 rounded object-cover"
-                    />
-                    <button
-                      onClick={removeNewImage}
-                      className="mt-2 bg-red-600 px-3 py-1 rounded text-xs"
-                    >
-                      Remove Image
-                    </button>
-                  </div>
-                )}
+              {/* Source */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">Source</label>
+                <div className="w-full bg-gray-800/30 border border-gray-700 rounded px-3 py-2 text-sm text-gray-400">
+                  site
+                </div>
               </div>
-            </div>
 
-            <div className="px-4 sm:px-5 py-3 border-t border-gray-700">
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 bg-gray-800 px-3 sm:px-4 py-2 rounded border border-gray-600 text-sm sm:text-base"
-              >
-                <Save size={16} /> Save
-              </button>
             </div>
           </div>
         </div>
@@ -504,137 +577,189 @@ const UserManagement = () => {
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="w-[95%] sm:w-[600px] md:w-[650px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
-            <div className="flex justify-between px-4 sm:px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-20">
-              <h2 className="text-base sm:text-lg font-semibold">
+            {/* HEADER */}
+            <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-b border-gray-700 bg-gray-900/50">
+              <h2 className="text-lg text-white-500 font-normal">
                 {editData.isInactive
                   ? "Restore User"
                   : `Edit User (${editData.displayName || ""})`}
               </h2>
               <button onClick={() => setEditModalOpen(false)}>
-                <X size={20} className="text-gray-300" />
+                <X className="text-gray-300 hover:text-white" size={20} />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[60vh]">
-              <div>
-                <label className="block text-sm mb-1">Username</label>
-                <input
-                  type="text"
-                  value={editData.username}
-                  onChange={(e) =>
-                    setEditData((p) => ({ ...p, username: e.target.value }))
-                  }
-                  disabled={editData.isInactive}
-                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base ${
-                    editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Display Name</label>
-                <input
-                  type="text"
-                  value={editData.displayName}
-                  onChange={(e) =>
-                    setEditData((p) => ({ ...p, displayName: e.target.value }))
-                  }
-                  disabled={editData.isInactive}
-                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base ${
-                    editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Email</label>
-                <input
-                  type="email"
-                  value={editData.email}
-                  onChange={(e) =>
-                    setEditData((p) => ({ ...p, email: e.target.value }))
-                  }
-                  disabled={editData.isInactive}
-                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base ${
-                    editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                />
-              </div>
-
-              {/* Image upload (read-only for inactive) */}
-              <div>
-                <label className="block text-sm mb-1">User Image</label>
-
-                <input
-                  id="editUserImageUpload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleEditFileChange}
-                  disabled={editData.isInactive}
-                  className="hidden"
-                />
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    !editData.isInactive &&
-                    document.getElementById("editUserImageUpload").click()
-                  }
-                  disabled={editData.isInactive}
-                  className={`w-full px-3 py-2 rounded border text-sm sm:text-base mb-2 ${
-                    editData.isInactive
-                      ? "bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed"
-                      : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                  }`}
-                >
-                  Select Image
-                </button>
-
-                {previewImage ? (
-                  <div className="mt-3">
-                    <img
-                      src={previewImage}
-                      alt="user"
-                      className="h-24 w-24 sm:h-32 sm:w-auto border border-gray-700 rounded object-cover"
-                    />
-                    {!editData.isInactive && (
-                      <button
-                        onClick={removeEditImage}
-                        className="mt-2 bg-red-600 px-3 py-1 rounded text-xs"
-                      >
-                        Remove Image
-                      </button>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="px-4 sm:px-5 py-3 border-t border-gray-700 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between">
-              {editData.isInactive ? (
-                <button
-                  onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-600 px-3 sm:px-4 py-2 rounded border border-green-900 text-sm sm:text-base"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-              ) : (
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 bg-red-600 px-3 sm:px-4 py-2 rounded border border-red-900 text-sm sm:text-base"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-              )}
-
+            {/* TOOLBAR */}
+            <div className="px-4 sm:px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
               {!editData.isInactive && (
                 <button
                   onClick={handleUpdate}
-                  className="flex items-center gap-2 bg-gray-800 px-3 sm:px-4 py-2 rounded border border-gray-600 text-blue-300 text-sm sm:text-base"
+                  className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
                 >
-                  <Save size={16} /> Save
+                  <Save size={16} className="text-blue-400" /> Save
                 </button>
               )}
+              {editData.isInactive && (
+                 <button
+                  onClick={handleRestore}
+                  className="flex items-center gap-2 bg-green-600/20 border border-green-600 text-green-400 px-3 py-1.5 rounded hover:bg-green-600/30 transition-colors"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              )}
+              
+              {/* <button className="p-1.5 border border-gray-500 rounded text-gray-400 hover:text-white hover:bg-gray-700">
+                <CheckCircle2 size={18} className="text-purple-400" />
+              </button> */}
+              
+              <button 
+                onClick={handleEditRoles}
+                disabled={editData.isInactive}
+                className={`flex items-center gap-2 border border-gray-600 px-3 py-1.5 rounded transition-colors ${
+                  editData.isInactive 
+                    ? "bg-gray-800/50 text-gray-500 cursor-not-allowed" 
+                    : "bg-gray-700/50 text-blue-300 hover:bg-gray-700 hover:text-grey-500"
+                }`}
+              >
+                <Users size={16} /> Edit Roles
+              </button>
+              
+              <button 
+                disabled={editData.isInactive}
+                className={`flex items-center gap-2 border border-gray-600 px-3 py-1.5 rounded transition-colors ${
+                  editData.isInactive 
+                    ? "bg-gray-800/50 text-gray-500 cursor-not-allowed" 
+                    : "bg-gray-700/50 text-green-300 hover:bg-gray-700 hover:text-grey-500"
+                }`}
+              >
+                <Lock size={16} /> Edit Permissions
+              </button>
+
+              {!editData.isInactive && (
+                <button
+                  onClick={handleDelete}
+                  className="ml-auto p-1.5 border border-red-900/50 bg-red-900/20 text-red-400 rounded hover:bg-red-900/40"
+                  title="Delete User"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* BODY */}
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+              
+              {/* Username */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">
+                  <span className="text-red-500">*</span> Username
+                </label>
+                <input
+                  type="text"
+                  value={editData.username}
+                  onChange={(e) => setEditData((p) => ({ ...p, username: e.target.value }))}
+                  disabled={editData.isInactive}
+                  className={`w-full bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none ${
+                    editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                />
+              </div>
+
+              {/* Display Name */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">
+                  <span className="text-red-500">*</span> Display Name
+                </label>
+                <input
+                  type="text"
+                  value={editData.displayName}
+                  onChange={(e) => setEditData((p) => ({ ...p, displayName: e.target.value }))}
+                  disabled={editData.isInactive}
+                  className={`w-full bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none ${
+                    editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                />
+              </div>
+
+              {/* Email */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">Email</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={editData.email}
+                    onChange={(e) => setEditData((p) => ({ ...p, email: e.target.value }))}
+                    disabled={editData.isInactive}
+                    className={`flex-1 bg-gray-800/50 border border-gray-600 rounded px-3 py-2 text-sm focus:border-white-500 outline-none ${
+                      editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
+                  />
+                  {/* <span className="text-gray-400">@</span>
+                  <input
+                    disabled
+                    className="w-24 bg-gray-800/30 border border-gray-700 rounded px-3 py-2 text-sm cursor-not-allowed"
+                  /> */}
+                </div>
+              </div>
+
+              {/* User Image */}
+              <div className="grid grid-cols-[120px_1fr] items-start gap-4">
+                <label className="text-right text-gray-300 text-sm pt-2">User Image</label>
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      id="editUserImageUpload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditFileChange}
+                      disabled={editData.isInactive}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => !editData.isInactive && document.getElementById("editUserImageUpload").click()}
+                      disabled={editData.isInactive}
+                      className={`flex items-center gap-2 border border-gray-600 text-white px-4 py-2 rounded text-sm ${
+                        editData.isInactive 
+                          ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
+                          : "bg-gray-700 hover:bg-gray-600"
+                      }`}
+                    >
+                      <Paperclip size={16} /> Select File
+                    </button>
+                    {previewImage && !editData.isInactive && (
+                      <button
+                        onClick={removeEditImage}
+                        className="p-2 bg-gray-800 border border-gray-700 rounded text-red-400 hover:bg-gray-700"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Preview Area */}
+                  <div className="w-full h-32 bg-gray-800/30 border border-gray-700 rounded flex items-center justify-center overflow-hidden">
+                    {previewImage ? (
+                      <img
+                        src={previewImage}
+                        alt="preview"
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-gray-600 text-sm">No image selected</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Source */}
+              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+                <label className="text-right text-gray-300 text-sm">Source</label>
+                <div className="w-full bg-gray-800/30 border border-gray-700 rounded px-3 py-2 text-sm text-gray-400">
+                  {editData.source || "site"}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -726,8 +851,10 @@ const UserManagement = () => {
       )}
 
       {/* MAIN PAGE */}
-      <div className="p-4 sm:p-6 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-        <div className="flex flex-col h-[calc(100vh-112px)] overflow-hidden">
+         <PageLayout>
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden"> 
+
           <h2 className="text-xl sm:text-2xl font-semibold mb-4">
             User Management
           </h2>
@@ -783,129 +910,151 @@ const UserManagement = () => {
           </div>
 
           {/* TABLE */}
-          <div className="flex-grow overflow-auto min-h-0">
-            <div className="w-full overflow-auto">
-              <table className="w-[900px] text-left border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10 text-center">
-                  <tr className="text-white">
-                    {visibleColumns.userId && (
-                      <SortableHeader
-                        label="ID"
-                        sortOrder={sortOrder}
-                        onClick={() =>
-                          setSortOrder((prev) =>
-                            prev === "asc" ? "desc" : "asc"
-                          )
-                        }
-                      />
-                    )}
-                    {visibleColumns.username && (
-                      <th className="pb-1 border-b border-white text-center">
-                        Username
-                      </th>
-                    )}
-                    {visibleColumns.displayName && (
-                      <th className="pb-1 border-b border-white text-center">
-                        Display Name
-                      </th>
-                    )}
-                    {visibleColumns.email && (
-                      <th className="pb-1 border-b border-white text-center">
-                        Email
-                      </th>
-                    )}
-                    {visibleColumns.source && (
-                      <th className="pb-1 border-b border-white text-center">
-                        Source
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-
-                <tbody className="text-center">
-                  {sortedUsers.length === 0 && !showInactive && (
-                    <tr>
-                      <td
-                        colSpan={
-                          Object.values(visibleColumns).filter(Boolean).length
-                        }
-                        className="px-4 py-6 text-center text-gray-400"
-                      >
-                        No records found
-                      </td>
-                    </tr>
+        <div className="flex-grow overflow-auto min-h-0">
+          <div className="w-full overflow-auto">
+            <table className="w-[700px] text-left border-separate border-spacing-y-1 text-sm">
+              <thead className="sticky top-0 bg-gray-900 z-10 text-center">
+                <tr className="text-white">
+                  {visibleColumns.userId && (
+                    <SortableHeader
+                      label="ID"
+                      sortOrder={sortOrder}
+                      onClick={() =>
+                        setSortOrder((prev) =>
+                          prev === "asc" ? "desc" : "asc"
+                        )
+                      }
+                    />
                   )}
 
-                  {sortedUsers.map((item) => {
+                  {visibleColumns.username && (
+                    <th className="pb-1 border-b border-white text-center">
+                      Username
+                    </th>
+                  )}
+
+                  {visibleColumns.displayName && (
+                    <th className="pb-1 border-b border-white text-center">
+                      Display Name
+                    </th>
+                  )}
+
+                  {visibleColumns.email && (
+                    <th className="pb-1 border-b border-white text-center">
+                      Email
+                    </th>
+                  )}
+
+                  {visibleColumns.source && (
+                    <th className="pb-1 border-b border-white text-center">
+                      Source
+                    </th>
+                  )}
+                </tr>
+              </thead>
+
+              {/* ✅ BODY NOW ALL CENTERED */}
+              <tbody className="text-center">
+                {sortedUsers.length === 0 && !showInactive && (
+                  <tr>
+                    <td
+                      colSpan={
+                        Object.values(visibleColumns).filter(Boolean).length
+                      }
+                      className="px-4 py-6 text-center text-gray-400"
+                    >
+                      No records found
+                    </td>
+                  </tr>
+                )}
+
+                {sortedUsers.map((item) => {
+                  const id = item.userId ?? item.UserId;
+                  return (
+                    <tr
+                      key={id}
+                      onClick={() => openEditModal(item, false)}
+                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {visibleColumns.userId && (
+                        <td className="px-2 py-2 text-center">{id}</td>
+                      )}
+
+                      {visibleColumns.username && (
+                        <td className="px-2 py-2 text-center">
+                          {item.username}
+                        </td>
+                      )}
+
+                      {visibleColumns.displayName && (
+                        <td className="px-2 py-2 text-center">
+                          {item.displayName}
+                        </td>
+                      )}
+
+                      {visibleColumns.email && (
+                        <td className="px-2 py-2 text-center">
+                          {item.email}
+                        </td>
+                      )}
+
+                      {visibleColumns.source && (
+                        <td className="px-2 py-2 text-center">
+                          {item.source}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+
+                {showInactive &&
+                  inactiveUsers.map((item) => {
                     const id = item.userId ?? item.UserId;
                     return (
                       <tr
-                        key={id}
-                        onClick={() => openEditModal(item, false)}
-                        className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                        key={`inactive-${id}`}
+                        onClick={() => openEditModal(item, true)}
+                        className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
                       >
                         {visibleColumns.userId && (
-                          <td className="px-2 py-2">{id}</td>
+                          <td className="px-2 py-2 text-center">{id}</td>
                         )}
+
                         {visibleColumns.username && (
-                          <td className="px-2 py-2 text-left">
+                          <td className="px-2 py-2 text-center">
                             {item.username}
                           </td>
                         )}
+
                         {visibleColumns.displayName && (
-                          <td className="px-2 py-2 text-left">
+                          <td className="px-2 py-2 text-center">
                             {item.displayName}
                           </td>
                         )}
+
                         {visibleColumns.email && (
-                          <td className="px-2 py-2">{item.email}</td>
+                          <td className="px-2 py-2 text-center">
+                            {item.email}
+                          </td>
                         )}
+
                         {visibleColumns.source && (
-                          <td className="px-2 py-2">{item.source}</td>
+                          <td className="px-2 py-2 text-center">
+                            {item.source}
+                          </td>
                         )}
                       </tr>
                     );
                   })}
-
-                  {showInactive &&
-                    inactiveUsers.map((item) => {
-                      const id = item.userId ?? item.UserId;
-                      return (
-                        <tr
-                          key={`inactive-${id}`}
-                          onClick={() => openEditModal(item, true)}
-                          className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
-                        >
-                          {visibleColumns.userId && (
-                            <td className="px-2 py-2">{id}</td>
-                          )}
-                          {visibleColumns.username && (
-                            <td className="px-2 py-2 text-left">
-                              {item.username}
-                            </td>
-                          )}
-                          {visibleColumns.displayName && (
-                            <td className="px-2 py-2 text-left">
-                              {item.displayName}
-                            </td>
-                          )}
-                          {visibleColumns.email && (
-                            <td className="px-2 py-2">{item.email}</td>
-                          )}
-                          {visibleColumns.source && (
-                            <td className="px-2 py-2">{item.source}</td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
+              </tbody>
+            </table>
           </div>
+        </div>
+
 
           {/* PAGINATION */}
-          <div className="mt-5 sticky bottom-0 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
-            <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">           
+         <div className="flex flex-wrap items-center gap-3 text-sm">
               <select
                 value={limit}
                 onChange={(e) => {
@@ -985,6 +1134,81 @@ const UserManagement = () => {
           </div>
         </div>
       </div>
+      {/* ROLES MODAL */}
+      {rolesModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
+          <div className="w-[95%] sm:w-[600px] md:w-[650px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-b border-gray-700 bg-gray-900/50">
+              <h3 className="text-lg text-white-500 font-normal">Edit User Roles ({editData.displayName || editData.username})</h3>
+              <button onClick={() => setRolesModalOpen(false)}>
+                <X size={20} className="text-gray-300 hover:text-white" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="p-4 sm:px-5 border-b border-gray-700 bg-gray-800/30">
+              <div className="flex items-center bg-gray-800/50 rounded px-3 border border-gray-600 focus-within:border-white-500 transition-colors">
+                <Search size={16} className="text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search roles..."
+                  value={roleSearch}
+                  onChange={(e) => setRoleSearch(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm p-2.5 w-full text-white placeholder-gray-500"
+                />
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="max-h-[400px] overflow-y-auto p-4 sm:px-5 space-y-1">
+              {rolesList
+                .filter((r) => r.roleName.toLowerCase().includes(roleSearch.toLowerCase()))
+                .map((role) => (
+                  <div
+                    key={role.roleId}
+                    onClick={() => toggleRole(role.roleName)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded cursor-pointer transition-colors ${
+                      selectedRoles.includes(role.roleName) 
+                        ? "bg-white/30 border border-white/30" 
+                        : "hover:bg-gray-800 border border-transparent"
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                        selectedRoles.includes(role.roleName)
+                          ? "bg-white-500 border-white-500"
+                          : "border-gray-500"
+                      }`}
+                    >
+                      {selectedRoles.includes(role.roleName) && (
+                        <CheckCircle2 size={12} className="text-white" />
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-200">{role.roleName}</span>
+                  </div>
+                ))}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 p-4 sm:px-5 border-t border-gray-700 bg-gray-900/50">
+              <button
+                onClick={() => setRolesModalOpen(false)}
+                className="px-4 py-2 bg-transparent border border-gray-600 text-gray-300 rounded hover:bg-gray-800 hover:text-white text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setRolesModalOpen(false)}
+                className="px-4 py-2 bg-transparent border border-gray-600 text-gray-300 rounded hover:bg-gray-800 hover:text-white text-sm transition-colors"
+              >
+                Save Roles
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </PageLayout>
     </>
   );
 };

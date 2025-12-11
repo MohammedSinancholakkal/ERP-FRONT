@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ChevronsRight
 } from "lucide-react";
+import PageLayout from "../../layout/PageLayout";
 
 /* COLUMN PICKER MODAL */
 const ColumnPickerModal = ({ open, onClose, visibleColumns, setVisibleColumns }) => {
@@ -97,8 +98,9 @@ const CustomerReceivableReport = () => {
       />
 
       {/* MAIN PAGE */}
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-        <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
+      <PageLayout>
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
 
           <h2 className="text-2xl font-semibold mb-4">Customer Receivable Report</h2>
 
@@ -211,8 +213,7 @@ const CustomerReceivableReport = () => {
           </div>
 
           {/* PAGINATION */}
-          <div className="mt-4 sticky bottom-0 bg-gray-900/80 border-t border-gray-700 px-4 py-2">
-            <div className="flex items-center gap-3 text-sm">
+        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
 
               <select
                 value={limit}
@@ -258,7 +259,7 @@ const CustomerReceivableReport = () => {
           </div>
 
         </div>
-      </div>
+      </PageLayout>
     </>
   );
 };

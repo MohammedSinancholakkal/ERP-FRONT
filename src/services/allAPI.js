@@ -1081,3 +1081,167 @@ export const getExpenseTypesSimpleApi = () =>
   commonAPI("GET", `${serverURL}/expense-types/simple`, "", "");
 
 
+// ===============================
+// SETTINGS API
+// ===============================
+
+export const getSettingsApi = () =>
+  commonAPI("GET", `${serverURL}/settings`, "", "");
+
+export const addSettingsApi = (data) =>
+  commonAPI("POST", `${serverURL}/settings/add`, data, true);
+
+export const updateSettingsApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/settings/update/${id}`, data, true);
+
+
+
+// ======================= Suppliers APIs =======================
+// LIST (paginated)
+export const getSuppliersApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/suppliers?page=${page}&limit=${limit}`);
+
+// GET BY ID (not available in routes; keep for compatibility if added server-side)
+export const getSupplierByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/suppliers/${id}`);
+
+// ADD
+export const addSupplierApi = (data) =>
+  commonAPI("POST", `${serverURL}/suppliers/add`, data);
+
+// UPDATE
+export const updateSupplierApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/suppliers/update/${id}`, data);
+
+// SOFT DELETE
+export const deleteSupplierApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/suppliers/delete/${id}`, data);
+
+// SEARCH
+export const searchSupplierApi = (query) =>
+  commonAPI("GET", `${serverURL}/suppliers/search?q=${encodeURIComponent(query)}`);
+
+// INACTIVE LIST
+export const getInactiveSuppliersApi = () =>
+  commonAPI("GET", `${serverURL}/suppliers/inactive`);
+
+// RESTORE
+export const restoreSupplierApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/suppliers/restore/${id}`, data);
+
+
+
+// ======================= Customers APIs =======================
+// LIST (paginated)
+export const getCustomersApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/customers?page=${page}&limit=${limit}`);
+
+// GET BY ID
+export const getCustomerByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/customers/${id}`);
+
+// ADD
+export const addCustomerApi = (data) =>
+  commonAPI("POST", `${serverURL}/customers/add`, data);
+
+// UPDATE
+export const updateCustomerApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/customers/update/${id}`, data);
+
+// SOFT DELETE
+export const deleteCustomerApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/customers/delete/${id}`, data);
+
+// SEARCH
+export const searchCustomerApi = (query) =>
+  commonAPI("GET", `${serverURL}/customers/search?q=${encodeURIComponent(query)}`);
+
+// INACTIVE LIST
+export const getInactiveCustomersApi = () =>
+  commonAPI("GET", `${serverURL}/customers/inactive`);
+
+// RESTORE
+export const restoreCustomerApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/customers/restore/${id}`, data);
+
+
+
+
+
+
+// ======================= Meetings APIs =======================
+
+// LIST (paginated)
+export const getMeetingsApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/meetings?page=${page}&limit=${limit}`);
+
+// GET BY ID (Not created server-side, but keeping structure for future use)
+export const getMeetingByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/meetings/${id}`);
+
+// ADD
+export const addMeetingApi = (data) =>
+  commonAPI("POST", `${serverURL}/meetings/add`, data);
+
+// UPDATE
+export const updateMeetingApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/meetings/update/${id}`, data);
+
+// SOFT DELETE
+export const deleteMeetingApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/meetings/delete/${id}`, data);
+
+// SEARCH
+export const searchMeetingsApi = (query) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/meetings/search?q=${encodeURIComponent(query)}`
+  );
+
+// INACTIVE LIST
+export const getInactiveMeetingsApi = () =>
+  commonAPI("GET", `${serverURL}/meetings/inactive`);
+
+// RESTORE
+export const restoreMeetingApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/meetings/restore/${id}`, data);
+
+
+
+
+
+
+// LIST (paginated)
+export const getAttendanceApi = (page, limit) =>
+  commonAPI("GET",`${serverURL}/attendance?page=${page}&limit=${limit}`);
+
+// GET BY ID (Not implemented server-side but keeping for consistency)
+export const getAttendanceByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/attendance/${id}`);
+
+// ADD
+export const addAttendanceApi = (data) =>
+  commonAPI("POST", `${serverURL}/attendance/add`, data);
+
+// UPDATE
+export const updateAttendanceApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/attendance/update/${id}`, data);
+
+// SOFT DELETE
+export const deleteAttendanceApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/attendance/delete/${id}`, data);
+
+// SEARCH
+export const searchAttendanceApi = (query) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/attendance/search?q=${encodeURIComponent(query)}`
+  );
+
+// INACTIVE LIST
+export const getInactiveAttendanceApi = () =>
+  commonAPI("GET", `${serverURL}/attendance/inactive`);
+
+// RESTORE
+export const restoreAttendanceApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/attendance/restore/${id}`, data);

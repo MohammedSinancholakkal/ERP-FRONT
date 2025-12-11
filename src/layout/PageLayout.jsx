@@ -24,3 +24,32 @@ const PageLayout = ({ children }) => {
 };
 
 export default PageLayout;
+
+
+// import React from "react";
+// import Footer from "../components/Footer";
+
+// const PageLayout = ({ children }) => {
+//   return (
+//     <div className="flex flex-row h-[calc(100vh-64px)]">
+
+//       {/* RIGHT CONTENT AREA */}
+//       <div className="flex flex-col flex-grow bg-gradient-to-b from-gray-900 to-gray-700 overflow-hidden">
+        
+//         {/* ⭐ SCROLLABLE CONTENT AREA */}
+//         <div className="flex-grow overflow-y-auto">
+//           {children}
+//         </div>
+
+//         {/* FOOTER (always visible) */}
+//         <Footer />
+//       </div>
+
+//     </div>
+//   );
+// };
+
+// export default PageLayout;
+
+
+

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -8,21 +8,23 @@ import {
   ChevronsLeft,
   ChevronLeft,
   ChevronRight,
-  ChevronsRight
+  ChevronsRight,
 } from "lucide-react";
+
 import PageLayout from "../../layout/PageLayout";
+import { useNavigate } from "react-router-dom";
+import { getMeetingsApi } from "../../services/allAPI";
 
 /* Searchable Dropdown */
 const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const filtered =
-    !query.trim()
-      ? options
-      : options.filter((o) =>
-          o.name.toLowerCase().includes(query.toLowerCase())
-        );
+  const filtered = !query.trim()
+    ? options
+    : options.filter((o) =>
+        o.name.toLowerCase().includes(query.toLowerCase())
+      );
 
   const selected = options.find((o) => o.id == value)?.name || "";
 
@@ -68,86 +70,63 @@ const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
 };
 
 const Meetings = () => {
+  const navigate = useNavigate();
+
   /* Filters */
   const [searchText, setSearchText] = useState("");
-  const [filterMeetingType, setFilterMeetingType] = useState("");
-  const [filterStartDate, setFilterStartDate] = useState("");
-  const [filterEndDate, setFilterEndDate] = useState("");
-  const [filterDepartment, setFilterDepartment] = useState("");
-  const [filterLocation, setFilterLocation] = useState("");
-  const [filterOrganizedBy, setFilterOrganizedBy] = useState("");
-  const [filterReporter, setFilterReporter] = useState("");
-
-  /* UI */
-  const [columnModal, setColumnModal] = useState(false);
 
   /* Pagination */
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
-  /* Dropdown Data (sample only) */
-  const meetingTypes = [
-    { id: 1, name: "Internal" },
-    { id: 2, name: "External" }
-  ];
+  /* Table Data */
+  const [meetingData, setMeetingData] = useState([]);
+  const [total, setTotal] = useState(0);
 
-  const departments = [
-    { id: 1, name: "HR" },
-    { id: 2, name: "Sales" }
-  ];
-
-  const locations = [
-    { id: 1, name: "Conference Room" },
-    { id: 2, name: "Head Office" }
-  ];
-
-  const employees = [
-    { id: 1, name: "John Doe" },
-    { id: 2, name: "Jane Doe" }
-  ];
-
-  /* Table Columns */
+  /* Column Visibility */
   const defaultColumns = {
     id: true,
     meetingName: true,
-    meetingTypeName: true,
+    meetingType: true,
     startDate: true,
     endDate: true,
     department: true,
-    locationName: true,
+    location: true,
     organizedBy: true,
-    reporter: true
+    reporter: true,
   };
-
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  /* Sample Data */
-  const meetingData = [
-    {
-      id: 1,
-      meetingName: "Monthly Review",
-      meetingTypeName: "Internal",
-      startDate: "2025-03-01 10:00",
-      endDate: "2025-03-01 12:00",
-      department: "Sales",
-      locationName: "Conference Room",
-      organizedBy: "John Doe",
-      reporter: "Jane Doe"
+  /* ================================
+     LOAD MEETINGS FROM DATABASE
+  =================================*/
+  const loadMeetings = async () => {
+    try {
+      const res = await getMeetingsApi(page, limit);
+
+      if (res?.data) {
+        setMeetingData(res.data.records || []);
+        setTotal(res.data.total || 0);
+      }
+    } catch (err) {
+      console.log("LOAD MEETINGS ERROR:", err);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadMeetings();
+  }, [page, limit]);
+
+  const totalPages = Math.ceil(total / limit);
 
   return (
-    <>
-      {/* MAIN PAGE */}
-            <PageLayout>
+    <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
         <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
-
           <h2 className="text-2xl font-semibold mb-4">Meetings</h2>
 
           {/* ACTION BAR */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
-
             {/* Search */}
             <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-56">
               <Search size={16} />
@@ -160,111 +139,56 @@ const Meetings = () => {
               />
             </div>
 
-            <button className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600">
+            <button
+              className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600"
+              onClick={() => navigate("/app/meeting/meetings/new")}
+            >
               <Plus size={16} /> New Meeting
             </button>
 
-            <button className="p-1.5 bg-gray-700 border border-gray-600 rounded">
+            <button
+              className="p-1.5 bg-gray-700 border border-gray-600 rounded"
+              onClick={loadMeetings}
+            >
               <RefreshCw size={16} className="text-blue-300" />
             </button>
 
-            <button
-              onClick={() => setColumnModal(true)}
-              className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-            >
+            <button className="p-1.5 bg-gray-700 border border-gray-600 rounded">
               <List size={16} className="text-blue-300" />
             </button>
-
           </div>
 
-          {/* FILTER BAR */}
-          <div className="flex flex-wrap items-center gap-3 bg-gray-900 p-3 rounded border border-gray-700 mb-4">
-
-            <SearchableDropdown
-              options={meetingTypes}
-              value={filterMeetingType}
-              onChange={setFilterMeetingType}
-              placeholder="Meeting Type"
-            />
-
-            <input
-              type="datetime-local"
-              value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-            />
-
-            <input
-              type="datetime-local"
-              value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-            />
-
-            <SearchableDropdown
-              options={departments}
-              value={filterDepartment}
-              onChange={setFilterDepartment}
-              placeholder="Department"
-            />
-
-            <SearchableDropdown
-              options={locations}
-              value={filterLocation}
-              onChange={setFilterLocation}
-              placeholder="Location"
-            />
-
-            <SearchableDropdown
-              options={employees}
-              value={filterOrganizedBy}
-              onChange={setFilterOrganizedBy}
-              placeholder="Organized By"
-            />
-
-            <SearchableDropdown
-              options={employees}
-              value={filterReporter}
-              onChange={setFilterReporter}
-              placeholder="Reporter"
-            />
-
-            <button className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">
-              Apply
-            </button>
-
-            <button
-              onClick={() => {
-                setFilterMeetingType("");
-                setFilterStartDate("");
-                setFilterEndDate("");
-                setFilterDepartment("");
-                setFilterLocation("");
-                setFilterOrganizedBy("");
-                setFilterReporter("");
-              }}
-              className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
-            >
-              Clear
-            </button>
-          </div>
-
-          {/* TABLE SCROLL AREA */}
+          {/* TABLE */}
           <div className="flex-grow overflow-auto min-h-0 w-full">
             <div className="w-full overflow-x-auto">
               <table className="min-w-[1600px] text-center border-separate border-spacing-y-1 text-sm w-full">
-
                 <thead className="sticky top-0 bg-gray-900">
                   <tr>
                     {visibleColumns.id && <th className="pb-1 border-b">ID</th>}
-                    {visibleColumns.meetingName && <th className="pb-1 border-b">Meeting Name</th>}
-                    {visibleColumns.meetingTypeName && <th className="pb-1 border-b">Meeting Type</th>}
-                    {visibleColumns.startDate && <th className="pb-1 border-b">Start Date</th>}
-                    {visibleColumns.endDate && <th className="pb-1 border-b">End Date</th>}
-                    {visibleColumns.department && <th className="pb-1 border-b">Department</th>}
-                    {visibleColumns.locationName && <th className="pb-1 border-b">Location</th>}
-                    {visibleColumns.organizedBy && <th className="pb-1 border-b">Organized By</th>}
-                    {visibleColumns.reporter && <th className="pb-1 border-b">Reporter</th>}
+                    {visibleColumns.meetingName && (
+                      <th className="pb-1 border-b">Meeting Name</th>
+                    )}
+                    {visibleColumns.meetingType && (
+                      <th className="pb-1 border-b">Meeting Type</th>
+                    )}
+                    {visibleColumns.startDate && (
+                      <th className="pb-1 border-b">Start Date</th>
+                    )}
+                    {visibleColumns.endDate && (
+                      <th className="pb-1 border-b">End Date</th>
+                    )}
+                    {visibleColumns.department && (
+                      <th className="pb-1 border-b">Department</th>
+                    )}
+                    {visibleColumns.location && (
+                      <th className="pb-1 border-b">Location</th>
+                    )}
+                    {visibleColumns.organizedBy && (
+                      <th className="pb-1 border-b">Organized By</th>
+                    )}
+                    {visibleColumns.reporter && (
+                      <th className="pb-1 border-b">Reporter</th>
+                    )}
                   </tr>
                 </thead>
 
@@ -274,19 +198,36 @@ const Meetings = () => {
                       key={m.id}
                       className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
                     >
-                      {visibleColumns.id && <td className="px-2 py-2">{m.id}</td>}
-                      {visibleColumns.meetingName && <td className="px-2 py-2">{m.meetingName}</td>}
-                      {visibleColumns.meetingTypeName && <td className="px-2 py-2">{m.meetingTypeName}</td>}
-                      {visibleColumns.startDate && <td className="px-2 py-2">{m.startDate}</td>}
-                      {visibleColumns.endDate && <td className="px-2 py-2">{m.endDate}</td>}
-                      {visibleColumns.department && <td className="px-2 py-2">{m.department}</td>}
-                      {visibleColumns.locationName && <td className="px-2 py-2">{m.locationName}</td>}
-                      {visibleColumns.organizedBy && <td className="px-2 py-2">{m.organizedBy}</td>}
-                      {visibleColumns.reporter && <td className="px-2 py-2">{m.reporter}</td>}
+                      {visibleColumns.id && (
+                        <td className="px-2 py-2">{m.id}</td>
+                      )}
+                      {visibleColumns.meetingName && (
+                        <td className="px-2 py-2">{m.meetingName}</td>
+                      )}
+                      {visibleColumns.meetingType && (
+                        <td className="px-2 py-2">{m.meetingType}</td>
+                      )}
+                      {visibleColumns.startDate && (
+                        <td className="px-2 py-2">{m.startDate}</td>
+                      )}
+                      {visibleColumns.endDate && (
+                        <td className="px-2 py-2">{m.endDate}</td>
+                      )}
+                      {visibleColumns.department && (
+                        <td className="px-2 py-2">{m.department}</td>
+                      )}
+                      {visibleColumns.location && (
+                        <td className="px-2 py-2">{m.location}</td>
+                      )}
+                      {visibleColumns.organizedBy && (
+                        <td className="px-2 py-2">{m.organizedBy}</td>
+                      )}
+                      {visibleColumns.reporter && (
+                        <td className="px-2 py-2">{m.reporter}</td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
-
               </table>
             </div>
           </div>
@@ -294,7 +235,6 @@ const Meetings = () => {
           {/* PAGINATION */}
           <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
             <div className="flex flex-wrap items-center gap-3 text-sm">
-
               <select
                 value={limit}
                 onChange={(e) => {
@@ -308,11 +248,19 @@ const Meetings = () => {
                 ))}
               </select>
 
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(1)}
+                className="p-1 bg-gray-800 border border-gray-700 rounded"
+              >
                 <ChevronsLeft size={16} />
               </button>
 
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((prev) => prev - 1)}
+                className="p-1 bg-gray-800 border border-gray-700 rounded"
+              >
                 <ChevronLeft size={16} />
               </button>
 
@@ -325,23 +273,28 @@ const Meetings = () => {
                 className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
               />
 
-              <span>/ 1</span>
+              <span>/ {totalPages}</span>
 
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev) => prev + 1)}
+                className="p-1 bg-gray-800 border border-gray-700 rounded"
+              >
                 <ChevronRight size={16} />
               </button>
 
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+                className="p-1 bg-gray-800 border border-gray-700 rounded"
+              >
                 <ChevronsRight size={16} />
               </button>
-
             </div>
           </div>
-
         </div>
       </div>
-      </PageLayout>
-    </>
+    </PageLayout>
   );
 };
 
