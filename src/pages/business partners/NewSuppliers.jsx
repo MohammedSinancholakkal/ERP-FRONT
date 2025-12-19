@@ -44,26 +44,66 @@ const CustomDropdown = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const ref = useRef(null);
 
+  const ref = useRef(null);
+  const searchInputRef = useRef(null); // ✅ MUST be here
+
+  // close on outside click
   useEffect(() => {
     const h = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setSearch("");
+      }
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const selected = list.find((x) => String(x.id ?? x.Id) === String(valueId));
-  const display = selected ? (selected.label || selected.name || selected.CountryName || selected.StateName || selected.CityName || selected.RegionName || selected.regionName || selected.GroupName || selected.groupName || selected.SupplierGroupName) : "";
+  // ✅ auto-focus search input when dropdown opens
+  useEffect(() => {
+    if (open && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current.focus();
+      }, 0);
+    }
+  }, [open]);
 
-  const filtered = (list || []).filter((x) => {
-    const label = (x.label || x.name || x.CountryName || x.StateName || x.CityName || x.RegionName || x.regionName || x.GroupName || x.groupName || x.SupplierGroupName || "").toString().toLowerCase();
-    return label.includes(search.toLowerCase());
+  const selected = list.find(
+    (x) => String(x.id ?? x.Id) === String(valueId)
+  );
+
+  const display =
+    selected?.label ||
+    selected?.name ||
+    selected?.CountryName ||
+    selected?.StateName ||
+    selected?.CityName ||
+    selected?.RegionName ||
+    selected?.regionName ||
+    selected?.GroupName ||
+    selected?.groupName ||
+    selected?.SupplierGroupName ||
+    "";
+
+  const filtered = list.filter((x) => {
+    const text =
+      x.label ||
+      x.name ||
+      x.CountryName ||
+      x.StateName ||
+      x.CityName ||
+      x.RegionName ||
+      x.regionName ||
+      x.GroupName ||
+      x.groupName ||
+      x.SupplierGroupName ||
+      "";
+    return text.toLowerCase().includes(search.toLowerCase());
   });
 
   return (
-    <div className="w-full relative" ref={ref}>
+    <div className="relative w-full" ref={ref}>
       <label className="text-sm text-gray-300 mb-1 block">
         {label} {required && <span className="text-red-400">*</span>}
       </label>
@@ -73,74 +113,76 @@ const CustomDropdown = ({
           onClick={() => setOpen((o) => !o)}
           className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm flex justify-between items-center cursor-pointer"
         >
-          <span className={display ? "text-white" : "text-gray-500"}>{display || "--select--"}</span>
-          <div className="flex items-center gap-2">
-            {display && (
-              <X
-                size={14}
-                className="text-gray-400 hover:text-red-400"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect(null);
-                }}
-              />
-            )}
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="m6 9 6 6 6-6"/></svg>
-          </div>
+          <span className={display ? "text-white" : "text-gray-500"}>
+            {display || "--select--"}
+          </span>
+
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="text-gray-400"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </div>
 
         {showStar && (
           <button
             type="button"
+            onClick={onAddClick}
             className="p-2 bg-gray-800 border border-gray-600 rounded"
-            title={`Add ${label}`}
-            onClick={() => {
-              if (onAddClick) onAddClick();
-            }}
           >
             <Star size={14} className="text-yellow-400" />
-          </button>
-        )}
-        {showPencil && !showStar && (
-          <button
-            type="button"
-            className="p-2 bg-gray-800 border border-gray-600 rounded"
-            title={`Edit ${label}`}
-            onClick={() => {
-              if (onAddClick) onAddClick();
-            }}
-          >
-            <Pencil size={14} className="text-blue-300" />
           </button>
         )}
       </div>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-48 overflow-auto">
+        <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow">
+          {/* SEARCH */}
           <input
+            ref={searchInputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search..."
             className="w-full bg-gray-900 px-3 py-2 text-sm border-b border-gray-700 outline-none"
           />
 
-          {filtered.length > 0 ? (
-            filtered.map((item) => (
-              <div
-                key={String(item.id ?? item.Id)}
-                onClick={() => {
-                  onSelect(item);
-                  setOpen(false);
-                  setSearch("");
-                }}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-              >
-                {item.label || item.name || item.CountryName || item.StateName || item.CityName || item.RegionName || item.regionName || item.GroupName || item.groupName || item.SupplierGroupName}
+          {/* OPTIONS (FIXED HEIGHT) */}
+          <div className="max-h-[160px] overflow-y-auto">
+            {filtered.length ? (
+              filtered.map((item) => (
+                <div
+                  key={item.id ?? item.Id}
+                  onClick={() => {
+                    onSelect(item);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                >
+                  {item.label ||
+                    item.name ||
+                    item.CountryName ||
+                    item.StateName ||
+                    item.CityName ||
+                    item.RegionName ||
+                    item.regionName ||
+                    item.GroupName ||
+                    item.groupName ||
+                    item.SupplierGroupName}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-gray-400 text-sm">
+                No results
               </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">No results</div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -148,6 +190,10 @@ const CustomDropdown = ({
 };
 
 // ----------------- Lookup Create Modal -----------------
+
+
+
+
 const LookupCreateModal = ({
   open,
   onClose,
@@ -255,7 +301,9 @@ const LookupCreateModal = ({
 
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded">Cancel</button>
-            <button onClick={save} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-blue-300"><Save size={14} /> Save</button>
+            <button onClick={save}                
+             className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 disabled:opacity-60 disabled:cursor-not-allowed">
+              <Save size={14} /> Save</button>
           </div>
         </div>
       </div>
@@ -741,7 +789,7 @@ const NewSupplier = () => {
         <div className="h-full overflow-y-auto pr-2">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
-              <button onClick={() => navigate(-1)} className="p-1"><ArrowLeft /></button>
+              <button onClick={() => navigate("/app/businesspartners/suppliers")} className="p-1"><ArrowLeft /></button>
               <h2 className="text-2xl font-semibold">{isEditMode ? "Edit Supplier" : "New Supplier"}</h2>
             </div>
 
@@ -918,112 +966,135 @@ const NewSupplier = () => {
             initialStateId={lookupDefaults.stateId}
           />
         )}
+{showQuickAdd &&
+  ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[12000] flex items-center justify-center">
+      {/* BACKDROP */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={() => setShowQuickAdd(false)}
+      />
 
-        {showQuickAdd &&
-          ReactDOM.createPortal(
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[12000]">
-              <div className="w-[420px] bg-gray-900 text-white rounded-lg border border-gray-700 shadow-xl p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-lg font-semibold">Add new {quickAddLabel}</h3>
-                  <button onClick={() => setShowQuickAdd(false)} className="text-gray-300 hover:text-white">
-                    <X size={18} />
-                  </button>
-                </div>
+      {/* MODAL */}
+      <div className="relative w-full max-w-2xl mx-4 bg-gradient-to-b from-gray-900 to-gray-800 text-white border border-gray-700 rounded-lg shadow-xl">
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
+          <h3 className="text-lg font-semibold">
+            Add new {quickAddLabel}
+          </h3>
+          <button
+            onClick={() => setShowQuickAdd(false)}
+            className="text-gray-400 hover:text-white"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-                <div className="space-y-3">
-                  {quickAddKey === "state" && (
-                    <div>
-                      <label className="text-sm text-gray-300 mb-1 block">Country</label>
-                      <select
-                        value={quickAddCountryId}
-                        onChange={(e) => {
-                          setQuickAddCountryId(e.target.value);
-                          setQuickAddStateId("");
-                        }}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                      >
-                        <option value="">-- Select Country --</option>
-                        {countries.map((c) => (
-                          <option key={c.Id ?? c.id} value={c.Id ?? c.id}>
-                            {c.CountryName || c.name || c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+        {/* BODY */}
+        <div className="p-5 space-y-4">
 
-                  {quickAddKey === "city" && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-sm text-gray-300 mb-1 block">Country</label>
-                        <select
-                          value={quickAddCountryId}
-                          onChange={(e) => {
-                            const newCountry = e.target.value;
-                            setQuickAddCountryId(newCountry);
-                            setQuickAddStateId("");
-                          }}
-                          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                        >
-                          <option value="">-- Select Country --</option>
-                          {countries.map((c) => (
-                            <option key={c.Id ?? c.id} value={c.Id ?? c.id}>
-                              {c.CountryName || c.name || c.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-300 mb-1 block">State</label>
-                        <select
-                          value={quickAddStateId}
-                          onChange={(e) => setQuickAddStateId(e.target.value)}
-                          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                        >
-                          <option value="">-- Select State --</option>
-                          {(statesMaster || [])
-                            .filter((s) => !quickAddCountryId || String(s.CountryId ?? s.countryId ?? s.countryId) === String(quickAddCountryId))
-                            .map((s) => (
-                              <option key={s.Id ?? s.id} value={s.Id ?? s.id}>
-                                {s.StateName || s.name || s.label}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-sm text-gray-300 mb-1 block">Name</label>
-                    <input
-                      value={quickAddName}
-                      onChange={(e) => setQuickAddName(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                      placeholder={`Enter ${quickAddLabel} name`}
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      onClick={() => setShowQuickAdd(false)}
-                      className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded"
-                      disabled={quickAddLoading}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={saveQuickAdd}
-                      className="px-3 py-1.5 bg-blue-900 border border-blue-700 rounded text-blue-200 disabled:opacity-60"
-                      disabled={quickAddLoading}
-                    >
-                      {quickAddLoading ? "Saving..." : "Save"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>,
-            document.body
+          {/* STATE → COUNTRY */}
+          {quickAddKey === "state" && (
+            <CustomDropdown
+              label="Country"
+              list={countries.map(c => ({
+                id: c.Id ?? c.id,
+                label: c.CountryName || c.name || c.label,
+              }))}
+              valueId={quickAddCountryId}
+              onSelect={(item) => {
+                setQuickAddCountryId(item?.id ?? "");
+                setQuickAddStateId("");
+              }}
+              showStar={false}
+              showPencil={false}
+            />
           )}
+
+          {/* CITY → COUNTRY + STATE */}
+          {quickAddKey === "city" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CustomDropdown
+                label="Country"
+                list={countries.map(c => ({
+                  id: c.Id ?? c.id,
+                  label: c.CountryName || c.name || c.label,
+                }))}
+                valueId={quickAddCountryId}
+                onSelect={(item) => {
+                  setQuickAddCountryId(item?.id ?? "");
+                  setQuickAddStateId("");
+                }}
+                showStar={false}
+                showPencil={false}
+              />
+
+              <CustomDropdown
+                label="State"
+                list={(statesMaster || [])
+                  .filter(
+                    s =>
+                      !quickAddCountryId ||
+                      String(s.CountryId ?? s.countryId) ===
+                        String(quickAddCountryId)
+                  )
+                  .map(s => ({
+                    id: s.Id ?? s.id,
+                    label: s.StateName || s.name || s.label,
+                  }))
+                }
+                valueId={quickAddStateId}
+                onSelect={(item) =>
+                  setQuickAddStateId(item?.id ?? "")
+                }
+                showStar={false}
+                showPencil={false}
+              />
+            </div>
+          )}
+
+          {/* NAME */}
+          <div>
+            <label className="text-sm text-gray-300 mb-1 block">
+              Name
+            </label>
+            <input
+              value={quickAddName}
+              onChange={(e) => setQuickAddName(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              placeholder={`Enter ${quickAddLabel} name`}
+            />
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="flex justify-end gap-3 px-5 py-3 border-t border-gray-700">
+          <button
+            onClick={() => setShowQuickAdd(false)}
+            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+            disabled={quickAddLoading}
+          >
+            Cancel
+          </button>
+
+          {/* SAME SAVE BUTTON THEME */}
+          <button
+            onClick={saveQuickAdd}
+            disabled={quickAddLoading}
+            className="px-4 py-2 bg-blue-900/60 border border-blue-700 rounded
+                       text-blue-200 hover:bg-blue-900
+                       disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {quickAddLoading ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )}
+
+
       </div>
     </PageLayout>
   );

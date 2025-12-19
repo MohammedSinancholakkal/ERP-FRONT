@@ -532,6 +532,117 @@ export const restoreMeetingTypeApi = (id, data) =>
 
 
 
+// GET AGENDA ITEMS BY MEETING
+export const getAgendaItemsApi = (meetingId) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/agenda-items/all?meetingId=${meetingId}`
+  );
+
+// ADD AGENDA ITEM
+export const addAgendaItemApi = (data) =>
+  commonAPI(
+    "POST",
+    `${serverURL}/agenda-items/add`,
+    data
+  );
+
+// UPDATE AGENDA ITEM
+export const updateAgendaItemApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/agenda-items/update/${id}`,
+    data
+  );
+
+// DELETE AGENDA ITEM
+export const deleteAgendaItemApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/agenda-items/delete/${id}`,
+    data
+  );
+
+// SEARCH AGENDA ITEMS
+export const searchAgendaItemsApi = (q) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/agenda-items/search?q=${q}`
+  );
+
+// GET INACTIVE AGENDA ITEMS
+export const getInactiveAgendaItemsApi = () =>
+  commonAPI(
+    "GET",
+    `${serverURL}/agenda-items/inactive`
+  );
+
+// RESTORE AGENDA ITEM
+export const restoreAgendaItemApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/agenda-items/restore/${id}`,
+    data
+  );
+
+
+
+  // GET AGENDA DECISIONS BY MEETING
+export const getAgendaDecisionsApi = (meetingId) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/agenda-decisions/all?meetingId=${meetingId}`
+  );
+
+// ADD AGENDA DECISION
+export const addAgendaDecisionApi = (data) =>
+  commonAPI(
+    "POST",
+    `${serverURL}/agenda-decisions/add`,
+    data
+  );
+
+// UPDATE AGENDA DECISION
+export const updateAgendaDecisionApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/agenda-decisions/update/${id}`,
+    data
+  );
+
+// DELETE AGENDA DECISION
+export const deleteAgendaDecisionApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/agenda-decisions/delete/${id}`,
+    data
+  );
+
+// SEARCH AGENDA DECISIONS
+export const searchAgendaDecisionsApi = (q) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/agenda-decisions/search?q=${q}`
+  );
+
+// GET INACTIVE AGENDA DECISIONS
+export const getInactiveAgendaDecisionsApi = () =>
+  commonAPI(
+    "GET",
+    `${serverURL}/agenda-decisions/inactive`
+  );
+
+// RESTORE AGENDA DECISION
+export const restoreAgendaDecisionApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/agenda-decisions/restore/${id}`,
+    data
+  );
+
+
+
+  
 // ======================= Deductions APIs =======================
 
 export const getDeductionsApi = (page, limit) =>
@@ -973,6 +1084,14 @@ export const updateEmployeeApi = (id, formData) =>
 export const deleteEmployeeApi = (id, data) =>
   commonAPI("DELETE", `${serverURL}/employees/${id}`, data, "");
 
+// GET INACTIVE EMPLOYEES
+export const getInactiveEmployeesApi = () =>
+  commonAPI("GET", `${serverURL}/employees/inactive/list`, "", "");
+
+// RESTORE EMPLOYEE
+export const restoreEmployeeApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/employees/restore/${id}`, data, "");
+
 
 
 // ROLES
@@ -1245,3 +1364,283 @@ export const getInactiveAttendanceApi = () =>
 // RESTORE
 export const restoreAttendanceApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/attendance/restore/${id}`, data);
+
+
+
+
+// ======================= Purchases APIs =======================
+
+// LIST (paginated)
+export const getPurchasesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/purchases?page=${page}&limit=${limit}`);
+
+// GET BY ID
+export const getPurchaseByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/purchases/${id}`);
+
+// ADD
+export const addPurchaseApi = (data) =>
+  commonAPI("POST", `${serverURL}/purchases/add`, data);
+
+// UPDATE
+export const updatePurchaseApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/purchases/update/${id}`, data);
+
+// DELETE (Soft Delete)
+export const deletePurchaseApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/purchases/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactivePurchasesApi = () =>
+  commonAPI("GET", `${serverURL}/purchases/inactive`);
+
+// RESTORE
+export const restorePurchaseApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/purchases/restore/${id}`, data);
+
+// SEARCH
+export const searchPurchaseApi = (query) =>
+  commonAPI("GET", `${serverURL}/purchases/search?q=${encodeURIComponent(query)}`);
+
+
+
+
+
+
+
+// ======================= Goods Receipts APIs =======================
+
+// LIST (paginated)
+export const getGoodsReceiptsApi = (page, limit) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/goods-receipts?page=${page}&limit=${limit}`
+  );
+
+// GET BY ID
+export const getGoodsReceiptByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/goods-receipts/${id}`);
+
+// ADD
+export const addGoodsReceiptApi = (data) =>
+  commonAPI("POST", `${serverURL}/goods-receipts/add`, data);
+
+// UPDATE
+export const updateGoodsReceiptApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/goods-receipts/update/${id}`,
+    data
+  );
+
+
+// DELETE (Soft Delete)
+export const deleteGoodsReceiptApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/goods-receipts/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactiveGoodsReceiptsApi = () =>
+  commonAPI("GET", `${serverURL}/goods-receipts/inactive`);
+
+// RESTORE
+export const restoreGoodsReceiptApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/goods-receipts/restore/${id}`, data);
+
+
+
+
+// ======================= Goods Issue APIs =======================
+
+// LIST (paginated)
+export const getGoodsIssuesApi = (page, limit) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/goods-issues?page=${page}&limit=${limit}`
+  );
+
+// GET BY ID
+export const getGoodsIssueByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/goods-issues/${id}`);
+
+// ADD
+export const addGoodsIssueApi = (data) =>
+  commonAPI("POST", `${serverURL}/goods-issues/add`, data);
+
+// UPDATE
+export const updateGoodsIssueApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/goods-issues/update/${id}`,
+    data
+  );
+
+
+// DELETE (Soft Delete)
+export const deleteGoodsIssueApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/goods-issues/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactiveGoodsIssuesApi = () =>
+  commonAPI("GET", `${serverURL}/goods-issues/inactive`);
+
+// RESTORE
+export const restoreGoodsIssueApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/goods-issues/restore/${id}`, data);
+
+
+
+
+
+// ======================= Sales APIs =======================
+
+// LIST (paginated)
+export const getSalesApi = (page, limit) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/sales?page=${page}&limit=${limit}`
+  );
+
+// GET BY ID
+export const getSaleByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/sales/${id}`);
+
+// ADD
+export const addSaleApi = (data) =>
+  commonAPI("POST", `${serverURL}/sales/add`, data);// UPDATE
+export const updateSaleApi = (id, data) =>
+  commonAPI(
+    "PUT",
+    `${serverURL}/sales/update/${id}`,
+    data
+  );
+
+
+// DELETE (Soft Delete)
+export const deleteSaleApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/sales/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactiveSalesApi = () =>
+  commonAPI("GET", `${serverURL}/sales/inactive`);
+
+// RESTORE
+export const restoreSaleApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/sales/restore/${id}`, data);
+
+// SEARCH
+export const searchSaleApi = (query) =>
+  commonAPI("GET", `${serverURL}/sales/search?q=${encodeURIComponent(query)}`);
+
+
+
+
+// ======================= Quotation APIs =======================
+
+// LIST (paginated)
+export const getQuotationsApi = (page, limit) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/quotations?page=${page}&limit=${limit}`
+  );
+
+// GET BY ID
+export const getQuotationByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/quotations/${id}`);
+
+// ADD
+export const addQuotationApi = (data) =>
+  commonAPI("POST", `${serverURL}/quotations/add`, data);
+
+// UPDATE
+export const updateQuotationApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/quotations/update/${id}`, data);
+
+// DELETE (Soft Delete)
+export const deleteQuotationApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/quotations/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactiveQuotationsApi = () =>
+  commonAPI("GET", `${serverURL}/quotations/inactive`);
+
+// RESTORE
+export const restoreQuotationApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/quotations/restore/${id}`, data);
+
+
+//search
+export const searchQuotationApi = (query) =>
+  commonAPI("GET", `${serverURL}/quotations/search?q=${encodeURIComponent(query)}`);
+
+
+
+
+// ======================= Service Invoice APIs =======================
+
+// LIST (paginated)
+export const getServiceInvoicesApi = (page, limit) =>
+  commonAPI(
+    "GET",
+    `${serverURL}/service-invoices?page=${page}&limit=${limit}`
+  );
+
+// GET BY ID
+export const getServiceInvoiceByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/service-invoices/${id}`);
+
+// ADD
+export const addServiceInvoiceApi = (data) =>
+  commonAPI("POST", `${serverURL}/service-invoices/add`, data);
+
+// UPDATE
+export const updateServiceInvoiceApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/service-invoices/update/${id}`, data);
+
+// DELETE (Soft Delete)
+export const deleteServiceInvoiceApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/service-invoices/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactiveServiceInvoicesApi = () =>
+  commonAPI("GET", `${serverURL}/service-invoices/inactive`);
+
+// RESTORE
+export const restoreServiceInvoiceApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/service-invoices/restore/${id}`, data);
+
+// SEARCH
+export const searchServiceInvoiceApi = (query) =>
+  commonAPI("GET", `${serverURL}/service-invoices/search?q=${encodeURIComponent(query)}`);
+
+
+
+
+// ======================= Payroll APIs =======================
+
+// LIST (paginated)
+export const getPayrollsApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/payrolls?page=${page}&limit=${limit}`);
+
+// GET BY ID
+export const getPayrollByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/payrolls/${id}`);
+
+// ADD
+export const addPayrollApi = (data) =>
+  commonAPI("POST", `${serverURL}/payrolls/add`, data);
+
+// UPDATE
+export const updatePayrollApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/payrolls/update/${id}`, data);
+
+// DELETE (Soft Delete)
+export const deletePayrollApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/payrolls/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactivePayrollsApi = () =>
+  commonAPI("GET", `${serverURL}/payrolls/inactive`);
+
+// RESTORE
+export const restorePayrollApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/payrolls/restore/${id}`, data);

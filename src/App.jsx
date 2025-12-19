@@ -45,6 +45,7 @@ import CustomerReceive from "./pages/Cash Bank/CustomerReceive"  ;
 import SupplierPayment from "./pages/Cash Bank/SupplierPayment"  ;
 import CashAdjustment from "./pages/Cash Bank/CashAdjustment"  ;
 import GoodsReceipt from "./pages/inventory/GoodsReceipt";
+import NewGoodsReceipt from "./pages/inventory/NewGoodsReceipt";
 import GoodsIssue from "./pages/inventory/GoodsIssue";
 import Employees from "./pages/human resource/Employees";
 import Attendance from "./pages/human resource/Attendance";
@@ -57,6 +58,7 @@ import OpeningBalance from "./pages/Financial/OpeningBalance";
 import ChartOfAccounts from "./pages/Financial/ChartOfAccounts";
 import Sales from "./pages/Sales/Sales";
 import SalesQuotation from "./pages/Sales/SalesQuotation";
+import SalesQuotationPreview from "./pages/Sales/SalesQuotationPreview";
 import Purchase from "./pages/Purchases/Purchase"
 import Invoices from "./pages/Services/Invoices";
 import Meetings from "./pages/Meeting/Meetings";
@@ -71,6 +73,15 @@ import NewSuppliers from "./pages/business partners/NewSuppliers";
 import NewCustomers from "./pages/business partners/NewCustomers";
 import NewMeeting from "./pages/Meeting/NewMeeting";
 import NewPurchases from "./pages/Purchases/NewPurchases";
+import NewSale from "./pages/Sales/NewSale";
+import NewSaleQuotation from "./pages/Sales/NewSaleQuotaton";
+import PurchaseInvoice from "./pages/Purchases/PurchaseInvoice";
+import NewGoodsIssue from "./pages/inventory/NewGoodsIssue";
+import NewInvoices from "./pages/Services/NewInvoices";
+import ServiceInvoicePreview from "./pages/Services/ServiceInvoicePreview";
+import NewPayroll from "./pages/human resource/NewPayroll";
+import PayrollEmployee from "./pages/human resource/PayrollEmployee";
+import EditMeeting from "./pages/Meeting/EditMeeting";
 
 
 
@@ -120,7 +131,14 @@ function App() {
           <Route path="inventory/updatestock" element={<UpdateStocks />} />
           <Route path="inventory/damagedproducts" element={<DamagedProducts />} />
           <Route path="inventory/goodsreceipts" element={<GoodsReceipt />} />
+          <Route path="inventory/goodsreceipts/newgoodsreceipts" element={<NewGoodsReceipt />} />
+          <Route path="inventory/goodsreceipts/edit/:id" element={<NewGoodsReceipt />} />
+          <Route path="inventory/goodsreceipts/view/:id" element={<NewGoodsReceipt />} />
           <Route path="inventory/goodsissue" element={<GoodsIssue />} />
+          <Route path="inventory/goodsissue/newgoodsissue" element={<NewGoodsIssue />} />
+          <Route path="inventory/goodsissue/edit/:id" element={<NewGoodsIssue />} />
+          <Route path="inventory/goodsissue/view/:id" element={<NewGoodsIssue />} />
+
 
 
 
@@ -133,6 +151,9 @@ function App() {
           <Route path="hr/employees" element={<Employees />} />
           <Route path="hr/attendance" element={<Attendance />} />
           <Route path="hr/payroll" element={<Payroll />} />
+          <Route path="hr/newpayroll" element={<NewPayroll />} />
+          <Route path="/app/payroll/employee" element={<PayrollEmployee />} />
+          <Route path="hr/editpayroll/:id" element={<NewPayroll />} />
 
 
           {/* administration */}
@@ -168,6 +189,14 @@ function App() {
 
           <Route path="sales/sales" element={<Sales />} />
           <Route path="sales/salesquotations" element={<SalesQuotation />} />
+          <Route path="sales/newsale" element={<NewSale />} />
+          <Route path="sales/edit/:id" element={<NewSale />} />
+          <Route path="sales/view/:id" element={<NewSale />} />
+          <Route path="sales/newsalequotation" element={<NewSaleQuotation />} /> 
+          <Route path="sales/newsalequotation/:id" element={<NewSaleQuotation />} /> 
+          <Route path="sales/preview/:id" element={<SalesQuotationPreview />} />
+
+
 
 
 
@@ -175,15 +204,25 @@ function App() {
 
           <Route path="purchasing/purchases" element={<Purchase />} />
           <Route path="purchasing/newpurchase" element={<NewPurchases />} />
+          <Route path="purchasing/edit/:id" element={<NewPurchases />} />
+          <Route path="purchasing/preview/:id" element={<PurchaseInvoice />} />
 
 
           {/* services */}
           <Route path="services/invoices" element={<Invoices />} />
+          <Route path="services/newinvoice" element={<NewInvoices />} />
+          <Route path="services/edit/:id" element={<NewInvoices />} />
+          <Route path="services/preview/:id" element={<ServiceInvoicePreview />} />
+
 
           {/* meetings */}
 
           <Route path="meeting/meetings" element={<Meetings />} />
           <Route path="meeting/meetings/new" element={<NewMeeting />} />
+          <Route path="meeting/meetings/edit/:id" element={<NewMeeting />} />
+          <Route path="meeting/meetings/edit/:id/agenda" element={<EditMeeting />} />
+          <Route path="meeting/meetings/edit/:id/decisions" element={<EditMeeting />} />
+
 
 
 

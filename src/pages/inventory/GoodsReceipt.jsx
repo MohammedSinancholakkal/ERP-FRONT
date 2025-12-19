@@ -5,7 +5,6 @@ import {
   Plus,
   RefreshCw,
   List,
-  ArchiveRestore,
   X,
   Save,
   Star,
@@ -16,9 +15,21 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import toast from 'react-hot-toast'
+import {
+  getGoodsReceiptsApi,
+  getInactiveGoodsReceiptsApi,
+  deleteGoodsReceiptApi,
+  restoreGoodsReceiptApi,
+  getSuppliersApi,
+  getEmployeesApi,
+  getPurchasesApi,
+} from "../../services/allAPI";
 
 const GoodsReceipt = () => {
   const navigate = useNavigate();
+  const userData = JSON.parse(localStorage.getItem("user"))
+  const userId = userData?.userId || userData?.id || userData?.Id
 
   /* -------------------- column picker -------------------- */
   const defaultColumns = {
@@ -26,9 +37,9 @@ const GoodsReceipt = () => {
     supplier: true,
     purchaseBill: true,
     date: true,
-    time: true,
     totalQuantity: true,
-    employeeRemarks: true,
+    employee: true,
+    remarks: true,
     reference: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
@@ -36,45 +47,18 @@ const GoodsReceipt = () => {
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [columnSearch, setColumnSearch] = useState("");
 
-  /* -------------------- sample lists -------------------- */
-  const supplierList = [
-    "Alpha Traders",
-    "Global Supply Co",
-    "Rapid Industries",
-    "Metro Suppliers",
-    "Ocean Imports",
-  ];
-  const purchaseBillList = ["PB-1001", "PB-1002", "PB-1003", "PB-1004"];
-  const employeeList = ["Ali Khan", "Sara Ahmed", "Bilal Rafi", "Nida Saleem"];
+  /* -------------------- server-driven lists (populated after fetch) -------------------- */
+  const [supplierOptions, setSupplierOptions] = useState([])
+  const [purchaseOptions, setPurchaseOptions] = useState([])
+  const [employeeOptions, setEmployeeOptions] = useState([])
 
   /* -------------------- data rows -------------------- */
-  const sampleRows = [
-    {
-      id: 1,
-      supplier: "Alpha Traders",
-      purchaseBill: "PB-1001",
-      date: "2025-11-25",
-      time: "10:30",
-      totalQuantity: 125,
-      employeeRemarks: "Checked items, all good",
-      reference: "REF-001",
-      isActive: true,
-    },
-    {
-      id: 2,
-      supplier: "Global Supply Co",
-      purchaseBill: "PB-1002",
-      date: "2025-11-26",
-      time: "14:05",
-      totalQuantity: 60,
-      employeeRemarks: "Short 2 pcs",
-      reference: "REF-002",
-      isActive: true,
-    },
-  ];
-  const [rows, setRows] = useState(sampleRows);
+  const [rows, setRows] = useState([]);
   const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverTotal, setServerTotal] = useState(0);
 
   /* -------------------- search & filters -------------------- */
   const [searchText, setSearchText] = useState("");
@@ -122,7 +106,7 @@ const GoodsReceipt = () => {
   // -------------------- pagination -------------------- 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
-  const totalRecords = rows.length;
+  const totalRecords = showInactive ? inactiveRows.length : (showAll ? rows.length : (serverTotal || rows.length));
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
@@ -201,29 +185,312 @@ const GoodsReceipt = () => {
   };
 
   /* -------------------- filtering logic (client side) -------------------- */
-  const filteredRows = rows.filter((r) => {
+  const dataSource = showInactive ? inactiveRows : rows
+  const filteredRows = dataSource.filter((r) => {
     let ok = true;
     if (searchText.trim()) {
       const s = searchText.toLowerCase();
       ok =
         ok &&
         (String(r.id).includes(s) ||
-          r.supplier.toLowerCase().includes(s) ||
+          r.supplierName.toLowerCase().includes(s) ||
           r.purchaseBill.toLowerCase().includes(s) ||
           (r.reference || "").toLowerCase().includes(s));
     }
-    if (filterSupplier) ok = ok && r.supplier === filterSupplier;
+    if (filterSupplier) ok = ok && r.supplierName === filterSupplier;
     if (filterPurchaseBill) ok = ok && r.purchaseBill === filterPurchaseBill;
     if (filterDate) ok = ok && r.date === filterDate;
     if (filterTime) ok = ok && r.time === filterTime;
-    if (filterEmployee) ok = ok && r.employeeRemarks?.toLowerCase().includes(filterEmployee.toLowerCase()); // employee filter maps to remarks or adjust as needed
+    if (filterEmployee) ok = ok && r.employeeName?.toLowerCase().includes(filterEmployee.toLowerCase());
     return ok;
   });
 
+  // -------------------- server interactions --------------------
+  const normalize = (rec) => {
+    // defensive normalization of various backend shapes into consistent table fields
+    if (!rec || typeof rec !== 'object') return {
+      id: '', supplierId: '', supplierName: '', purchaseBillId: '', purchaseBill: '', date: '', time: '', totalQuantity: 0, employeeId: '', employeeName: '', remarks: '', reference: '', isActive: true
+    }
+
+    const id = rec.id ?? rec.Id ?? rec.goodsReceiptId ?? rec.GoodsReceiptId ?? ''
+    
+    // Extract supplier ID and name separately
+    const supplierId = rec.SupplierId ?? rec.supplierId ?? rec.Supplier?.id ?? rec.supplier?.id ?? ''
+    const supplierName = (rec.supplierName ?? rec.SupplierName) ||
+      ((rec.supplier && (rec.supplier.name || rec.supplier.companyName)) || (rec.Supplier && (rec.Supplier.name || rec.Supplier.companyName))) ||
+      (typeof rec.supplier === 'string' ? rec.supplier : '') || ''
+
+    // Extract purchase ID and bill
+    const purchaseBillId = rec.PurchaseId ?? rec.purchaseId ?? rec.PurchaseOrderId ?? ''
+    const purchaseBill = rec.reference ?? rec.Reference ?? rec.vNo ?? rec.VNo ?? rec.invoiceNo ?? rec.invoice ?? ''
+
+    const rawDate = rec.date ?? rec.Date ?? rec.CreatedAt ?? rec.createdAt ?? ''
+    let date = ''
+    try {
+      if (rawDate) {
+        const s = String(rawDate)
+        date = s.includes('T') ? s.split('T')[0] : s.split(' ')[0]
+      }
+    } catch (e) {
+      date = ''
+    }
+
+    const time = rec.time ?? rec.Time ?? ''
+    const totalQuantity = rec.totalQuantity ?? rec.TotalQuantity ?? rec.TotalQty ?? rec.Total ?? 0
+    
+    // Extract employee ID and name separately
+    const employeeId = rec.EmployeeId ?? rec.employeeId ?? rec.Employee?.id ?? rec.employee?.id ?? ''
+    const employeeName = rec.employeeName ?? rec.EmployeeName ?? rec.employee?.name ?? rec.Employee?.name ?? (typeof rec.employee === 'string' ? rec.employee : '') ?? ''
+    
+    const remarks = rec.remarks ?? rec.Remarks ?? rec.employeeRemarks ?? rec.EmployeeRemarks ?? ''
+    const reference = rec.reference ?? rec.Reference ?? rec.ref ?? ''
+    const isActive = (rec.isActive ?? rec.IsActive) !== undefined ? (rec.isActive ?? rec.IsActive) : (rec.deleted ? false : true)
+
+    return { id, supplierId, supplierName, purchaseBillId, purchaseBill, date, time, totalQuantity, employeeId, employeeName, remarks, reference, isActive }
+  };
+
+  // Helper to map IDs to display names using lookup tables
+  const mapDisplayNames = (record) => {
+    const mapped = { ...record }
+    
+    // Map supplier ID to supplier name
+    if (record.supplierId && !record.supplierName && supplierOptions.length > 0) {
+      const supplierOpt = supplierOptions.find(s => s.id == record.supplierId)
+      if (supplierOpt) mapped.supplierName = supplierOpt.name
+    }
+    
+    // Map employee ID to employee name
+    if (record.employeeId && !record.employeeName && employeeOptions.length > 0) {
+      const employeeOpt = employeeOptions.find(e => e.id == record.employeeId)
+      if (employeeOpt) mapped.employeeName = employeeOpt.name
+    }
+    
+    // Map purchase ID to purchase reference
+    if (record.purchaseBillId && !record.purchaseBill && purchaseOptions.length > 0) {
+      const purchaseOpt = purchaseOptions.find(p => p.id == record.purchaseBillId)
+      if (purchaseOpt) mapped.purchaseBill = purchaseOpt.name
+    }
+    
+    return mapped
+  };
+
+  const fetchActive = async () => {
+    setLoading(true)
+    try {
+      const res = await getGoodsReceiptsApi(page, limit)
+      if (res.status === 200) {
+        const records = Array.isArray(res?.data?.records) ? res.data.records : (res?.data ?? [])
+        const normalized = records.map(rec => normalize(rec))
+        setRows(normalized)
+        setServerTotal(res?.data?.totalRecords ?? normalized.length)
+      }
+    } catch (err) {
+      console.error('Error fetching goods receipts', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchInactive = async () => {
+    setLoading(true)
+    try {
+      const res = await getInactiveGoodsReceiptsApi()
+      if (res.status === 200) {
+        const records = Array.isArray(res?.data?.records) ? res.data.records : (res?.data ?? [])
+        const normalized = records.map(rec => normalize(rec))
+        setInactiveRows(normalized)
+      }
+    } catch (err) {
+      console.error('Error fetching inactive goods receipts', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAll = async () => {
+    setLoading(true)
+    try {
+      const [activeRes, inactiveRes] = await Promise.all([getGoodsReceiptsApi(1, 1000), getInactiveGoodsReceiptsApi()])
+      const active = activeRes.status === 200 ? (Array.isArray(activeRes.data.records) ? activeRes.data.records : activeRes.data || []) : []
+      const inactive = inactiveRes.status === 200 ? (Array.isArray(inactiveRes.data.records) ? inactiveRes.data.records : inactiveRes.data || []) : []
+      const combined = [...active, ...inactive].map(rec => normalize(rec))
+      setRows(combined)
+      setServerTotal(combined.length)
+    } catch (err) {
+      console.error('Error fetching all goods receipts', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this record?')) return
+    try {
+      const res = await deleteGoodsReceiptApi(id, { userId })
+      if (res.status === 200) {
+        toast.success('Deleted')
+        // refresh
+        if (showAll) await fetchAll()
+        else if (showInactive) await fetchInactive()
+        else await fetchActive()
+      }
+    } catch (err) {
+      console.error('Delete error', err)
+      toast.error('Delete failed')
+    }
+  }
+
+  const handleRestore = async (id) => {
+    try {
+      const res = await restoreGoodsReceiptApi(id, { userId })
+      if (res.status === 200) {
+        toast.success('Restored')
+        if (showAll) await fetchAll()
+        else if (showInactive) await fetchInactive()
+        else await fetchActive()
+      }
+    } catch (err) {
+      console.error('Restore error', err)
+      toast.error('Restore failed')
+    }
+  }
+
+  // fetch when page/limit or toggles change
+  useEffect(() => {
+    if (showAll) {
+      fetchAll()
+    } else if (showInactive) {
+      fetchInactive()
+    } else {
+      fetchActive()
+    }
+  }, [page, limit, showInactive, showAll])
+
+  // Re-map names whenever supplier/employee/purchase options change (after they're fetched)
+  useEffect(() => {
+    if (supplierOptions.length > 0 || employeeOptions.length > 0 || purchaseOptions.length > 0) {
+      console.log('Re-mapping names with options:', {
+        supplierOptions,
+        employeeOptions,
+        purchaseOptions,
+        rowsCount: rows.length
+      })
+      // Map active rows
+      setRows(prevRows => prevRows.map(rec => {
+        const mapped = mapDisplayNames(rec)
+        if (rec.employeeId) {
+          console.log('Mapping employee:', { from: rec, to: mapped })
+        }
+        return mapped
+      }))
+      // Map inactive rows
+      setInactiveRows(prevRows => prevRows.map(rec => mapDisplayNames(rec)))
+    }
+  }, [supplierOptions, employeeOptions, purchaseOptions])
+
+  // fetch and populate supplier/purchase/employee lists on mount
+  useEffect(() => {
+    const fetchLists = async () => {
+      try {
+        const [suppRes, empRes, purchRes] = await Promise.all([
+          getSuppliersApi(1, 1000),
+          getEmployeesApi(1, 1000),
+          getPurchasesApi(1, 1000)
+        ])
+        
+        // extract suppliers (handle various response shapes)
+        const suppliers = suppRes?.data?.records || suppRes?.data || []
+        const supplierOpts = Array.isArray(suppliers) 
+          ? suppliers.map(s => ({ id: s.id || s.Id || s.SupplierId, name: s.companyName || s.name || s.CompanyName || s.Name || '' }))
+          : []
+        setSupplierOptions(supplierOpts)
+        console.log('Suppliers loaded:', supplierOpts)
+        
+        // extract employees with detailed debugging
+        const employees = empRes?.data?.records || empRes?.data || []
+        console.log('Raw employee response:', empRes?.data)
+        console.log('Employees array:', employees)
+        
+        const employeeOpts = Array.isArray(employees)
+          ? employees.map(e => {
+              const empId = e.id || e.Id || e.EmployeeId || e.employeeId
+              const empName = e.fullName || e.FullName || e.firstName || e.FirstName || 
+                             e.first_name || e.First_Name ||
+                             e.name || e.Name || 
+                             e.employeeName || e.EmployeeName ||
+                             e.employee_name ||
+                             `Employee ${empId}` || ''
+              console.log('Processing employee:', { raw: e, empId, empName })
+              return { id: empId, name: empName }
+            })
+          : []
+        console.log('Processed employee options:', employeeOpts)
+        setEmployeeOptions(employeeOpts)
+        
+        // extract purchases
+        const purchases = purchRes?.data?.records || purchRes?.data || []
+        const purchaseOpts = Array.isArray(purchases)
+          ? purchases.map(p => ({ id: p.id || p.Id || p.PurchaseId, name: p.vNo || p.VNo || p.reference || p.Reference || p.invoiceNo || '' }))
+          : []
+        setPurchaseOptions(purchaseOpts)
+        console.log('Purchases loaded:', purchaseOpts)
+      } catch (err) {
+        console.error('Error fetching dropdown lists', err)
+      }
+    }
+    fetchLists()
+  }, [])
+
   /* -------------------- small helpers -------------------- */
-  // const openSupplierCreate = () => navigate("/masters/new-supplier");
-  // const openPurchaseCreate = () => navigate("/purchases/new-purchase");
-  // const openEmployeeCreate = () => navigate("/human-resource/new-employee");
+  const openSupplierCreate = () => navigate("/app/business-partners/new-supplier")
+  const openPurchaseCreate = () => navigate("/app/purchases/new-purchases")
+  const openEmployeeCreate = () => navigate("/app/human-resource/new-employee")
+
+  // Helper to get display name from ID
+  const getSupplierName = (id) => supplierOptions.find(s => s.id == id)?.name || ''
+  const getPurchaseName = (id) => purchaseOptions.find(p => p.id == id)?.name || ''
+  const getEmployeeName = (id) => employeeOptions.find(e => e.id == id)?.name || ''
+
+  // Dedicated function to load employees separately
+  const loadEmployeeOptions = async () => {
+    try {
+      const res = await getEmployeesApi(1, 1000)
+      console.log('loadEmployeeOptions - API Response:', res?.data)
+      
+      const employees = res?.data?.records || res?.data || []
+      console.log('loadEmployeeOptions - Employees array:', employees)
+      
+      if (Array.isArray(employees) && employees.length > 0) {
+        const employeeOpts = employees.map(e => {
+          const empId = e.id || e.Id || e.EmployeeId || e.employeeId
+          // Try multiple field names for employee name
+          const empName = e.fullName || e.FullName || e.firstName || e.FirstName || 
+                         e.first_name || e.First_Name ||
+                         e.name || e.Name || 
+                         e.employeeName || e.EmployeeName ||
+                         e.employee_name ||
+                         `Employee ${empId}` || ''
+          console.log('Employee extraction:', { id: empId, name: empName, raw: e })
+          return { id: empId, name: empName }
+        })
+        console.log('loadEmployeeOptions - Processed options:', employeeOpts)
+        setEmployeeOptions(employeeOpts)
+        return employeeOpts
+      } else {
+        console.warn('loadEmployeeOptions - No employees found')
+        setEmployeeOptions([])
+        return []
+      }
+    } catch (err) {
+      console.error('loadEmployeeOptions - Error:', err)
+      return []
+    }
+  }
+
+  // Trigger employee loading when component mounts and when needed
+  useEffect(() => {
+    loadEmployeeOptions()
+  }, [])
 
   /* -------------------- render -------------------- */
   return (
@@ -241,6 +508,7 @@ const GoodsReceipt = () => {
               <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
                 <X />
               </button>
+
             </div>
 
             <div className="p-6 grid grid-cols-3 gap-4">
@@ -249,7 +517,7 @@ const GoodsReceipt = () => {
                 <label className="text-sm">Supplier *</label>
                 <div className="flex gap-2 items-center">
                   <input
-                    value={form.supplierSearch || form.supplier}
+                    value={form.supplierSearch || getSupplierName(form.supplier)}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, supplierSearch: e.target.value, supplierDropdown: true }))
                     }
@@ -278,16 +546,16 @@ const GoodsReceipt = () => {
                       />
                     </div>
                     <div>
-                      {supplierList.filter(s => s.toLowerCase().includes((form.supplierSearch||"").toLowerCase())).map(s => (
+                      {supplierOptions.filter(s => s.name.toLowerCase().includes((form.supplierSearch||"").toLowerCase())).map(s => (
                         <div
-                          key={s}
-                          onClick={() => setForm((p) => ({ ...p, supplier: s, supplierSearch: "", supplierDropdown: false }))}
+                          key={s.id}
+                          onClick={() => setForm((p) => ({ ...p, supplier: s.id, supplierSearch: "", supplierDropdown: false }))}
                           className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
                         >
-                          {s}
+                          {s.name}
                         </div>
                       ))}
-                      {supplierList.filter(s => s.toLowerCase().includes((form.supplierSearch||"").toLowerCase())).length === 0 && (
+                      {supplierOptions.filter(s => s.name.toLowerCase().includes((form.supplierSearch||"").toLowerCase())).length === 0 && (
                         <div className="px-3 py-2 text-sm text-gray-400">No suppliers found</div>
                       )}
                     </div>
@@ -300,7 +568,7 @@ const GoodsReceipt = () => {
                 <label className="text-sm">Purchase Bill *</label>
                 <div className="flex gap-2 items-center">
                   <input
-                    value={form.purchaseBillSearch || form.purchaseBill}
+                    value={form.purchaseBillSearch || getPurchaseName(form.purchaseBill)}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, purchaseBillSearch: e.target.value, purchaseBillDropdown: true }))
                     }
@@ -329,16 +597,16 @@ const GoodsReceipt = () => {
                       />
                     </div>
                     <div>
-                      {purchaseBillList.filter(pb => pb.toLowerCase().includes((form.purchaseBillSearch||"").toLowerCase())).map(pb => (
+                      {purchaseOptions.filter(pb => pb.name.toLowerCase().includes((form.purchaseBillSearch||"").toLowerCase())).map(pb => (
                         <div
-                          key={pb}
-                          onClick={() => setForm((p) => ({ ...p, purchaseBill: pb, purchaseBillSearch: "", purchaseBillDropdown: false }))}
+                          key={pb.id}
+                          onClick={() => setForm((p) => ({ ...p, purchaseBill: pb.id, purchaseBillSearch: "", purchaseBillDropdown: false }))}
                           className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
                         >
-                          {pb}
+                          {pb.name}
                         </div>
                       ))}
-                      {purchaseBillList.filter(pb => pb.toLowerCase().includes((form.purchaseBillSearch||"").toLowerCase())).length === 0 && (
+                      {purchaseOptions.filter(pb => pb.name.toLowerCase().includes((form.purchaseBillSearch||"").toLowerCase())).length === 0 && (
                         <div className="px-3 py-2 text-sm text-gray-400">No purchase bills</div>
                       )}
                     </div>
@@ -385,7 +653,7 @@ const GoodsReceipt = () => {
                 <label className="text-sm">Employee *</label>
                 <div className="flex gap-2 items-center">
                   <input
-                    value={form.employeeSearch || form.employee}
+                    value={form.employeeSearch || getEmployeeName(form.employee)}
                     onChange={(e) => setForm((p) => ({ ...p, employeeSearch: e.target.value, employeeDropdown: true }))}
                     onClick={() => setForm((p) => ({ ...p, employeeDropdown: !p.employeeDropdown }))}
                     placeholder="Search or select employee..."
@@ -410,16 +678,16 @@ const GoodsReceipt = () => {
                       />
                     </div>
                     <div>
-                      {employeeList.filter(em => em.toLowerCase().includes((form.employeeSearch||"").toLowerCase())).map(em => (
+                      {employeeOptions.filter(em => em.name.toLowerCase().includes((form.employeeSearch||"").toLowerCase())).map(em => (
                         <div
-                          key={em}
-                          onClick={() => setForm((p) => ({ ...p, employee: em, employeeSearch: "", employeeDropdown: false }))}
+                          key={em.id}
+                          onClick={() => setForm((p) => ({ ...p, employee: em.id, employeeSearch: "", employeeDropdown: false }))}
                           className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
                         >
-                          {em}
+                          {em.name}
                         </div>
                       ))}
-                      {employeeList.filter(em => em.toLowerCase().includes((form.employeeSearch||"").toLowerCase())).length === 0 && (
+                      {employeeOptions.filter(em => em.name.toLowerCase().includes((form.employeeSearch||"").toLowerCase())).length === 0 && (
                         <div className="px-3 py-2 text-sm text-gray-400">No employees</div>
                       )}
                     </div>
@@ -491,7 +759,7 @@ const GoodsReceipt = () => {
           </div>
 
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={() => navigate('/app/inventory/goodsreceipts/newgoodsreceipts')}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Receipt
@@ -516,14 +784,8 @@ const GoodsReceipt = () => {
           >
             <List size={16} className="text-blue-300" />
           </button>
-
-          <button
-            onClick={() => setShowInactive((s) => !s)}
-            className="flex items-center gap-2 p-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
+          
+          
         </div>
 
         {/* filters */}
@@ -547,19 +809,19 @@ const GoodsReceipt = () => {
                     className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
                   />
                 </div>
-                {supplierList
-                  .filter(s => s.toLowerCase().includes((ddSearch.supplier||"").toLowerCase()))
+                {supplierOptions
+                  .filter(s => s.name.toLowerCase().includes((ddSearch.supplier||"").toLowerCase()))
                   .map(s => (
                     <div
-                      key={s}
+                      key={s.id}
                       onClick={() => {
-                        setFilterSupplier(s);
+                        setFilterSupplier(s.name);
                         setDropdownOpen((p) => ({ ...p, supplier: false }));
                         setDdSearch((p) => ({ ...p, supplier: "" }));
                       }}
                       className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
                     >
-                      {s}
+                      {s.name}
                     </div>
                   ))}
               </div>
@@ -585,17 +847,17 @@ const GoodsReceipt = () => {
                     className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
                   />
                 </div>
-                {purchaseBillList.filter(pb => pb.toLowerCase().includes((ddSearch.purchaseBill||"").toLowerCase())).map(pb => (
+                {purchaseOptions.filter(pb => pb.name.toLowerCase().includes((ddSearch.purchaseBill||"").toLowerCase())).map(pb => (
                   <div
-                    key={pb}
+                    key={pb.id}
                     onClick={() => {
-                      setFilterPurchaseBill(pb);
+                      setFilterPurchaseBill(pb.name);
                       setDropdownOpen((p) => ({ ...p, purchaseBill: false }));
                       setDdSearch((p) => ({ ...p, purchaseBill: "" }));
                     }}
                     className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
                   >
-                    {pb}
+                    {pb.name}
                   </div>
                 ))}
               </div>
@@ -640,20 +902,27 @@ const GoodsReceipt = () => {
                     placeholder="Search employee..."
                     className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
                   />
+                  {employeeOptions.length === 0 && (
+                    <div className="text-xs text-yellow-500 mt-2">Loading employees... ({employeeOptions.length})</div>
+                  )}
                 </div>
-                {employeeList.filter(em => em.toLowerCase().includes((ddSearch.employee||"").toLowerCase())).map(em => (
-                  <div
-                    key={em}
-                    onClick={() => {
-                      setFilterEmployee(em);
-                      setDropdownOpen((p) => ({ ...p, employee: false }));
-                      setDdSearch((p) => ({ ...p, employee: "" }));
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                  >
-                    {em}
-                  </div>
-                ))}
+                {employeeOptions && employeeOptions.length > 0 ? (
+                  employeeOptions.filter(em => em.name && em.name.toLowerCase().includes((ddSearch.employee||"").toLowerCase())).map(em => (
+                    <div
+                      key={em.id}
+                      onClick={() => {
+                        setFilterEmployee(em.name);
+                        setDropdownOpen((p) => ({ ...p, employee: false }));
+                        setDdSearch((p) => ({ ...p, employee: "" }));
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {em.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-gray-400">No employees available</div>
+                )}
               </div>
             )}
           </div>
@@ -674,7 +943,7 @@ const GoodsReceipt = () => {
 
         {/* table (scroll behavior same as Bank Transactions) */}
 <div className="flex-grow overflow-auto w-full min-h-0">
-  <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-x-auto">
     <table className="min-w-[1200px] border-separate border-spacing-y-1 text-sm table-fixed">
       <thead className="sticky top-0 bg-gray-900 z-10">
         <tr className="text-white text-center">
@@ -682,9 +951,9 @@ const GoodsReceipt = () => {
           {visibleColumns.supplier && <th className="pb-2 border-b">Supplier</th>}
           {visibleColumns.purchaseBill && <th className="pb-2 border-b">Purchase Bill</th>}
           {visibleColumns.date && <th className="pb-2 border-b">Date</th>}
-          {visibleColumns.time && <th className="pb-2 border-b">Time</th>}
           {visibleColumns.totalQuantity && <th className="pb-2 border-b">Total Qty</th>}
-          {visibleColumns.employeeRemarks && <th className="pb-2 border-b">Employee Remarks</th>}
+          {visibleColumns.employee && <th className="pb-2 border-b">Employee</th>}
+          {visibleColumns.remarks && <th className="pb-2 border-b">Remarks</th>}
           {visibleColumns.reference && <th className="pb-2 border-b">Reference</th>}
         </tr>
       </thead>
@@ -693,24 +962,27 @@ const GoodsReceipt = () => {
         {filteredRows.map((r) => (
           <tr
             key={r.id}
-            className={`bg-gray-900 hover:bg-gray-700 ${
+            onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}
+            className={`bg-gray-900 hover:bg-gray-700 cursor-pointer ${
               !r.isActive ? "opacity-40 line-through" : ""
             }`}
           >
             {visibleColumns.id && <td className="px-2 py-3 text-center">{r.id}</td>}
             {visibleColumns.supplier && (
-              <td className="px-2 py-3 text-center">{r.supplier}</td>
+              <td className="px-2 py-3 text-center">{r.supplierName}</td>
             )}
             {visibleColumns.purchaseBill && (
               <td className="px-2 py-3 text-center">{r.purchaseBill}</td>
             )}
             {visibleColumns.date && <td className="px-2 py-3 text-center">{r.date}</td>}
-            {visibleColumns.time && <td className="px-2 py-3 text-center">{r.time}</td>}
             {visibleColumns.totalQuantity && (
               <td className="px-2 py-3 text-center">{r.totalQuantity}</td>
             )}
-            {visibleColumns.employeeRemarks && (
-              <td className="px-2 py-3 text-center">{r.employeeRemarks}</td>
+            {visibleColumns.employee && (
+              <td className="px-2 py-3 text-center">{r.employeeName}</td>
+            )}
+            {visibleColumns.remarks && (
+              <td className="px-2 py-3 text-center">{r.remarks}</td>
             )}
             {visibleColumns.reference && (
               <td className="px-2 py-3 text-center">{r.reference}</td>
@@ -721,9 +993,7 @@ const GoodsReceipt = () => {
         {filteredRows.length === 0 && (
           <tr>
             <td
-              colSpan={
-                Object.values(visibleColumns).filter(Boolean).length
-              }
+              colSpan={Object.values(visibleColumns).filter(Boolean).length}
               className="px-4 py-6 text-center text-gray-400"
             >
               No records found

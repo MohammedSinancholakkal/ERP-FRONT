@@ -9,9 +9,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
+  ArchiveRestore,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import { getPayrollsApi, deletePayrollApi } from "../../services/allAPI";
+import toast from "react-hot-toast";
+import { format } from "date-fns";
 
 const Payroll = () => {
   const navigate = useNavigate();
@@ -38,26 +42,51 @@ const Payroll = () => {
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [columnSearch, setColumnSearch] = useState("");
 
-  // -------------------------------
-  // SAMPLE DATA
-  // -------------------------------
-  const samplePayroll = [
-    {
-      id: 1,
-      number: "payroll/2025/01",
-      description: "Monthly Payroll - January",
-      paymentDate: "2025-01-31",
-      cashBank: "HBL - Main Branch",
-      currency: "PKR",
-      totalBasicSalary: 450000,
-      totalIncome: 520000,
-      totalDeduction: 35000,
-      totalTakeHomePay: 485000,
-      totalPaymentAmount: 485000,
-    },
-  ];
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const [rows, setRows] = useState(samplePayroll);
+
+// -------------------------------
+// FETCH PAYROLLS
+// -------------------------------
+
+const fetchPayrolls = async () => {
+  
+  try {
+    setLoading(true);
+    const resp = await getPayrollsApi(page, limit);
+
+    if (resp.status === 200) {
+      const records = resp.data?.records || [];
+
+      const normalized = records.map((p) => ({
+        id: p.id,
+
+        // normalize names
+        number: p.Number,
+        description: p.Description || "",
+        paymentDate: p.PaymentDate,
+
+        cashBank: p.BankName || "Cash",
+        currencyName: p.CurrencyName,
+
+        totalBasicSalary: p.TotalBasicSalary,
+        totalIncome: p.TotalIncome,
+        totalDeduction: p.TotalDeduction,
+        totalTakeHomePay: p.TotalTakeHomePay,
+        totalPaymentAmount: p.TotalPaymentAmount,
+      }));
+
+      setRows(normalized);
+    }
+  } catch (err) {
+    console.error("Error fetching payrolls", err);
+    toast.error("Failed to load payrolls");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // -------------------------------
   // Search
@@ -74,6 +103,12 @@ const Payroll = () => {
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
+
+
+    useEffect(() => {
+    fetchPayrolls();
+  }, [page, limit]);
+
 
   // -------------------------------
   // UI
@@ -217,21 +252,24 @@ const Payroll = () => {
             <input
               placeholder="Search payroll..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => setSearchText(e.target.value)} 
               className="bg-transparent pl-2 text-sm w-full outline-none"
             />
           </div>
 
           <button
-            onClick={() => navigate("/payroll/new")}
+            onClick={() => navigate("/app/hr/newpayroll")}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 
                 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Payroll
           </button>
 
-          <button className="p-2 bg-gray-700 border border-gray-600 rounded">
-            <RefreshCw size={16} className="text-blue-400" />
+          <button 
+            onClick={fetchPayrolls}
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
+          >
+            <RefreshCw size={16} className={`text-blue-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
           <button
@@ -243,6 +281,13 @@ const Payroll = () => {
           >
             <List size={16} className="text-blue-300" />
           </button>
+
+           <button
+                className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
+              >
+                <ArchiveRestore size={16} className="text-yellow-300" />
+                <span className="text-xs opacity-80">Inactive</span>
+              </button>
         </div>
 
         {/* TABLE */}
@@ -286,42 +331,57 @@ const Payroll = () => {
               </thead>
 
               <tbody className="text-center">
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="bg-gray-900 hover:bg-gray-700 cursor-default"
-                  >
-                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                    {visibleColumns.number && <td className="py-2">{r.number}</td>}
-                    {visibleColumns.description && (
-                      <td className="py-2">{r.description}</td>
-                    )}
-                    {visibleColumns.paymentDate && (
-                      <td className="py-2">{r.paymentDate}</td>
-                    )}
-                    {visibleColumns.cashBank && (
-                      <td className="py-2">{r.cashBank}</td>
-                    )}
-                    {visibleColumns.currency && (
-                      <td className="py-2">{r.currency}</td>
-                    )}
-                    {visibleColumns.totalBasicSalary && (
-                      <td className="py-2">{r.totalBasicSalary}</td>
-                    )}
-                    {visibleColumns.totalIncome && (
-                      <td className="py-2">{r.totalIncome}</td>
-                    )}
-                    {visibleColumns.totalDeduction && (
-                      <td className="py-2">{r.totalDeduction}</td>
-                    )}
-                    {visibleColumns.totalTakeHomePay && (
-                      <td className="py-2">{r.totalTakeHomePay}</td>
-                    )}
-                    {visibleColumns.totalPaymentAmount && (
-                      <td className="py-2">{r.totalPaymentAmount}</td>
-                    )}
+                {loading ? (
+                  <tr>
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
+                      Loading payrolls...
+                    </td>
                   </tr>
-                ))}
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
+                      No payroll records found
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((r) => (
+                    <tr
+                      key={r.id}
+                      onClick={() => navigate(`/app/hr/editpayroll/${r.id}`)}
+                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                    >
+                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
+                      {visibleColumns.number && <td className="py-2">{r.number}</td>}
+                      {visibleColumns.description && (
+                        <td className="py-2">{r.description}</td>
+                      )}
+                      {visibleColumns.paymentDate && (
+                        <td className="py-2">{r.paymentDate ? format(new Date(r.paymentDate), "yyyy-MM-dd") : ""}</td>
+                      )}
+                      {visibleColumns.cashBank && (
+                        <td className="py-2">{r.BankName || "Cash"}</td>
+                      )}
+                      {visibleColumns.currency && (
+                        <td className="py-2">{r.currencyName}</td>
+                      )}
+                      {visibleColumns.totalBasicSalary && (
+                        <td className="py-2">{Number(r.totalBasicSalary || 0).toFixed(2)}</td>
+                      )}
+                      {visibleColumns.totalIncome && (
+                        <td className="py-2">{Number(r.totalIncome || 0).toFixed(2)}</td>
+                      )}
+                      {visibleColumns.totalDeduction && (
+                        <td className="py-2">{Number(r.totalDeduction || 0).toFixed(2)}</td>
+                      )}
+                      {visibleColumns.totalTakeHomePay && (
+                        <td className="py-2 font-semibold text-green-400">{Number(r.totalTakeHomePay || 0).toFixed(2)}</td>
+                      )}
+                      {visibleColumns.totalPaymentAmount && (
+                        <td className="py-2">{Number(r.totalPaymentAmount || 0).toFixed(2)}</td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
 
             </table>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Search,
   Plus,
@@ -14,6 +14,12 @@ import {
   Eye
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
+import { getCustomersApi, getEmployeesApi, getServiceInvoicesApi, searchServiceInvoiceApi } from "../../services/allAPI";
+import { useLocation, useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import toast from "react-hot-toast";
 
 /* Searchable Dropdown */
 const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
@@ -23,9 +29,7 @@ const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
   const filtered =
     !query.trim()
       ? options
-      : options.filter((o) =>
-          o.name.toLowerCase().includes(query.toLowerCase())
-        );
+      : options.filter((o) => o.name.toLowerCase().includes(query.toLowerCase()));
 
   const selected = options.find((o) => o.id == value)?.name || "";
 
@@ -43,22 +47,22 @@ const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
           setQuery(e.target.value);
           setOpen(true);
         }}
-        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-full text-sm"
+        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-full text-sm text-white"
       />
-
       {open && (
-        <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded max-h-56 overflow-auto mt-1 z-50">
-          {filtered.length ? (
-            filtered.map((o) => (
+        <div className="absolute z-50 w-full bg-gray-800 border border-gray-700 mt-1 max-h-48 overflow-y-auto rounded shadow-lg">
+          {filtered.length > 0 ? (
+            filtered.map((opt) => (
               <div
-                key={o.id}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                key={opt.id}
+                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
                 onClick={() => {
-                  onChange(o.id);
+                  onChange(opt.id);
                   setOpen(false);
+                  setQuery("");
                 }}
               >
-                {o.name}
+                {opt.name}
               </div>
             ))
           ) : (
@@ -66,318 +70,436 @@ const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
           )}
         </div>
       )}
+      {/* Overlay to close */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setOpen(false)}
+        ></div>
+      )}
     </div>
   );
 };
 
-/* Export Icons */
-const ExportButtons = () => (
-  <div className="flex items-center gap-2">
-    <button
-      className="p-1.5 bg-green-700/10 border border-green-700 rounded hover:bg-green-700/20"
-      title="Export to Excel"
-    >
-      <FileSpreadsheet size={18} className="text-green-300" />
-    </button>
+const defaultColumns = {
+  id: true,
+  customerName: true,
+  date: true,
+  employee: true,
+  paymentAccount: true,
+  discount: true,
+  totalDiscount: true,
+  vat: true,
+  totalTax: true,
+  shippingCost: true,
+  grandTotal: true,
+  netTotal: true,
+  paidAmount: true,
+  due: true,
+  change: true,
+  details: true
+};
 
-    <button
-      className="p-1.5 bg-red-700/10 border border-red-700 rounded hover:bg-red-700/20"
-      title="Export to PDF"
-    >
-      <FileText size={18} className="text-red-300" />
-    </button>
-  </div>
-);
-
-const ServiceInvoices = () => {
-  /* Filters */
-  const [searchText, setSearchText] = useState("");
-  const [filterCustomer, setFilterCustomer] = useState("");
-  const [filterDate, setFilterDate] = useState("");
-  const [filterEmployee, setFilterEmployee] = useState("");
-
-  /* UI */
-  const [columnModal, setColumnModal] = useState(false);
-
-  /* Pagination */
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-
-  /* Sample Dropdown Data */
-  const customers = [
-    { id: 1, name: "Customer A" },
-    { id: 2, name: "Customer B" }
-  ];
-
-  const employees = [
-    { id: 1, name: "Employee 1" },
-    { id: 2, name: "Employee 2" }
-  ];
-
-  const paymentAccounts = [
-    { id: 1, name: "Cash" },
-    { id: 2, name: "Bank" }
-  ];
-
-  /* Table Visibility */
-  const defaultColumns = {
-    id: true,
-    customerName: true,
-    date: true,
-    employee: true,
-    paymentAccount: true,
-    discount: true,
-    totalDiscount: true,
-    vat: true,
-    totalTax: true,
-    shippingCost: true,
-    grandTotal: true,
-    netTotal: true,
-    paidAmount: true,
-    due: true,
-    change: true,
-    details: true
-  };
+const Invoices = () => {
+  const navigate = useNavigate();
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
+  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [columnSearch, setColumnSearch] = useState("");
 
-  /* Sample Table Data */
-  const invoiceData = [
-    {
-      id: 1,
-      customerName: "Customer A",
-      date: "2025-02-20",
-      employee: "Employee 1",
-      paymentAccount: "Cash",
-      discount: 10,
-      totalDiscount: 40,
-      vat: 18,
-      totalTax: 140,
-      shippingCost: 40,
-      grandTotal: 3000,
-      netTotal: 2850,
-      paidAmount: 2000,
-      due: 850,
-      change: 0,
-      details: "Service invoice details"
+  const [invoicesList, setInvoicesList] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [filterCustomer, setFilterCustomer] = useState("");
+  const [filterEmployee, setFilterEmployee] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [customers, setCustomers] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  const location = useLocation();
+const isPreview = location.pathname.includes("/preview/");
+
+  useEffect(() => {
+    fetchCustomers();
+    fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchText.trim()) {
+        searchServiceInvoiceApi(searchText)
+          .then((res) => {
+            if (res.status === 200) {
+              // Server search may return different shapes (records array or direct array)
+              const rows = Array.isArray(res.data.records)
+                ? res.data.records
+                : Array.isArray(res.data)
+                ? res.data
+                : (res.data.records || []);
+
+              // Normalize rows and attach customer/employee names using loaded lists
+              const normalized = rows.map((inv) => ({
+                ...inv,
+                customerName:
+                  inv.customerName || customers.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name || "-",
+                employeeName:
+                  inv.employeeName || employees.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name || "-"
+              }));
+
+              setInvoicesList(normalized);
+              setTotalRecords((res.data.totalRecords) || normalized.length || 0);
+              setTotalPages((res.data.totalPages) || 1);
+            }
+          })
+          .catch((error) => {
+            console.error("Search error", error);
+            toast.error("Search failed");
+          });
+      } else {
+        fetchInvoices();
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchText, page, limit, customers, employees]);
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await getServiceInvoicesApi(page, limit);
+      if (res.status === 200) {
+        let invoices = res.data.records || [];
+        
+        // Add customer names and employee names to invoices (robust id/name handling)
+        invoices = invoices.map(inv => ({
+          ...inv,
+          customerName:
+            inv.customerName ||
+            customers.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name ||
+            "-",
+          employeeName:
+            inv.employeeName ||
+            employees.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name ||
+            "-"
+        }));
+        
+        setInvoicesList(invoices);
+        setTotalRecords(res.data.totalRecords || 0);
+        setTotalPages(res.data.totalPages || 1);
+      }
+    } catch (error) {
+      console.error("Error fetching invoices", error);
     }
-  ];
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const res = await getCustomersApi(1, 1000);
+      if (res.status === 200) {
+        const mapped = (res.data.records || []).map((c) => ({
+          id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
+          name:
+            c.name ?? c.Name ?? c.companyName ?? c.CompanyName ?? `${c.firstName ?? c.FirstName ?? ""} ${c.lastName ?? c.LastName ?? ""}`.trim()
+        }));
+        setCustomers(mapped);
+      }
+    } catch (error) {
+      console.error("Error fetching customers", error);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await getEmployeesApi(1, 1000);
+      if (res.status === 200) {
+        const mapped = (res.data.records || []).map((e) => ({
+          id: e.id ?? e.Id ?? e.employeeId ?? e.EmployeeId ?? null,
+          name: e.fullName ?? e.fullname ?? e.name ?? e.Name ?? `${e.firstName ?? e.FirstName ?? ""} ${e.lastName ?? e.LastName ?? ""}`.trim()
+        }));
+        setEmployees(mapped);
+      }
+    } catch (error) {
+      console.error("Error fetching employees", error);
+    }
+  };
+
+  const handleRefresh = () => {
+    setSearchText("");
+    setFilterCustomer("");
+    setFilterEmployee("");
+    setFilterDate("");
+    setPage(1);
+    fetchInvoices();
+    toast.success("Refreshed");
+  };
+
+  const handleExportExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(invoicesList);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices");
+    XLSX.writeFile(wb, "invoices.xlsx");
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Invoices Report", 14, 10);
+    doc.autoTable({
+      head: [["ID", "Customer", "Date", "Employee", "Net Total", "Paid", "Due"]],
+      body: invoicesList.map((p) => [
+        p.id,
+        p.customerName || p.customer || "",
+        p.date,
+        p.employeeName || p.employee || "",
+        p.netTotal,
+        p.paidAmount,
+        p.due,
+      ]),
+    });
+    doc.save("invoices.pdf");
+  };
+
+  const filteredList = invoicesList.filter((p) => {
+    let match = true;
+    const pCustomerId = p.customerId ?? p.CustomerId ?? "";
+    const pEmployeeId = p.employeeId ?? p.EmployeeId ?? "";
+    if (filterCustomer && String(pCustomerId) !== String(filterCustomer)) match = false;
+    if (filterEmployee && String(pEmployeeId) !== String(filterEmployee)) match = false;
+    if (filterDate && !String(p.date ?? "").includes(filterDate)) match = false;
+    return match;
+  });
 
   return (
     <>
-      {/* =============================
-          MAIN PAGE
-      ============================== */}
-      <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
-
-          <h2 className="text-2xl font-semibold mb-4">Service Invoices</h2>
-
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-
-            {/* Search */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-52">
-              <Search size={16} />
+      {/* COLUMN PICKER MODAL */}
+      {columnModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setColumnModalOpen(false)}
+          />
+          <div className="relative w-[700px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+            <div className="sticky top-0 bg-gray-900 flex justify-between px-5 py-3 border-b border-gray-700">
+              <h2 className="text-lg font-semibold">Column Picker</h2>
+              <button onClick={() => setColumnModalOpen(false)} className="text-gray-300 hover:text-white">✕</button>
+            </div>
+            <div className="px-5 py-3">
               <input
                 type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-sm w-full"
+                placeholder="Search column..."
+                value={columnSearch}
+                onChange={(e) => setColumnSearch(e.target.value.toLowerCase())}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
               />
             </div>
-
-            <button className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600">
-              <Plus size={16} /> New Invoice
-            </button>
-
-            <button className="p-1.5 bg-gray-700 border border-gray-600 rounded">
-              <RefreshCw size={16} className="text-blue-300" />
-            </button>
-
-            <button
-              onClick={() => setColumnModal(true)}
-              className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            <ExportButtons />
-          </div>
-
-          {/* FILTER BAR */}
-          <div className="flex items-center gap-3 bg-gray-900 p-3 rounded border border-gray-700 mb-4">
-
-            <SearchableDropdown
-              options={customers}
-              value={filterCustomer}
-              onChange={setFilterCustomer}
-              placeholder="Customer"
-            />
-
-            <input
-              type="datetime-local"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-            />
-
-            <SearchableDropdown
-              options={employees}
-              value={filterEmployee}
-              onChange={setFilterEmployee}
-              placeholder="Employee"
-            />
-
-            <button className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">
-              Apply
-            </button>
-
-            <button
-              onClick={() => {
-                setFilterCustomer("");
-                setFilterDate("");
-                setFilterEmployee("");
-              }}
-              className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
-            >
-              Clear
-            </button>
-          </div>
-
-          {/* TABLE SCROLL AREA */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-x-auto">
-              <table className="min-w-[2200px] text-center border-separate border-spacing-y-1 text-sm w-full">
-
-                <thead className="sticky top-0 bg-gray-900">
-                  <tr>
-                    {visibleColumns.id && <th className="pb-1 border-b">ID</th>}
-                    {visibleColumns.customerName && <th className="pb-1 border-b">Customer</th>}
-                    {visibleColumns.date && <th className="pb-1 border-b">Date</th>}
-                    {visibleColumns.employee && <th className="pb-1 border-b">Employee</th>}
-                    {visibleColumns.paymentAccount && <th className="pb-1 border-b">Payment</th>}
-                    {visibleColumns.discount && <th className="pb-1 border-b">Disc</th>}
-                    {visibleColumns.totalDiscount && <th className="pb-1 border-b">Total Disc</th>}
-                    {visibleColumns.vat && <th className="pb-1 border-b">VAT</th>}
-                    {visibleColumns.totalTax && <th className="pb-1 border-b">Total Tax</th>}
-                    {visibleColumns.shippingCost && <th className="pb-1 border-b">Shipping</th>}
-                    {visibleColumns.grandTotal && <th className="pb-1 border-b">Grand Total</th>}
-                    {visibleColumns.netTotal && <th className="pb-1 border-b">Net Total</th>}
-                    {visibleColumns.paidAmount && <th className="pb-1 border-b">Paid</th>}
-                    {visibleColumns.due && <th className="pb-1 border-b">Due</th>}
-                    {visibleColumns.change && <th className="pb-1 border-b">Change</th>}
-                    {visibleColumns.details && <th className="pb-1 border-b">Details</th>}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {invoiceData.map((inv) => (
-                    <tr
-                      key={inv.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                    >
-                      {visibleColumns.id && <td className="px-2 py-2">{inv.id}</td>}
-
-                      {visibleColumns.customerName && (
-                        <td className="px-2 py-2 flex items-center justify-center gap-2">
-
-                          {/* PDF icon */}
-                          <button
-                            className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700"
-                            title="Download PDF"
-                          >
-                            <FileText size={14} className="text-red-300" />
-                          </button>
-
-                          {/* Preview */}
-                          <button
-                            className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700"
-                            title="Preview"
-                          >
-                            <Eye size={14} className="text-blue-300" />
-                          </button>
-
-                          {inv.customerName}
-                        </td>
-                      )}
-
-                      {visibleColumns.date && <td className="px-2 py-2">{inv.date}</td>}
-                      {visibleColumns.employee && <td className="px-2 py-2">{inv.employee}</td>}
-                      {visibleColumns.paymentAccount && <td className="px-2 py-2">{inv.paymentAccount}</td>}
-                      {visibleColumns.discount && <td className="px-2 py-2">{inv.discount}</td>}
-                      {visibleColumns.totalDiscount && <td className="px-2 py-2">{inv.totalDiscount}</td>}
-                      {visibleColumns.vat && <td className="px-2 py-2">{inv.vat}</td>}
-                      {visibleColumns.totalTax && <td className="px-2 py-2">{inv.totalTax}</td>}
-                      {visibleColumns.shippingCost && <td className="px-2 py-2">{inv.shippingCost}</td>}
-                      {visibleColumns.grandTotal && <td className="px-2 py-2">{inv.grandTotal}</td>}
-                      {visibleColumns.netTotal && <td className="px-2 py-2">{inv.netTotal}</td>}
-                      {visibleColumns.paidAmount && <td className="px-2 py-2">{inv.paidAmount}</td>}
-                      {visibleColumns.due && <td className="px-2 py-2">{inv.due}</td>}
-                      {visibleColumns.change && <td className="px-2 py-2">{inv.change}</td>}
-                      {visibleColumns.details && <td className="px-2 py-2">{inv.details}</td>}
-                    </tr>
-                  ))}
-                </tbody>
-
-              </table>
+            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
+              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
+                <h3 className="font-semibold mb-2">Visible Columns</h3>
+                <div className="space-y-2">
+                  {Object.keys(tempVisibleColumns)
+                    .filter((col) => tempVisibleColumns[col] && col.toLowerCase().includes(columnSearch))
+                    .map((col) => (
+                      <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between">
+                        <span>{col}</span>
+                        <button className="text-red-400" onClick={() => setTempVisibleColumns((p) => ({ ...p, [col]: false }))}>✕</button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
+                <h3 className="font-semibold mb-2">Hidden Columns</h3>
+                <div className="space-y-2">
+                  {Object.keys(tempVisibleColumns)
+                    .filter((col) => !tempVisibleColumns[col] && col.toLowerCase().includes(columnSearch))
+                    .map((col) => (
+                      <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between">
+                        <span>{col}</span>
+                        <button className="text-green-400" onClick={() => setTempVisibleColumns((p) => ({ ...p, [col]: true }))}>➕</button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+            <div className="sticky bottom-0 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
+              <button onClick={() => setTempVisibleColumns(defaultColumns)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">Restore Defaults</button>
+              <div className="flex gap-3">
+                <button onClick={() => setColumnModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">Cancel</button>
+                <button onClick={() => { setVisibleColumns(tempVisibleColumns); setColumnModalOpen(false); }} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">OK</button>
+              </div>
             </div>
           </div>
-
-          {/* PAGINATION */}
-        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">            
-        <div className="flex items-center gap-3 text-sm">
-
-              <select
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
-              >
-                {[10, 25, 50, 100].map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-              </select>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronsLeft size={16} />
-              </button>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronLeft size={16} />
-              </button>
-
-              <span>Page</span>
-
-              <input
-                type="number"
-                value={page}
-                onChange={(e) => setPage(Number(e.target.value))}
-                className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
-              />
-
-              <span>/ 1</span>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronRight size={16} />
-              </button>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronsRight size={16} />
-              </button>
-
-            </div>
-          </div>
-
         </div>
-      </div>
+      )}
+
+      <PageLayout>
+        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+          <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+            <h2 className="text-2xl font-semibold mb-4">Invoices</h2>
+
+            {/* ACTION BAR */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-52">
+                <Search size={16} />
+                <input
+                  type="text"
+                  placeholder="search..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="bg-transparent outline-none pl-2 text-sm w-full text-white"
+                />
+              </div>
+
+              <button
+                onClick={() => navigate("/app/services/newinvoice")}
+                className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600"
+              >
+                <Plus size={16} /> New Invoice
+              </button>
+
+              <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
+                <RefreshCw size={16} className="text-blue-300" />
+              </button>
+
+              <button onClick={() => { setTempVisibleColumns(visibleColumns); setColumnModalOpen(true); }} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
+                <List size={16} className="text-blue-300" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button onClick={handleExportExcel} className="p-1.5 bg-green-700/10 border border-green-700 rounded hover:bg-green-700/20" title="Export to Excel">
+                  <FileSpreadsheet size={18} className="text-green-300" />
+                </button>
+                <button onClick={handleExportPDF} className="p-1.5 bg-red-700/10 border border-red-700 rounded hover:bg-red-700/20" title="Export to PDF">
+                  <FileText size={18} className="text-red-300" />
+                </button>
+              </div>
+            </div>
+
+            {/* FILTER BAR */}
+            <div className="flex items-center gap-3 bg-gray-900 p-3 rounded border border-gray-700 mb-4">
+              <SearchableDropdown
+                options={customers}
+                value={filterCustomer}
+                onChange={setFilterCustomer}
+                placeholder="Customer"
+              />
+              <SearchableDropdown
+                options={employees}
+                value={filterEmployee}
+                onChange={setFilterEmployee}
+                placeholder="Employee"
+              />
+              <input
+                type="datetime-local"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white"
+              />
+              <button onClick={() => { setFilterCustomer(""); setFilterEmployee(""); setFilterDate(""); }} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm hover:bg-gray-700">
+                Clear
+              </button>
+            </div>
+
+            {/* TABLE */}
+            <div className="flex-grow overflow-auto min-h-0 w-full">
+              <div className="w-full overflow-x-auto">
+                <table className="min-w-[2000px] text-center border-separate border-spacing-y-1 text-sm w-full">
+                  <thead className="sticky top-0 bg-gray-900">
+                    <tr>
+                      {visibleColumns.id && <th className="pb-1 border-b">ID</th>}
+                      {visibleColumns.customerName && <th className="pb-1 border-b">Customer</th>}
+                      {visibleColumns.date && <th className="pb-1 border-b">Date</th>}
+                      {visibleColumns.employee && <th className="pb-1 border-b">Employee</th>}
+                      {visibleColumns.paymentAccount && <th className="pb-1 border-b">Payment</th>}
+                      {visibleColumns.discount && <th className="pb-1 border-b">Discount</th>}
+                      {visibleColumns.totalDiscount && <th className="pb-1 border-b">Total Disc</th>}
+                      {visibleColumns.vat && <th className="pb-1 border-b">VAT</th>}
+                      {visibleColumns.totalTax && <th className="pb-1 border-b">Total Tax</th>}
+                      {visibleColumns.shippingCost && <th className="pb-1 border-b">Shipping</th>}
+                      {visibleColumns.grandTotal && <th className="pb-1 border-b">Grand Total</th>}
+                      {visibleColumns.netTotal && <th className="pb-1 border-b">Net Total</th>}
+                      {visibleColumns.paidAmount && <th className="pb-1 border-b">Paid</th>}
+                      {visibleColumns.due && <th className="pb-1 border-b">Due</th>}
+                      {visibleColumns.change && <th className="pb-1 border-b">Change</th>}
+                      {visibleColumns.details && <th className="pb-1 border-b">Details</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredList.map((p) => (
+                      <tr
+                        key={p.id}
+                        onClick={() => navigate(`/app/services/edit/${p.id}`)}
+                        className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                      >
+                        {visibleColumns.id && <td className="px-2 py-2">{p.id}</td>}
+                        {visibleColumns.customerName && (
+                          <td className="px-2 py-2 flex items-center justify-center gap-2">
+                            <button className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700" title="Download PDF" onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}>
+                              <FileText size={14} className="text-red-300" />
+                            </button>
+                            <button
+                              className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700"
+                              title="Preview Invoice"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(
+                                  `${window.location.origin}/app/services/preview/${p.id}`,
+                                  "_blank"
+                                );
+                              }}
+                            >
+                              <Eye size={14} className="text-blue-300" />
+                            </button>
+
+
+
+                            {p.customerName || p.customer || "-"}
+                          </td>
+                        )}
+                        {visibleColumns.date && <td className="px-2 py-2">{p.date ? new Date(p.date).toLocaleDateString() : "-"}</td>}
+                        {visibleColumns.employee && <td className="px-2 py-2">{p.employeeName || p.employee || "-"}</td>}
+                        {visibleColumns.paymentAccount && <td className="px-2 py-2">{p.paymentAccount || "-"}</td>}
+                        {visibleColumns.discount && <td className="px-2 py-2">{parseFloat(p.discount || 0).toFixed(2)}</td>}
+                        {visibleColumns.totalDiscount && <td className="px-2 py-2">{parseFloat(p.totalDiscount || 0).toFixed(2)}</td>}
+                        {visibleColumns.vat && <td className="px-2 py-2">{parseFloat(p.vat || 0).toFixed(2)}</td>}
+                        {visibleColumns.totalTax && <td className="px-2 py-2">{parseFloat(p.totalTax || 0).toFixed(2)}</td>}
+                        {visibleColumns.shippingCost && <td className="px-2 py-2">{parseFloat(p.shippingCost || 0).toFixed(2)}</td>}
+                        {visibleColumns.grandTotal && <td className="px-2 py-2">{parseFloat(p.grandTotal || 0).toFixed(2)}</td>}
+                        {visibleColumns.netTotal && <td className="px-2 py-2 font-semibold">{parseFloat(p.netTotal || 0).toFixed(2)}</td>}
+                        {visibleColumns.paidAmount && <td className="px-2 py-2">{parseFloat(p.paidAmount || 0).toFixed(2)}</td>}
+                        {visibleColumns.due && <td className="px-2 py-2">{parseFloat(p.due || 0).toFixed(2)}</td>}
+                        {visibleColumns.change && <td className="px-2 py-2">{parseFloat(p.change || 0).toFixed(2)}</td>}
+                        {visibleColumns.details && <td className="px-2 py-2 max-w-xs truncate">{p.details || "-"}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* PAGINATION */}
+            <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
+              <div className="flex items-center gap-3 text-sm">
+                <select
+                  value={limit}
+                  onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                  className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white"
+                >
+                  {[10, 25, 50, 100].map((n) => <option key={n}>{n}</option>)}
+                </select>
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} className="p-1 bg-gray-800 border border-gray-700 rounded text-white"><ChevronLeft size={16} /></button>
+                <span className="text-white">Page {page} / {totalPages}</span>
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="p-1 bg-gray-800 border border-gray-700 rounded text-white"><ChevronRight size={16} /></button>
+              </div>
+            </div>
+          </div>
+        </div>
       </PageLayout>
     </>
   );
 };
 
-export default ServiceInvoices;
+export default Invoices;

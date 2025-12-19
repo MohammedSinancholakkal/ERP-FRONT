@@ -195,9 +195,11 @@ const Meetings = () => {
                 <tbody>
                   {meetingData.map((m) => (
                     <tr
-                      key={m.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                    >
+                  key={m.id}
+                  onClick={() => navigate(`/app/meeting/meetings/edit/${m.id}`)}
+                  className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                >
+
                       {visibleColumns.id && (
                         <td className="px-2 py-2">{m.id}</td>
                       )}

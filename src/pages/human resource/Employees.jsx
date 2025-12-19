@@ -23,7 +23,10 @@ import {
   getCitiesApi,
   getRegionsApi,
   getTerritoriesApi,
+  getInactiveEmployeesApi,
+  restoreEmployeeApi,
 } from "../../services/allAPI";
+import toast from "react-hot-toast";
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -40,6 +43,10 @@ const Employees = () => {
     rateType: true,
     phone: true,
     hourRateSalary: true,
+    basicSalary: true,
+    totalIncome: true,
+    totalDeduction: true,
+    takeHomePay: true,
     email: true,
     bloodGroup: true,
     countryName: true,
@@ -70,19 +77,10 @@ const Employees = () => {
   const [filterRegion, setFilterRegion] = useState("");
   const [filterTerritory, setFilterTerritory] = useState("");
 
-  const dropdownRefs = {
-    designation: useRef(),
-    department: useRef(),
-    rateType: useRef(),
-    bloodGroup: useRef(),
-    country: useRef(),
-    state: useRef(),
-    city: useRef(),
-    region: useRef(),
-    territory: useRef(),
-  };
 
   const [allEmployees, setAllEmployees] = useState([]);
+  const [inactiveEmployees, setInactiveEmployees] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -95,16 +93,6 @@ const Employees = () => {
   const [regions, setRegions] = useState([]);
   const [territories, setTerritories] = useState([]);
 
-  // Dropdown open state
-  const [dropdownOpen, setDropdownOpen] = useState({
-    designation: false,
-    department: false,
-    country: false,
-    state: false,
-    city: false,
-    region: false,
-    territory: false,
-  });
 
   // Search
   const [searchText, setSearchText] = useState("");
@@ -121,6 +109,45 @@ const Employees = () => {
 
 
 
+    // ============================
+// NORMALIZED FILTER LISTS
+// ============================
+
+const filterDesignations = designations.map(d => ({
+  id: d.id || d.designationId,
+  name: d.designationName || d.designation
+}));
+
+const filterDepartments = departments.map(d => ({
+  id: d.id || d.departmentId,
+  name: d.departmentName || d.department
+}));
+
+const filterCountries = countries.map(c => ({
+  id: c.id,
+  name: c.name || c.countryName
+}));
+
+const filterStates = states.map(s => ({
+  id: s.id,
+  name: s.name
+}));
+
+const filterCities = cities.map(c => ({
+  id: c.id,
+  name: c.name
+}));
+
+const filterRegions = regions.map(r => ({
+  id: r.regionId,
+  name: r.regionName
+}));
+
+const filterTerritories = territories.map(t => ({
+  id: t.id,
+  name: t.territoryDescription
+}));
+
 
   // Close dropdowns when clicking outside
 useEffect(() => {
@@ -129,16 +156,6 @@ useEffect(() => {
     if (columnModalRef.current && columnModalRef.current.contains(e.target)) {
       return;
     }
-
-    // ✅ Close only dropdowns (NOT the modal)
-    Object.keys(dropdownRefs).forEach((key) => {
-      if (
-        dropdownRefs[key].current &&
-        !dropdownRefs[key].current.contains(e.target)
-      ) {
-        setDropdownOpen((prev) => ({ ...prev, [key]: false }));
-      }
-    });
   };
 
   document.addEventListener("click", handler);
@@ -185,45 +202,13 @@ useEffect(() => {
     } catch (error) {
       console.error("Failed to load lookups:", error);
     }
-  };
-
-  // Fetch employees
-  // const getAllEmployees = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const result = await getEmployeesApi(1, 5000);
-  //     console.log("API Response:", result);
-  //     console.log("Result data:", result?.data); 
-      
-  //     let employees = [];
-  //     if (result?.data?.records) {
-  //       employees = result.data.records;
-  //     } else if (result?.data && Array.isArray(result.data)) {
-  //       employees = result.data;
-  //     } else if (Array.isArray(result)) {
-  //       employees = result;
-  //     }
-      
-  //     console.log("Parsed employees:", employees);
-  //     setAllEmployees(employees);
-  //   } catch (error) {
-  //     console.error("Failed to fetch employees:", error);
-  //     setAllEmployees([]);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
+  }
 
 const getAllEmployees = async () => {
   try {
     setLoading(true);
     const result = await getEmployeesApi(1, 5000);
-    // console.log(result);
-    
-
     let employees = [];
-
     if (result?.data?.records) {
       employees = result.data.records;
     } else if (Array.isArray(result?.data)) {
@@ -232,91 +217,37 @@ const getAllEmployees = async () => {
       employees = result;
     }
 
-// const normalizedEmployees = employees.map((emp) => {  
-//   const country = countries.find((c) => c.id === emp.CountryId);
-//   const state = states.find((s) => s.id === emp.StateId);
-//   const city = cities.find((c) => c.id === emp.CityId);
-//   const region = regions.find((r) => r.id === emp.RegionId);
-//   const territory = territories.find((t) => t.id === emp.TerritoryId);
+    const normalizedEmployees = employees.map(emp => {
+      const country = countries.find(c => String(c.id) === String(emp.CountryId));
+      const state = states.find(s => String(s.id) === String(emp.StateId));
+      const city = cities.find(c => String(c.id) === String(emp.CityId));
+      const region = regions.find(r => String(r.regionId) === String(emp.RegionId));
+      const territory = territories.find(t => String(t.id) === String(emp.TerritoryId));
 
-//   return {
-//     id: emp.Id,
-//     firstName: emp.FirstName,
-//     lastName: emp.LastName,
-
-//     // ✅ Already fixed
-//     designation: emp.designation || emp.Designation || "",
-//     department: emp.department || emp.Department || "",
-
-//     rateType: emp.RateType,
-//     phone: emp.Phone,
-//     hourRateSalary: emp.HoureRateSalary,
-//     email: emp.Email,
-//     bloodGroup: emp.BloodGroup,
-
-//     // ✅ ✅ ✅ ID → NAME CONVERSION HERE
-//     countryName: country?.name || country?.countryName || "",
-//     stateName: state?.name || state?.stateName || "",
-//     cityName: city?.name || city?.cityName || "",
-//     regionName: region?.name || region?.regionName || "",
-//     territory: territory?.name || territory?.territoryName || "",
-
-//     zipCode: emp.ZipCode,
-//     address: emp.Address,
-//     userId: emp.UserId,
-
-//     territoryDescription: territory?.description || "",
-//   };
-// });
-
-const normalizedEmployees = employees.map((emp) => {  
-  const country = countries.find((c) => (c.id ?? c.Id) === emp.CountryId);
-  const state = states.find((s) => (s.id ?? s.Id) === emp.StateId);
-  const city = cities.find((c) => (c.id ?? c.Id) === emp.CityId);
-
-  // ✅✅✅ EXACT MATCH FOR YOUR REGION STRUCTURE
-  const region = regions.find((r) => r.regionId === emp.RegionId);
-
-  // ✅✅✅ EXACT MATCH FOR YOUR TERRITORY STRUCTURE
-  const territory = territories.find((t) => t.id === emp.TerritoryId);
-
-  return {
-    id: emp.Id,
-    firstName: emp.FirstName,
-    lastName: emp.LastName,
-
-    designation: emp.designation || emp.Designation || "",
-    department: emp.department || emp.Department || "",
-
-    rateType: emp.RateType,
-    phone: emp.Phone,
-    hourRateSalary: emp.HoureRateSalary,
-    email: emp.Email,
-    bloodGroup: emp.BloodGroup,
-
-    countryName:
-      country?.name || country?.countryName || country?.CountryName || "",
-
-    stateName:
-      state?.name || state?.stateName || state?.StateName || "",
-
-    cityName:
-      city?.name || city?.cityName || city?.CityName || "",
-
-    // ✅✅✅ WILL NOW DISPLAY 100%
-    regionName: region?.regionName || "",
-
-territory: territory?.territoryDescription || "",
-
-    zipCode: emp.ZipCode,
-    address: emp.Address,
-    userId: emp.UserId,
-  };
-});
-
-
-
-
+      return {
+        id: emp.Id,
+        firstName: emp.FirstName,
+        lastName: emp.LastName,
+        designation: emp.designation || "",
+        department: emp.department || "",
+        rateType: emp.RateType,
+        phone: emp.Phone,
+        basicSalary: emp.BasicSalary,
+        totalIncome: emp.TotalIncome,
+        totalDeduction: emp.TotalDeduction,
+        takeHomePay: (Number(emp.BasicSalary || 0) + Number(emp.TotalIncome || 0) - Number(emp.TotalDeduction || 0)),
+        email: emp.Email,
+        bloodGroup: emp.BloodGroup,
+        countryName: country?.name || "",
+        stateName: state?.name || "",
+        cityName: city?.name || "",
+        regionName: region?.regionName || "",
+        territory: territory?.territoryDescription || "",
+        zipCode: emp.ZipCode,
+        address: emp.Address,
+        userId: emp.UserId,
+      };
+    });
     setAllEmployees(normalizedEmployees);
   } catch (error) {
     console.error("Failed to fetch employees:", error);
@@ -326,7 +257,64 @@ territory: territory?.territoryDescription || "",
   }
 };
 
+const loadInactiveEmployees = async () => {
+  try {
+    const res = await getInactiveEmployeesApi();
+    if (res.status === 200) {
+      const inactive = res.data || [];
+      const normalized = inactive.map(emp => {
+        const country = countries.find(c => String(c.id) === String(emp.CountryId));
+        const state = states.find(s => String(s.id) === String(emp.StateId));
+        const city = cities.find(c => String(c.id) === String(emp.CityId));
+        const region = regions.find(r => String(r.regionId) === String(emp.RegionId));
+        const territory = territories.find(t => String(t.id) === String(emp.TerritoryId));
 
+        return {
+          id: emp.Id,
+          firstName: emp.FirstName,
+          lastName: emp.LastName,
+          designation: emp.designation || "",
+          department: emp.department || "",
+          rateType: emp.RateType,
+          phone: emp.Phone,
+          basicSalary: emp.BasicSalary,
+          totalIncome: emp.TotalIncome,
+          totalDeduction: emp.TotalDeduction,
+          takeHomePay: (Number(emp.BasicSalary || 0) + Number(emp.TotalIncome || 0) - Number(emp.TotalDeduction || 0)),
+          email: emp.Email,
+          bloodGroup: emp.BloodGroup,
+          countryName: country?.name || "",
+          stateName: state?.name || "",
+          cityName: city?.name || "",
+          regionName: region?.regionName || "",
+          territory: territory?.territoryDescription || "",
+          zipCode: emp.ZipCode,
+          address: emp.Address,
+          userId: emp.UserId,
+          isInactive: true
+        };
+      });
+      setInactiveEmployees(normalized);
+    }
+  } catch (error) {
+    console.error("Failed to fetch inactive employees:", error);
+  }
+};
+
+const handleRestore = async (id) => {
+  if (!window.confirm("Are you sure you want to restore this employee?")) return;
+  try {
+    const res = await restoreEmployeeApi(id, { userId: 1 });
+    if (res.status === 200) {
+      toast.success("Employee restored");
+      getAllEmployees();
+      loadInactiveEmployees();
+    }
+  } catch (error) {
+    console.error("Restore failed:", error);
+    toast.error("Failed to restore employee");
+  }
+};
 
   // Apply search and filter
   useEffect(() => {
@@ -576,7 +564,13 @@ const columnModalRef = useRef(null);
             <List size={16} className="text-blue-300" />
           </button>
 
-          <button className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1">
+          <button 
+            onClick={async () => {
+              if (!showInactive) await loadInactiveEmployees();
+              setShowInactive(!showInactive);
+            }}
+            className={`p-1.5 rounded-md border flex items-center gap-1 ${showInactive ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
+          >
             <ArchiveRestore size={16} className="text-yellow-300" />
             <span className="text-xs opacity-80">Inactive</span>
           </button>
@@ -584,274 +578,68 @@ const columnModalRef = useRef(null);
 
         {/* FILTER BAR */}
         <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {/* Designation */}
-          <div className="relative w-40" ref={dropdownRefs.designation}>
-            <button
-              onClick={() =>
-                setDropdownOpen((prev) => ({ ...prev, designation: !prev.designation }))
-              }
-              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-            >
-              <span className="truncate">{filterDesignation || "Designation"}</span>
-              <ChevronDown size={14} />
-            </button>
-            {dropdownOpen.designation && (
-              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
-                <div
-                  onClick={() => {
-                    setFilterDesignation("");
-                    setDropdownOpen((prev) => ({ ...prev, designation: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
-                >
-                  Clear
-                </div>
-                {designations.map((item) => (
-                  <div
-                    key={item.designationId}
-                    onClick={() => {
-                      setFilterDesignation(item.designationName || "");
-                      setDropdownOpen((prev) => ({ ...prev, designation: false }));
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {item.designationName}
-                  </div>
-                ))}
+          <SearchableFilterDropdown
+            label="filterDesignations"
+            list={filterDesignations}
+            value={filterDesignation}
+            onSelect={setFilterDesignation}
+          />
 
-              </div>
+          <SearchableFilterDropdown
+            label="Department"
+            list={filterDepartments}
+            value={filterDepartment}
+            onSelect={setFilterDepartment}
+          />
 
-            )}
-          </div>
+          <SearchableFilterDropdown
+            label="Rate Type"
+            list={[{ name: "Hourly" }, { name: "Salary" }]}
+            value={filterRateType}
+            onSelect={setFilterRateType}
+          />
 
-          {/* Department */}
-          <div className="relative w-40" ref={dropdownRefs.department}>
-            <button
-              onClick={() =>
-                setDropdownOpen((prev) => ({ ...prev, department: !prev.department }))
-              }
-              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-            >
-              <span className="truncate">{filterDepartment || "Department"}</span>
-              <ChevronDown size={14} />
-            </button>
-            {dropdownOpen.department && (
-              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
-                <div
-                  onClick={() => {
-                    setFilterDepartment("");
-                    setDropdownOpen((prev) => ({ ...prev, department: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
-                >
-                  Clear
-                </div>
-               {departments.map((item) => (
-                <div
-                  key={item.departmentId}
-                  onClick={() => {
-                    setFilterDepartment(item.departmentName || "");
-                    setDropdownOpen((prev) => ({ ...prev, department: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                >
-                  {item.departmentName}
-                </div>
-              ))}
+          <SearchableFilterDropdown
+            label="Blood Group"
+            list={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(g => ({ name: g }))}
+            value={filterBloodGroup}
+            onSelect={setFilterBloodGroup}
+          />
 
-              </div>
-            )}
-            </div>
+          <SearchableFilterDropdown
+            label="Country"
+            list={filterCountries}
+            value={filterCountry}
+            onSelect={setFilterCountry}
+          />
 
-          {/* Country */}
-          <div className="relative w-40" ref={dropdownRefs.country}>
-            <button
-              onClick={() =>
-                setDropdownOpen((prev) => ({ ...prev, country: !prev.country }))
-              }
-              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-            >
-              <span className="truncate">{filterCountry || "Country"}</span>
-              <ChevronDown size={14} />
-            </button>
-            {dropdownOpen.country && (
-              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
-                <div
-                  onClick={() => {
-                    setFilterCountry("");
-                    setDropdownOpen((prev) => ({ ...prev, country: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
-                >
-                  Clear
-                </div>
-                {countries.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setFilterCountry(item.name || item.countryName || "");
-                      setDropdownOpen((prev) => ({ ...prev, country: false }));
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {item.name || item.countryName || ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <SearchableFilterDropdown
+            label="filterStates"
+            list={filterStates}
+            value={filterState}
+            onSelect={setFilterState}
+          />
 
-          {/* State */}
-          <div className="relative w-40" ref={dropdownRefs.state}>
-            <button
-              onClick={() =>
-                setDropdownOpen((prev) => ({ ...prev, state: !prev.state }))
-              }
-              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-            >
-              <span className="truncate">{filterState || "State"}</span>
-              <ChevronDown size={14} />
-            </button>
-            {dropdownOpen.state && (
-              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
-                <div
-                  onClick={() => {
-                    setFilterState("");
-                    setDropdownOpen((prev) => ({ ...prev, state: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
-                >
-                  Clear
-                </div>
-                {states.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setFilterState(item.name || item.stateName || "");
-                      setDropdownOpen((prev) => ({ ...prev, state: false }));
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {item.name || item.stateName || ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <SearchableFilterDropdown
+            label="filterCities"
+            list={filterCities}
+            value={filterCity}
+            onSelect={setFilterCity}
+          />
 
-          {/* City */}
-          <div className="relative w-40" ref={dropdownRefs.city}>
-            <button
-              onClick={() =>
-                setDropdownOpen((prev) => ({ ...prev, city: !prev.city }))
-              }
-              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-            >
-              <span className="truncate">{filterCity || "City"}</span>
-              <ChevronDown size={14} />
-            </button>
-            {dropdownOpen.city && (
-              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
-                <div
-                  onClick={() => {
-                    setFilterCity("");
-                    setDropdownOpen((prev) => ({ ...prev, city: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
-                >
-                  Clear
-                </div>
-                {cities.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setFilterCity(item.name || item.cityName || "");
-                      setDropdownOpen((prev) => ({ ...prev, city: false }));
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {item.name || item.cityName || ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <SearchableFilterDropdown
+            label="Region"
+            list={filterRegions}
+            value={filterRegion}
+            onSelect={setFilterRegion}
+          />
 
-          {/* Region */}
-          <div className="relative w-40" ref={dropdownRefs.region}>
-            <button
-              onClick={() =>
-                setDropdownOpen((prev) => ({ ...prev, region: !prev.region }))
-              }
-              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-            >
-              <span className="truncate">{filterRegion || "Region"}</span>
-              <ChevronDown size={14} />
-            </button>
-            {dropdownOpen.region && (
-              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
-                <div
-                  onClick={() => {
-                    setFilterRegion("");
-                    setDropdownOpen((prev) => ({ ...prev, region: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
-                >
-                  Clear
-                </div>
-                {regions.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setFilterRegion(item.name || item.regionName || "");
-                      setDropdownOpen((prev) => ({ ...prev, region: false }));
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {item.name || item.regionName || ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Territory */}
-          <div className="relative w-40" ref={dropdownRefs.territory}>
-            <button
-              onClick={() =>
-                setDropdownOpen((prev) => ({ ...prev, territory: !prev.territory }))
-              }
-              className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-            >
-              <span className="truncate">{filterTerritory || "Territory"}</span>
-              <ChevronDown size={14} />
-            </button>
-            {dropdownOpen.territory && (
-              <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[200px] overflow-auto">
-                <div
-                  onClick={() => {
-                    setFilterTerritory("");
-                    setDropdownOpen((prev) => ({ ...prev, territory: false }));
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-300"
-                >
-                  Clear
-                </div>
-                {territories.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setFilterTerritory(item.name || item.territoryName || "");
-                      setDropdownOpen((prev) => ({ ...prev, territory: false }));
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {item.name || item.territoryName || ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <SearchableFilterDropdown
+            label="filterTerritories"
+            list={filterTerritories}
+            value={filterTerritory}
+            onSelect={setFilterTerritory}
+          />
 
           <button
             onClick={() => {
@@ -898,6 +686,18 @@ const columnModalRef = useRef(null);
                   )}
                   {visibleColumns.hourRateSalary && (
                     <th className="pb-2 border-b">Hour Rate Salary</th>
+                  )}
+                  {visibleColumns.basicSalary && (
+                    <th className="pb-2 border-b">Basic Salary</th>
+                  )}
+                  {visibleColumns.totalIncome && (
+                    <th className="pb-2 border-b">Total Income</th>
+                  )}
+                  {visibleColumns.totalDeduction && (
+                    <th className="pb-2 border-b">Total Deduction</th>
+                  )}
+                  {visibleColumns.takeHomePay && (
+                    <th className="pb-2 border-b">Take Home Pay</th>
                   )}
                   {visibleColumns.email && (
                     <th className="pb-2 border-b">Email</th>
@@ -976,6 +776,18 @@ const columnModalRef = useRef(null);
                       {visibleColumns.hourRateSalary && (
                         <td className="py-2">{r.hourRateSalary}</td>
                       )}
+                      {visibleColumns.basicSalary && (
+                        <td className="py-2">{r.basicSalary}</td>
+                      )}
+                      {visibleColumns.totalIncome && (
+                        <td className="py-2">{r.totalIncome}</td>
+                      )}
+                      {visibleColumns.totalDeduction && (
+                        <td className="py-2">{r.totalDeduction}</td>
+                      )}
+                      {visibleColumns.takeHomePay && (
+                        <td className="py-2 font-semibold text-green-400">{r.takeHomePay?.toFixed(2)}</td>
+                      )}
                       {visibleColumns.email && <td className="py-2">{r.email}</td>}
                       {visibleColumns.bloodGroup && (
                         <td className="py-2">{r.bloodGroup}</td>
@@ -1010,6 +822,38 @@ const columnModalRef = useRef(null);
                     </tr>
                   ))
                 )}
+
+                {/* INACTIVE EMPLOYEES */}
+                {showInactive && inactiveEmployees.map((r) => (
+                  <tr
+                    key={`inactive-${r.id}`}
+                    className="bg-gray-900/50 opacity-60 line-through hover:bg-gray-800 cursor-pointer"
+                    onClick={() => handleRestore(r.id)}
+                  >
+                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
+                    {visibleColumns.firstName && <td className="py-2">{r.firstName}</td>}
+                    {visibleColumns.lastName && <td className="py-2">{r.lastName}</td>}
+                    {visibleColumns.designation && <td className="py-2">{r.designation}</td>}
+                    {visibleColumns.department && <td className="py-2">{r.department}</td>}
+                    {visibleColumns.rateType && <td className="py-2">{r.rateType}</td>}
+                    {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
+                    {visibleColumns.hourRateSalary && <td className="py-2">{r.hourRateSalary}</td>}
+                    {visibleColumns.basicSalary && <td className="py-2">{r.basicSalary}</td>}
+                    {visibleColumns.totalIncome && <td className="py-2">{r.totalIncome}</td>}
+                    {visibleColumns.totalDeduction && <td className="py-2">{r.totalDeduction}</td>}
+                    {visibleColumns.takeHomePay && <td className="py-2">{r.takeHomePay?.toFixed(2)}</td>}
+                    {visibleColumns.email && <td className="py-2">{r.email}</td>}
+                    {visibleColumns.bloodGroup && <td className="py-2">{r.bloodGroup}</td>}
+                    {visibleColumns.countryName && <td className="py-2">{r.countryName}</td>}
+                    {visibleColumns.stateName && <td className="py-2">{r.stateName}</td>}
+                    {visibleColumns.cityName && <td className="py-2">{r.cityName}</td>}
+                    {visibleColumns.zipCode && <td className="py-2">{r.zipCode}</td>}
+                    {visibleColumns.address && <td className="py-2">{r.address}</td>}
+                    {visibleColumns.userId && <td className="py-2">{r.userId}</td>}
+                    {visibleColumns.regionName && <td className="py-2">{r.regionName}</td>}
+                    {visibleColumns.territory && <td className="py-2">{r.territory}</td>}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -1087,6 +931,86 @@ const columnModalRef = useRef(null);
       </div>
       </PageLayout>
     </>
+  );
+};
+
+const SearchableFilterDropdown = ({ label, list, value, onSelect, placeholder = "Search..." }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = list.filter((item) => {
+    const name = item.name || item.designationName || item.departmentName || item.countryName || item.stateName || item.cityName || item.regionName || item.territoryName || item.territoryDescription || "";
+    return name.toLowerCase().includes(search.toLowerCase());
+  });
+
+  return (
+    <div className="relative w-40" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
+      >
+        <span className="truncate">{value || label}</span>
+        <ChevronDown size={14} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[250px] flex flex-col">
+          <div className="p-2 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={placeholder}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+              autoFocus
+            />
+          </div>
+          <div className="overflow-auto flex-grow">
+            <div
+              onClick={() => {
+                onSelect("");
+                setIsOpen(false);
+                setSearch("");
+              }}
+              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-400 italic"
+            >
+              Clear
+            </div>
+            {filtered.length > 0 ? (
+              filtered.map((item, idx) => {
+                const name = item.name || item.designationName || item.departmentName || item.countryName || item.stateName || item.cityName || item.regionName || item.territoryName || item.territoryDescription || "";
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      onSelect(name);
+                      setIsOpen(false);
+                      setSearch("");
+                    }}
+                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
+                  >
+                    {name}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="px-3 py-2 text-xs text-gray-500">No results</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

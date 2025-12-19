@@ -10,6 +10,7 @@ import {
   Pencil,
   Star,
   Image as ImageIcon,
+  ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useParams, useNavigate } from "react-router-dom";
@@ -132,8 +133,22 @@ salary: emp.BasicSalary ?? emp.salary ?? "",
       pictureFile: null,
     });
 
-    setIncomes(emp.incomes || []);
-    setDeductions(emp.deductions || []);
+    setIncomes((emp.incomes || []).map(inc => ({
+      ...inc,
+      id: inc.Id || `i_${Date.now()}_${Math.random()}`,
+      typeId: inc.IncomeId,
+      typeName: inc.IncomeName,
+      amount: inc.Amount,
+      description: inc.Description
+    })));
+    setDeductions((emp.deductions || []).map(ded => ({
+      ...ded,
+      id: ded.Id || `d_${Date.now()}_${Math.random()}`,
+      typeId: ded.DeductionId,
+      typeName: ded.DeductionName,
+      amount: ded.Amount,
+      description: ded.Description
+    })));
   } catch (err) {
     console.error("Edit load failed:", err);
     toast.error("Failed to load employee");
@@ -1428,11 +1443,16 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
   return (
     <>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-        <div className="flex flex-col h-[calc(100vh-110px)] overflow-hidden">
+ <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
           <div className="flex items-center justify-between mb-3">
+           <div className="flex items-center gap-3">
+              <button onClick={() => navigate(-1)} className="text-white hover:text-white-400">
+            <ArrowLeft size={24} />
+          </button>
            <h2 className="text-2xl font-semibold">
             {isEditMode ? "Edit Employee" : "New Employee"}
           </h2>
+           </div>
 
             <div className="flex gap-3">
             <button onClick={submitEmployee} className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded text-blue-300">
@@ -1447,6 +1467,7 @@ created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || re
                 <Trash2 size={16} /> Delete
               </button>
             )}
+
           </div>
 
           </div>

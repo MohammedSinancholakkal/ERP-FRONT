@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import "../styles/Dashboard.css";
+import { useSettings } from "../contexts/SettingsContext";
+import { serverURL } from "../services/serverURL";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   // Dropdown states
@@ -38,6 +40,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const [search, setSearch] = useState("");
 
   const location = useLocation();
+  const { settings } = useSettings();
+
+  const companyName = settings?.companyName?.trim() || "Homebutton";
+
+  
+      const baseUrl = serverURL.replace("/api", "");
+      const logoUrl = settings?.logoPath
+        ? `${baseUrl}/${settings.logoPath}`
+        : null;
+
 
   const formatRoute = (item) => item.replace(/\s+/g, "").toLowerCase();
 
@@ -198,11 +210,34 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden md:flex"}`}
       >
 
-        {/* HEADER */}
-        <div className="p-4 border-b border-gray-700 flex items-center gap-3">
-          <LayoutDashboard className="w-10 h-10" />
-          {sidebarOpen && <h1 className="text-2xl font-bold">Homebutton</h1>}
-        </div>
+      
+{/* HEADER */}
+<div className="p-4 border-b border-gray-700 flex items-center gap-3 h-[72px]">
+  <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+    {logoUrl ? (
+      <img
+        src={logoUrl}
+        alt="Company Logo"
+        className="w-10 h-10 object-contain"
+      />
+    ) : (
+      <LayoutDashboard className="w-10 h-10" />
+    )}
+  </div>
+
+  {sidebarOpen && (
+    <div className="max-w-[160px] h-[40px] flex items-center">
+      <h1
+        className="text-lg font-bold break-words line-clamp-2 leading-tight cursor-default"
+        title={companyName}
+      >
+        {companyName}
+      </h1>
+    </div>
+  )}
+</div>
+
+
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-3 sidebar-scroll">
