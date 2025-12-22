@@ -16,6 +16,8 @@ import {
   FileSpreadsheet,
   FileText
 } from "lucide-react";
+import SortableHeader from "../../components/SortableHeader";
+import Pagination from "../../components/Pagination";
 import toast from "react-hot-toast";
 
 import * as XLSX from "xlsx";
@@ -166,7 +168,16 @@ const Products = () => {
   const currentUserId = user?.userId || 1;
 
   // sort/search/filters
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
   const [searchText, setSearchText] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterUnit, setFilterUnit] = useState("");
@@ -656,7 +667,18 @@ const Products = () => {
     if (filterUnit) list = list.filter((p) => String(p.UnitId) === String(filterUnit));
     if (filterBrand) list = list.filter((p) => String(p.BrandId) === String(filterBrand));
 
-    if (sortOrder === "asc") list.sort((a, b) => a.id - b.id);
+    if (filterBrand) list = list.filter((p) => String(p.BrandId) === String(filterBrand));
+
+    // Sorting
+    if (sortConfig.key) {
+      list.sort((a, b) => {
+        const valA = String(a[sortConfig.key] || "").toLowerCase();
+        const valB = String(b[sortConfig.key] || "").toLowerCase();
+        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
 
     return list;
   };
@@ -666,7 +688,7 @@ const Products = () => {
   useEffect(() => {
     setDisplayedProducts(computeDisplayed());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, searchText, filterCategory, filterUnit, filterBrand, sortOrder, products.length]);
+  }, [products, searchText, filterCategory, filterUnit, filterBrand, sortConfig, products.length]);
 
   const applyFilters = () => {
     setDisplayedProducts(computeDisplayed());
@@ -1097,7 +1119,7 @@ const Products = () => {
          MAIN PAGE
          ------------------------- */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
   <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">Products</h2>
 
@@ -1142,17 +1164,17 @@ const Products = () => {
               <table className="min-w-[1400px] text-left border-separate border-spacing-y-1 text-sm">
                 <thead className="sticky top-0 bg-gray-900 z-10">
                   <tr className="text-white">
-                    {visibleColumns.id && <th className="pb-1 border-b border-white text-center cursor-pointer select-none" onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}><div className="flex items-center justify-center gap-1">{sortOrder === "asc" && <span>▲</span>}{sortOrder === null && <span className="opacity-40">⬍</span>}<span>ID</span></div></th>}
-                    {visibleColumns.barcode && <th className="pb-1 border-b border-white text-center">Product Code</th>}
-                    {visibleColumns.sn && <th className="pb-1 border-b border-white text-center">SN</th>}
-                    {visibleColumns.productName && <th className="pb-1 border-b border-white text-center">Name</th>}
-                    {visibleColumns.model && <th className="pb-1 border-b border-white text-center">Model</th>}
-                    {visibleColumns.unitPrice && <th className="pb-1 border-b border-white text-center">Unit Price</th>}
-                    {visibleColumns.unitsInStock && <th className="pb-1 border-b border-white text-center">In Stock</th>}
-                    {visibleColumns.reorderLevel && <th className="pb-1 border-b border-white text-center">Reorder Level</th>}
-                    {visibleColumns.categoryName && <th className="pb-1 border-b border-white text-center">Category</th>}
-                    {visibleColumns.unitName && <th className="pb-1 border-b border-white text-center">Unit</th>}
-                    {visibleColumns.brandName && <th className="pb-1 border-b border-white text-center">Brand</th>}
+                    {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+                    {visibleColumns.barcode && <SortableHeader label="Product Code" sortOrder={sortConfig.key === "Barcode" ? sortConfig.direction : null} onClick={() => handleSort("Barcode")} />}
+                    {visibleColumns.sn && <SortableHeader label="SN" sortOrder={sortConfig.key === "SN" ? sortConfig.direction : null} onClick={() => handleSort("SN")} />}
+                    {visibleColumns.productName && <SortableHeader label="Name" sortOrder={sortConfig.key === "ProductName" ? sortConfig.direction : null} onClick={() => handleSort("ProductName")} />}
+                    {visibleColumns.model && <SortableHeader label="Model" sortOrder={sortConfig.key === "Model" ? sortConfig.direction : null} onClick={() => handleSort("Model")} />}
+                    {visibleColumns.unitPrice && <SortableHeader label="Unit Price" sortOrder={sortConfig.key === "UnitPrice" ? sortConfig.direction : null} onClick={() => handleSort("UnitPrice")} />}
+                    {visibleColumns.unitsInStock && <SortableHeader label="In Stock" sortOrder={sortConfig.key === "UnitsInStock" ? sortConfig.direction : null} onClick={() => handleSort("UnitsInStock")} />}
+                    {visibleColumns.reorderLevel && <SortableHeader label="Reorder Level" sortOrder={sortConfig.key === "ReorderLevel" ? sortConfig.direction : null} onClick={() => handleSort("ReorderLevel")} />}
+                    {visibleColumns.categoryName && <SortableHeader label="Category" sortOrder={sortConfig.key === "categoryName" ? sortConfig.direction : null} onClick={() => handleSort("categoryName")} />}
+                    {visibleColumns.unitName && <SortableHeader label="Unit" sortOrder={sortConfig.key === "unitName" ? sortConfig.direction : null} onClick={() => handleSort("unitName")} />}
+                    {visibleColumns.brandName && <SortableHeader label="Brand" sortOrder={sortConfig.key === "brandName" ? sortConfig.direction : null} onClick={() => handleSort("brandName")} />}
                   </tr>
                 </thead>
 
@@ -1206,26 +1228,17 @@ const Products = () => {
           </div>
 
           {/* pagination */}
-        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="bg-gray-800 border border-gray-600 rounded px-2 py-1">
-                {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-
-              <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronsLeft size={16} /></button>
-              <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronLeft size={16} /></button>
-
-              <span>Page</span>
-              <input type="number" className="w-12 bg-gray-800 border border-gray-600 rounded text-center" value={page} onChange={(e) => { const value = Number(e.target.value); if (value >= 1 && value <= totalPages) setPage(value); }} />
-              <span>/ {totalPages}</span>
-
-              <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronRight size={16} /></button>
-              <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronsRight size={16} /></button>
-
-              <button onClick={() => { refreshAll(); }} className="p-1 bg-gray-800 border border-gray-700 rounded"><RefreshCw size={16} /></button>
-
-              <span>Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records</span>
-            </div>
-          </div>
+          {/* pagination */}
+          <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={totalRecords}
+            onRefresh={() => {
+              refreshAll();
+            }}
+          />
         </div>
       </div>
       </PageLayout>

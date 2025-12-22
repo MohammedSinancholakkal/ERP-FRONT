@@ -7,11 +7,14 @@ import {
   X,
   Save,
   Trash2,
+  ArchiveRestore,
   ChevronsLeft,
   ChevronLeft,
   ChevronRight,
   ChevronsRight
 } from "lucide-react";
+import SortableHeader from "../../components/SortableHeader";
+import Pagination from "../../components/Pagination";
 
 import toast from "react-hot-toast";
 
@@ -73,11 +76,24 @@ const Units = () => {
     setVisibleColumns(defaultColumns);
   };
 
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
-  // Sort Active Records
-  const sortedUnits = [...units];
-  if (sortOrder === "asc") sortedUnits.sort((a, b) => a.id - b.id);
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedUnits = [...units].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    const valA = String(a[sortConfig.key] || "").toLowerCase();
+    const valB = String(b[sortConfig.key] || "").toLowerCase();
+    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
+  });
 
   // LOAD UNITS
   const loadUnits = async () => {
@@ -371,7 +387,7 @@ const Units = () => {
           MAIN PAGE
       ======================================================= */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
   <div className="flex flex-col h-full overflow-hidden">
 
           <h2 className="text-2xl font-semibold mb-4">Units</h2>
@@ -429,24 +445,27 @@ const Units = () => {
                   <tr className="text-white">
 
                     {visibleColumns.id && (
-                      <th
-                        className="pb-1 border-b border-white text-center cursor-pointer select-none"
-                        onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          {sortOrder === "asc" && <span>▲</span>}
-                          {sortOrder === null && <span className="opacity-40">⬍</span>}
-                          <span>ID</span>
-                        </div>
-                      </th>
+                      <SortableHeader
+                        label="ID"
+                        sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
+                        onClick={() => handleSort("id")}
+                      />
                     )}
 
                     {visibleColumns.name && (
-                      <th className="pb-1 border-b border-white text-center">Name</th>
+                      <SortableHeader
+                        label="Name"
+                        sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
+                        onClick={() => handleSort("name")}
+                      />
                     )}
 
                     {visibleColumns.description && (
-                      <th className="pb-1 border-b border-white text-center">Description</th>
+                      <SortableHeader
+                        label="Description"
+                        sortOrder={sortConfig.key === "description" ? sortConfig.direction : null}
+                        onClick={() => handleSort("description")}
+                      />
                     )}
 
                   </tr>
@@ -484,68 +503,18 @@ const Units = () => {
           </div>
 
         {/* PAGINATION */}
-        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">            <div className="flex flex-wrap items-center gap-3 text-sm">
-
-              <select
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
-              >
-                {[10, 25, 50, 100].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-
-              <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-                <ChevronsLeft size={16} />
-              </button>
-
-              <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-                <ChevronLeft size={16} />
-              </button>
-
-              <span>Page</span>
-
-              <input
-                type="number"
-                className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
-                value={page}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  if (value >= 1 && value <= totalPages) setPage(value);
-                }}
-              />
-
-              <span>/ {totalPages}</span>
-
-              <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-                <ChevronRight size={16} />
-              </button>
-
-              <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-                <ChevronsRight size={16} />
-              </button>
-
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadUnits();
-                }}
-                className="p-1 bg-gray-800 border border-gray-700 rounded"
-              >
-                <RefreshCw size={16} />
-              </button>
-
-              <span>
-                Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records
-              </span>
-
-            </div>
-          </div>
+        <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={totalRecords}
+            onRefresh={() => {
+              setSearchText("");
+              setPage(1);
+              loadUnits();
+            }}
+          />
 
         </div>
       </div>

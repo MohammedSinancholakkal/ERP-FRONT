@@ -40,6 +40,7 @@ import {
   restoreCityApi,
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
+import Pagination from "../../components/Pagination";
 
 const Cities = () => {
   // ---------- modals ----------
@@ -1025,7 +1026,7 @@ return (
 
     {/* ---------------- MAIN PAGE ---------------- */}
     <PageLayout>
-    <div className="p-4 sm:p-6 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+    <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
       <div className="flex flex-col h-[calc(100vh-113px)] overflow-hidden">
         <h2 className="text-xl sm:text-2xl font-semibold mb-4">Cities</h2>
 
@@ -1096,28 +1097,20 @@ return (
         </div>
 
         {/* PAGINATION */}
-        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
-          <div className="flex flex-wrap items-center gap-3 bg-transparent rounded text-sm">
-            <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="bg-gray-800 border border-gray-600 rounded px-2 py-1">
-              {[10,25,50,100].map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+        <Pagination
+          page={page}
+          setPage={setPage}
+          limit={limit}
+          setLimit={setLimit}
+          total={totalRecords}
+          onRefresh={() => {
+            setSearchText("");
+            setPage(1);
+            loadCities();
+          }}
+        />
 
-            <button disabled={page===1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronsLeft size={16} /></button>
-            <button disabled={page===1} onClick={() => setPage(page-1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronLeft size={16} /></button>
-
-            <span>Page</span>
-            <input type="number" className="w-12 bg-gray-800 border border-gray-600 rounded text-center" value={page} onChange={(e) => { const value=Number(e.target.value); if (value>=1 && value<=totalPages) setPage(value); }} />
-            <span>/ {totalPages}</span>
-
-            <button disabled={page===totalPages} onClick={() => setPage(page+1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronRight size={16} /></button>
-            <button disabled={page===totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"><ChevronsRight size={16} /></button>
-
-            <button onClick={() => { setSearchText(""); setPage(1); loadCities(); }} className="p-1 bg-gray-800 border border-gray-700 rounded"><RefreshCw size={16} /></button>
-
-            <span>Showing <b>{start <= totalRecords ? start : 0}</b> to <b>{end}</b> of <b>{totalRecords}</b> records</span>
-          </div>
-        </div>
-      </div>
+    </div>
     </div>
     </PageLayout>
   </>

@@ -4,13 +4,16 @@ import {
   Plus,
   RefreshCw,
   List,
-  ChevronsLeft,
+  ArchiveRestore,
+  ChevronsLeft, // Keep if referenced elsewhere, or remove if unused after refactor
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
   ChevronDown,
-  ArchiveRestore
 } from "lucide-react";
+
+import SortableHeader from "../../components/SortableHeader";
+import Pagination from "../../components/Pagination";
 
 import PageLayout from "../../layout/PageLayout";
 import { useNavigate } from "react-router-dom";
@@ -147,6 +150,17 @@ const Meetings = () => {
   const [filteredMeetings, setFilteredMeetings] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Sorting
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
   /* Derived Filter Lists */
   const [dropdownOptions, setDropdownOptions] = useState({
     meetingTypes: [],
@@ -263,6 +277,17 @@ const Meetings = () => {
     if (filterLocation) result = result.filter(m => m.location === filterLocation);
     if (filterOrganizedBy) result = result.filter(m => m.organizedBy === filterOrganizedBy);
     if (filterReporter) result = result.filter(m => m.reporter === filterReporter);
+
+    // Sorting Logic
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        const valA = String(a[sortConfig.key] || "").toLowerCase();
+        const valB = String(b[sortConfig.key] || "").toLowerCase();
+        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
 
     setFilteredMeetings(result);
     setPage(1); 
@@ -439,15 +464,69 @@ const Meetings = () => {
                 <table className="min-w-[1600px] text-center border-separate border-spacing-y-1 text-sm w-full">
                   <thead className="sticky top-0 bg-gray-900 z-10">
                     <tr className="text-white">
-                      {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-                      {visibleColumns.meetingName && <th className="pb-2 border-b">Meeting Name</th>}
-                      {visibleColumns.meetingType && <th className="pb-2 border-b">Meeting Type</th>}
-                      {visibleColumns.startDate && <th className="pb-2 border-b">Start Date</th>}
-                      {visibleColumns.endDate && <th className="pb-2 border-b">End Date</th>}
-                      {visibleColumns.department && <th className="pb-2 border-b">Department</th>}
-                      {visibleColumns.location && <th className="pb-2 border-b">Location</th>}
-                      {visibleColumns.organizedBy && <th className="pb-2 border-b">Organized By</th>}
-                      {visibleColumns.reporter && <th className="pb-2 border-b">Reporter</th>}
+                      {visibleColumns.id && (
+                        <SortableHeader
+                          label="ID"
+                          sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
+                          onClick={() => handleSort("id")}
+                        />
+                      )}
+                      {visibleColumns.meetingName && (
+                        <SortableHeader
+                          label="Meeting Name"
+                          sortOrder={sortConfig.key === "meetingName" ? sortConfig.direction : null}
+                          onClick={() => handleSort("meetingName")}
+                        />
+                      )}
+                      {visibleColumns.meetingType && (
+                        <SortableHeader
+                          label="Meeting Type"
+                          sortOrder={sortConfig.key === "meetingType" ? sortConfig.direction : null}
+                          onClick={() => handleSort("meetingType")}
+                        />
+                      )}
+                      {visibleColumns.startDate && (
+                        <SortableHeader
+                          label="Start Date"
+                          sortOrder={sortConfig.key === "startDate" ? sortConfig.direction : null}
+                          onClick={() => handleSort("startDate")}
+                        />
+                      )}
+                      {visibleColumns.endDate && (
+                        <SortableHeader
+                          label="End Date"
+                          sortOrder={sortConfig.key === "endDate" ? sortConfig.direction : null}
+                          onClick={() => handleSort("endDate")}
+                        />
+                      )}
+                      {visibleColumns.department && (
+                        <SortableHeader
+                          label="Department"
+                          sortOrder={sortConfig.key === "department" ? sortConfig.direction : null}
+                          onClick={() => handleSort("department")}
+                        />
+                      )}
+                      {visibleColumns.location && (
+                        <SortableHeader
+                          label="Location"
+                          sortOrder={sortConfig.key === "location" ? sortConfig.direction : null}
+                          onClick={() => handleSort("location")}
+                        />
+                      )}
+                      {visibleColumns.organizedBy && (
+                        <SortableHeader
+                          label="Organized By"
+                          sortOrder={sortConfig.key === "organizedBy" ? sortConfig.direction : null}
+                          onClick={() => handleSort("organizedBy")}
+                        />
+                      )}
+                      {visibleColumns.reporter && (
+                        <SortableHeader
+                          label="Reporter"
+                          sortOrder={sortConfig.key === "reporter" ? sortConfig.direction : null}
+                          onClick={() => handleSort("reporter")}
+                        />
+                      )}
                     </tr>
                   </thead>
 
@@ -506,69 +585,18 @@ const Meetings = () => {
             </div>
 
             {/* PAGINATION */}
-            <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20">
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-300">
-                <select
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white"
-                >
-                  {[10, 25, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage(1)}
-                  className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50 hover:bg-gray-700"
-                >
-                  <ChevronsLeft size={16} />
-                </button>
-
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage((prev) => prev - 1)}
-                  className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50 hover:bg-gray-700"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-
-                <span>Page</span>
-
-                <input
-                  type="number"
-                  value={page}
-                  onChange={(e) => setPage(Math.min(totalPages, Math.max(1, Number(e.target.value))))}
-                  className="w-12 bg-gray-800 border border-gray-600 rounded text-center text-white"
-                />
-
-                <span>/ {totalPages || 1}</span>
-
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((prev) => prev + 1)}
-                  className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50 hover:bg-gray-700"
-                >
-                  <ChevronRight size={16} />
-                </button>
-
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(totalPages)}
-                  className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50 hover:bg-gray-700"
-                >
-                  <ChevronsRight size={16} />
-                </button>
-
-                <span className="ml-auto">
-                  Showing <b>{startRec}</b> to <b>{endIdx}</b> of <b>{total}</b> records
-                </span>
-              </div>
-            </div>
+            <Pagination
+              page={page}
+              setPage={setPage}
+              limit={limit}
+              setLimit={setLimit}
+              total={total}
+              onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadMeetings();
+              }}
+            />
           </div>
         </div>
       </PageLayout>

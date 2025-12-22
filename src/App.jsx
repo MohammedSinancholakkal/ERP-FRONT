@@ -227,8 +227,6 @@ function App() {
 
 
 
-
-
           {/* business partners */}
           <Route path="businesspartners/customers" element={<Customers />} />
           <Route path="businesspartners/suppliers" element={<Suppliers />} />

@@ -1,5 +1,4 @@
-// src/pages/masters/MeetingTypes.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -8,607 +7,414 @@ import {
   X,
   Save,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   ArchiveRestore,
 } from "lucide-react";
+import PageLayout from "../../layout/PageLayout";
+import Pagination from "../../components/Pagination";
+import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
 
 import {
-  getMeetingTypesApi,
   addMeetingTypeApi,
+  getMeetingTypesApi,
   updateMeetingTypeApi,
   deleteMeetingTypeApi,
   searchMeetingTypeApi,
   getInactiveMeetingTypesApi,
   restoreMeetingTypeApi,
 } from "../../services/allAPI";
-import SortableHeader from "../../components/SortableHeader";
-import PageLayout from "../../layout/PageLayout";
 
 const MeetingTypes = () => {
-  // UI states
   const [modalOpen, setModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [columnModal, setColumnModal] = useState(false);
 
-  // Data
-  const [rows, setRows] = useState([]);
-  const [inactiveRows, setInactiveRows] = useState([]);
+  const [meetingTypes, setMeetingTypes] = useState([]);
+  const [inactiveMeetingTypes, setInactiveMeetingTypes] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
 
-  const [searchText, setSearchText] = useState("");
+  const [newData, setNewData] = useState({ name: "", description: "" });
 
-  // User
-  const user = JSON.parse(localStorage.getItem("user")) || null;
-  const currentUserId = user?.userId || 1;
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editData, setEditData] = useState({
+    id: null,
+    name: "",
+    description: "",
+    isInactive: false,
+  });
 
-  // Add form
-  const [newItem, setNewItem] = useState({ name: "" });
-
-  // Edit form - includes isInactive flag to show restore mode
-  const [editItem, setEditItem] = useState({ id: null, name: "", isInactive: false });
-
-  // Column picker
-  const defaultColumns = { id: true, name: true };
-  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
-  const [columnSearch, setColumnSearch] = useState("");
-
-  // Pagination
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
 
-  // Sorting
-  const [sortOrder, setSortOrder] = useState("asc");
-  const sortedRows = [...rows];
-  if (sortOrder === "asc") {
-    sortedRows.sort((a, b) => Number(a.id) - Number(b.id));
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userId = user?.userId || 1;
+
+  // SEARCH
+  const [searchText, setSearchText] = useState("");
+
+  // COLUMN PICKER
+  const defaultColumns = {
+    id: true,
+    name: true,
+    description: true,
+  };
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
+  const [searchColumn, setSearchColumn] = useState("");
+
+  const toggleColumn = (col) => {
+    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
+  };
+
+  const restoreDefaultColumns = () => {
+    setVisibleColumns(defaultColumns);
+  };
+
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = null;
+    }
+    setSortConfig({ key: direction ? key : null, direction });
+  };
+
+  const sortedMeetingTypes = [...meetingTypes];
+  if (sortConfig.key) {
+    sortedMeetingTypes.sort((a, b) => {
+      let valA = a[sortConfig.key] || "";
+      let valB = b[sortConfig.key] || "";
+      if (typeof valA === "string") valA = valA.toLowerCase();
+      if (typeof valB === "string") valB = valB.toLowerCase();
+      
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
   }
 
-  // Helper: normalize backend shapes
-  const normalize = (items = []) =>
-    items.map((r) => ({
-      id: r.Id ?? r.id ?? r.meetingTypeId ?? null,
-      name: r.Name ?? r.name ?? r.MeetingTypeName ?? "",
-    }));
-
-  // -------------------------
-  // Load active rows
-  // -------------------------
-  const loadRows = async () => {
+  // LOAD
+  const loadMeetingTypes = async () => {
     try {
       const res = await getMeetingTypesApi(page, limit);
       if (res?.status === 200) {
-        const data = res.data;
-        let items = [];
-
-        if (Array.isArray(data.records)) {
-          items = data.records;
-          setTotalRecords(data.total ?? data.records.length);
-        } else if (Array.isArray(data)) {
-          items = data;
-          setTotalRecords(data.length);
-        } else {
-          items = [];
-          setTotalRecords(0);
-        }
-
-        setRows(normalize(items));
+        const rows = res.data.records || res.data || [];
+        const normalized = rows.map(r => ({
+            id: r.Id || r.id,
+            name: r.Name || r.name,
+            description: r.Description || r.description
+        }));
+        setMeetingTypes(normalized);
+        const total = res.data.total || normalized.length;
+        setTotalRecords(total);
       } else {
         toast.error("Failed to load meeting types");
       }
     } catch (err) {
-      console.error("Load meeting types error:", err);
+      console.error(err);
       toast.error("Failed to load meeting types");
     }
   };
 
   useEffect(() => {
-    loadRows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadMeetingTypes();
   }, [page, limit]);
 
-  // -------------------------
-  // Load inactive rows
-  // -------------------------
   const loadInactive = async () => {
     try {
       const res = await getInactiveMeetingTypesApi();
       if (res?.status === 200) {
-        const rowsData = res.data.records ?? res.data ?? [];
-        setInactiveRows(normalize(rowsData));
-      } else {
-        toast.error("Failed to load inactive meeting types");
+        const rows = res.data.records || res.data || [];
+        const normalized = rows.map(r => ({
+            id: r.Id || r.id,
+            name: r.Name || r.name,
+            description: r.Description || r.description
+        }));
+        setInactiveMeetingTypes(normalized);
       }
     } catch (err) {
-      console.error("Load inactive meeting types error:", err);
-      toast.error("Failed to load inactive meeting types");
+      console.error(err);
+      toast.error("Failed to load inactive");
     }
   };
 
-  // -------------------------
-  // Search
-  // -------------------------
-  const handleSearch = async (value) => {
-    setSearchText(value);
-    if (!value.trim()) {
-      setPage(1);
-      loadRows();
-      return;
-    }
-
-    try {
-      const res = await searchMeetingTypeApi(value);
-      if (res?.status === 200) {
-        const items = Array.isArray(res.data) ? res.data : res.data.records ?? [];
-        setRows(normalize(items));
-        setTotalRecords(items.length);
-      }
-    } catch (err) {
-      console.error("Search meeting types error:", err);
-    }
-  };
-
-  // -------------------------
-  // Add
-  // -------------------------
-  const handleAdd = async () => {
-    if (!newItem.name?.trim()) return toast.error("Name is required");
-
-    try {
-      const res = await addMeetingTypeApi({
-        name: newItem.name.trim(),
-        userId: currentUserId,
-      });
-
-      if (res?.status === 201) {
-        toast.success("Meeting type added");
-        setModalOpen(false);
-        setNewItem({ name: "" });
+  const handleSearch = async (text) => {
+    setSearchText(text);
+    if (!text.trim()) {
         setPage(1);
-        loadRows();
-      } else {
-        toast.error(res?.response?.data?.message || "Add failed");
+        return loadMeetingTypes();
+    }
+    try {
+      const res = await searchMeetingTypeApi(text);
+      if (res?.status === 200) {
+        const rows = res.data || [];
+        const normalized = rows.map(r => ({
+            id: r.Id || r.id,
+            name: r.Name || r.name,
+            description: r.Description || r.description
+        }));
+        setMeetingTypes(normalized);
+        setTotalRecords(rows.length);
       }
     } catch (err) {
-      console.error("Add meeting type error:", err);
-      toast.error("Server error");
+        console.error(err);
     }
   };
 
-  // -------------------------
-  // Open edit modal (active or inactive)
-  // -------------------------
-  const openEdit = (row, inactive = false) => {
-    setEditItem({ id: row.id, name: row.name, isInactive: !!inactive });
-    setEditModalOpen(true);
+  const handleAdd = async () => {
+    if (!newData.name.trim()) return toast.error("Name required");
+    try {
+      const res = await addMeetingTypeApi({ ...newData, userId });
+      if (res?.status === 200 || res?.status === 201) {
+        toast.success("Added");
+        setNewData({ name: "", description: "" });
+        setModalOpen(false);
+        setPage(1); 
+        loadMeetingTypes();
+      } else {
+        toast.error("Failed to add");
+      }
+    } catch (err) {
+        console.error(err);
+        toast.error("Server error");
+    }
   };
 
-  // -------------------------
-  // Update
-  // -------------------------
   const handleUpdate = async () => {
-    if (!editItem.name?.trim()) return toast.error("Name is required");
-
+    if (!editData.name.trim()) return toast.error("Name required");
     try {
-      const res = await updateMeetingTypeApi(editItem.id, {
-        name: editItem.name.trim(),
-        userId: currentUserId,
+      const res = await updateMeetingTypeApi(editData.id, {
+        name: editData.name,
+        description: editData.description,
+        userId
       });
-
       if (res?.status === 200) {
         toast.success("Updated");
         setEditModalOpen(false);
-        loadRows();
+        loadMeetingTypes();
         if (showInactive) loadInactive();
       } else {
-        toast.error(res?.response?.data?.message || "Update failed");
+        toast.error("Update failed");
       }
     } catch (err) {
-      console.error("Update meeting type error:", err);
-      toast.error("Server error");
+        console.error(err);
+        toast.error("Server error");
     }
   };
 
-  // -------------------------
-  // Delete (soft)
-  // -------------------------
   const handleDelete = async () => {
     try {
-      const res = await deleteMeetingTypeApi(editItem.id, { userId: currentUserId });
+      const res = await deleteMeetingTypeApi(editData.id, { userId });
       if (res?.status === 200) {
         toast.success("Deleted");
         setEditModalOpen(false);
-        loadRows();
+        loadMeetingTypes();
         if (showInactive) loadInactive();
       } else {
-        toast.error(res?.response?.data?.message || "Delete failed");
+        toast.error("Delete failed");
       }
     } catch (err) {
-      console.error("Delete meeting type error:", err);
-      toast.error("Server error");
+        console.error(err);
+        toast.error("Server error");
     }
   };
 
-  // -------------------------
-  // Restore
-  // -------------------------
   const handleRestore = async () => {
     try {
-      const res = await restoreMeetingTypeApi(editItem.id, { userId: currentUserId });
+      const res = await restoreMeetingTypeApi(editData.id, { userId });
       if (res?.status === 200) {
         toast.success("Restored");
         setEditModalOpen(false);
-        loadRows();
+        loadMeetingTypes();
         loadInactive();
       } else {
-        toast.error(res?.response?.data?.message || "Restore failed");
+        toast.error("Restore failed");
       }
     } catch (err) {
-      console.error("Restore meeting type error:", err);
-      toast.error("Server error");
+        console.error(err);
+        toast.error("Server error");
     }
   };
 
-  // -------------------------
-  // Column picker handlers
-  // -------------------------
-  const openColumnPicker = () => {
-    setTempVisibleColumns(visibleColumns);
-    setColumnModalOpen(true);
-  };
-
-  const applyColumnPicker = () => {
-    setVisibleColumns(tempVisibleColumns);
-    setColumnModalOpen(false);
-  };
-
-  const cancelColumnPicker = () => {
-    setTempVisibleColumns(visibleColumns);
-    setColumnModalOpen(false);
-  };
-
-  const toggleTempColumn = (col) =>
-    setTempVisibleColumns((p) => ({ ...p, [col]: !p[col] }));
-
-  const restoreDefaultColumns = () => setTempVisibleColumns(defaultColumns);
-
-  // -------------------------
-  // Render
-  // -------------------------
   return (
-    <>
-      {/* ADD MODAL */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[520px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Meeting Type</h2>
-              <button onClick={() => setModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
+    <PageLayout>
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+        <div className="flex flex-col h-full overflow-hidden">
+          <h2 className="text-2xl font-semibold mb-4">Meeting Types</h2>
+
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+             <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
+                <Search size={16} className="text-gray-300" />
+                <input
+                  value={searchText}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="bg-transparent pl-2 text-sm w-full outline-none"
+                />
+              </div>
+              <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
+                <Plus size={16} /> New Meeting Type
               </button>
-            </div>
-
-            <div className="p-6">
-              <label className="text-sm text-gray-300">
-                Name <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={newItem.name}
-                onChange={(e) => setNewItem({ name: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-2"
-              />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2">
               <button
                 onClick={() => {
-                  setModalOpen(false);
-                  setNewItem({ name: "" });
+                  setSearchText("");
+                  setPage(1);
+                  loadMeetingTypes();
                 }}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+                className="p-2 bg-gray-700 border border-gray-600 rounded"
               >
-                Cancel
+                <RefreshCw size={16} className="text-blue-400" />
+              </button>
+              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded">
+                <List size={16} className="text-blue-300" />
               </button>
               <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
+                onClick={async () => {
+                  if (!showInactive) await loadInactive();
+                  setShowInactive((s) => !s);
+                }}
+                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1"
               >
-                <Save size={16} /> Save
+                <ArchiveRestore size={16} className="text-yellow-300" />
+                <span className="text-xs opacity-80">Inactive</span>
               </button>
-            </div>
           </div>
-        </div>
-      )}
 
-      {/* EDIT / RESTORE MODAL */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center">
-          <div className="w-[520px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">
-                {editItem.isInactive ? "Restore Meeting Type" : "Edit Meeting Type"} ({editItem.name})
-              </h2>
-              <button onClick={() => setEditModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
+          <div className="flex-grow overflow-auto min-h-0">
+            <table className="w-[600px] border-separate border-spacing-y-1 text-sm">
+                <thead className="sticky top-0 bg-gray-900 z-10">
+                    <tr className="text-white text-center">
+                        {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+                        {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
+                        {visibleColumns.description && <SortableHeader label="Description" sortOrder={sortConfig.key === "description" ? sortConfig.direction : null} onClick={() => handleSort("description")} />}
+                    </tr>
+                </thead>
+                <tbody>
+                    {!sortedMeetingTypes.length && !showInactive && (
+                         <tr><td colSpan="3" className="text-center py-4 text-gray-400">No records found</td></tr>
+                    )}
+                    {!showInactive && sortedMeetingTypes.map(r => (
+                        <tr key={r.id} onClick={() => {
+                            setEditData({ id: r.id, name: r.name, description: r.description, isInactive: false });
+                            setEditModalOpen(true);
+                        }} className="bg-gray-900 hover:bg-gray-700 cursor-pointer text-center">
+                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
+                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
+                            {visibleColumns.description && <td className="px-2 py-1">{r.description}</td>}
+                        </tr>
+                    ))}
+                    {showInactive && inactiveMeetingTypes.map(r => (
+                        <tr key={`inactive-${r.id}`} onClick={() => {
+                            setEditData({ id: r.id, name: r.name, description: r.description, isInactive: true });
+                            setEditModalOpen(true);
+                        }} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer text-center">
+                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
+                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
+                            {visibleColumns.description && <td className="px-2 py-1">{r.description}</td>}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+          </div>
 
-            <div className="p-6">
-              <label className="text-sm text-gray-300">Name</label>
-              <input
-                type="text"
-                value={editItem.name}
-                onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
-                disabled={editItem.isInactive}
-                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-2 ${
-                  editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                }`}
+              <Pagination
+                page={page}
+                setPage={setPage}
+                limit={limit}
+                setLimit={setLimit}
+                total={totalRecords}
+                onRefresh={() => {
+                  setSearchText("");
+                  setPage(1);
+                  loadMeetingTypes();
+                }}
               />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              {editItem.isInactive ? (
-                <button
-                  onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-              ) : (
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-              )}
-
-              {!editItem.isInactive && (
-                <button
-                  onClick={handleUpdate}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
-                >
-                  <Save size={16} /> Save
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* COLUMN PICKER */}
-      {columnModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg border border-gray-700 text-white">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
-
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="Search column..."
-                value={columnSearch}
-                onChange={(e) => setColumnSearch(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              {/* Visible */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
-
-                {Object.keys(tempVisibleColumns)
-                  .filter((c) => tempVisibleColumns[c])
-                  .filter((c) => c.includes(columnSearch))
-                  .map((col) => (
-                    <div key={col} className="bg-gray-800 px-3 py-2 rounded mb-2 flex justify-between">
-                      <span>{col.toUpperCase()}</span>
-                      <button className="text-red-400" onClick={() => toggleTempColumn(col)}>
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* Hidden */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
-
-                {Object.keys(tempVisibleColumns)
-                  .filter((c) => !tempVisibleColumns[c])
-                  .filter((c) => c.includes(columnSearch))
-                  .map((col) => (
-                    <div key={col} className="bg-gray-800 px-3 py-2 rounded mb-2 flex justify-between">
-                      <span>{col.toUpperCase()}</span>
-                      <button className="text-green-400" onClick={() => toggleTempColumn(col)}>
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={restoreDefaultColumns} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
-                Restore Defaults
-              </button>
-
-              <div className="flex gap-3">
-                <button onClick={cancelColumnPicker} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
-                  Cancel
-                </button>
-                <button onClick={applyColumnPicker} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
-                  OK
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MAIN PAGE */}
-      <PageLayout>
-
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-  <div className="flex flex-col h-full overflow-hidden">
-        <h2 className="text-2xl font-semibold mb-4">Meeting Types</h2>
-
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search..."
-              className="bg-transparent pl-2 text-sm w-full outline-none"
-            />
-          </div>
-
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded"
-          >
-            <Plus size={16} /> New Type
-          </button>
-
-          <button
-            onClick={() => {
-              setSearchText("");
-              setPage(1);
-              loadRows();
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          <button onClick={openColumnPicker} className="p-2 bg-gray-700 border border-gray-600 rounded">
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          {/* INACTIVE toggle */}
-          <button
-            onClick={async () => {
-              if (!showInactive) await loadInactive();
-              setShowInactive((s) => !s);
-            }}
-            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? "ring-1 ring-yellow-300" : ""}`}
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
-        </div>
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto">
-          <table className="w-[350px] border-separate border-spacing-y-1 text-sm">
-            {/* HEADER */}
-            <thead className="sticky top-0 bg-gray-900 z-10">
-              <tr className="text-white text-center">
-                {visibleColumns.id && (
-                  <SortableHeader
-                    label="ID"
-                    sortOrder={sortOrder}
-                    onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}
-                  />
-                )}
-
-                {visibleColumns.name && <th className="pb-1 border-b border-white text-center">Name</th>}
-              </tr>
-            </thead>
-
-            {/* BODY */}
-            <tbody className="text-center">
-              {sortedRows.length === 0 && (
-                <tr>
-                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-6 text-center text-gray-400">
-                    No records found
-                  </td>
-                </tr>
-              )}
-
-              {sortedRows.map((row) => (
-                <tr key={row.id} className="bg-gray-900 hover:bg-gray-700 cursor-pointer" onClick={() => openEdit(row, false)}>
-                  {visibleColumns.id && <td className="px-2 py-1 align-middle">{row.id}</td>}
-                  {visibleColumns.name && <td className="px-2 py-1 align-middle">{row.name}</td>}
-                </tr>
-              ))}
-
-              {/* INACTIVE ROWS */}
-              {showInactive &&
-                inactiveRows.map((row) => (
-                  <tr
-                    key={`inactive-${row.id}`}
-                    className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
-                    onClick={() => openEdit(row, true)}
-                  >
-                    {visibleColumns.id && <td className="px-2 py-1 align-middle">{row.id}</td>}
-                    {visibleColumns.name && <td className="px-2 py-1 align-middle">{row.name}</td>}
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* PAGINATION */}
-           <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
-          <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="bg-gray-800 border border-gray-600 rounded px-2 py-1">
-            {[10, 25, 50, 100].map((n) => (<option key={n} value={n}>{n}</option>))}
-          </select>
-
-          <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronsLeft size={16} />
-          </button>
-
-          <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronLeft size={16} />
-          </button>
-
-          <span>Page</span>
-          <input type="number" className="w-12 bg-gray-800 border border-gray-600 rounded text-center" value={page} onChange={(e) => {
-            const v = Number(e.target.value);
-            if (v >= 1 && v <= totalPages) setPage(v);
-          }} />
-          <span>/ {totalPages}</span>
-
-          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronRight size={16} />
-          </button>
-
-          <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-            <ChevronsRight size={16} />
-          </button>
-
-          <button onClick={() => loadRows()} className="p-1 bg-gray-800 border border-gray-700 rounded">
-            <RefreshCw size={16} />
-          </button>
-
-          <span>Showing <b>{Math.min(start <= totalRecords ? start : 0, totalRecords)}</b> to <b>{end}</b> of <b>{totalRecords}</b> records</span>
         </div>
       </div>
-      </div>
-       </PageLayout>
 
-    </>
+       {/* MODALS */}
+       {modalOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
+            <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700">
+               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
+                  <h2 className="font-semibold">New Meeting Type</h2>
+                  <button onClick={() => setModalOpen(false)}><X size={20}/></button>
+               </div>
+               <div className="p-5 space-y-4">
+                  <div>
+                      <label className="text-sm">Name *</label>
+                      <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
+                  </div>
+                  <div>
+                      <label className="text-sm">Description</label>
+                      <textarea value={newData.description} onChange={e => setNewData({...newData, description: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" rows="3" />
+                  </div>
+               </div>
+               <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+                   <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+               </div>
+            </div>
+          </div>
+       )}
+
+       {editModalOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
+            <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700">
+               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
+                  <h2 className="font-semibold">{editData.isInactive ? "Restore Meeting Type" : "Edit Meeting Type"}</h2>
+                  <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
+               </div>
+               <div className="p-5 space-y-4">
+                  <div>
+                      <label className="text-sm">Name *</label>
+                      <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
+                  </div>
+                  <div>
+                      <label className="text-sm">Description</label>
+                      <textarea value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" rows="3" />
+                  </div>
+               </div>
+               <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
+                   {editData.isInactive ? (
+                       <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
+                   ) : (
+                       <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
+                   )}
+                   {!editData.isInactive && (
+                       <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                   )}
+               </div>
+            </div>
+          </div>
+       )}
+
+       {columnModal && (
+           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
+               <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5">
+                   <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-semibold">Column Picker</h3>
+                       <button onClick={() => setColumnModal(false)}><X size={20}/></button>
+                   </div>
+                   <div className="space-y-2">
+                       {Object.keys(defaultColumns).map(col => (
+                           <div key={col} className="flex justify-between bg-gray-800 p-2 rounded">
+                               <span className="capitalize">{col}</span>
+                               <input type="checkbox" checked={visibleColumns[col]} onChange={() => toggleColumn(col)} />
+                           </div>
+                       ))}
+                   </div>
+                   <div className="mt-4 flex justify-end gap-2">
+                       <button onClick={restoreDefaultColumns} className="bg-gray-700 px-3 py-1 rounded text-sm">Default</button>
+                       <button onClick={() => setColumnModal(false)} className="bg-blue-600 px-3 py-1 rounded text-sm">Close</button>
+                   </div>
+               </div>
+           </div>
+       )}
+
+    </PageLayout>
   );
 };
 
 export default MeetingTypes;
-
-
-

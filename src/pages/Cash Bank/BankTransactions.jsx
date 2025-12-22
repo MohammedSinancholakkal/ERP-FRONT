@@ -14,6 +14,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
+import Pagination from "../../components/Pagination";
 
 const BankTransactions = () => {
   // ------------------------- Columns -------------------------
@@ -91,6 +92,16 @@ const [newTx, setNewTx] = useState({
   description: "",
 });
 
+
+
+  const handleRefresh = () => {
+    setSearchText("");
+    setFilterSupplier("");
+    setFilterDate("");
+    setPage(1);
+    fetchPurchases();
+    toast.success("Refreshed");
+  };
 
 
   const handleAdd = () => {
@@ -278,7 +289,7 @@ const [newTx, setNewTx] = useState({
 
       {/* ---------------------- MAIN ---------------------- */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
   <div className="flex flex-col h-full overflow-hidden"> 
         <h2 className="text-2xl font-semibold mb-4">Bank Transactions</h2>
 
@@ -305,7 +316,7 @@ const [newTx, setNewTx] = useState({
           </button>
 
           {/* Refresh */}
-          <button className="p-2 bg-gray-700 border border-gray-600 rounded">
+          <button  onClick={handleRefresh} className="p-2 bg-gray-700 border border-gray-600 rounded">
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
@@ -395,73 +406,16 @@ const [newTx, setNewTx] = useState({
         </div>
 
         {/* PAGINATION */}
-        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-            className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
-          >
-            {[10, 25, 50, 100].map((n) => (
-              <option value={n} key={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-
-          <button
-            onClick={() => setPage(1)}
-            disabled={page === 1}
-            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
-          >
-            <ChevronsLeft size={16} />
-          </button>
-
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          <span>Page</span>
-
-          <input
-            type="number"
-            value={page}
-            onChange={(e) =>
-              setPage(Math.min(totalPages, Math.max(1, Number(e.target.value))))
-            }
-            className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
-          />
-
-          <span>/ {totalPages}</span>
-
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === totalPages}
-            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
-          >
-            <ChevronRight size={16} />
-          </button>
-
-          <button
-            onClick={() => setPage(totalPages)}
-            disabled={page === totalPages}
-            className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50"
-          >
-            <ChevronsRight size={16} />
-          </button>
-
-          <span>
-            Showing <b>{start}</b> to <b>{end}</b> of <b>{totalRecords}</b>{" "}
-            records
-          </span>
-        </div>
-      </div>
+           
+              <Pagination
+                page={page}
+                setPage={setPage}
+                limit={limit}
+                setLimit={setLimit}
+                total={totalRecords}
+                onRefresh={handleRefresh}
+              />
+            </div>
       </div>
       </PageLayout>
     </>

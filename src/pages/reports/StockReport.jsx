@@ -11,6 +11,7 @@ import {
   ChevronsRight
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
+import Pagination from "../../components/Pagination";
 
 /* Searchable Dropdown */
 const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
@@ -190,7 +191,7 @@ const StockReport = () => {
 
       {/* PAGE */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
   <div className="flex flex-col h-full overflow-hidden">
 
           <h2 className="text-2xl font-semibold mb-4">Stock Report</h2>
@@ -311,51 +312,15 @@ const StockReport = () => {
           </div>
 
           {/* PAGINATION */}
-        <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">         
-           <div className="flex items-center gap-3 text-sm">
 
-              <select
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
-              >
-                {[10, 25, 50, 100].map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-              </select>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronsLeft size={16} />
-              </button>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronLeft size={16} />
-              </button>
-
-              <span>Page</span>
-
-              <input
-                type="number"
-                value={page}
-                onChange={(e) => setPage(Number(e.target.value))}
-                className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
+              <Pagination
+                page={page}
+                setPage={setPage}
+                limit={limit}
+                setLimit={setLimit}
+                // total={totalRecords}
+                // onRefresh={handleRefresh}
               />
-
-              <span>/ 1</span>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronRight size={16} />
-              </button>
-
-              <button className="p-1 bg-gray-800 border border-gray-700 rounded">
-                <ChevronsRight size={16} />
-              </button>
-
-            </div>
-          </div>
 
         </div>
       </div>
