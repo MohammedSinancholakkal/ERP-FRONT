@@ -876,7 +876,7 @@ const Products = () => {
             )}
 
             {/* footer */}
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2 sticky bottom-0 bg-gray-900 z-30">
+            <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2 sticky bottom-5 bg-gray-900 z-30">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 rounded">Cancel</button>
               <button onClick={handleAddProduct} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"><Save size={16} /> Save</button>
             </div>
@@ -1031,7 +1031,7 @@ const Products = () => {
               </div>
             )}
 
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between sticky bottom-0 bg-gray-900 z-30">
+            <div className="px-5 py-3 border-t border-gray-700 flex justify-between sticky bottom-5 bg-gray-900 z-30">
               {editProduct.isInactive ? (
                 <button onClick={handleRestoreProduct} className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"><ArchiveRestore size={16} /> Restore</button>
               ) : (
@@ -1098,7 +1098,7 @@ const Products = () => {
          ------------------------- */}
       <PageLayout>
 <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+  <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">Products</h2>
 
           {/* ACTION BAR */}
@@ -1234,3 +1234,6 @@ const Products = () => {
 };
 
 export default Products;
+
+
+

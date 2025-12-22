@@ -1254,7 +1254,7 @@ const NewPurchase = () => {
 
             </div>
 
-            <div className="flex justify-end gap-2 p-5 border-t border-gray-700 bg-gray-900 sticky bottom-0">
+            <div className="flex justify-end gap-2 p-5 border-t border-gray-700 bg-gray-900 sticky bottom-5">
               <button 
                 onClick={() => setIsProductModalOpen(false)}
                 className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
@@ -1277,3 +1277,4 @@ const NewPurchase = () => {
 };
 
 export default NewPurchase;
+

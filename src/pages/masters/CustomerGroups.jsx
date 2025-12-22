@@ -515,7 +515,7 @@ const CustomerGroups = () => {
       <PageLayout>
 
 <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-  <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+  <div className="flex flex-col h-full overflow-hidden">
         <h2 className="text-2xl font-semibold mb-4">Customer Groups</h2>
 
         {/* ACTION BAR */}
@@ -699,3 +699,6 @@ const CustomerGroups = () => {
 };
 
 export default CustomerGroups;
+
+
+

@@ -203,6 +203,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   // -------------------------
   return (
     <>
+      {/* MOBILE OVERLAY BACKDROP */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <aside
         className={`bg-gradient-to-b from-gray-900 to-gray-800 text-white h-screen flex flex-col transition-all duration-300 z-50 
         md:static md:flex 

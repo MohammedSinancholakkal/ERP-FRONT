@@ -1,11 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import Footer from "../components/Footer";
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Auto-close sidebar on mobile/small screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    // Check on mount
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -22,7 +36,7 @@ const Layout = () => {
         </div>
 
         {/* MAIN CONTENT */}
-        <div className="flex-1 overflow-y-auto bg-gray-100">
+        <div className="flex-1 overflow-hidden bg-gray-100">
           <Outlet />
         </div>
 

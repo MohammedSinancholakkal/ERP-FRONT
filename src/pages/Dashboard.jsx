@@ -91,7 +91,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-gradient-to-b from-gray-900 to-gray-700 p-6 min-h-screen text-white">
+    <div className="h-full overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-700 p-6 text-white text-sm">
       <h2 className="text-2xl font-semibold mb-4">Dashboard</h2>
 
       {/* ================= TOP STATS ================= */}

@@ -1,19 +1,152 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Plus, Save, Trash2, ArchiveRestore, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Save, Trash2, ArchiveRestore, Pencil, Star } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import {
   getMeetingByIdApi,
   getAgendaItemsApi,
-  getAgendaDecisionsApi,
+  addAgendaItemApi, 
+  updateAgendaItemApi,
+  deleteAgendaItemApi,
   deleteMeetingApi,
   updateMeetingApi,
   getMeetingTypesApi,
   getDepartmentsApi,
   getLocationsApi,
   getEmployeesApi,
+  getAgendaItemTypesApi, 
+  addAgendaItemTypeApi,
+  getAgendaDecisionsApi,
+  addAgendaDecisionApi,
+  updateAgendaDecisionApi,
+  deleteAgendaDecisionApi,
+  getResolutionStatusesApi,
+  addResolutionStatusApi,
 } from "../../services/allAPI";
 import toast from "react-hot-toast";
+
+/* TAB BUTTON */
+const Tab = ({ label, active, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`pb-2 text-sm font-medium ${active
+      ? "text-yellow-400 border-b-2 border-yellow-400"
+      : "text-gray-400 hover:text-white"
+      }`}
+  >
+    {label}
+  </button>
+);
+
+const Field = ({ label, children }) => (
+  <div className="space-y-1">
+    <label className="text-sm text-white">{label}</label>
+    {children}
+  </div>
+);
+
+const SelectField = ({ label, value, options, onChange, disabled }) => {
+  const normalize = (v) => (v ? String(v) : "");
+  const selectedOption = options.find(o =>
+    normalize(o.id) === normalize(value) ||
+    normalize(o.name).toLowerCase() === normalize(value).toLowerCase()
+  );
+  const activeValue = selectedOption ? selectedOption.id : (value || "");
+
+  return (
+    <div className="space-y-1">
+      <label className="text-sm text-white">{label}</label>
+      <select
+        value={activeValue}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className={`input-dark bg-gray-700 border border-gray-600 rounded p-2 w-full text-white ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        <option value="">--select--</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+/* SEARCHABLE DROPDOWN COMPONENT */
+const SearchableDropdown = ({ label, value, options, onChange, placeholder = "--select--", disabled }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const wrapperRef = React.useRef(null);
+  
+    // Close dropdown on click outside
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+  
+    // Find selected option label
+    const selectedOption = options.find(o => String(o.id) === String(value));
+    
+    // Filter options
+    const filteredOptions = options.filter(o => 
+        o.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  
+    return (
+        <div className="space-y-1 relative" ref={wrapperRef}>
+            {label && <label className="text-sm text-white">{label}</label>}
+            <div 
+                className={`w-full bg-gray-800 border ${isOpen ? 'border-blue-400' : 'border-gray-600'} text-white rounded px-3 py-2 cursor-pointer flex justify-between items-center ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+            >
+                <span className={selectedOption ? "text-white" : "text-gray-400"}>
+                    {selectedOption ? selectedOption.name : placeholder}
+                </span>
+                <span className="text-gray-400">▼</span>
+            </div>
+            
+            {isOpen && (
+                <div className="absolute z-50 w-full bg-gray-800 border border-gray-600 rounded mt-1 max-h-60 overflow-y-auto shadow-lg">
+                    <div className="p-2 sticky top-0 bg-gray-800 border-b border-gray-700">
+                        <input 
+                            autoFocus
+                            className="w-full bg-gray-900 border border-gray-600 text-white rounded px-2 py-1 text-sm outline-none focus:border-blue-400"
+                            placeholder="Search..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    </div>
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map(opt => (
+                            <div 
+                                key={opt.id}
+                                className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-700 ${String(value) === String(opt.id) ? 'bg-blue-900/30 text-blue-300' : 'text-gray-300'}`}
+                                onClick={() => {
+                                    onChange(opt.id);
+                                    setIsOpen(false);
+                                    setSearchTerm("");
+                                }}
+                            >
+                                {opt.name}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-sm text-gray-500 text-center">No results found</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const EditMeeting = () => {
   const { id } = useParams();
@@ -52,6 +185,7 @@ const EditMeeting = () => {
   const [showAgendaModal, setShowAgendaModal] = useState(false);
   const [agendaItemTypes, setAgendaItemTypes] = useState([]);
   const [newAgendaItem, setNewAgendaItem] = useState({
+    id: null,
     title: "",
     description: "",
     itemType: "",
@@ -59,6 +193,27 @@ const EditMeeting = () => {
     sequenceNo: "",
     imageFile: null,      // File object
     attachmentFile: null  // File object
+  });
+
+  /* AGENDA ITEM TYPE MODAL STATE */
+  const [showAgendaTypeModal, setShowAgendaTypeModal] = useState(false);
+  const [newAgendaType, setNewAgendaType] = useState({ name: "", description: "" });
+
+  /* DECISIONS STATE */
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
+  const [showResolutionStatusModal, setShowResolutionStatusModal] = useState(false);
+  const [resolutionStatuses, setResolutionStatuses] = useState([]);
+  const [newResolutionStatus, setNewResolutionStatus] = useState({ name: "", description: "" });
+  const [newDecision, setNewDecision] = useState({
+    id: null,
+    description: "",
+    dueDate: "",
+    assignedTo: "",
+    decisionNumber: "",
+    relatedAgendaItem: "",
+    resolutionStatus: "",
+    imageFile: null,
+    attachmentFile: null
   });
 
   const updateField = (key, value) => {
@@ -118,6 +273,14 @@ const EditMeeting = () => {
             name: item.Name || item.name
         })));
 
+        // Load Resolution Statuses
+        const rsRes = await getResolutionStatusesApi(1, 100);
+        const rsList = rsRes.data.records || rsRes.data || [];
+        setResolutionStatuses(rsList.map(item => ({
+            id: item.Id || item.id,
+            name: item.Name || item.name
+        })));
+
       } catch (err) {
         console.error("Error loading dropdowns", err);
       }
@@ -151,6 +314,13 @@ const EditMeeting = () => {
                 setAgendaItems(res.data.records);
             }
         }).catch(err => console.error(err));
+    }
+    if (activeTab === "decisions") {
+        getAgendaDecisionsApi(id).then(res => {
+            if(res.data.records) {
+                setAgendaDecisions(res.data.records);
+            }
+        }).catch(err => console.error("Error fetching decisions:", err));
     }
   }, [id, activeTab]);
 
@@ -215,47 +385,240 @@ const EditMeeting = () => {
 
   /* AGENDA HANDLERS */
   const handleSaveAgendaItem = async () => {
-    const { title, description, itemType, requestedBy, sequenceNo, imageFile, attachmentFile } = newAgendaItem;
-
-    if (!title || !itemType || !requestedBy) {
-        toast.error("Please fill required fields (Title, Item Type, Requested By)");
+    if (!newAgendaItem.title || !newAgendaItem.itemType) {
+        toast.error("Title and Type are required");
         return;
     }
-
-    const formData = new FormData();
-    formData.append("meetingId", id);
-    formData.append("title", title);
-    formData.append("description", description);
-    formData.append("itemTypeId", itemType);
-    formData.append("requestedBy", requestedBy); // Employee ID
-    formData.append("sequenceNo", sequenceNo || 0);
-    formData.append("userId", 1); // Current user
-
-    if (imageFile) formData.append("imageFile", imageFile);
-    if (attachmentFile) formData.append("attachmentFile", attachmentFile);
-
+    
     try {
-        await addAgendaItemApi(formData);
-        toast.success("Agenda Item Added");
-        setShowAgendaModal(false);
-        setNewAgendaItem({
-            title: "",
-            description: "",
-            itemType: "",
-            requestedBy: "",
-            sequenceNo: "",
-            imageFile: null,
-            attachmentFile: null
-        });
-        // Refresh list
-        getAgendaItemsApi(id).then(res => {
-             if(res.data.records) setAgendaItems(res.data.records);
-        });
+        const formData = new FormData();
+        formData.append("meetingId", id);
+        formData.append("title", newAgendaItem.title);
+        formData.append("description", newAgendaItem.description);
+        formData.append("itemType", newAgendaItem.itemType);
+        formData.append("requestedBy", newAgendaItem.requestedBy);
+        formData.append("sequenceNo", newAgendaItem.sequenceNo);
+        
+        if (newAgendaItem.attachmentFile) formData.append("attachment", newAgendaItem.attachmentFile);
+        if (newAgendaItem.imageFile) formData.append("image", newAgendaItem.imageFile);
 
+        let res;
+        if (newAgendaItem.id) {
+           // UPDATE
+           res = await updateAgendaItemApi(newAgendaItem.id, formData);
+        } else {
+           // ADD
+           res = await addAgendaItemApi(formData);
+        }
+
+        if (res.status === 201 || res.status === 200) {
+            toast.success(newAgendaItem.id ? "Agenda Item Updated" : "Agenda Item Added");
+            setShowAgendaModal(false);
+            setNewAgendaItem({
+                id: null,
+                title: "",
+                description: "",
+                itemType: "",
+                requestedBy: "",
+                sequenceNo: "",
+                attachmentFile: null,
+                imageFile: null
+            });
+            // Refresh List
+            const aiRes = await getAgendaItemsApi(id);
+            if (aiRes.data.records) setAgendaItems(aiRes.data.records);
+        } else {
+            toast.error("Failed to save agenda item");
+        }
     } catch (err) {
-        console.error("ADD AGENDA ITEM ERROR:", err);
-        toast.error("Failed to add agenda item");
+        console.error("SAVE AGENDA ITEM ERROR:", err);
+        toast.error("Failed to save agenda item");
     }
+  };
+
+  const handleEditAgendaItem = (item) => {
+    setNewAgendaItem({
+        id: item.id,
+        title: item.title || "",
+        description: item.description || "",
+        itemType: item.itemType || item.agendaItemTypeId || "", 
+        requestedBy: item.requestedBy || item.requestedById || "", 
+        sequenceNo: item.sequenceNo || "",
+        attachmentFile: null, 
+        imageFile: null       
+    });
+    setShowAgendaModal(true);
+  };
+
+  const handleDeleteAgendaItem = async (itemId) => {
+      if(!window.confirm("Are you sure you want to delete this agenda item?")) return;
+
+      try {
+          const res = await deleteAgendaItemApi(itemId);
+          if (res.status === 200) {
+              toast.success("Agenda Item deleted");
+              // Refresh List
+              const aiRes = await getAgendaItemsApi(id);
+              if (aiRes.data.records) setAgendaItems(aiRes.data.records);
+          } else {
+              toast.error("Failed to delete item");
+          }
+      } catch (error) {
+          console.error("DELETE AGENDA ITEM ERROR:", error);
+          toast.error("Failed to delete item");
+      }
+  };
+
+  /* AGENDA ITEM TYPE HANDLERS */
+  const handleSaveAgendaType = async () => {
+    if (!newAgendaType.name) {
+        toast.error("Name is required");
+        return;
+    }
+    try {
+        const res = await addAgendaItemTypeApi(newAgendaType);
+        if (res.status === 201 || res.status === 200) {
+           toast.success("Agenda Item Type Added");
+           setShowAgendaTypeModal(false);
+           setNewAgendaType({ name: "", description: "" });
+           
+           // Refresh dropdown
+           const atRes = await getAgendaItemTypesApi(1, 1000);
+           const atList = atRes.data.records || atRes.data || [];
+           setAgendaItemTypes(atList.map(item => ({
+               id: item.Id || item.id,
+               name: item.Name || item.name
+           })));
+
+           // Auto-select the new type (optional but nice)
+           // We'd need to know the ID of the new item. If backend returns it, great.
+           // Assuming common pattern where res.data.id or similar is returned.
+           if (res.data && (res.data.id || res.data.Id)) {
+               setNewAgendaItem(prev => ({ ...prev, itemType: res.data.id || res.data.Id }));
+           }
+
+        } else {
+            toast.error("Failed to add Agenda Item Type");
+        }
+    } catch (err) {
+        console.error("ADD AGENDA TYPE ERROR:", err);
+        toast.error("Failed to add agenda item type");
+    }
+  };
+
+  /* DECISION HANDLERS */
+  const handleSaveDecision = async () => {
+    if (!newDecision.description) {
+        toast.error("Description is required");
+        return;
+    }
+    try {
+        const formData = new FormData();
+        formData.append("meetingId", id);
+        formData.append("description", newDecision.description);
+        formData.append("dueDate", newDecision.dueDate);
+        formData.append("assignedTo", newDecision.assignedTo);
+        formData.append("decisionNumber", newDecision.decisionNumber);
+        formData.append("relatedAgendaItem", newDecision.relatedAgendaItem);
+        formData.append("resolutionStatus", newDecision.resolutionStatus);
+        
+        if (newDecision.imageFile) formData.append("image", newDecision.imageFile);
+        if (newDecision.attachmentFile) formData.append("attachment", newDecision.attachmentFile);
+
+        let res;
+        if (newDecision.id) {
+           // UPDATE
+           res = await updateAgendaDecisionApi(newDecision.id, formData);
+        } else {
+           // ADD
+           res = await addAgendaDecisionApi(formData);
+        }
+
+        if (res.status === 201 || res.status === 200) {
+            toast.success(newDecision.id ? "Decision Updated" : "Decision Added");
+            setShowDecisionModal(false);
+            setNewDecision({
+                id: null,
+                description: "",
+                dueDate: "",
+                assignedTo: "",
+                decisionNumber: "",
+                relatedAgendaItem: "",
+                resolutionStatus: "",
+                imageFile: null,
+                attachmentFile: null
+            });
+            // Refresh
+            const dRes = await getAgendaDecisionsApi(id);
+            if (dRes.data.records) setAgendaDecisions(dRes.data.records);
+        } else {
+            toast.error("Failed to save decision");
+        }
+    } catch (err) {
+        console.error("SAVE DECISION ERROR:", err);
+        toast.error("Failed to save decision");
+    }
+  };
+
+  const handleEditDecision = (item) => {
+      setNewDecision({
+          id: item.id,
+          description: item.description || "",
+          dueDate: item.dueDate ? item.dueDate.split('T')[0] : "",
+          assignedTo: item.assignedTo || item.assignedToId || "",
+          decisionNumber: item.decisionNumber || "",
+          relatedAgendaItem: item.relatedAgendaItem || item.relatedAgendaItemId || "",
+          resolutionStatus: item.resolutionStatus || item.resolutionStatusId || "",
+          imageFile: null,
+          attachmentFile: null
+      });
+      setShowDecisionModal(true);
+  };
+
+  const handleDeleteDecision = async (decisionId) => {
+      if(!window.confirm("Are you sure you want to delete this decision?")) return;
+
+      try {
+          const res = await deleteAgendaDecisionApi(decisionId);
+          if (res.status === 200) {
+              toast.success("Decision deleted");
+              const dRes = await getAgendaDecisionsApi(id);
+              if (dRes.data.records) setAgendaDecisions(dRes.data.records);
+          } else {
+              toast.error("Failed to delete decision");
+          }
+      } catch (error) {
+          console.error("DELETE DECISION ERROR:", error);
+          toast.error("Failed to delete decision");
+      }
+  };
+
+  const handleSaveResolutionStatus = async () => {
+      if(!newResolutionStatus.name) {
+          toast.error("Name required");
+          return;
+      }
+      try {
+          const res = await addResolutionStatusApi(newResolutionStatus);
+          if (res.status === 201 || res.status === 200) {
+              toast.success("Status Added");
+              setShowResolutionStatusModal(false);
+              setNewResolutionStatus({ name: "", description: "" });
+              
+              // Refresh dropdown
+              const rsRes = await getResolutionStatusesApi(1, 100);
+              const rsList = rsRes.data.records || rsRes.data || [];
+              setResolutionStatuses(rsList.map(item => ({
+                id: item.Id || item.id,
+                name: item.Name || item.name
+              })));
+          } else {
+              toast.error("Failed to add status");
+          }
+      } catch (err) {
+          console.error(err);
+          toast.error("Failed to add status");
+      }
   };
 
 
@@ -266,41 +629,43 @@ const EditMeeting = () => {
       <div className="p-5 text-white bg-gradient-to-b from-gray-900 to-gray-700">
 
         {/* HEADER */}
-        <div className="flex items-center gap-3 mb-4">
-          <button
-            onClick={() => navigate("/app/meeting/meetings")}
-            className="p-2 bg-gray-800 rounded border border-gray-700"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <h2 className="text-xl font-semibold">{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
-        </div>
-
-        <div className="flex items-center gap-3 mt-5 mb-5">
-           {isInactive ? (
-             <button
-              onClick={handleRestore}
-              className="flex items-center gap-2 bg-green-700 border border-green-600 px-4 py-2 rounded text-sm text-white hover:bg-green-600"
-            >
-              <ArchiveRestore size={16} /> Restore
-            </button>
-           ) : (
-             <>
-                <button
-                  onClick={handleSave}
-                  className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate("/app/meeting/meetings")}
+                className="p-2 bg-gray-800 rounded border border-gray-700"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <h2 className="text-xl font-semibold">{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
+            </div>
+            
+             <div className="flex items-center gap-3">
+               {isInactive ? (
+                 <button
+                  onClick={handleRestore}
+                  className="flex items-center gap-2 bg-green-700 border border-green-600 px-4 py-2 rounded text-sm text-white hover:bg-green-600"
                 >
-                  <Save size={16} /> Save
+                  <ArchiveRestore size={16} /> Restore
                 </button>
-
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200 hover:bg-red-700"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-             </>
-           )}
+               ) : (
+                 <>
+                    <button
+                      onClick={handleSave}
+                      className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
+                    >
+                      <Save size={16} /> Save
+                    </button>
+    
+                    <button
+                      onClick={handleDelete}
+                      className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200 hover:bg-red-700"
+                    >
+                      <Trash2 size={16} /> Delete
+                    </button>
+                 </>
+               )}
+            </div>
         </div>
 
         {/* TABS */}
@@ -329,36 +694,17 @@ const EditMeeting = () => {
         {/* ================= TAB CONTENT ================= */}
 
         {/* MEETING TAB */}
+        <AnimatePresence mode="wait">
         {activeTab === "meeting" && (
-          <div className="bg-gradient-to-br from-[#4b3b55] to-[#2e2337] border border-[#5a4a63] rounded-lg p-6">
+          <motion.div
+            key="meeting"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="bg-gradient-to-br from-[#4b3b55] to-[#2e2337] border border-[#5a4a63] rounded-lg p-6"
+          >
 
-            {/* ACTION BUTTONS (INNER TAB) */}
-            <div className="flex gap-3 mb-6">
-              {isInactive ? (
-                <button
-                  onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-700 border border-green-600 px-4 py-2 rounded text-sm text-white hover:bg-green-600"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={handleSave}
-                    className="flex items-center gap-2 bg-[#5d536b] border border-[#7a6f88] px-4 py-2 rounded text-sm text-white hover:bg-[#6c6180]"
-                  >
-                    <Save size={16} /> Save
-                  </button>
-
-                  <button
-                    onClick={handleDelete}
-                    className="flex items-center gap-2 bg-[#6b3b3b] border border-[#8a4a4a] px-4 py-2 rounded text-sm text-white hover:bg-[#7a4545]"
-                  >
-                    <Trash2 size={16} /> Delete
-                  </button>
-                </>
-              )}
-            </div>
 
             {/* FORM GRID */}
             <div className="grid grid-cols-2 gap-6">
@@ -492,15 +838,20 @@ const EditMeeting = () => {
                 </table>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
-
-
-
 
         {/* AGENDA ITEMS TAB */}
         {activeTab === "agenda" && (
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
+          <motion.div
+            key="agenda"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="bg-gray-900 border border-gray-700 rounded-lg p-5"
+          >
+
             <div className="flex justify-between mb-4 items-center">
               <h3 className="text-lg font-semibold text-white">Agenda Items</h3>
               <button 
@@ -518,38 +869,124 @@ const EditMeeting = () => {
                   <th className="px-4 py-3">Title</th>
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3">Item Type</th>
-                  <th className="px-4 py-3">Requested By</th>
-                  <th className="px-4 py-3">Sequence No</th>
-                </tr>
+                  <th className="px-4 py-2 text-left text-gray-400 font-normal">Requested By</th>
+                <th className="px-4 py-2 text-left text-gray-400 font-normal">Seq</th>
+                <th className="px-4 py-2 text-left text-gray-400 font-normal">Actions</th>
+              </tr>
               </thead>
               <tbody>
                 {agendaItems.map(a => (
-                  <tr key={a.id} className="border-b border-gray-800 hover:bg-gray-800">
+                  <tr key={a.id} className="border-b border-gray-800 hover:bg-gray-800 transition-colors">
                     <td className="px-4 py-3">{a.id}</td>
                     <td className="px-4 py-3 text-white font-medium">{a.title}</td>
                     <td className="px-4 py-3">{a.description}</td>
                     <td className="px-4 py-3">{a.itemTypeName}</td>
                     <td className="px-4 py-3">{a.requestedByName}</td>
                     <td className="px-4 py-3">{a.sequenceNo}</td>
+                    <td className="px-4 py-3 flex items-center gap-2">
+                        <button 
+                            onClick={() => handleEditAgendaItem(a)}
+                            className="p-1.5 bg-gray-700/50 text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
+                            title="Edit"
+                        >
+                            <Pencil size={15} />
+                        </button>
+                        <button 
+                            onClick={() => handleDeleteAgendaItem(a.id)}
+                            className="p-1.5 bg-gray-700/50 text-red-400 hover:bg-red-900/30 rounded transition-colors"
+                            title="Delete"
+                        >
+                            <Trash2 size={15} />
+                        </button>
+                    </td>
                   </tr>
                 ))}
                 {agendaItems.length === 0 && (
                     <tr>
-                        <td colSpan="6" className="text-center py-8 text-gray-500">No Agenda Items found</td>
+                        <td colSpan="7" className="text-center py-8 text-gray-500">No Agenda Items found</td>
                     </tr>
                 )}
               </tbody>
             </table>
-          </div>
+            
+          </motion.div>
         )}
-        
+
+        {/* AGENDA DECISIONS TAB */}
+        {activeTab === "decisions" && (
+          <motion.div
+            key="decisions"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="bg-gray-900 border border-gray-700 rounded-lg p-5"
+          >
+            <div className="flex justify-between mb-4 items-center">
+              <h3 className="text-lg font-semibold text-white">Agenda Decisions</h3>
+              <button 
+                onClick={() => setShowDecisionModal(true)}
+                className="flex items-center gap-1 bg-gray-800 border border-gray-600 px-3 py-1.5 rounded text-sm text-blue-300 hover:bg-gray-700"
+              >
+                <Plus size={14} /> Add
+              </button>
+            </div>
+
+            <table className="w-full text-sm text-left text-gray-300">
+              <thead className="text-xs text-gray-400 uppercase bg-gray-800 border-b border-gray-700">
+                <tr>
+                  <th className="px-4 py-3">ID</th>
+                  <th className="px-4 py-3">Description</th>
+                  <th className="px-4 py-3">Due Date</th>
+                  <th className="px-4 py-2 text-left text-gray-400 font-normal">Resol. Status</th>
+                <th className="px-4 py-2 text-left text-gray-400 font-normal">Assigned To</th>
+                <th className="px-4 py-2 text-left text-gray-400 font-normal">Action</th>
+              </tr>
+              </thead>
+              <tbody>
+                {agendaDecisions.map(d => (
+                   <tr key={d.id} className="border-b border-gray-800 hover:bg-gray-800 transition-colors">
+                     <td className="px-4 py-3">{d.id}</td>
+                     <td className="px-4 py-3 text-white">{d.description}</td>
+                     <td className="px-4 py-3">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
+                     <td className="px-4 py-3">{d.resolutionStatusName}</td>
+                     <td className="px-4 py-3">{d.assignedToName}</td>
+                     <td className="px-4 py-3 flex items-center gap-2">
+                        <button 
+                            onClick={() => handleEditDecision(d)}
+                            className="p-1.5 bg-gray-700/50 text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
+                            title="Edit"
+                        >
+                            <Pencil size={15} />
+                        </button>
+                        <button 
+                            onClick={() => handleDeleteDecision(d.id)}
+                            className="p-1.5 bg-gray-700/50 text-red-400 hover:bg-red-900/30 rounded transition-colors"
+                            title="Delete"
+                        >
+                            <Trash2 size={15} />
+                        </button>
+                    </td>
+                   </tr>
+                ))}
+                 {agendaDecisions.length === 0 && (
+                    <tr>
+                        <td colSpan="6" className="text-center py-8 text-gray-500">No Agenda Decisions found</td>
+                    </tr>
+                )}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+        </AnimatePresence>
+
         {/* NEW AGENDA ITEM MODAL */}
         {showAgendaModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900">
-                        <h3 className="text-lg font-semibold text-white">New Agenda Item</h3>
+                        <h3 className="text-lg font-semibold text-white">{newAgendaItem.id ? "Edit Agenda Item" : "New Agenda Item"}</h3>
                         <button onClick={() => setShowAgendaModal(false)} className="text-gray-400 hover:text-white">
                             ✕
                         </button>
@@ -594,7 +1031,13 @@ const EditMeeting = () => {
                                                 <option value="">--select--</option>
                                                 {agendaItemTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                             </select>
-                                            <button className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"><Plus size={16}/></button>
+                                            <button 
+                                                onClick={() => setShowAgendaTypeModal(true)}
+                                                className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
+                                                title="Add New Item Type"
+                                            >
+                                                <Star size={16}/>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -609,7 +1052,13 @@ const EditMeeting = () => {
                                                 <option value="">--select--</option>
                                                 {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                                             </select>
-                                            <button className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"><Plus size={16}/></button>
+                                            <button 
+                                                onClick={() => navigate("/app/hr/newemployee", { state: { from: location.pathname } })}
+                                                className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
+                                                title="New Employee"
+                                            >
+                                                <Star size={16}/>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -706,38 +1155,230 @@ const EditMeeting = () => {
 
         )}
 
-        {/* AGENDA DECISIONS TAB */}
-        {activeTab === "decisions" && (
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
-            <div className="flex justify-between mb-3">
-              <h3 className="text-lg">Agenda Decisions</h3>
-              <button className="flex items-center gap-1 bg-gray-800 border border-gray-600 px-3 py-1.5 rounded">
-                <Plus size={14} /> Add
-              </button>
+        {/* NEW AGENDA ITEM TYPE MODAL */}
+        {showAgendaTypeModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                 <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-xl p-6">
+                    <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
+                         <h3 className="text-lg font-semibold text-white">New Item Type</h3>
+                         <button onClick={() => setShowAgendaTypeModal(false)} className="text-gray-400 hover:text-white">✕</button>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-sm text-white">Name <span className="text-red-400">*</span></label>
+                            <input 
+                                className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
+                                value={newAgendaType.name}
+                                onChange={e => setNewAgendaType({...newAgendaType, name: e.target.value})}
+                            />
+                        </div>
+                        
+                        <div className="flex justify-end pt-4 border-t border-gray-700 mt-4">
+                             <button 
+                                onClick={handleSaveAgendaType}
+                                className="bg-gray-800 border border-gray-600 text-blue-300 px-6 py-2 rounded hover:bg-gray-700 flex items-center gap-2"
+                            >
+                                <Save size={16}/> Save
+                            </button>
+                        </div>
+                    </div>
+                 </div>
             </div>
-
-            <table className="w-full text-sm">
-              <thead className="border-b border-gray-700">
-                <tr>
-                  <th>ID</th>
-                  <th>Description</th>
-                  <th>Due Date</th>
-                  <th>Assigned To</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agendaDecisions.map(d => (
-                  <tr key={d.id} className="border-b border-gray-800">
-                    <td>{d.id}</td>
-                    <td>{d.description}</td>
-                    <td>{d.dueDate}</td>
-                    <td>{d.assignedTo}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         )}
+
+        {/* NEW DECISION MODAL */}
+        {showDecisionModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900">
+                        <h3 className="text-lg font-semibold text-white">New Agenda Decision</h3>
+                        <button onClick={() => setShowDecisionModal(false)} className="text-gray-400 hover:text-white">✕</button>
+                    </div>
+                    
+                    <div className="p-6 overflow-y-auto flex-1 text-white">
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-sm text-white">Description <span className="text-red-400">*</span></label>
+                                <textarea 
+                                    rows={4}
+                                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400 resize-none"
+                                    value={newDecision.description}
+                                    onChange={e => setNewDecision({...newDecision, description: e.target.value})}
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-sm text-white">Due Date</label>
+                                <input 
+                                    type="date"
+                                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
+                                    value={newDecision.dueDate}
+                                    onChange={e => setNewDecision({...newDecision, dueDate: e.target.value})}
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-sm text-white">Assigned To</label>
+                                <SearchableDropdown
+                                    options={employees.map(e => ({ id: e.id, name: e.name }))}
+                                    value={newDecision.assignedTo}
+                                    onChange={val => setNewDecision({...newDecision, assignedTo: val})}
+                                    placeholder="--select--"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-sm text-white">Decision Number</label>
+                                <input 
+                                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
+                                    value={newDecision.decisionNumber}
+                                    onChange={e => setNewDecision({...newDecision, decisionNumber: e.target.value})}
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-sm text-white">Related Agenda Item</label>
+                                <SearchableDropdown
+                                    options={agendaItems.map(item => ({ 
+                                        id: item.id, 
+                                        name: item.description ? item.description.substring(0, 50) + "..." : item.title || `Item ${item.id}` 
+                                    }))}
+                                    value={newDecision.relatedAgendaItem}
+                                    onChange={val => setNewDecision({...newDecision, relatedAgendaItem: val})}
+                                    placeholder="--select--"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-sm text-white">Resolution Status</label>
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <SearchableDropdown
+                                            options={resolutionStatuses.map(rs => ({ id: rs.id, name: rs.name }))}
+                                            value={newDecision.resolutionStatus}
+                                            onChange={val => setNewDecision({...newDecision, resolutionStatus: val})}
+                                            placeholder="--select--"
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowResolutionStatusModal(true)}
+                                        className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700 h-[42px]" // Align with input
+                                        title="Add Status"
+                                    >
+                                        <Star size={16}/>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {/* Images Input */}
+                            <div className="space-y-1">
+                                <label className="text-sm text-white">Images</label>
+                                <div className="flex flex-col gap-2">
+                                     <div className="flex-1 border-2 border-dashed border-gray-700 rounded-lg bg-gray-800/50 flex flex-col items-center justify-center relative overflow-hidden min-h-[160px]">
+                                        {newDecision.imageFile ? (
+                                            <>
+                                                <img 
+                                                    src={URL.createObjectURL(newDecision.imageFile)} 
+                                                    alt="Preview" 
+                                                    className="absolute inset-0 w-full h-full object-contain p-2"
+                                                />
+                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                     <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
+                                                        <Pencil size={14} />
+                                                        <input type="file" className="hidden" accept="image/*" onChange={e => setNewDecision({...newDecision, imageFile: e.target.files[0]})} />
+                                                     </label>
+                                                     <button 
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setNewDecision({...newDecision, imageFile: null});
+                                                        }}
+                                                        className="p-1.5 bg-red-900/80 rounded hover:bg-red-800 text-white"
+                                                     >
+                                                        <Trash2 size={14} />
+                                                     </button>
+                                                </div>
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 px-2 truncate">
+                                                    {newDecision.imageFile.name}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4 text-center w-full h-full justify-center">
+                                                <Plus size={32} />
+                                                <span className="text-xs">Click to Upload Image</span>
+                                                <input type="file" className="hidden" accept="image/*" onChange={e => setNewDecision({...newDecision, imageFile: e.target.files[0]})} />
+                                            </label>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                             {/* Attachments Input */}
+                             <div className="space-y-1">
+                                <label className="text-sm text-white">Attachments</label>
+                                <div className="flex items-center gap-2">
+                                     <label className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded cursor-pointer hover:bg-gray-700 transition">
+                                        <Pencil size={14} /> Select File
+                                        <input type="file" className="hidden" onChange={e => setNewDecision({...newDecision, attachmentFile: e.target.files[0]})} />
+                                     </label>
+                                     {newDecision.attachmentFile && (
+                                         <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 px-3 py-2 rounded">
+                                             <div className="flex flex-col">
+                                                 <span className="text-blue-300 text-sm font-medium truncate max-w-[200px]">{newDecision.attachmentFile.name}</span>
+                                                 <span className="text-gray-500 text-xs">{(newDecision.attachmentFile.size / 1024).toFixed(1)} KB • {newDecision.attachmentFile.name.split('.').pop().toUpperCase()}</span>
+                                             </div>
+                                             <button onClick={() => setNewDecision({...newDecision, attachmentFile: null})} className="text-red-400 hover:text-red-300 ml-2"><Trash2 size={16}/></button>
+                                         </div>
+                                     )}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                
+                    <div className="p-4 border-t border-gray-700 bg-gray-900 flex justify-end">
+                        <button 
+                            onClick={handleSaveDecision}
+                            className="bg-gray-800 border border-gray-600 text-blue-300 px-6 py-2 rounded hover:bg-gray-700 flex items-center gap-2"
+                        >
+                            <Save size={16}/> Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* DECISION RESOLUTION STATUS MODAL */}
+        {showResolutionStatusModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                 <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-xl p-6">
+                    <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
+                         <h3 className="text-lg font-semibold text-white">New Resolution Status</h3>
+                         <button onClick={() => setShowResolutionStatusModal(false)} className="text-gray-400 hover:text-white">✕</button>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-sm text-white">Name <span className="text-red-400">*</span></label>
+                            <input 
+                                className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
+                                value={newResolutionStatus.name}
+                                onChange={e => setNewResolutionStatus({...newResolutionStatus, name: e.target.value})}
+                            />
+                        </div>
+                        
+                        <div className="flex justify-end pt-4 border-t border-gray-700 mt-4">
+                             <button 
+                                onClick={handleSaveResolutionStatus}
+                                className="bg-gray-800 border border-gray-600 text-blue-300 px-6 py-2 rounded hover:bg-gray-700 flex items-center gap-2"
+                            >
+                                <Save size={16}/> Save
+                            </button>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+        )}
+
+
 
         
       </div>
@@ -745,62 +1386,7 @@ const EditMeeting = () => {
   );
 };
 
-/* TAB BUTTON */
-const Tab = ({ label, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`pb-2 text-sm font-medium ${active
-      ? "text-yellow-400 border-b-2 border-yellow-400"
-      : "text-gray-400 hover:text-white"
-      }`}
-  >
-    {label}
-  </button>
-);
 
-
-/* ===============================
-   SMALL UI HELPERS (SAME FILE)
-================================ */
-
-const Field = ({ label, children }) => (
-  <div className="space-y-1">
-    <label className="text-sm text-white">{label}</label>
-    {children}
-  </div>
-);
-
-const SelectField = ({ label, value, options, onChange, disabled }) => {
-  // Smart Match: Try to find match by ID, then by Name
-  // This handles cases where backend returns "Review" (text) but dropdown expects ID 1
-  const normalize = (v) => (v ? String(v) : "");
-
-  const selectedOption = options.find(o =>
-    normalize(o.id) === normalize(value) ||
-    normalize(o.name).toLowerCase() === normalize(value).toLowerCase()
-  );
-
-  const activeValue = selectedOption ? selectedOption.id : (value || "");
-
-  return (
-    <div className="space-y-1">
-      <label className="text-sm text-white">{label}</label>
-      <select
-        value={activeValue}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className={`input-dark bg-gray-700 border border-gray-600 rounded p-2 w-full text-white ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        <option value="">--select--</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-};
 
 
 export default EditMeeting;

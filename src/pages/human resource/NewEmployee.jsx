@@ -13,7 +13,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   getDesignationsApi,
   getDepartmentsApi,
@@ -68,6 +68,7 @@ const NewEmployee = () => {
 
   const { id } = useParams();        
   const navigate = useNavigate();
+  const location = useLocation();
   const isEditMode = Boolean(id);
 
 
@@ -653,7 +654,16 @@ const handleDelete = async () => {
  <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
           <div className="flex items-center justify-between mb-3">
            <div className="flex items-center gap-3">
-              <button onClick={() => navigate(-1)} className="text-white hover:text-white-400">
+              <button 
+                onClick={() => {
+                  if (location.state?.from) {
+                    navigate(location.state.from);
+                  } else {
+                    navigate(-1);
+                  }
+                }} 
+                className="text-white hover:text-white-400"
+              >
             <ArrowLeft size={24} />
           </button>
            <h2 className="text-2xl font-semibold">

@@ -344,7 +344,7 @@ const Meetings = () => {
                 </div>
               </div>
             </div>
-            <div className="sticky bottom-0 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
+            <div className="sticky bottom-5 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
               <button onClick={() => setTempVisibleColumns(defaultColumns)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700 text-white">Restore Defaults</button>
               <div className="flex gap-3">
                 <button onClick={() => setColumnModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700 text-white">Cancel</button>
@@ -356,8 +356,8 @@ const Meetings = () => {
       )}
 
       <PageLayout>
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-          <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full flex flex-col">
+          <div className="flex flex-col h-full overflow-hidden">
             <h2 className="text-2xl font-semibold mb-4">Meetings</h2>
 
             {/* ACTION BAR */}
@@ -577,3 +577,6 @@ const Meetings = () => {
 };
 
 export default Meetings;
+
+
+
