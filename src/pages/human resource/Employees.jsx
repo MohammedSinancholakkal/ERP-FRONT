@@ -25,6 +25,7 @@ import {
   getTerritoriesApi,
   getInactiveEmployeesApi,
   restoreEmployeeApi,
+  getBanksApi
 } from "../../services/allAPI";
 import toast from "react-hot-toast";
 
@@ -43,10 +44,6 @@ const Employees = () => {
     rateType: true,
     phone: true,
     hourRateSalary: true,
-    basicSalary: true,
-    totalIncome: true,
-    totalDeduction: true,
-    takeHomePay: true,
     email: true,
     bloodGroup: true,
     countryName: true,
@@ -82,7 +79,12 @@ const Employees = () => {
   const [inactiveEmployees, setInactiveEmployees] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
+
   const [loading, setLoading] = useState(false);
+  const [loadingLookups, setLoadingLookups] = useState(false);
+  
+  // Raw data state for progressive loading
+  const [rawEmployees, setRawEmployees] = useState([]);
 
   // Lookup states
   const [designations, setDesignations] = useState([]);
@@ -92,6 +94,7 @@ const Employees = () => {
   const [cities, setCities] = useState([]);
   const [regions, setRegions] = useState([]);
   const [territories, setTerritories] = useState([]);
+  const [banks, setBanks] = useState([]);
 
 
   // Search
@@ -179,50 +182,90 @@ useEffect(() => {
     return Array.isArray(maybeArray) ? maybeArray : [];
   };
 
-  // Load all lookup data
-  const loadLookups = async () => {
+  // -----------------------------------
+  // DATA FETCHING
+  // -----------------------------------
+  // -----------------------------------
+  // DATA FETCHING (Progressive)
+  // -----------------------------------
+  const fetchAllData = async () => {
+    // 1. Fetch Employees FIRST (Fast UI)
     try {
-      const [dsgRes, depRes, cntRes, stRes, citRes, regRes, terRes] = await Promise.all([
+      setLoading(true);
+      const empRes = await getEmployeesApi(1, 5000);
+      
+      let raw = [];
+      if (empRes?.data?.records) {
+        raw = empRes.data.records;
+      } else if (Array.isArray(empRes?.data)) {
+        raw = empRes.data;
+      } else if (Array.isArray(empRes)) {
+        raw = empRes;
+      }
+      setRawEmployees(raw);
+    } catch (err) {
+      console.error("Failed to fetch employees:", err);
+      toast.error("Failed to load employees");
+    } finally {
+      setLoading(false); // Table appears here
+    }
+
+    // 2. Fetch Lookups in Background (Progressive enhancement, batched updates)
+    try {
+      setLoadingLookups(true);
+      
+      // Split into two parallel batches to manage DB connection pool (max 10)
+      // Batch A: Organization & Finance
+      const batchA = Promise.all([
         getDesignationsApi(1, 5000),
         getDepartmentsApi(1, 5000),
+        getBanksApi(1, 5000)
+      ]);
+
+      // Batch B: Geography (starts only after Batch A completes to be safe)
+      const [dsgRes, depRes, bankRes] = await batchA;
+
+      const batchB = Promise.all([
         getCountriesApi(1, 5000),
         getStatesApi(1, 5000),
         getCitiesApi(1, 5000),
         getRegionsApi(1, 5000),
-        getTerritoriesApi(1, 5000),
+        getTerritoriesApi(1, 5000)
       ]);
 
+      const [cntRes, stRes, citRes, regRes, terRes] = await batchB;
+
+      // UPDATE ALL STATE AT ONCE to prevent "one by one" pop-in
       setDesignations(parseArrayFromResponse(dsgRes));
       setDepartments(parseArrayFromResponse(depRes));
+      setBanks(parseArrayFromResponse(bankRes));
       setCountries(parseArrayFromResponse(cntRes));
       setStates(parseArrayFromResponse(stRes));
       setCities(parseArrayFromResponse(citRes));
       setRegions(parseArrayFromResponse(regRes));
       setTerritories(parseArrayFromResponse(terRes));
-    } catch (error) {
-      console.error("Failed to load lookups:", error);
-    }
-  }
 
-const getAllEmployees = async () => {
-  try {
-    setLoading(true);
-    const result = await getEmployeesApi(1, 5000);
-    let employees = [];
-    if (result?.data?.records) {
-      employees = result.data.records;
-    } else if (Array.isArray(result?.data)) {
-      employees = result.data;
-    } else if (Array.isArray(result)) {
-      employees = result;
+    } catch (err) {
+      console.error("Failed to fetch lookups:", err);
+    } finally {
+      setLoadingLookups(false);
+    }
+  };
+
+  // 3. Normalize Data (Automatic whenever rawEmployees OR lookups change)
+  useEffect(() => {
+    if (!rawEmployees.length) {
+      setAllEmployees([]);
+      return;
     }
 
-    const normalizedEmployees = employees.map(emp => {
+    const normalized = rawEmployees.map(emp => {
       const country = countries.find(c => String(c.id) === String(emp.CountryId));
       const state = states.find(s => String(s.id) === String(emp.StateId));
       const city = cities.find(c => String(c.id) === String(emp.CityId));
       const region = regions.find(r => String(r.regionId) === String(emp.RegionId));
       const territory = territories.find(t => String(t.id) === String(emp.TerritoryId));
+      const bank = banks.find(b => String(b.id) === String(emp.PayrollBankId));
 
       return {
         id: emp.Id,
@@ -232,6 +275,7 @@ const getAllEmployees = async () => {
         department: emp.department || "",
         rateType: emp.RateType,
         phone: emp.Phone,
+        hourRateSalary: emp.HoureRateSalary || emp.HourlyRateSalary || emp.hourRateSalary || 0,
         basicSalary: emp.BasicSalary,
         totalIncome: emp.TotalIncome,
         totalDeduction: emp.TotalDeduction,
@@ -246,75 +290,84 @@ const getAllEmployees = async () => {
         zipCode: emp.ZipCode,
         address: emp.Address,
         userId: emp.UserId,
+        bankName: bank?.BankName || "",
+        bankAccount: emp.BankAccountForPayroll || ""
       };
     });
-    setAllEmployees(normalizedEmployees);
-  } catch (error) {
-    console.error("Failed to fetch employees:", error);
-    setAllEmployees([]);
-  } finally {
-    setLoading(false);
-  }
-};
 
-const loadInactiveEmployees = async () => {
-  try {
-    const res = await getInactiveEmployeesApi();
-    if (res.status === 200) {
-      const inactive = res.data || [];
-      const normalized = inactive.map(emp => {
-        const country = countries.find(c => String(c.id) === String(emp.CountryId));
-        const state = states.find(s => String(s.id) === String(emp.StateId));
-        const city = cities.find(c => String(c.id) === String(emp.CityId));
-        const region = regions.find(r => String(r.regionId) === String(emp.RegionId));
-        const territory = territories.find(t => String(t.id) === String(emp.TerritoryId));
+    setAllEmployees(normalized);
+  }, [
+    rawEmployees, 
+    countries, 
+    states, 
+    cities, 
+    regions, 
+    territories, 
+    banks
+  ]);
+ 
+  useEffect(() => {
+    fetchAllData();
+  }, []);
 
-        return {
-          id: emp.Id,
-          firstName: emp.FirstName,
-          lastName: emp.LastName,
-          designation: emp.designation || "",
-          department: emp.department || "",
-          rateType: emp.RateType,
-          phone: emp.Phone,
-          basicSalary: emp.BasicSalary,
-          totalIncome: emp.TotalIncome,
-          totalDeduction: emp.TotalDeduction,
-          takeHomePay: (Number(emp.BasicSalary || 0) + Number(emp.TotalIncome || 0) - Number(emp.TotalDeduction || 0)),
-          email: emp.Email,
-          bloodGroup: emp.BloodGroup,
-          countryName: country?.name || "",
-          stateName: state?.name || "",
-          cityName: city?.name || "",
-          regionName: region?.regionName || "",
-          territory: territory?.territoryDescription || "",
-          zipCode: emp.ZipCode,
-          address: emp.Address,
-          userId: emp.UserId,
-          isInactive: true
-        };
-      });
-      setInactiveEmployees(normalized);
+  const loadInactiveEmployees = async () => {
+    try {
+      const res = await getInactiveEmployeesApi();
+      if (res.status === 200) {
+        const inactive = res.data || [];
+        const normalized = inactive.map(emp => {
+          const country = countries.find(c => String(c.id) === String(emp.CountryId));
+          const state = states.find(s => String(s.id) === String(emp.StateId));
+          const city = cities.find(c => String(c.id) === String(emp.CityId));
+          const region = regions.find(r => String(r.regionId) === String(emp.RegionId));
+          const territory = territories.find(t => String(t.id) === String(emp.TerritoryId));
+
+          return {
+            id: emp.Id,
+            firstName: emp.FirstName,
+            lastName: emp.LastName,
+            designation: emp.designation || "",
+            department: emp.department || "",
+            rateType: emp.RateType,
+            phone: emp.Phone,
+            basicSalary: emp.BasicSalary,
+            totalIncome: emp.TotalIncome,
+            totalDeduction: emp.TotalDeduction,
+            takeHomePay: (Number(emp.BasicSalary || 0) + Number(emp.TotalIncome || 0) - Number(emp.TotalDeduction || 0)),
+            email: emp.Email,
+            bloodGroup: emp.BloodGroup,
+            countryName: country?.name || "",
+            stateName: state?.name || "",
+            cityName: city?.name || "",
+            regionName: region?.regionName || "",
+            territory: territory?.territoryDescription || "",
+            zipCode: emp.ZipCode,
+            address: emp.Address,
+            userId: emp.UserId,
+            isInactive: true
+          };
+        });
+        setInactiveEmployees(normalized);
+      }
+    } catch (error) {
+      console.error("Failed to fetch inactive employees:", error);
     }
-  } catch (error) {
-    console.error("Failed to fetch inactive employees:", error);
-  }
-};
+  };
 
-const handleRestore = async (id) => {
-  if (!window.confirm("Are you sure you want to restore this employee?")) return;
-  try {
-    const res = await restoreEmployeeApi(id, { userId: 1 });
-    if (res.status === 200) {
-      toast.success("Employee restored");
-      getAllEmployees();
-      loadInactiveEmployees();
+  const handleRestore = async (id) => {
+    if (!window.confirm("Are you sure you want to restore this employee?")) return;
+    try {
+      const res = await restoreEmployeeApi(id, { userId: 1 });
+      if (res.status === 200) {
+        toast.success("Employee restored");
+        fetchAllData();
+        loadInactiveEmployees();
+      }
+    } catch (error) {
+      console.error("Restore failed:", error);
+      toast.error("Failed to restore employee");
     }
-  } catch (error) {
-    console.error("Restore failed:", error);
-    toast.error("Failed to restore employee");
-  }
-};
+  };
 
   // Apply search and filter
   useEffect(() => {
@@ -330,25 +383,25 @@ const handleRestore = async (id) => {
       );
     }
 
-    // Apply column filters (exact match)
+    // Apply column filters (robust comparison)
     if (filterDesignation)
-      filtered = filtered.filter((emp) => emp.designation === filterDesignation);
+      filtered = filtered.filter((emp) => String(emp.designation || "").trim() === filterDesignation);
     if (filterDepartment)
-      filtered = filtered.filter((emp) => emp.department === filterDepartment);
+      filtered = filtered.filter((emp) => String(emp.department || "").trim() === filterDepartment);
     if (filterRateType)
-      filtered = filtered.filter((emp) => emp.rateType === filterRateType);
+      filtered = filtered.filter((emp) => String(emp.rateType || "").trim() === filterRateType);
     if (filterBloodGroup)
-      filtered = filtered.filter((emp) => emp.bloodGroup === filterBloodGroup);
+      filtered = filtered.filter((emp) => String(emp.bloodGroup || "").trim() === filterBloodGroup);
     if (filterCountry)
-      filtered = filtered.filter((emp) => emp.countryName === filterCountry);
+      filtered = filtered.filter((emp) => String(emp.countryName || "").trim() === filterCountry);
     if (filterState)
-      filtered = filtered.filter((emp) => emp.stateName === filterState);
+      filtered = filtered.filter((emp) => String(emp.stateName || "").trim() === filterState);
     if (filterCity)
-      filtered = filtered.filter((emp) => emp.cityName === filterCity);
+      filtered = filtered.filter((emp) => String(emp.cityName || "").trim() === filterCity);
     if (filterRegion)
-      filtered = filtered.filter((emp) => emp.regionName === filterRegion);
+      filtered = filtered.filter((emp) => String(emp.regionName || "").trim() === filterRegion);
     if (filterTerritory)
-      filtered = filtered.filter((emp) => emp.territory === filterTerritory);
+      filtered = filtered.filter((emp) => String(emp.territory || "").trim() === filterTerritory);
 
     setFilteredEmployees(filtered);
     setPage(1);
@@ -365,23 +418,6 @@ const handleRestore = async (id) => {
     filterRegion,
     filterTerritory,
   ]);
-
-  // Initial load
-useEffect(() => {
-  loadLookups();
-}, []);
-
-useEffect(() => {
-  if (
-    countries.length &&
-    states.length &&
-    cities.length &&
-    regions.length &&
-    territories.length
-  ) {
-    getAllEmployees();
-  }
-}, [countries, states, cities, regions, territories]);
 
 
 
@@ -548,7 +584,7 @@ const columnModalRef = useRef(null);
 
 
           <button
-            onClick={getAllEmployees}
+            onClick={fetchAllData}
             className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
             <RefreshCw size={16} className="text-blue-400" />
@@ -687,18 +723,6 @@ const columnModalRef = useRef(null);
                   {visibleColumns.hourRateSalary && (
                     <th className="pb-2 border-b">Hour Rate Salary</th>
                   )}
-                  {visibleColumns.basicSalary && (
-                    <th className="pb-2 border-b">Basic Salary</th>
-                  )}
-                  {visibleColumns.totalIncome && (
-                    <th className="pb-2 border-b">Total Income</th>
-                  )}
-                  {visibleColumns.totalDeduction && (
-                    <th className="pb-2 border-b">Total Deduction</th>
-                  )}
-                  {visibleColumns.takeHomePay && (
-                    <th className="pb-2 border-b">Take Home Pay</th>
-                  )}
                   {visibleColumns.email && (
                     <th className="pb-2 border-b">Email</th>
                   )}
@@ -729,9 +753,6 @@ const columnModalRef = useRef(null);
                   {visibleColumns.territory && (
                     <th className="pb-2 border-b">Territory Description</th>
                   )}
-                  {/* {visibleColumns.territoryDescription && (
-                    <th className="pb-2 border-b">Territory Description</th>
-                  )} */}
                 </tr>
               </thead>
 
@@ -776,18 +797,6 @@ const columnModalRef = useRef(null);
                       {visibleColumns.hourRateSalary && (
                         <td className="py-2">{r.hourRateSalary}</td>
                       )}
-                      {visibleColumns.basicSalary && (
-                        <td className="py-2">{r.basicSalary}</td>
-                      )}
-                      {visibleColumns.totalIncome && (
-                        <td className="py-2">{r.totalIncome}</td>
-                      )}
-                      {visibleColumns.totalDeduction && (
-                        <td className="py-2">{r.totalDeduction}</td>
-                      )}
-                      {visibleColumns.takeHomePay && (
-                        <td className="py-2 font-semibold text-green-400">{r.takeHomePay?.toFixed(2)}</td>
-                      )}
                       {visibleColumns.email && <td className="py-2">{r.email}</td>}
                       {visibleColumns.bloodGroup && (
                         <td className="py-2">{r.bloodGroup}</td>
@@ -803,7 +812,7 @@ const columnModalRef = useRef(null);
                       )}
                       {visibleColumns.zipCode && (
                         <td className="py-2">{r.zipCode}</td>
-                      )}
+                      )} 
                       {visibleColumns.address && (
                         <td className="py-2">{r.address}</td>
                       )}
@@ -816,9 +825,6 @@ const columnModalRef = useRef(null);
                       {visibleColumns.territory && (
                         <td className="py-2">{r.territory}</td>
                       )}
-                      {/* {visibleColumns.territoryDescription && (
-                        <td className="py-2">{r.territoryDescription}</td>
-                      )} */}
                     </tr>
                   ))
                 )}
@@ -838,10 +844,6 @@ const columnModalRef = useRef(null);
                     {visibleColumns.rateType && <td className="py-2">{r.rateType}</td>}
                     {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
                     {visibleColumns.hourRateSalary && <td className="py-2">{r.hourRateSalary}</td>}
-                    {visibleColumns.basicSalary && <td className="py-2">{r.basicSalary}</td>}
-                    {visibleColumns.totalIncome && <td className="py-2">{r.totalIncome}</td>}
-                    {visibleColumns.totalDeduction && <td className="py-2">{r.totalDeduction}</td>}
-                    {visibleColumns.takeHomePay && <td className="py-2">{r.takeHomePay?.toFixed(2)}</td>}
                     {visibleColumns.email && <td className="py-2">{r.email}</td>}
                     {visibleColumns.bloodGroup && <td className="py-2">{r.bloodGroup}</td>}
                     {visibleColumns.countryName && <td className="py-2">{r.countryName}</td>}

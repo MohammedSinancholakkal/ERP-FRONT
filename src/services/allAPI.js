@@ -544,7 +544,8 @@ export const addAgendaItemApi = (data) =>
   commonAPI(
     "POST",
     `${serverURL}/agenda-items/add`,
-    data
+    data,
+    true
   );
 
 // UPDATE AGENDA ITEM
@@ -552,7 +553,8 @@ export const updateAgendaItemApi = (id, data) =>
   commonAPI(
     "PUT",
     `${serverURL}/agenda-items/update/${id}`,
-    data
+    data,
+    true
   );
 
 // DELETE AGENDA ITEM
@@ -1312,23 +1314,19 @@ export const deleteMeetingApi = (id, data) =>
 
 // SEARCH
 export const searchMeetingsApi = (query) =>
-  commonAPI(
-    "GET",
-    `${serverURL}/meetings/search?q=${encodeURIComponent(query)}`
-  );
+  commonAPI( "GET", `${serverURL}/meetings/search?q=${encodeURIComponent(query)}` );
 
-// INACTIVE LIST
-export const getInactiveMeetingsApi = () =>
+export const getInactiveMeetingsApi = () => 
   commonAPI("GET", `${serverURL}/meetings/inactive`);
 
-// RESTORE
-export const restoreMeetingApi = (id, data) =>
+export const restoreMeetingApi = (id, data) => 
   commonAPI("PUT", `${serverURL}/meetings/restore/${id}`, data);
 
 
 
 
 
+// ======================= Attendance APIs =======================
 
 // LIST (paginated)
 export const getAttendanceApi = (page, limit) =>
@@ -1352,10 +1350,7 @@ export const deleteAttendanceApi = (id, data) =>
 
 // SEARCH
 export const searchAttendanceApi = (query) =>
-  commonAPI(
-    "GET",
-    `${serverURL}/attendance/search?q=${encodeURIComponent(query)}`
-  );
+  commonAPI( "GET", `${serverURL}/attendance/search?q=${encodeURIComponent(query)}` );
 
 // INACTIVE LIST
 export const getInactiveAttendanceApi = () =>
@@ -1412,10 +1407,7 @@ export const searchPurchaseApi = (query) =>
 
 // LIST (paginated)
 export const getGoodsReceiptsApi = (page, limit) =>
-  commonAPI(
-    "GET",
-    `${serverURL}/goods-receipts?page=${page}&limit=${limit}`
-  );
+  commonAPI("GET",`${serverURL}/goods-receipts?page=${page}&limit=${limit}`);
 
 // GET BY ID
 export const getGoodsReceiptByIdApi = (id) =>
@@ -1427,11 +1419,7 @@ export const addGoodsReceiptApi = (data) =>
 
 // UPDATE
 export const updateGoodsReceiptApi = (id, data) =>
-  commonAPI(
-    "PUT",
-    `${serverURL}/goods-receipts/update/${id}`,
-    data
-  );
+  commonAPI("PUT", `${serverURL}/goods-receipts/update/${id}`, data);
 
 
 // DELETE (Soft Delete)
@@ -1453,10 +1441,7 @@ export const restoreGoodsReceiptApi = (id, data) =>
 
 // LIST (paginated)
 export const getGoodsIssuesApi = (page, limit) =>
-  commonAPI(
-    "GET",
-    `${serverURL}/goods-issues?page=${page}&limit=${limit}`
-  );
+  commonAPI("GET",`${serverURL}/goods-issues?page=${page}&limit=${limit}`);
 
 // GET BY ID
 export const getGoodsIssueByIdApi = (id) =>
@@ -1468,11 +1453,7 @@ export const addGoodsIssueApi = (data) =>
 
 // UPDATE
 export const updateGoodsIssueApi = (id, data) =>
-  commonAPI(
-    "PUT",
-    `${serverURL}/goods-issues/update/${id}`,
-    data
-  );
+  commonAPI("PUT", `${serverURL}/goods-issues/update/${id}`, data);
 
 
 // DELETE (Soft Delete)
@@ -1495,10 +1476,7 @@ export const restoreGoodsIssueApi = (id, data) =>
 
 // LIST (paginated)
 export const getSalesApi = (page, limit) =>
-  commonAPI(
-    "GET",
-    `${serverURL}/sales?page=${page}&limit=${limit}`
-  );
+  commonAPI("GET",`${serverURL}/sales?page=${page}&limit=${limit}`);
 
 // GET BY ID
 export const getSaleByIdApi = (id) =>
@@ -1508,11 +1486,7 @@ export const getSaleByIdApi = (id) =>
 export const addSaleApi = (data) =>
   commonAPI("POST", `${serverURL}/sales/add`, data);// UPDATE
 export const updateSaleApi = (id, data) =>
-  commonAPI(
-    "PUT",
-    `${serverURL}/sales/update/${id}`,
-    data
-  );
+  commonAPI("PUT", `${serverURL}/sales/update/${id}`, data);
 
 
 // DELETE (Soft Delete)
@@ -1538,10 +1512,7 @@ export const searchSaleApi = (query) =>
 
 // LIST (paginated)
 export const getQuotationsApi = (page, limit) =>
-  commonAPI(
-    "GET",
-    `${serverURL}/quotations?page=${page}&limit=${limit}`
-  );
+  commonAPI("GET",`${serverURL}/quotations?page=${page}&limit=${limit}`);
 
 // GET BY ID
 export const getQuotationByIdApi = (id) =>
@@ -1579,10 +1550,7 @@ export const searchQuotationApi = (query) =>
 
 // LIST (paginated)
 export const getServiceInvoicesApi = (page, limit) =>
-  commonAPI(
-    "GET",
-    `${serverURL}/service-invoices?page=${page}&limit=${limit}`
-  );
+  commonAPI("GET",`${serverURL}/service-invoices?page=${page}&limit=${limit}`);
 
 // GET BY ID
 export const getServiceInvoiceByIdApi = (id) =>
@@ -1644,3 +1612,9 @@ export const getInactivePayrollsApi = () =>
 // RESTORE
 export const restorePayrollApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/payrolls/restore/${id}`, data);
+
+
+
+
+
+

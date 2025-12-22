@@ -1,744 +1,923 @@
-// src/pages/purchase/GoodsReceipts.jsx
-import React, { useEffect, useState, useRef } from "react";
+// src/pages/inventory/NewGoodsIssue.jsx
+import React, { useEffect, useState } from 'react'
+import Swal from 'sweetalert2'
+import { ArrowLeft, Save, Plus, Trash2, Edit, X } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import PageLayout from "../../layout/PageLayout"
+import toast from 'react-hot-toast'
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import PageLayout from "../../layout/PageLayout";
-import toast from "react-hot-toast";
-import {
-  getGoodsReceiptsApi,
-  getInactiveGoodsReceiptsApi,
-  deleteGoodsReceiptApi,
-  restoreGoodsReceiptApi,
-  getSuppliersApi,
   getEmployeesApi,
-  getPurchasesApi,
-} from "../../services/allAPI";
+  getWarehousesApi,
+  getProductsApi,
+  getCustomersApi,
+  getSalesApi,
+  addGoodsIssueApi,
+  getGoodsIssueByIdApi,
+  updateGoodsIssueApi,
+  deleteGoodsIssueApi,
+  restoreGoodsIssueApi, // <-- ensure this is exported in allAPI
+  getSuppliersApi, // optional
+} from '../../services/allAPI'
 
-const GoodsReceipts = () => {
-  const navigate = useNavigate();
-  const userData = JSON.parse(localStorage.getItem("user") || "{}");
-  const userId = userData?.userId || userData?.id || userData?.Id;
+// Reusable searchable select component (same as yours)
+// Note: this component already supports disabled prop.
+const SearchableSelect = ({ value, onChange, placeholder, fetchOptions, options = [], className = '', searchable = true, disabled = false }) => {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  /* -------------------- UI state -------------------- */
-  const [rows, setRows] = useState([]);
-  const [inactiveRows, setInactiveRows] = useState([]);
-  const [supplierOptions, setSupplierOptions] = useState([]);
-  const [purchaseOptions, setPurchaseOptions] = useState([]);
-  const [employeeOptions, setEmployeeOptions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const selectedLabel = options.find(o => String(o.id) === String(value))?.name || ''
 
-  /* toggles */
-  const [showInactive, setShowInactive] = useState(false); // show only inactive
-  const [showAll, setShowAll] = useState(false); // show both active + inactive
-
-  /* search / filters / pagination */
-  const [searchText, setSearchText] = useState("");
-  const [filterSupplier, setFilterSupplier] = useState("");
-  const [filterPurchaseBill, setFilterPurchaseBill] = useState("");
-  const [filterDate, setFilterDate] = useState("");
-  const [filterTime, setFilterTime] = useState("");
-  const [filterEmployee, setFilterEmployee] = useState("");
-
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-  const [serverTotal, setServerTotal] = useState(0);
-
-  /* dropdown helpers (keeps code similar to yours) */
-  const dropdownRefs = {
-    supplier: useRef(null),
-    purchaseBill: useRef(null),
-    employee: useRef(null),
-  };
-  const [dropdownOpen, setDropdownOpen] = useState({
-    supplier: false,
-    purchaseBill: false,
-    employee: false,
-  });
-  const [ddSearch, setDdSearch] = useState({
-    supplier: "",
-    purchaseBill: "",
-    employee: "",
-  });
-
-  useEffect(() => {
-    const handler = (e) => {
-      Object.keys(dropdownRefs).forEach((k) => {
-        if (dropdownRefs[k].current && !dropdownRefs[k].current.contains(e.target)) {
-          setDropdownOpen((p) => ({ ...p, [k]: false }));
-        }
-      });
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
-
-  /* -------------------- normalization -------------------- */
-  const normalize = (rec) => {
-    if (!rec || typeof rec !== "object")
-      return {
-        id: "",
-        supplierId: "",
-        supplierName: "",
-        purchaseBillId: "",
-        purchaseBill: "",
-        date: "",
-        time: "",
-        totalQuantity: 0,
-        employeeId: "",
-        employeeName: "",
-        remarks: "",
-        reference: "",
-        isActive: true,
-      };
-
-    const id = rec.id ?? rec.Id ?? rec.goodsReceiptId ?? rec.GoodsReceiptId ?? "";
-
-    const supplierId =
-      rec.SupplierId ?? rec.supplierId ?? rec.Supplier?.id ?? rec.supplier?.id ?? "";
-    const supplierName =
-      rec.supplierName ??
-      rec.SupplierName ??
-      (rec.supplier && (rec.supplier.name || rec.supplier.companyName)) ??
-      (rec.Supplier && (rec.Supplier.name || rec.Supplier.companyName)) ??
-      (typeof rec.supplier === "string" ? rec.supplier : "") ??
-      "";
-
-    const purchaseBillId = rec.PurchaseId ?? rec.purchaseId ?? rec.PurchaseOrderId ?? "";
-    const purchaseBill =
-      rec.reference ??
-      rec.Reference ??
-      rec.vNo ??
-      rec.VNo ??
-      rec.invoiceNo ??
-      rec.invoice ??
-      "";
-
-    const rawDate = rec.date ?? rec.Date ?? rec.CreatedAt ?? rec.createdAt ?? "";
-    let date = "";
-    try {
-      if (rawDate) {
-        const s = String(rawDate);
-        date = s.includes("T") ? s.split("T")[0] : s.split(" ")[0];
-      }
-    } catch (e) {
-      date = "";
-    }
-
-    const time = rec.time ?? rec.Time ?? "";
-    const totalQuantity = rec.totalQuantity ?? rec.TotalQuantity ?? rec.TotalQty ?? rec.Total ?? 0;
-
-    const employeeId =
-      rec.EmployeeId ?? rec.employeeId ?? rec.Employee?.id ?? rec.employee?.id ?? "";
-    const employeeName =
-      rec.employeeName ?? rec.EmployeeName ?? rec.employee?.name ?? rec.Employee?.name ?? "";
-
-    const remarks =
-      rec.remarks ?? rec.Remarks ?? rec.employeeRemarks ?? rec.EmployeeRemarks ?? "";
-    const reference = rec.reference ?? rec.Reference ?? rec.ref ?? "";
-
-    // isActive defensively
-    const isActive =
-      rec.IsActive !== undefined
-        ? Boolean(rec.IsActive)
-        : rec.isActive !== undefined
-        ? Boolean(rec.isActive)
-        : rec.deleted
-        ? false
-        : true;
-
-    return {
-      id,
-      supplierId,
-      supplierName,
-      purchaseBillId,
-      purchaseBill,
-      date,
-      time,
-      totalQuantity,
-      employeeId,
-      employeeName,
-      remarks,
-      reference,
-      isActive,
-    };
-  };
-
-  /* -------------------- fetchers -------------------- */
-  const fetchActive = async (p = page, l = limit) => {
-    setLoading(true);
-    try {
-      // call with numeric page & limit
-      const res = await getGoodsReceiptsApi(p, l);
-      if (res.status === 200) {
-        // your backend earlier returned records + total; be defensive
-        const records = Array.isArray(res?.data?.records) ? res.data.records : res?.data?.records ?? res?.data ?? [];
-        const normalized = records.map((rec) => normalize(rec));
-        setRows(normalized);
-        // support different shapes for total
-        const total = res?.data?.total ?? res?.data?.totalRecords ?? res?.data?.totalCount ?? normalized.length;
-        setServerTotal(Number(total));
-      } else {
-        setRows([]);
-        setServerTotal(0);
-      }
-    } catch (err) {
-      console.error("Error fetching goods receipts", err);
-      setRows([]);
-      setServerTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchInactive = async () => {
-    setLoading(true);
-    try {
-      const res = await getInactiveGoodsReceiptsApi();
-      if (res.status === 200) {
-        const records = Array.isArray(res?.data?.records) ? res.data.records : res?.data ?? [];
-        const normalized = records.map((rec) => normalize(rec));
-        setInactiveRows(normalized);
-      } else {
-        setInactiveRows([]);
-      }
-    } catch (err) {
-      console.error("Error fetching inactive goods receipts", err);
-      setInactiveRows([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      // we'll request a large page so we get all active records (or you can loop)
-      const activeRes = await getGoodsReceiptsApi(1, 1000);
-      const inactiveRes = await getInactiveGoodsReceiptsApi();
-
-      const activeRecords = activeRes?.status === 200 ? (Array.isArray(activeRes.data.records) ? activeRes.data.records : activeRes.data ?? []) : [];
-      const inactiveRecords = inactiveRes?.status === 200 ? (Array.isArray(inactiveRes.data.records) ? inactiveRes.data.records : inactiveRes.data ?? []) : [];
-
-      const combined = [...activeRecords, ...inactiveRecords].map((rec) => normalize(rec));
-      setRows(combined);
-      setServerTotal(combined.length);
-    } catch (err) {
-      console.error("Error fetching all goods receipts", err);
-      setRows([]);
-      setServerTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // load lookup lists (suppliers, employees, purchases)
-  useEffect(() => {
-    const fetchLists = async () => {
+  const openDropdown = async () => {
+    if (disabled) return
+    setOpen(true)
+    setQuery('')
+    if ((options?.length || 0) === 0 && fetchOptions) {
+      setLoading(true)
       try {
-        const [suppRes, empRes, purchRes] = await Promise.all([
-          getSuppliersApi(1, 1000),
-          getEmployeesApi(1, 1000),
-          getPurchasesApi(1, 1000),
-        ]);
-
-        const suppliers = suppRes?.data?.records || suppRes?.data || [];
-        const supplierOpts = Array.isArray(suppliers)
-          ? suppliers.map((s) => ({ id: s.id ?? s.Id ?? s.SupplierId, name: s.companyName ?? s.name ?? s.CompanyName ?? s.Name ?? "" }))
-          : [];
-        setSupplierOptions(supplierOpts);
-
-        const employees = empRes?.data?.records || empRes?.data || [];
-        const employeeOpts = Array.isArray(employees)
-          ? employees.map((e) => ({ id: e.id ?? e.Id ?? e.EmployeeId, name: e.fullName ?? e.FullName ?? e.firstName ?? e.FirstName ?? e.name ?? e.Name ?? `Employee ${e.id ?? e.Id}` }))
-          : [];
-        setEmployeeOptions(employeeOpts);
-
-        const purchases = purchRes?.data?.records || purchRes?.data || [];
-        const purchaseOpts = Array.isArray(purchases)
-          ? purchases.map((p) => ({ id: p.id ?? p.Id ?? p.PurchaseId, name: p.vNo ?? p.VNo ?? p.reference ?? p.Reference ?? p.invoiceNo ?? "" }))
-          : [];
-        setPurchaseOptions(purchaseOpts);
-      } catch (err) {
-        console.error("Error fetching dropdown lists", err);
+        await fetchOptions()
+      } catch (e) {
+        console.error('SearchableSelect fetch error', e)
+      } finally {
+        setLoading(false)
       }
-    };
-    fetchLists();
-  }, []);
+    }
+  }
 
-  /* fetch when toggles or page/limit change */
+  const filtered = !query.trim()
+    ? options
+    : options.filter(o => (o.name || '').toLowerCase().includes(query.toLowerCase()))
+
+  return (
+    <div className={`relative ${className}`}>
+      <input
+        type="text"
+        value={open ? (searchable ? query : '') : (selectedLabel || query)}
+        placeholder={placeholder}
+        onFocus={openDropdown}
+        onClick={openDropdown}
+        onChange={(e) => { if (searchable && !disabled) { setQuery(e.target.value); setOpen(true) } }}
+        readOnly={!searchable || disabled}
+        disabled={disabled}
+        className={`bg-gray-800 border border-gray-700 rounded px-3 py-2 w-full text-sm text-white outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      />
+{value && !open && !disabled && (
+  <button
+    className="absolute right-2 top-2 text-gray-400"
+    onClick={(e) => {
+      e.stopPropagation()
+      onChange('')
+    }}
+    title="Clear"
+  >
+    ✕
+  </button>
+)}
+
+      {open && (
+        <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 mt-1 max-h-56 overflow-y-auto rounded shadow-lg">
+          {loading ? (
+            <div className="px-3 py-2 text-gray-400 text-sm">Loading...</div>
+          ) : (filtered.length > 0 ? (
+            filtered.map(opt => (
+              <div
+                key={opt.id}
+                className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-sm text-white"
+                onClick={() => { onChange(opt.id); setOpen(false); setQuery('') }}
+              >
+                {opt.name}
+              </div>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-gray-400 text-sm">No results</div>
+          ))}
+        </div>
+      )}
+      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}></div>}
+    </div>
+  )
+}
+
+function NewGoodsIssue() {
+  const navigate = useNavigate()
+  const { id } = useParams()
+
+  const userData = JSON.parse(localStorage.getItem("user") || "{}")
+  const userId = userData?.userId || userData?.id || userData?.Id
+
+  // --- NEW: read-only flag when opening an inactive record ---
+  const [isReadonly, setIsReadonly] = useState(false)
+
+  // --- TOP SECTION STATE ---
+  const [sales, setSales] = useState('')
+  const [customer, setCustomer] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [salesPerson, setSalesPerson] = useState('')
+  const [reference, setReference] = useState('')
+
+  // --- DROPDOWN DATA ---
+  const [salesList, setSalesList] = useState([])
+  const [customersList, setCustomersList] = useState([])
+  const [salesPersonsList, setSalesPersonsList] = useState([])
+  const [warehousesList, setWarehousesList] = useState([])
+  const [productsList, setProductsList] = useState([])
+  const [suppliersList, setSuppliersList] = useState([]) // optional
+
+  // --- LINE ITEMS STATE ---
+  const [rows, setRows] = useState([])
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false)
+  const [editingIndex, setEditingIndex] = useState(null)
+
+  // --- MODAL ITEM STATE ---
+  const [newItem, setNewItem] = useState({
+    productId: '',
+    productName: '',
+    warehouseId: '',
+    warehouseName: '',
+    quantity: 0,
+    description: ''
+  })
+
+  // --- BOTTOM SECTION STATE ---
+  const [remarks, setRemarks] = useState('')
+  const [journalRemarks, setJournalRemarks] = useState('')
+
+  // --- CALCULATED VALUES ---
+  const [totalQuantity, setTotalQuantity] = useState(0)
+
+  // initial load - fetch all dropdown lists so fields show immediately
   useEffect(() => {
-    if (showAll) {
-      fetchAll();
-    } else if (showInactive) {
-      // show only inactive
-      fetchInactive();
-    } else {
-      // active paginated
-      fetchActive(page, limit);
+    (async () => {
+      await fetchEmployees()
+      await fetchWarehouses()
+      await fetchProducts()
+      await fetchSales()
+      await fetchCustomers()
+    })()
+  }, [])
+
+
+  // --- FETCH GOODS ISSUE FOR EDIT ---
+  useEffect(() => {
+    if (id) {
+      fetchGoodsIssueDetails(id)
+      // optionally fetch suppliers if you need them:
+      // fetchSuppliers()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, showInactive, showAll]);
+  }, [id])
 
-  /* -------------------- actions -------------------- */
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this record?")) return;
+  const fetchSuppliers = async () => {
     try {
-      const res = await deleteGoodsReceiptApi(id, { userId });
+      const res = await getSuppliersApi(1, 1000)
       if (res.status === 200) {
-        toast.success("Deleted");
-        // refresh current view
-        if (showAll) await fetchAll();
-        else if (showInactive) await fetchInactive();
-        else await fetchActive(page, limit);
-      } else {
-        toast.error("Delete failed");
+        const records = Array.isArray(res?.data?.records) ? res.data.records : []
+        const normalized = records.map(r => ({
+          id: r.id ?? r.Id,
+          name: r.name ?? r.Name ?? r.companyName ?? r.CompanyName ?? ''
+        }))
+        setSuppliersList(normalized)
+        return normalized
       }
-    } catch (err) {
-      console.error("Delete error", err);
-      toast.error("Delete failed");
+    } catch (error) {
+      console.error("Error fetching suppliers", error)
+      return []
     }
-  };
+  }
 
-  const handleRestore = async (id) => {
-    if (!window.confirm("Restore this goods receipt?")) return;
+  const fetchEmployees = async () => {
     try {
-      const res = await restoreGoodsReceiptApi(id, { userId });
+      const res = await getEmployeesApi(1, 1000)
       if (res.status === 200) {
-        toast.success("Restored");
-        if (showAll) await fetchAll();
-        else if (showInactive) await fetchInactive();
-        else await fetchActive(page, limit);
-      } else {
-        toast.error("Restore failed");
+        const records = Array.isArray(res?.data?.records) ? res.data.records : []
+        const normalized = records.map(r => ({
+          id: r.id ?? r.Id,
+          name: r.name ?? r.Name ?? r.firstName ?? r.FirstName ?? ''
+        }))
+        setSalesPersonsList(normalized)
+        return normalized
       }
-    } catch (err) {
-      console.error("Restore error", err);
-      toast.error("Restore failed");
+    } catch (error) {
+      console.error("Error fetching employees", error)
+      return []
     }
-  };
+  }
 
-  /* helpers to get display names from lookups */
-  const getSupplierName = (id) => supplierOptions.find((s) => s.id == id)?.name || "";
-  const getPurchaseName = (id) => purchaseOptions.find((p) => p.id == id)?.name || "";
-  const getEmployeeName = (id) => employeeOptions.find((e) => e.id == id)?.name || "";
-
-  /* client-side filtering (works on whichever source is active) */
-  const dataSource = showInactive ? inactiveRows : rows;
-  const filteredRows = dataSource.filter((r) => {
-    let ok = true;
-    if (searchText.trim()) {
-      const s = searchText.toLowerCase();
-      ok =
-        ok &&
-        (String(r.id).toLowerCase().includes(s) ||
-          (r.supplierName || "").toLowerCase().includes(s) ||
-          (r.purchaseBill || "").toLowerCase().includes(s) ||
-          (r.reference || "").toLowerCase().includes(s));
+  const fetchWarehouses = async () => {
+    try {
+      const res = await getWarehousesApi(1, 1000)
+      if (res.status === 200) {
+        const records = Array.isArray(res?.data?.records) ? res.data.records : []
+        const normalized = records.map(r => ({
+          id: r.id ?? r.Id,
+          name: r.name ?? r.Name ?? r.WarehouseName ?? ''
+        }))
+        setWarehousesList(normalized)
+        return normalized
+      }
+    } catch (error) {
+      console.error("Error fetching warehouses", error)
+      return []
     }
-    if (filterSupplier) ok = ok && r.supplierName === filterSupplier;
-    if (filterPurchaseBill) ok = ok && r.purchaseBill === filterPurchaseBill;
-    if (filterDate) ok = ok && r.date === filterDate;
-    if (filterTime) ok = ok && r.time === filterTime;
-    if (filterEmployee) ok = ok && (r.employeeName || "").toLowerCase().includes(filterEmployee.toLowerCase());
-    return ok;
-  });
+  }
 
-  /* pagination numbers (client-side) */
-  const totalRecords = showInactive ? inactiveRows.length : showAll ? rows.length : serverTotal || rows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
+  const fetchProducts = async () => {
+    try {
+      const res = await getProductsApi(1, 1000)
+      if (res.status === 200) {
+        const records = Array.isArray(res?.data?.records) ? res.data.records : []
+        const normalized = records.map(p => ({
+          ...p,
+          id: p.id ?? p.Id,
+          name: p.ProductName ?? p.name ?? p.Product ?? ''
+        }))
+        setProductsList(normalized)
+        return normalized
+      }
+    } catch (error) {
+      console.error("Error fetching products", error)
+      return []
+    }
+  }
 
-  /* Toggle handlers */
-  const toggleShowInactive = () => {
-    setShowAll(false);
-    setShowInactive((s) => {
-      const newVal = !s;
-      setPage(1);
-      return newVal;
-    });
-  };
-  const toggleShowAll = () => {
-    setShowInactive(false);
-    setShowAll((s) => {
-      const newVal = !s;
-      setPage(1);
-      return newVal;
-    });
-  };
+  const fetchPurchases = async () => {
+    try {
+      const res = await getPurchasesApi(1, 1000)
+      if (res.status === 200) {
+        const records = Array.isArray(res?.data?.records) ? res.data.records : []
+        const normalized = records.map(r => ({
+          id: r.id ?? r.Id ?? r.PurchaseId,
+          reference: r.reference ?? r.Reference ?? r.VNo ?? r.invoiceNo ?? r.invoiceNo ?? '',
+          name: r.reference ?? r.Reference ?? r.VNo ?? r.invoiceNo ?? r.invoiceNo ?? '',
+          supplierId: r.SupplierId ?? r.supplierId ?? r.Supplier?.id ?? r.supplier?.id ?? r.supplierId ?? r.SupplierId,
+          supplierName: r.SupplierName ?? r.supplierName ?? r.Supplier?.name ?? r.supplier?.name ?? r.Supplier?.companyName ?? ''
+        }))
+        setPurchasesList(normalized)
+        return normalized
+      }
+    } catch (error) {
+      console.error("Error fetching purchases", error)
+      return []
+    }
+  }
+
+  const fetchGoodsIssueDetails = async (issueId) => {
+    try {
+      const res = await getGoodsIssueByIdApi(issueId)
+
+      if (res.status === 200) {
+        const { issue, details } = res.data
+
+        // --- READONLY CHECK ---
+        // If the issue is inactive (IsActive === 0) set read-only mode
+        // Note: adapt the property name if backend uses lowercase/boolean
+        const inactive = issue.IsActive === 0 || issue.isActive === 0 || issue.IsActive === false || issue.isActive === false
+        setIsReadonly(Boolean(inactive))
+
+        // TOP SECTION
+        setSales(issue.SaleId)
+        setCustomer(issue.CustomerId)
+        setSalesPerson(issue.EmployeeId)
+        setDate(issue.Date?.split("T")[0] ?? new Date().toISOString().split('T')[0])
+        setReference(issue.Reference || "")
+        setRemarks(issue.Remarks || "")
+        setJournalRemarks(issue.JournalRemarks || "")
+        setSales(issue.SaleId)
+        setCustomer(issue.CustomerId)
+
+        // LINE ITEMS
+        const mappedRows = (details || []).map(d => ({
+          productId: d.productId ?? d.ProductId,
+          productName: d.productName ?? d.ProductName,
+          warehouseId: d.warehouseId ?? d.WarehouseId,
+          warehouseName: d.warehouseName ?? d.WarehouseName,
+          quantity: d.quantity ?? d.Quantity,
+          description: d.description ?? d.Description ?? ""
+        }))
+
+        setRows(mappedRows)
+      }
+    } catch (error) {
+      console.error("Error fetching goods issue details", error)
+      toast.error("Failed to load goods issue")
+    }
+  }
+
+  const fetchSales = async () => {
+    try {
+      const res = await getSalesApi(1, 1000)
+      if (res.status === 200) {
+        const records = Array.isArray(res?.data?.records)
+          ? res.data.records
+          : res?.data || []
+
+        const normalized = records.map(r => ({
+          id: r.id ?? r.Id ?? r.SaleId,
+          name:
+            r.reference ??
+            r.Reference ??
+            r.invoiceNo ??
+            r.InvoiceNo ??
+            r.saleNo ??
+            `Sale-${r.id ?? r.Id}`,
+          customerId: r.CustomerId ?? r.customerId,
+          customerName:
+            r.CustomerName ??
+            r.customerName ??
+            r.Customer?.Name ??
+            r.customer?.name ??      ""
+        }))
+
+        setSalesList(normalized)
+        return normalized
+      }
+    } catch (error) {
+      console.error("Error fetching sales", error)
+      toast.error("Failed to load sales")
+      return []
+    }
+  }
+
+  const fetchCustomers = async () => {
+    try {
+      const res = await getCustomersApi(1, 1000)
+
+      if (res.status === 200) {
+        const records = Array.isArray(res?.data?.records)
+          ? res.data.records
+          : res?.data || []
+
+        const normalized = records.map(c => ({
+          id: c.id ?? c.Id ?? c.CustomerId,
+          name:
+            c.name ??
+            c.Name ??
+            c.companyName ??
+            c.CompanyName ??
+            "Customer"
+        }))
+
+        setCustomersList(normalized)
+        return normalized
+      }
+    } catch (error) {
+      console.error("Error fetching customers", error)
+      toast.error("Failed to load customers")
+      return []
+    }
+  }
+
+useEffect(() => {
+  if (!sales) {
+    setCustomer('')
+    return
+  }
+
+  const sale = salesList.find(s => String(s.id) === String(sales))
+  if (sale?.customerId) {
+    setCustomer(sale.customerId)
+  }
+}, [sales, salesList])
+
+  // --- MODAL HANDLERS ---
+  const openItemModal = () => {
+    // block opening modal when read-only
+    if (isReadonly) return
+    setEditingIndex(null)
+    setNewItem({
+      productId: '',
+      productName: '',
+      warehouseId: '',
+      warehouseName: '',
+      quantity: 0,
+      description: ''
+    })
+    setIsItemModalOpen(true)
+  }
+
+  const addItemToTable = () => {
+    if (!newItem.productId || !newItem.warehouseId || newItem.quantity <= 0) {
+      toast.error('Please fill all fields and ensure quantity > 0')
+      return
+    }
+
+    if (editingIndex !== null) {
+      const updatedRows = [...rows]
+      updatedRows[editingIndex] = newItem
+      setRows(updatedRows)
+      setEditingIndex(null)
+    } else {
+      setRows([...rows, { ...newItem }])
+    }
+    setIsItemModalOpen(false)
+  }
+
+  const editRow = (index) => {
+    if (isReadonly) return
+    setEditingIndex(index)
+    setNewItem(rows[index])
+    setIsItemModalOpen(true)
+  }
+
+  const deleteRow = (index) => {
+    if (isReadonly) return
+    setRows(rows.filter((_, i) => i !== index))
+  }
+
+  // --- MAIN CALCULATION ---
+  useEffect(() => {
+    let sum = 0
+    rows.forEach(r => sum += parseFloat(r.quantity) || 0)
+    setTotalQuantity(sum)
+  }, [rows])
+
+  // --- SAVE / UPDATE ---
+  const handleSaveIssue = async () => {
+    if (isReadonly) return
+    if (!sales) return toast.error('Please select a sale')
+    if (!customer) return toast.error('Please select a customer')
+    if (!salesPerson) return toast.error('Please select a sales person')
+    if (!date) return toast.error('Please select a date');
+
+    if (rows.length === 0) return toast.error('Please add at least one item')
+
+    const payload = {
+      saleId: sales,
+      customerId: customer,
+      date,
+      totalQuantity: totalQuantity,
+      employeeId: salesPerson,
+      remarks,
+      journalRemarks,
+      reference,
+      items: rows.map(r => ({
+        productId: r.productId,
+        productName: r.productName,
+        warehouseId: r.warehouseId,
+        warehouseName: r.warehouseName,
+        quantity: parseFloat(r.quantity) || 0,
+        description: r.description
+      })),
+      userId
+    }
+
+    try {
+      const res = await addGoodsIssueApi(payload)
+
+      if (res.status === 200) {
+        toast.success('Goods Issue saved successfully')
+        navigate('/app/inventory/goodsissue')
+      } else {
+        toast.error('Failed to save goods Issue')
+      }
+    } catch (error) {
+      console.error('SAVE ERROR', error)
+      toast.error('Error saving goods Issue')
+    }
+  }
+
+  const handleUpdateIssue = async () => {
+    if (isReadonly) return
+    // validation appropriate to Goods Issue (not purchases)
+    if (!sales) return toast.error('Please select a sale')
+    if (!customer) return toast.error('Please select a customer')
+    if (!salesPerson) return toast.error('Please select a sales person')
+    if (rows.length === 0) return toast.error('Please add at least one item')
+
+    const payload = {
+      saleId: sales,
+      customerId: customer,
+      date,
+      totalQuantity: totalQuantity,
+      employeeId: salesPerson,
+      remarks,
+      journalRemarks,
+      reference,
+      items: rows.map(r => ({
+        productId: r.productId,
+        productName: r.productName,
+        warehouseId: r.warehouseId,
+        warehouseName: r.warehouseName,
+        quantity: parseFloat(r.quantity) || 0,
+        description: r.description
+      })),
+      userId
+    }
+
+    try {
+      const res = await updateGoodsIssueApi(id, payload)
+      if (res.status === 200) {
+        toast.success('Goods issue updated successfully')
+        navigate('/app/inventory/goodsissue')
+      } else {
+        toast.error('Failed to update goods issue')
+      }
+    } catch (error) {
+      console.error('UPDATE ERROR', error)
+      toast.error('Error updating goods issue')
+    }
+  }
+
+const handleDeleteIssue = async () => {
+  if (isReadonly) return
+  const result = await Swal.fire({
+    title: 'Delete Goods Issue?',
+    text: 'This action cannot be undone.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+    focusCancel: true,
+    confirmButtonColor: '#dc2626', // red
+    cancelButtonColor: '#6b7280'   // gray
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    const res = await deleteGoodsIssueApi(id, { userId })
+
+    if (res.status === 200) {
+      await Swal.fire({
+        icon: 'success',
+        title: 'Deleted!',
+        text: 'Goods issue deleted successfully.',
+        timer: 1500,
+        showConfirmButton: false
+      })
+      navigate('/app/inventory/goodsissue')
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed',
+        text: 'Failed to delete goods issue.'
+      })
+    }
+  } catch (error) {
+    console.error('DELETE ERROR', error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Error deleting goods issue.'
+    })
+  }
+}
+
+// --- NEW: restore handler ---
+const handleRestoreIssue = async () => {
+  const result = await Swal.fire({
+    title: 'Restore Goods Issue?',
+    text: 'This will reactivate the goods issue.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, restore',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+    focusCancel: true,
+    confirmButtonColor: '#10b981', // green
+    cancelButtonColor: '#6b7280'
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    const res = await restoreGoodsIssueApi(id, { userId })
+    if (res.status === 200) {
+      await Swal.fire({
+        icon: 'success',
+        title: 'Restored!',
+        text: 'Goods issue restored successfully.',
+        timer: 1200,
+        showConfirmButton: false
+      })
+      navigate('/app/inventory/goodsissue')
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed',
+        text: 'Failed to restore goods issue.'
+      })
+    }
+  } catch (error) {
+    console.error('RESTORE ERROR', error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Error restoring goods issue.'
+    })
+  }
+}
+
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-        <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden">
-          <h2 className="text-2xl font-semibold mb-4">Goods Receipts</h2>
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
 
-          {/* action bar */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-64">
-              <Search size={16} className="text-gray-300" />
-              <input
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search goods receipts..."
-                className="bg-transparent pl-2 text-sm w-full outline-none"
-              />
-            </div>
+        {/* HEADER */}
+        <div className="flex items-center gap-4 mb-6">
+          <button onClick={() => navigate(-1)} className="hover:text-white-400">
+            <ArrowLeft size={24} />
+          </button>
+          <h2 className="text-xl font-medium">
+            {id ? (isReadonly ? "View Goods Issue (inactive)" : "Edit Goods Issue") : "New Goods Issue"}
+          </h2>
+        </div>
 
-            <button
-              onClick={() => navigate("/app/inventory/goodsreceipts/newgoodsreceipts")}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-            >
-              <Plus size={16} /> New Receipt
-            </button>
-
-            <button
-              onClick={() => {
-                setSearchText("");
-                setFilterSupplier("");
-                setFilterPurchaseBill("");
-                setFilterDate("");
-                setFilterTime("");
-                setFilterEmployee("");
-              }}
-              className="p-2 bg-gray-700 border border-gray-600 rounded"
-            >
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            <button
-              onClick={() => {
-                // open column picker if you have one; placeholder
-                // setColumnModalOpen(true)
-              }}
-              className="p-2 bg-gray-700 border border-gray-600 rounded"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            {/* Inactive / All toggles */}
-            <div className="flex items-center gap-2 ml-2">
-              <button
-                className={`p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px] ${showInactive ? 'ring-2 ring-yellow-300' : ''}`}
-                onClick={toggleShowInactive}
-                title="Show only inactive records"
-              >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
-              </button>
-
-              <button
-                className={`p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px] ${showAll ? 'ring-2 ring-yellow-300' : ''}`}
-                onClick={toggleShowAll}
-                title="Show both active and inactive"
-              >
-                <span className="text-xs opacity-80">All</span>
-              </button>
-            </div>
-          </div>
-
-          {/* filters */}
-          <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-            <div className="relative w-40" ref={dropdownRefs.supplier}>
-              <input
-                readOnly
-                onClick={() => setDropdownOpen((p) => ({ ...p, supplier: !p.supplier }))}
-                value={filterSupplier || ""}
-                placeholder="Supplier"
-                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm cursor-pointer"
-              />
-              {dropdownOpen.supplier && (
-                <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[180px] overflow-auto">
-                  <div className="p-2">
-                    <input
-                      value={ddSearch.supplier}
-                      onChange={(e) => setDdSearch((p) => ({ ...p, supplier: e.target.value }))}
-                      placeholder="Search supplier..."
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
-                    />
-                  </div>
-                  {supplierOptions
-                    .filter((s) => s.name.toLowerCase().includes((ddSearch.supplier || "").toLowerCase()))
-                    .map((s) => (
-                      <div
-                        key={s.id}
-                        onClick={() => {
-                          setFilterSupplier(s.name);
-                          setDropdownOpen((p) => ({ ...p, supplier: false }));
-                          setDdSearch((p) => ({ ...p, supplier: "" }));
-                        }}
-                        className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                      >
-                        {s.name}
-                      </div>
-                    ))}
-                </div>
+        {/* ACTION BAR */}
+        <div className="flex gap-2 mb-6">
+          {id ? (
+            <>
+              {!isReadonly ? (
+                <>
+                  <button
+                    onClick={handleUpdateIssue}
+                    className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded hover:bg-gray-600"
+                  >
+                    <Save size={18} /> Update
+                  </button>
+                  <button
+                    onClick={handleDeleteIssue}
+                    className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500"
+                  >
+                    <Trash2 size={18} /> Delete
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleRestoreIssue}
+                  className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500"
+                >
+                  Restore
+                </button>
               )}
-            </div>
-
-            <div className="relative w-36" ref={dropdownRefs.purchaseBill}>
-              <input
-                readOnly
-                onClick={() => setDropdownOpen((p) => ({ ...p, purchaseBill: !p.purchaseBill }))}
-                value={filterPurchaseBill || ""}
-                placeholder="Purchase Bill"
-                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm cursor-pointer"
-              />
-              {dropdownOpen.purchaseBill && (
-                <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[160px] overflow-auto">
-                  <div className="p-2">
-                    <input
-                      value={ddSearch.purchaseBill}
-                      onChange={(e) => setDdSearch((p) => ({ ...p, purchaseBill: e.target.value }))}
-                      placeholder="Search bill..."
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
-                    />
-                  </div>
-                  {purchaseOptions
-                    .filter((pb) => pb.name.toLowerCase().includes((ddSearch.purchaseBill || "").toLowerCase()))
-                    .map((pb) => (
-                      <div
-                        key={pb.id}
-                        onClick={() => {
-                          setFilterPurchaseBill(pb.name);
-                          setDropdownOpen((p) => ({ ...p, purchaseBill: false }));
-                          setDdSearch((p) => ({ ...p, purchaseBill: "" }));
-                        }}
-                        className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                      >
-                        {pb.name}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            <div className="w-36">
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm"
-              />
-            </div>
-
-            <div className="w-28">
-              <input
-                type="time"
-                value={filterTime}
-                onChange={(e) => setFilterTime(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm"
-              />
-            </div>
-
-            <div className="relative w-40" ref={dropdownRefs.employee}>
-              <input
-                readOnly
-                onClick={() => setDropdownOpen((p) => ({ ...p, employee: !p.employee }))}
-                value={filterEmployee || ""}
-                placeholder="Employee"
-                className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm cursor-pointer"
-              />
-              {dropdownOpen.employee && (
-                <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[160px] overflow-auto">
-                  <div className="p-2">
-                    <input
-                      value={ddSearch.employee}
-                      onChange={(e) => setDdSearch((p) => ({ ...p, employee: e.target.value }))}
-                      placeholder="Search employee..."
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
-                    />
-                  </div>
-                  {employeeOptions
-                    .filter((em) => em.name && em.name.toLowerCase().includes((ddSearch.employee || "").toLowerCase()))
-                    .map((em) => (
-                      <div
-                        key={em.id}
-                        onClick={() => {
-                          setFilterEmployee(em.name);
-                          setDropdownOpen((p) => ({ ...p, employee: false }));
-                          setDdSearch((p) => ({ ...p, employee: "" }));
-                        }}
-                        className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                      >
-                        {em.name}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-
+            </>
+          ) : (
             <button
-              onClick={() => {
-                setFilterSupplier("");
-                setFilterPurchaseBill("");
-                setFilterDate("");
-                setFilterTime("");
-                setFilterEmployee("");
-              }}
-              className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm"
+              onClick={handleSaveIssue}
+              disabled={isReadonly}
+              className={`flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded hover:bg-gray-600 ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Clear Filters
+              <Save size={18} /> Save
             </button>
-          </div>
+          )}
+        </div>
 
-          {/* table */}
-          <div className="flex-grow overflow-auto w-full min-h-0">
-            <div className="w-full overflow-x-auto">
-              <table className="min-w-[1100px] border-separate border-spacing-y-1 text-sm table-fixed">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr className="text-white text-center">
-                    <th className="pb-2 border-b">ID</th>
-                    <th className="pb-2 border-b">Supplier</th>
-                    <th className="pb-2 border-b">Purchase Bill</th>
-                    <th className="pb-2 border-b">Date</th>
-                    <th className="pb-2 border-b">Total Qty</th>
-                    <th className="pb-2 border-b">Employee</th>
-                    <th className="pb-2 border-b">Remarks</th>
-                    <th className="pb-2 border-b">Reference</th>
-                    <th className="pb-2 border-b">Actions</th>
-                  </tr>
-                </thead>
+        {/* ROW 1: SALE | CUSTOMER | DATE | EMPLOYEE */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        <SearchableSelect
+  value={sales}
+  onChange={setSales}
+  placeholder="Sales"
+  fetchOptions={fetchSales}
+  options={salesList}
+  disabled={isReadonly} // <-- disabled when readonly
+/>
 
-                <tbody className="text-center">
-                  {filteredRows.map((r) => (
-                    <tr
-                      key={r.id}
-                      className={`bg-gray-900 hover:bg-gray-700 ${!r.isActive ? "opacity-50 line-through" : "cursor-pointer"}`}
-                    >
-                      <td
-                        className="px-2 py-3 text-center"
-                        onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}
-                      >
-                        {r.id}
-                      </td>
-                      <td className="px-2 py-3 text-center" onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}>
-                        {r.supplierName || getSupplierName(r.supplierId)}
-                      </td>
-                      <td className="px-2 py-3 text-center" onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}>
-                        {r.purchaseBill || getPurchaseName(r.purchaseBillId)}
-                      </td>
-                      <td className="px-2 py-3 text-center" onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}>{r.date}</td>
-                      <td className="px-2 py-3 text-center" onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}>{r.totalQuantity}</td>
-                      <td className="px-2 py-3 text-center" onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}>{r.employeeName || getEmployeeName(r.employeeId)}</td>
-                      <td className="px-2 py-3 text-center" onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}>{r.remarks}</td>
-                      <td className="px-2 py-3 text-center" onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`)}>{r.reference}</td>
+         <SearchableSelect
+  value={customer}
+  onChange={() => {}}
+  placeholder="Customer"
+  fetchOptions={fetchCustomers}
+  options={customersList}
+  disabled={true}
+/>
 
-                      <td className="px-2 py-3 text-center">
-                        {r.isActive ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // soft-delete
-                              if (!window.confirm("Move this receipt to inactive?")) return;
-                              deleteGoodsReceiptApi(r.id, { userId })
-                                .then((res) => {
-                                  if (res.status === 200) {
-                                    toast.success("Moved to inactive");
-                                    if (showAll) fetchAll();
-                                    else fetchActive(page, limit);
-                                  } else {
-                                    toast.error("Action failed");
-                                  }
-                                })
-                                .catch((err) => {
-                                  console.error(err);
-                                  toast.error("Action failed");
-                                });
-                            }}
-                            className="px-2 py-1 bg-red-700 rounded text-xs"
-                          >
-                            Inactivate
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRestore(r.id);
-                            }}
-                            className="px-2 py-1 bg-green-700 rounded text-xs"
-                          >
-                            Restore
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
 
-                  {filteredRows.length === 0 && (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-6 text-center text-gray-400">
-                        {loading ? "Loading..." : "No records found"}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <SearchableSelect
+            value={salesPerson}
+            onChange={setSalesPerson}
+            placeholder="Sales Person"
+            fetchOptions={fetchEmployees}
+            options={salesPersonsList}
+            disabled={isReadonly} // <-- disabled when readonly
+          />
 
-          {/* pagination */}
-          <div className="mt-5 sticky bottom-5 bg-gray-900/80 px-4 py-2 border-t border-gray-700 z-20 flex flex-wrap items-center gap-3 text-sm">
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className="bg-gray-800 border border-gray-600 rounded px-2 py-1"
-            >
-              {[10, 25, 50, 100].map((n) => (
-                <option value={n} key={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+        </div>
 
-            <button disabled={page === 1} onClick={() => setPage(1)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-              <ChevronsLeft size={16} />
-            </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
-            <button disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-              <ChevronLeft size={16} />
-            </button>
-
-            <span>Page</span>
-
+          {/* Reference */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">
+              Reference
+            </label>
             <input
-              type="number"
-              className="w-12 bg-gray-800 border border-gray-600 rounded text-center"
-              value={page}
-              onChange={(e) => setPage(Math.min(totalPages, Math.max(1, Number(e.target.value) || 1)))}
+              type="text"
+              placeholder="Reference"
+              value={reference}
+              onChange={e => setReference(e.target.value)}
+              disabled={isReadonly} // <-- disabled when readonly
+              className={`w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
+          </div>
 
-            <span>/ {totalPages}</span>
+          {/* Date (Required) */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">
+              <span className="text-red-400">*</span> Date
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              required
+              disabled={isReadonly}
+              className={`w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            />
+          </div>
 
-            <button disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-              <ChevronRight size={16} />
+        </div>
+
+        {/* LINE ITEMS */}
+        <div className="mb-8">
+          <div className="flex gap-2 mb-2">
+            <label className="text-sm text-gray-300">Line Items</label>
+            <button
+              onClick={openItemModal}
+              disabled={isReadonly}
+              className={`flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Plus size={16} /> Add
             </button>
+          </div>
 
-            <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-1 bg-gray-800 border border-gray-700 rounded disabled:opacity-50">
-              <ChevronsRight size={16} />
-            </button>
-
-            <span>
-              Showing <b>{start}</b> to <b>{end}</b> of <b>{totalRecords}</b> records
-            </span>
+          <div className="bg-gray-800 border border-gray-700 rounded overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="p-3">Product</th>
+                  <th className="p-3">Description</th>
+                  <th className="p-3">Warehouse</th>
+                  <th className="p-3">Qty</th>
+                  <th className="p-3 w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-t border-gray-700 text-center">
+                    <td className="p-3">{r.productName}</td>
+                    <td className="p-3">{r.description}</td>
+                    <td className="p-3">{r.warehouseName}</td>
+                    <td className="p-3">{r.quantity}</td>
+                    <td className="p-3 flex gap-2 justify-center">
+                      {!isReadonly ? (
+                        <>
+                          <Edit size={16} onClick={() => editRow(i)} className="cursor-pointer text-blue-400" />
+                          <Trash2 size={16} onClick={() => deleteRow(i)} className="cursor-pointer text-red-400" />
+                        </>
+                      ) : (
+                        <span className="text-gray-400 text-xs">inactive</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
-    </PageLayout>
-  );
-};
 
-export default GoodsReceipts;
+        {/* TOTAL QUANTITY */}
+        <div className="mb-6 flex justify-end">
+          <div className="bg-gray-800 border border-gray-600 rounded px-4 py-2 font-bold">
+            Total Quantity: {totalQuantity.toFixed(2)}
+          </div>
+        </div>
+
+        {/* REMARKS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <textarea
+            placeholder="Remarks"
+            value={remarks}
+            onChange={e => setRemarks(e.target.value)}
+            disabled={isReadonly}
+            className={`h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+          />
+          <textarea
+            placeholder="Journal Remarks"
+            value={journalRemarks}
+            onChange={e => setJournalRemarks(e.target.value)}
+            disabled={isReadonly}
+            className={`h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+          />
+        </div>
+      </div>
+
+      {/* ITEM MODAL (unchanged) */}
+      {isItemModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl p-6 relative">
+            <button
+              onClick={() => setIsItemModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              <X size={24} />
+            </button>
+
+            <h3 className="text-xl text-white font-semibold mb-6">
+              {editingIndex !== null ? "Edit Goods Issue Details" : "New Goods Issue Details"}
+            </h3>
+
+            <div className="grid grid-cols-1 gap-5">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  <span className="text-red-400">*</span> Product
+                </label>
+                <SearchableSelect
+                  value={newItem.productId}
+                  onChange={(val) => {
+                    const p = productsList.find(x => String(x.id) === String(val))
+                    if (p) {
+                      setNewItem(prev => ({
+                        ...prev,
+                        productId: p.id,
+                        productName: p.name,
+                        quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1
+                      }))
+                    } else {
+                      setNewItem(prev => ({ ...prev, productId: val, quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1 }))
+                    }
+                  }}
+                  placeholder="Product"
+                  fetchOptions={fetchProducts}
+                  options={productsList}
+                  disabled={isReadonly} // ensure modal also respects readonly (modal shouldn't open when readonly anyway)
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  <span className="text-red-400">*</span> Quantity
+                </label>
+                <input
+                  type="number"
+                  value={newItem.quantity}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, quantity: e.target.value })
+                  }
+                  disabled={isReadonly}
+                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  <span className="text-red-400">*</span> Warehouse
+                </label>
+                <SearchableSelect
+                  value={newItem.warehouseId}
+                  onChange={(val) => {
+                    const w = warehousesList.find(x => String(x.id) === String(val))
+                    if (w) {
+                      setNewItem({ ...newItem, warehouseId: w.id, warehouseName: w.name })
+                    } else {
+                      setNewItem(prev => ({ ...prev, warehouseId: val }))
+                    }
+                  }}
+                  placeholder="Warehouse"
+                  fetchOptions={fetchWarehouses}
+                  options={warehousesList}
+                  disabled={isReadonly}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={newItem.description || ""}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, description: e.target.value })
+                  }
+                  rows={3}
+                  disabled={isReadonly}
+                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-8">
+              <button
+                onClick={() => setIsItemModalOpen(false)}
+                className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addItemToTable}
+                disabled={isReadonly}
+                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
+              >
+                {editingIndex !== null ? "Update Item" : "Add Item"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </PageLayout>
+  )
+}
+
+export default NewGoodsIssue

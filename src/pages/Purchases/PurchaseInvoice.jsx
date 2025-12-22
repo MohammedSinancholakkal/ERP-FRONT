@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useSettings } from "../../contexts/SettingsContext";
 import { getPurchaseByIdApi, getSuppliersApi } from "../../services/allAPI";
 // import logo from "../../assets/logo.png"; // Assuming a logo exists, or placeholder
 
 const PurchaseInvoice = () => {
   const { id } = useParams();
+  const { settings } = useSettings(); // Hook to access global settings
   const [purchase, setPurchase] = useState(null);
   const [details, setDetails] = useState([]);
   const [supplier, setSupplier] = useState(null);
@@ -51,24 +53,24 @@ const PurchaseInvoice = () => {
   if (!purchase) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Invoice not found</div>;
 
   return (
-    <div className="min-h-screen  bg-gray-900 text-white p-10 flex justify-center font-sans">
-      <div className="w-full max-w-[1280px] bg-gray-800 rounded-lg shadow-2xl p-8 border border-gray-700">
+    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-10 flex justify-center font-sans">
+      <div className="w-full max-w-[1280px] bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
         {/* HEADER */}
-        <div className="flex justify-between items-end border-b border-gray-600 pb-4 mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-600 pb-4 mb-8 gap-4">
           <h1 className="text-4xl font-light text-white opacity-90">Bill</h1>
-          <div className="text-right">
-            <p className="text-lg font-medium text-gray-300">Date: {new Date(purchase.Date).toLocaleDateString()}</p>
+          <div className="text-left md:text-right">
+            <p className="text-lg font-medium text-gray-300">Date: {new Date().toLocaleDateString()}</p>
           </div>
         </div>
 
         {/* ADDRESS SECTION */}
-        <div className="grid grid-cols-2 gap-10 mb-10 text-gray-300">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 text-gray-300">
           <div>
             <p className="text-sm text-gray-400 mb-1">From</p>
-            <h3 className="text-xl font-bold text-white mb-1">Home Button</h3>
-            <p>Phone:</p>
-            <p>Email:</p>
-            <p>VAT:</p>
+            <h3 className="text-xl font-bold text-white mb-1">{settings?.companyName || "Home Button"}</h3>
+            <p>Phone: {settings?.phone || ""}</p>
+            <p>Email: {settings?.companyEmail || ""}</p>
+            <p>VAT: {settings?.vatNo || ""}</p>
           </div>
           <div>
             <p className="text-sm text-gray-400 mb-2 font-semibold">To</p>
@@ -99,8 +101,8 @@ const PurchaseInvoice = () => {
         </div>
 
         {/* TABLE */}
-        <div className="mb-8">
-          <table className="w-full text-left">
+        <div className="mb-8 overflow-x-auto">
+          <table className="w-full text-left min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-600 text-gray-200 font-bold">
                 <th className="py-2">Product</th>
@@ -125,8 +127,8 @@ const PurchaseInvoice = () => {
         </div>
 
         {/* TOTALS */}
-        <div className="flex justify-end">
-          <div className="w-1/2 space-y-3 text-gray-300">
+        <div className="flex justify-start md:justify-end">
+          <div className="w-full md:w-1/2 space-y-3 text-gray-300">
             <div className="flex justify-between border-b border-gray-700 pb-2">
               <span>Subtotal:</span>
               <span>{parseFloat(purchase.GrandTotal).toFixed(2)}</span>
@@ -140,7 +142,7 @@ const PurchaseInvoice = () => {
               <span>{parseFloat(purchase.TotalDiscount).toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-b border-gray-700 pb-2">
-              <span>VAT (10%):</span>
+              <span>VAT ({settings?.vatPercent || 10}%):</span>
               <span>{parseFloat(purchase.Vat).toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-white text-lg pt-2 border-t border-gray-600">

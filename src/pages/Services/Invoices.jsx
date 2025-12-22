@@ -121,14 +121,14 @@ const Invoices = () => {
 
   const [customers, setCustomers] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const location = useLocation();
 const isPreview = location.pathname.includes("/preview/");
 
   useEffect(() => {
-    fetchCustomers();
-    fetchEmployees();
-  }, []);
+    fetchAllData();
+  }, [limit]); // Initial load (and limit change if we want)
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -162,12 +162,71 @@ const isPreview = location.pathname.includes("/preview/");
             toast.error("Search failed");
           });
       } else {
-        fetchInvoices();
+        // Only fetch if NOT initial load (isLoading check)
+        if (!isLoading) fetchInvoices();
       }
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText, page, limit, customers, employees]);
+  }, [searchText, page, limit]); // Removed customers/employees dependencies
+
+  const fetchAllData = async () => {
+    try {
+      setIsLoading(true);
+      const [cRes, eRes, iRes] = await Promise.all([
+        getCustomersApi(1, 1000),
+        getEmployeesApi(1, 1000),
+        getServiceInvoicesApi(page, limit)
+      ]);
+
+      let cList = [];
+      let eList = [];
+
+      // Process Customers
+      if (cRes.status === 200) {
+         cList = (cRes.data.records || []).map((c) => ({
+          id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
+          name:
+            c.name ?? c.Name ?? c.companyName ?? c.CompanyName ?? `${c.firstName ?? c.FirstName ?? ""} ${c.lastName ?? c.LastName ?? ""}`.trim()
+        }));
+        setCustomers(cList);
+      }
+
+      // Process Employees
+      if (eRes.status === 200) {
+        eList = (eRes.data.records || []).map((e) => ({
+          id: e.id ?? e.Id ?? e.employeeId ?? e.EmployeeId ?? null,
+          name: e.fullName ?? e.fullname ?? e.name ?? e.Name ?? `${e.firstName ?? e.FirstName ?? ""} ${e.lastName ?? e.LastName ?? ""}`.trim()
+        }));
+        setEmployees(eList);
+      }
+
+      // Process Invoices
+      if (iRes.status === 200) {
+        let invoices = iRes.data.records || [];
+        // Add customer names and employee names
+        invoices = invoices.map(inv => ({
+          ...inv,
+          customerName:
+            inv.customerName ||
+            cList.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name ||
+            "-",
+          employeeName:
+            inv.employeeName ||
+            eList.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name ||
+            "-"
+        }));
+        
+        setInvoicesList(invoices);
+        setTotalRecords(iRes.data.totalRecords || 0);
+        setTotalPages(iRes.data.totalPages || 1);
+      }
+    } catch (e) {
+      console.error("Error loading data", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -175,7 +234,7 @@ const isPreview = location.pathname.includes("/preview/");
       if (res.status === 200) {
         let invoices = res.data.records || [];
         
-        // Add customer names and employee names to invoices (robust id/name handling)
+        // Add customer names and employee names using STATE
         invoices = invoices.map(inv => ({
           ...inv,
           customerName:
@@ -197,44 +256,13 @@ const isPreview = location.pathname.includes("/preview/");
     }
   };
 
-  const fetchCustomers = async () => {
-    try {
-      const res = await getCustomersApi(1, 1000);
-      if (res.status === 200) {
-        const mapped = (res.data.records || []).map((c) => ({
-          id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
-          name:
-            c.name ?? c.Name ?? c.companyName ?? c.CompanyName ?? `${c.firstName ?? c.FirstName ?? ""} ${c.lastName ?? c.LastName ?? ""}`.trim()
-        }));
-        setCustomers(mapped);
-      }
-    } catch (error) {
-      console.error("Error fetching customers", error);
-    }
-  };
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await getEmployeesApi(1, 1000);
-      if (res.status === 200) {
-        const mapped = (res.data.records || []).map((e) => ({
-          id: e.id ?? e.Id ?? e.employeeId ?? e.EmployeeId ?? null,
-          name: e.fullName ?? e.fullname ?? e.name ?? e.Name ?? `${e.firstName ?? e.FirstName ?? ""} ${e.lastName ?? e.LastName ?? ""}`.trim()
-        }));
-        setEmployees(mapped);
-      }
-    } catch (error) {
-      console.error("Error fetching employees", error);
-    }
-  };
-
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setSearchText("");
     setFilterCustomer("");
     setFilterEmployee("");
     setFilterDate("");
     setPage(1);
-    fetchInvoices();
+    await fetchAllData();
     toast.success("Refreshed");
   };
 

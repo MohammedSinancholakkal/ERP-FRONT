@@ -452,7 +452,6 @@ const [newItem, setNewItem] = useState({
       paidAmount: parseFloat(paidAmount) || 0,
       due: parseFloat(dueAmount) || 0,
       change: parseFloat(changeAmount) || 0,
-      paymentAccount: paymentAccount || "",
       details,
       vno: "",
       items: rows.map(r => ({

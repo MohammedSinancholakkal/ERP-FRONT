@@ -91,7 +91,6 @@ const Sales = () => {
   const defaultColumns = {
     id: true,
     customerName: true,
-    employee: false,
     invoiceNo: true,
     date: true,
     paymentAccount: true,
@@ -105,7 +104,7 @@ const Sales = () => {
     paidAmount: true,
     due: true,
     change: true,
-    details: false
+    details: true
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
@@ -116,6 +115,7 @@ const Sales = () => {
   // --- DATA STATE ---
   const [salesList, setSalesList] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true); // NEW: Loading state
   const [searchText, setSearchText] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterDate, setFilterDate] = useState("");
@@ -134,17 +134,9 @@ const Sales = () => {
 
   // --- INITIAL LOAD ---
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    fetchAllData();
+  }, [page, limit]);
 
-  // Fetch sales when customers are loaded
-  useEffect(() => {
-    if (customers.length > 0 && salesList.length === 0) {
-      fetchSales();
-    }
-  }, [customers]);
-
-  // normalize sale record shape coming from API
   const normalizeSale = (r = {}) => ({
     id: r.id ?? r.Id ?? r.SaleId ?? null,
     customerId: r.customerId ?? r.CustomerId ?? r.Customer?.id ?? r.CustomerId ?? null,
@@ -169,60 +161,49 @@ const Sales = () => {
     raw: r
   });
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      // Fetch sales on page/limit change
-      if (!searchText.trim()) {
-        fetchSales(customers);
-      }
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [page, limit, customers]);
-
-  const fetchSales = async (customersData = customers) => {
+  const fetchAllData = async () => {
     try {
-      const res = await getSalesApi(page, limit);
-      console.log("Raw sales API response:", res);
-      
-      if (res.status === 200) {
-        const rows = Array.isArray(res.data.records) ? res.data.records : [];
-        const normalized = rows.map(r => {
-          const normalized = normalizeSale(r);
-          // If customerName is empty, try to look it up from customers list
-          if (!normalized.customerName && normalized.customerId && customersData.length > 0) {
-            const customer = customersData.find(c => String(c.id) === String(normalized.customerId));
-            if (customer) {
-              normalized.customerName = customer.name;
-            }
-          }
-          return normalized;
-        });
-        console.log("Normalized sales:", normalized);
-        setSalesList(normalized);
-        setTotalRecords(res.data.totalRecords || normalized.length || 0);
-        setTotalPages(res.data.totalPages || 1);
-      }
-    } catch (error) {
-      console.error("Error fetching sales", error);
-    }
-  };
+      setIsLoading(true);
+      // Fetch both in parallel
+      const [customersRes, salesRes] = await Promise.all([
+        getCustomersApi(1, 1000),
+        getSalesApi(page, limit)
+      ]);
 
-  const fetchCustomers = async () => {
-    try {
-      const res = await getCustomersApi(1, 1000);
-      // console.log(res);
-      
-      if (res.status === 200) {
-        const records = Array.isArray(res?.data?.records) ? res.data.records : [];
-        const mapped = records.map(c => ({
+      // PROCESS CUSTOMERS
+      let customersMap = [];
+      if (customersRes.status === 200) {
+        const records = Array.isArray(customersRes?.data?.records) ? customersRes.data.records : [];
+        customersMap = records.map(c => ({
           id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
           name: c.companyName ?? c.CompanyName ?? c.name ?? c.Name ?? ""
         }));
-        setCustomers(mapped);
+        setCustomers(customersMap);
+      }
+
+      // PROCESS SALES
+      if (salesRes.status === 200) {
+        const rows = Array.isArray(salesRes.data.records) ? salesRes.data.records : [];
+        const normalized = rows.map(r => {
+          const norm = normalizeSale(r);
+          // Look up customer name if missing
+          if (!norm.customerName && norm.customerId && customersMap.length > 0) {
+            const customer = customersMap.find(c => String(c.id) === String(norm.customerId));
+            if (customer) {
+              norm.customerName = customer.name;
+            }
+          }
+          return norm;
+        });
+        setSalesList(normalized);
+        setTotalRecords(salesRes.data.totalRecords || normalized.length || 0);
+        setTotalPages(salesRes.data.totalPages || 1);
       }
     } catch (error) {
-      console.error("Error fetching customers", error);
+      console.error("Error fetching data", error);
+      toast.error("Failed to load data");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -232,19 +213,7 @@ const Sales = () => {
     setFilterDate("");
     setFilterPayment("");
     setPage(1);
-    
-    // Fetch customers first, then use them to fetch sales
-    const res = await getCustomersApi(1, 1000);
-    if (res.status === 200) {
-      const records = Array.isArray(res?.data?.records) ? res.data.records : [];
-      const mapped = records.map(c => ({
-        id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
-        name: c.companyName ?? c.CompanyName ?? c.name ?? c.Name ?? ""
-      }));
-      setCustomers(mapped);
-      // Now fetch sales with the updated customers data
-      await fetchSales(mapped);
-    }
+    await fetchAllData();
     toast.success("Refreshed");
   };
 
@@ -479,7 +448,6 @@ const Sales = () => {
                     <tr>
                       {visibleColumns.id && <th className="pb-1 border-b text-gray-300">ID</th>}
                       {visibleColumns.customerName && <th className="pb-1 border-b text-gray-300">Customer</th>}
-                      {visibleColumns.employee && <th className="pb-1 border-b text-gray-300">Employee</th>}
                       {visibleColumns.invoiceNo && <th className="pb-1 border-b text-gray-300">Invoice No</th>}
                       {visibleColumns.date && <th className="pb-1 border-b text-gray-300">Date</th>}
                       {visibleColumns.paymentAccount && <th className="pb-1 border-b text-gray-300">Payment</th>}
@@ -518,7 +486,7 @@ const Sales = () => {
                               title="View Sale" 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                navigate(`/app/sales/view/${s.id}`); 
+                                navigate(`/app/sales/invoice/preview/${s.id}`); 
                               }}
                             >
                               <Eye size={14} className="text-blue-300" />
@@ -526,7 +494,6 @@ const Sales = () => {
                             <span className="text-gray-300">{s.customerName || ""}</span>
                           </td>
                         )}
-                        {visibleColumns.employee && <td className="px-2 py-2 text-gray-300">{s.employee || "-"}</td>}
                         {visibleColumns.invoiceNo && <td className="px-2 py-2 text-gray-300">{s.invoiceNo || s.VNo || ""}</td>}
                         {visibleColumns.date && <td className="px-2 py-2 text-gray-300">{s.date || ""}</td>}
                         {visibleColumns.paymentAccount && <td className="px-2 py-2 text-gray-300">{s.paymentAccount || ""}</td>}

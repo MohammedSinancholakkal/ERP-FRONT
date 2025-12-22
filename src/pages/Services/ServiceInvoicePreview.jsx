@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useSettings } from "../../contexts/SettingsContext"; // Import hook
 import {
   getServiceInvoiceByIdApi,
   getCustomersApi
 } from "../../services/allAPI";
-
+import { useParams } from "react-router-dom";
 const ServiceInvoicePreview = () => {
   const { id } = useParams();
+  const { settings } = useSettings(); // Use hook
 
   const [invoice, setInvoice] = useState(null);
   const [details, setDetails] = useState([]);
@@ -125,26 +126,26 @@ useEffect(() => {
     (invoice?.VNo && invoice.VNo.trim()) ? invoice.VNo : `INV-${String(invoice?.Id ?? "").padStart(4, "0")}`;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-10 flex justify-center">
-      <div className="w-full max-w-[1280px] bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-8">
+    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-10 flex justify-center">
+      <div className="w-full max-w-[1280px] bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-6 md:p-8">
 
         {/* HEADER */}
-        <div className="flex justify-between items-center border-b border-gray-700 pb-4 mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-700 pb-4 mb-8 gap-4">
           <h1 className="text-3xl font-semibold">Service Invoice</h1>
           <p className="text-sm text-gray-300">
-            Date: {invoice?.Date ? new Date(invoice.Date).toLocaleDateString() : "-"}
+            Date: {new Date().toLocaleDateString()}
           </p>
         </div>
 
         {/* FROM / TO / INFO */}
-        <div className="grid grid-cols-3 gap-10 mb-10 text-sm text-gray-300">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-sm text-gray-300">
 
           {/* FROM */}
           <div>
             <p className="text-gray-400 mb-1">From</p>
-            <h3 className="text-lg font-semibold text-white">Home Button</h3>
-            <p>Phone:</p>
-            <p>Email:</p>
+            <h3 className="text-lg font-semibold text-white">{settings?.companyName || "Home Button"}</h3>
+            <p>Phone: {settings?.phone || ""}</p>
+            <p>Email: {settings?.companyEmail || ""}</p>
           </div>
 
 {/* TO */}
@@ -180,7 +181,7 @@ useEffect(() => {
 
 
           {/* INVOICE META */}
-          <div className="text-right">
+          <div className="text-left md:text-right">
             <p className="text-lg font-semibold text-white">
               Invoice #{invoiceNo}
             </p>
@@ -193,8 +194,8 @@ useEffect(() => {
         </div>
 
         {/* SERVICES TABLE */}
-        <div className="mb-10">
-          <table className="w-full text-sm text-left border-separate border-spacing-y-1">
+        <div className="mb-10 overflow-x-auto">
+          <table className="w-full text-sm text-left border-separate border-spacing-y-1 min-w-[600px]">
             <thead className="border-b border-gray-700">
               <tr className="text-gray-200 font-semibold">
                 <th>Service</th>
@@ -225,8 +226,8 @@ useEffect(() => {
         </div>
 
         {/* TOTALS */}
-        <div className="flex justify-end">
-          <div className="w-full max-w-[420px] space-y-3 text-sm text-gray-300">
+        <div className="flex justify-start md:justify-end">
+          <div className="w-full md:w-[420px] space-y-3 text-sm text-gray-300">
             <div className="flex justify-between border-b border-gray-700 pb-2">
               <span>Subtotal:</span>
               <span>{(Number(invoice.GrandTotal) || 0).toFixed(2)}</span>
@@ -238,7 +239,7 @@ useEffect(() => {
             </div>
 
             <div className="flex justify-between border-b border-gray-700 pb-2">
-              <span>VAT:</span>
+              <span>VAT ({settings?.vatPercent || 0}%):</span>
               <span>{(Number(invoice.Vat) || 0).toFixed(2)}</span>
             </div>
 

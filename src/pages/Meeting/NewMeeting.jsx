@@ -28,6 +28,7 @@ import {
   searchCityApi,
   deleteMeetingApi,
   getMeetingByIdApi,
+  updateMeetingApi,
 } from "../../services/allAPI";
 
 import { useNavigate, useParams } from "react-router-dom";
@@ -36,7 +37,7 @@ import toast from "react-hot-toast";
 const NewMeeting = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-const isEdit = Boolean(id);
+  const isEdit = Boolean(id);
 
 
   // Quick Create Modal States
@@ -54,8 +55,8 @@ const isEdit = Boolean(id);
   // Form Data for Quick Create
   const [newMeetingType, setNewMeetingType] = useState("");
   const [newDepartment, setNewDepartment] = useState({ department: "", description: "", parentDepartmentId: "" });
-  const [newLocation, setNewLocation] = useState({ 
-    name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" 
+  const [newLocation, setNewLocation] = useState({
+    name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: ""
   });
   const [newAttendeeType, setNewAttendeeType] = useState("");
   const [newAttendanceStatus, setNewAttendanceStatus] = useState("");
@@ -104,190 +105,202 @@ const isEdit = Boolean(id);
   const [locations, setLocations] = useState([]);
   const [meetingTypes, setMeetingTypes] = useState([]);
 
-    const normalizeSimple = (records) =>
-  records.map(r => ({
-    id: String(r.Id ?? r.id),
-    name: r.Name ?? r.name
-  }));
+  const normalizeSimple = (records) =>
+    records.map(r => ({
+      id: String(r.Id ?? r.id),
+      name: r.Name ?? r.name
+    }));
 
-const normalizeEmployees = (records = []) =>
-  records.map(r => ({
-    id: String(r.Id),
-    name: `${r.FirstName} ${r.LastName ?? ""}`.trim(),
-    employeeId: r.Id,
-    departmentName: "",     // ❗ employees API DOES NOT HAVE THIS
-    designationName: ""     // ❗ employees API DOES NOT HAVE THIS
-  }));
+  const normalizeEmployees = (records = []) =>
+    records.map(r => ({
+      id: String(r.Id),
+      name: `${r.FirstName} ${r.LastName ?? ""}`.trim(),
+      employeeId: r.Id,
+      departmentName: "",     // ❗ employees API DOES NOT HAVE THIS
+      designationName: ""     // ❗ employees API DOES NOT HAVE THIS
+    }));
 
 
   useEffect(() => {
-  if (!isEdit) return;
+    if (!isEdit) return;
 
-  setForm(f => ({ ...f }));
-}, [meetingTypes, departments, locations, employees]);
-
-
-
-
- // ===============================
-// SEPARATE LOADER FUNCTIONS
-// ===============================
+    setForm(f => ({ ...f }));
+  }, [meetingTypes, departments, locations, employees]);
 
 
 
-const loadEmployees = async () => {
-  try {
-    const res = await getEmployeesApi(1, 5000);
-    console.log(res);
-    
-setEmployees(normalizeEmployees(res?.data?.records || []));
-  } catch (err) {
-    console.log("Employees Load Error:", err);
-  }
-};
 
-const loadAttendeeTypes = async () => {
-  try {
-    const res = await getAttendeeTypesApi(1, 5000);
-    console.log(res);
-
-    setAttendeeTypes(normalizeSimple(res?.data?.records));
-  } catch (err) {
-    console.log("Attendee Types Load Error:", err);
-  }
-};
-
-const loadAttendanceStatuses = async () => {
-  try {
-    const res = await getAttendanceStatusesApi(1, 5000);
-    console.log(res);
-
-    setAttendanceStatuses(normalizeSimple(res?.data?.records));
-  } catch (err) {
-    console.log("Attendance Status Load Error:", err);
-  }
-};
-
-const loadDepartments = async () => {
-  try {
-    const res = await getDepartmentsApi(1, 5000);
-        console.log(res);
-
-    const records = res?.data?.records || [];
-
-    const normalized = records.map((r) => ({
-      id: r.id,
-      name: r.department,   // 👈 FIX here
-    }));
-
-    setDepartments(normalized);
-  } catch (err) {
-    console.log("Departments Load Error:", err);
-  }
-};
-
-const loadLocations = async () => {
-  const res = await getLocationsApi(1, 5000);
-
-  setLocations(
-    (res?.data?.records || []).map(l => ({
-      id: String(l.Id),
-      name: `${l.Name} (${l.CityName ?? ""})`
-    }))
-  );
-};
-
-
-const loadMeetingTypes = async () => {
-  try {
-    const res = await getMeetingTypesApi(1, 5000);
-    console.log(res);
-
-    setMeetingTypes(normalizeSimple(res?.data?.records));
-  } catch (err) {
-    console.log("Meeting Types Load Error:", err);
-  }
-};
+  // ===============================
+  // SEPARATE LOADER FUNCTIONS
+  // ===============================
 
 
 
-useEffect(() => {
-  if (!isEdit) return;
-
-  const loadMeeting = async () => {
+  const loadEmployees = async () => {
     try {
-      const res = await getMeetingByIdApi(id);
-      const m = res?.data?.meeting;
-      const attendees = res?.data?.attendees;
+      const res = await getEmployeesApi(1, 5000);
+      console.log(res);
 
-      if (!m) return;
-
-setForm({
-  meetingName: m.meetingName ?? "",
-
-  // 🔑 FK fields → always STRING for <select>
-  meetingType: String(m.meetingType ?? ""),
-  department: String(m.department ?? ""),
-  location: String(m.location ?? ""),
-  organizedBy: String(m.organizedBy ?? ""),
-  reporter: String(m.reporter ?? ""),
-
-  // 🕒 datetime-local needs YYYY-MM-DDTHH:mm
-  startDate: m.startDate ? m.startDate.slice(0, 16) : "",
-  endDate: m.endDate ? m.endDate.slice(0, 16) : "",
-
-  // 👥 attendees (from JOIN query)
-  attendees: (attendees || []).map(a => ({
-    attendee: a.attendeeName ?? "",
-    attendeeType: a.attendeeTypeName ?? "",
-    attendanceStatus: a.attendanceStatusName ?? "",
-
-    // 🔑 IDs as STRING for edit modal
-    attendeeId: String(a.attendeeId ?? ""),
-    attendeeTypeId: String(a.attendeeTypeId ?? ""),
-    attendanceStatusId: String(a.attendanceStatusId ?? ""),
-
-    // 📋 extra table fields
-    employeeId: a.employeeId ?? "",
-    departmentName: a.departmentName ?? "",
-    designationName: a.designationName ?? ""
-  }))
-});
-
-
+      setEmployees(normalizeEmployees(res?.data?.records || []));
     } catch (err) {
-      console.error("LOAD MEETING ERROR:", err);
+      console.log("Employees Load Error:", err);
     }
   };
 
-  loadMeeting();
-}, [id]);
+  const loadAttendeeTypes = async () => {
+    try {
+      const res = await getAttendeeTypesApi(1, 5000);
+      console.log(res);
+
+      setAttendeeTypes(normalizeSimple(res?.data?.records));
+    } catch (err) {
+      console.log("Attendee Types Load Error:", err);
+    }
+  };
+
+  const loadAttendanceStatuses = async () => {
+    try {
+      const res = await getAttendanceStatusesApi(1, 5000);
+      console.log(res);
+
+      setAttendanceStatuses(normalizeSimple(res?.data?.records));
+    } catch (err) {
+      console.log("Attendance Status Load Error:", err);
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const res = await getDepartmentsApi(1, 5000);
+      console.log(res);
+
+      const records = res?.data?.records || [];
+
+      const normalized = records.map((r) => ({
+        id: r.id,
+        name: r.department,   // 👈 FIX here
+      }));
+
+      setDepartments(normalized);
+    } catch (err) {
+      console.log("Departments Load Error:", err);
+    }
+  };
+
+  const loadLocations = async () => {
+    const res = await getLocationsApi(1, 5000);
+
+    setLocations(
+      (res?.data?.records || []).map(l => ({
+        id: String(l.Id),
+        name: `${l.Name} (${l.CityName ?? ""})`
+      }))
+    );
+  };
+
+
+  const loadMeetingTypes = async () => {
+    try {
+      const res = await getMeetingTypesApi(1, 5000);
+      console.log(res);
+
+      setMeetingTypes(normalizeSimple(res?.data?.records));
+    } catch (err) {
+      console.log("Meeting Types Load Error:", err);
+    }
+  };
 
 
 
-// ===============================
-// RUN ALL LOADERS SEPARATELY
-// ===============================
-useEffect(() => {
-  loadEmployees();
-  loadAttendeeTypes();
-  loadAttendanceStatuses();
-  loadDepartments();
-  loadLocations();
-  loadMeetingTypes();
-}, []);
+  useEffect(() => {
+    if (!isEdit) return;
+
+    const loadMeeting = async () => {
+      try {
+        const res = await getMeetingByIdApi(id);
+        const m = res?.data?.meeting;
+        const attendees = res?.data?.attendees;
+
+        if (!m) return;
+
+        // Smart Match Helper: specific to this scope
+        const resolveId = (val, list) => {
+          if (!val) return "";
+          const strVal = String(val);
+          // If it's already a number/ID in the list, return it
+          if (list.some(item => String(item.id) === strVal)) return strVal;
+
+          // Otherwise try to find by Name (case insensitive)
+          const match = list.find(item => item.name?.toLowerCase() === strVal.toLowerCase());
+          return match ? String(match.id) : strVal;
+        };
+
+        setForm({
+          meetingName: m.meetingName ?? "",
+
+          // 🔑 Use resolveId to handle text values ("Review" -> "5")
+          meetingType: resolveId(m.meetingType, meetingTypes),
+          department: resolveId(m.department, departments),
+          location: resolveId(m.location, locations),
+          organizedBy: resolveId(m.organizedBy, employees),
+          reporter: resolveId(m.reporter, employees),
+
+          // 🕒 datetime-local needs YYYY-MM-DDTHH:mm
+          startDate: m.startDate ? m.startDate.slice(0, 16) : "",
+          endDate: m.endDate ? m.endDate.slice(0, 16) : "",
+
+          // 👥 attendees (from JOIN query)
+          attendees: (attendees || []).map(a => ({
+            attendee: a.attendeeName ?? "",
+            attendeeType: a.attendeeTypeName ?? "",
+            attendanceStatus: a.attendanceStatusName ?? "",
+
+            // 🔑 IDs as STRING for edit modal
+            attendeeId: String(a.attendeeId ?? ""),
+            attendeeTypeId: String(a.attendeeTypeId ?? ""),
+            attendanceStatusId: String(a.attendanceStatusId ?? ""),
+
+            // 📋 extra table fields
+            employeeId: a.employeeId ?? "",
+            departmentName: a.departmentName ?? "",
+            designationName: a.designationName ?? ""
+          }))
+        });
+
+
+      } catch (err) {
+        console.error("LOAD MEETING ERROR:", err);
+      }
+    };
+
+    loadMeeting();
+  }, [id]);
+
+
+
+  // ===============================
+  // RUN ALL LOADERS SEPARATELY
+  // ===============================
+  useEffect(() => {
+    loadEmployees();
+    loadAttendeeTypes();
+    loadAttendanceStatuses();
+    loadDepartments();
+    loadLocations();
+    loadMeetingTypes();
+  }, []);
 
   // Load Countries when Location Modal opens
   useEffect(() => {
     if (locationModalOpen || addStateModalOpen || addCityModalOpen) {
       const fetchCountries = async () => {
         const res = await getCountriesApi(1, 5000);
-       setModalCountries(
-  (res?.data?.records || []).map(c => ({
-    id: String(c.Id),
-    name: c.Name
-  }))
-);
+        setModalCountries(
+          (res?.data?.records || []).map(c => ({
+            id: String(c.Id),
+            name: c.Name
+          }))
+        );
 
       };
       fetchCountries();
@@ -299,12 +312,12 @@ useEffect(() => {
     if (newLocation.countryId) {
       const fetchStates = async () => {
         const res = await getStatesByCountryApi(newLocation.countryId);
-setLocationModalStates(
-  (res?.data || []).map(s => ({
-    id: String(s.Id),
-    name: s.Name
-  }))
-);
+        setLocationModalStates(
+          (res?.data || []).map(s => ({
+            id: String(s.Id),
+            name: s.Name
+          }))
+        );
       };
       fetchStates();
     } else {
@@ -319,12 +332,12 @@ setLocationModalStates(
         const res = await getCitiesApi(1, 5000);
         const allCities = res?.data?.records || [];
         const filtered = allCities.filter(c => String(c.stateId) === String(newLocation.stateId));
-setLocationModalCities(
-  filtered.map(c => ({
-    id: String(c.Id),
-    name: c.Name
-  }))
-);
+        setLocationModalCities(
+          filtered.map(c => ({
+            id: String(c.Id),
+            name: c.Name
+          }))
+        );
       };
       fetchCities();
     } else {
@@ -382,10 +395,11 @@ setLocationModalCities(
       attendanceStatusId: attendeeForm.attendanceStatus,
       // Add extra details for the table
       employeeId: employees.find((e) => String(e.id) === String(attendeeForm.attendee))?.employeeId || "",
-     departmentName:
-  employees.find(e => e.id === attendeeForm.attendee)?.departmentName || "—",
-designationName:
-  employees.find(e => e.id === attendeeForm.attendee)?.designationName || "—",    };
+      departmentName:
+        employees.find(e => e.id === attendeeForm.attendee)?.departmentName || "—",
+      designationName:
+        employees.find(e => e.id === attendeeForm.attendee)?.designationName || "—",
+    };
 
     let updated = [...form.attendees];
 
@@ -424,71 +438,88 @@ designationName:
   };
 
 
-const formatDateTime = (value) => {
-  if (!value) return null;
-  return value.replace("T", " ") + ":00";
-};
+  const formatDateTime = (value) => {
+    if (!value) return null;
+    return value.replace("T", " ") + ":00";
+  };
 
-const handleSave = async () => {
-  try {
-    if (!form.meetingName || !form.startDate || !form.meetingType) {
-      toast.error("Please fill all required fields");
-      return;
+  /* Helper to check for valid numeric IDs */
+  const isValidId = (val) => val && !isNaN(Number(val)) && Number(val) !== 0;
+
+  const handleSave = async () => {
+    try {
+      // Required Fields Check (Must be present AND valid numeric IDs)
+      if (!form.meetingName || !form.startDate || !form.endDate) {
+        toast.error("Please fill all required fields");
+        return;
+      }
+
+      if (!isValidId(form.meetingType)) {
+        toast.error("Please select a valid Meeting Type");
+        return;
+      }
+
+      const payload = {
+        ...form,
+        // Optional Fields: Only send if valid number, else null (clears legacy text)
+        meetingType: isValidId(form.meetingType) ? form.meetingType : null,
+        department: isValidId(form.department) ? form.department : null,
+        location: isValidId(form.location) ? form.location : null,
+        organizedBy: isValidId(form.organizedBy) ? form.organizedBy : null,
+        reporter: isValidId(form.reporter) ? form.reporter : null,
+
+        attendees: form.attendees.map(a => ({
+          attendeeId: isValidId(a.attendeeId) ? a.attendeeId : null,
+          attendeeTypeId: isValidId(a.attendeeTypeId) ? a.attendeeTypeId : null,
+          attendanceStatusId: isValidId(a.attendanceStatusId) ? a.attendanceStatusId : null,
+        })),
+        startDate: formatDateTime(form.startDate),
+        endDate: formatDateTime(form.endDate),
+        userId: currentUserId,
+      };
+
+      if (isEdit) {
+        await updateMeetingApi(id, payload);
+        toast.success("Meeting updated successfully");
+      } else {
+        await addMeetingApi(payload);
+        toast.success("Meeting created successfully");
+      }
+
+      navigate("/app/meeting/meetings");
+
+    } catch (err) {
+      console.error("SAVE MEETING ERROR:", err);
+      toast.error("Failed to save meeting");
     }
-    const payload = {
-      ...form,
-      attendees: form.attendees.map(a => ({
-        attendeeId: a.attendeeId,
-        attendeeTypeId: a.attendeeTypeId,
-        attendanceStatusId: a.attendanceStatusId,
-      })),
-      startDate: formatDateTime(form.startDate),
-      endDate: formatDateTime(form.endDate),
-      userId: currentUserId,
-    };
+  };
 
-    if (isEdit) {
-      await updateMeetingApi(id, payload);
-      toast.success("Meeting updated successfully");
-    } else {
-      await addMeetingApi(payload);
-      toast.success("Meeting created successfully");
+
+
+  const handleDelete = async () => {
+    const result = await Swal.fire({
+      title: "Delete Meeting?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await deleteMeetingApi(id, { userId: currentUserId });
+      toast.success("Meeting deleted successfully");
+      navigate("/app/meeting/meetings");
+    } catch (error) {
+      console.error("DELETE MEETING ERROR:", error);
+      toast.error("Failed to delete meeting");
     }
-
-    navigate("/app/meeting/meetings");
-
-  } catch (err) {
-    console.error("SAVE MEETING ERROR:", err);
-    toast.error("Failed to save meeting");
-  }
-};
-
-
-
-const handleDelete = async () => {
-  const result = await Swal.fire({
-    title: "Delete Meeting?",
-    text: "This action cannot be undone.",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: "Yes, delete",
-    cancelButtonText: "Cancel",
-    reverseButtons: true,
-  });
-
-  if (!result.isConfirmed) return;
-
-  try {
-    await deleteMeetingApi(id, { userId: currentUserId });
-    toast.success("Meeting deleted successfully");
-    navigate("/app/meeting/meetings");
-  } catch (error) {
-    console.error("DELETE MEETING ERROR:", error);
-    toast.error("Failed to delete meeting");
-  }
-};
+  };
 
 
 
@@ -639,11 +670,10 @@ const handleDelete = async () => {
   const Tab = ({ label, active, onClick }) => (
     <button
       onClick={onClick}
-      className={`pb-2 text-sm font-medium ${
-        active
-          ? "text-yellow-400 border-b-2 border-yellow-400"
-          : "text-gray-400 hover:text-white"
-      }`}
+      className={`pb-2 text-sm font-medium ${active
+        ? "text-yellow-400 border-b-2 border-yellow-400"
+        : "text-gray-400 hover:text-white"
+        }`}
     >
       {label}
     </button>
@@ -652,57 +682,57 @@ const handleDelete = async () => {
   return (
     <PageLayout>
       <div className="p-5 text-white bg-gradient-to-b from-gray-900 to-gray-700">
-  <div className="flex items-center justify-between mb-4">
-  <div className="flex items-center gap-2">
-    <button
-      onClick={() => navigate("/app/meeting/meetings")}
-      className="p-2 bg-gray-800 rounded border border-gray-700"
-    >
-      <ArrowLeft size={18} />
-    </button>
-    <h2 className="text-xl font-semibold">
-      {isEdit ? "Edit Meeting" : "New Meeting"}
-    </h2>
-  </div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate("/app/meeting/meetings")}
+              className="p-2 bg-gray-800 rounded border border-gray-700"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <h2 className="text-xl font-semibold">
+              {isEdit ? "Edit Meeting" : "New Meeting"}
+            </h2>
+          </div>
 
-    <div className="flex gap-3">
-      <button
-        onClick={handleSave}
-        className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
-      >
-        <Save size={18} /> {isEdit ? "Update" : "Save"}
-      </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
+            >
+              <Save size={18} /> {isEdit ? "Update" : "Save"}
+            </button>
 
-      {isEdit && (
-        <button
-          onClick={handleDelete}
-          className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200"
-        >
-          <Trash2 size={18} /> Delete
-        </button>
-      )}
-    </div>
-  </div>
+            {isEdit && (
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200"
+              >
+                <Trash2 size={18} /> Delete
+              </button>
+            )}
+          </div>
+        </div>
 
-  {isEdit && (
-    <div className="flex gap-6 border-b border-gray-700 mb-5">
-      <Tab
-        label="Meeting"
-        active={true}
-        onClick={() => navigate(`/app/meeting/meetings/edit/${id}`)}
-      />
-      <Tab
-        label="Agenda Items"
-        active={false}
-        onClick={() => navigate(`/app/meeting/meetings/edit/${id}/agenda`)}
-      />
-      <Tab
-        label="Agenda Decisions"
-        active={false}
-        onClick={() => navigate(`/app/meeting/meetings/edit/${id}/decisions`)}
-      />
-    </div>
-  )}
+        {isEdit && (
+          <div className="flex gap-6 border-b border-gray-700 mb-5">
+            <Tab
+              label="Meeting"
+              active={true}
+              onClick={() => navigate(`/app/meeting/meetings/edit/${id}`)}
+            />
+            <Tab
+              label="Agenda Items"
+              active={false}
+              onClick={() => navigate(`/app/meeting/meetings/edit/${id}/agenda`)}
+            />
+            <Tab
+              label="Agenda Decisions"
+              active={false}
+              onClick={() => navigate(`/app/meeting/meetings/edit/${id}/decisions`)}
+            />
+          </div>
+        )}
 
 
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
@@ -773,7 +803,7 @@ const handleDelete = async () => {
                   <label className="text-sm text-white">Meeting Type *</label>
                   <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Meeting Type")} />
                 </div>
-              <select
+                <select
                   value={String(form.meetingType || "")}
                   onChange={(e) => updateField("meetingType", e.target.value)}
                   className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
@@ -842,7 +872,7 @@ const handleDelete = async () => {
             <label className="text-sm text-white">Attendees</label>
 
             <button
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
+              className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               onClick={() => {
                 setEditIndex(null);
                 setAttendeeForm({
@@ -903,117 +933,117 @@ const handleDelete = async () => {
         </div>
       </div>
 
-{showAttendeeModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center overflow-y-auto py-10 z-50">
-    <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[500px] max-h-[80vh] overflow-y-auto shadow-xl">
-      
-      {/* HEADER */}
-      <div className="flex justify-between mb-4">
-        <h3 className="text-white text-lg">
-          {editIndex !== null ? "Edit Attendee" : "Add Attendee"}
-        </h3>
+      {showAttendeeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center overflow-y-auto py-10 z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[500px] max-h-[80vh] overflow-y-auto shadow-xl">
 
-        {/* TOP CLOSE BUTTON */}
-        <X
-          size={22}
-          className="cursor-pointer hover:text-red-400"
-          onClick={() => setShowAttendeeModal(false)}
-        />
-      </div>
+            {/* HEADER */}
+            <div className="flex justify-between mb-4">
+              <h3 className="text-white text-lg">
+                {editIndex !== null ? "Edit Attendee" : "Add Attendee"}
+              </h3>
 
-      {/* ATTENDEE DROPDOWN */}
-      <label className="text-sm text-white">Attendee *</label>
-      <select
-        value={attendeeForm.attendee}
-        onChange={(e) =>
-          setAttendeeForm({ ...attendeeForm, attendee: e.target.value })
-        }
-        className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1 mb-3"
-      >
-        <option value="">--select--</option>
-        {employees.map((e) => (
-          <option
-            key={e.id}
-            value={e.id}
-            className="text-gray-200 bg-gray-800"   
-          >
-            {e.name}
-          </option>
-        ))}
-      </select>
+              {/* TOP CLOSE BUTTON */}
+              <X
+                size={22}
+                className="cursor-pointer hover:text-red-400"
+                onClick={() => setShowAttendeeModal(false)}
+              />
+            </div>
 
-      {/* TYPE DROPDOWN */}
-      <div className="flex items-center gap-2 mb-1">
-        <label className="text-sm text-white">Attendee Type *</label>
-        <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Attendee Type")} />
-      </div>
-      <select
-        value={attendeeForm.attendeeType}
-        onChange={(e) =>
-          setAttendeeForm({ ...attendeeForm, attendeeType: e.target.value })
-        }
-        className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-3"
-      >
-        <option value="">--select--</option>
-        {attendeeTypes.map((t) => (
-          <option
-            key={t.id}
-            value={t.id}
-            className="text-gray-200 bg-gray-800"  
-          >
-            {t.name}
-          </option>
-        ))}
-      </select>
+            {/* ATTENDEE DROPDOWN */}
+            <label className="text-sm text-white">Attendee *</label>
+            <select
+              value={attendeeForm.attendee}
+              onChange={(e) =>
+                setAttendeeForm({ ...attendeeForm, attendee: e.target.value })
+              }
+              className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1 mb-3"
+            >
+              <option value="">--select--</option>
+              {employees.map((e) => (
+                <option
+                  key={e.id}
+                  value={e.id}
+                  className="text-gray-200 bg-gray-800"
+                >
+                  {e.name}
+                </option>
+              ))}
+            </select>
 
-      {/* STATUS DROPDOWN */}
-      <div className="flex items-center gap-2 mb-1">
-        <label className="text-sm text-white">Attendance Status *</label>
-        <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Attendance Status")} />
-      </div>
-      <select
-        value={attendeeForm.attendanceStatus}
-        onChange={(e) =>
-          setAttendeeForm({ ...attendeeForm, attendanceStatus: e.target.value })
-        }
-        className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-6"
-      >
-        <option value="">--select--</option>
-        {attendanceStatuses.map((s) => (
-          <option
-            key={s.id}
-            value={s.id}
-            className="text-gray-200 bg-gray-800"  
-          >
-            {s.name}
-          </option>
-        ))}
-      </select>
+            {/* TYPE DROPDOWN */}
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-sm text-white">Attendee Type *</label>
+              <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Attendee Type")} />
+            </div>
+            <select
+              value={attendeeForm.attendeeType}
+              onChange={(e) =>
+                setAttendeeForm({ ...attendeeForm, attendeeType: e.target.value })
+              }
+              className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-3"
+            >
+              <option value="">--select--</option>
+              {attendeeTypes.map((t) => (
+                <option
+                  key={t.id}
+                  value={t.id}
+                  className="text-gray-200 bg-gray-800"
+                >
+                  {t.name}
+                </option>
+              ))}
+            </select>
 
-      {/* FOOTER BUTTONS */}
-      <div className="flex justify-end gap-3">
+            {/* STATUS DROPDOWN */}
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-sm text-white">Attendance Status *</label>
+              <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Attendance Status")} />
+            </div>
+            <select
+              value={attendeeForm.attendanceStatus}
+              onChange={(e) =>
+                setAttendeeForm({ ...attendeeForm, attendanceStatus: e.target.value })
+              }
+              className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-6"
+            >
+              <option value="">--select--</option>
+              {attendanceStatuses.map((s) => (
+                <option
+                  key={s.id}
+                  value={s.id}
+                  className="text-gray-200 bg-gray-800"
+                >
+                  {s.name}
+                </option>
+              ))}
+            </select>
 
-        {/* NEW CANCEL / CLOSE BUTTON */}
-        <button
-          onClick={() => setShowAttendeeModal(false)}
-          className="flex items-center gap-2 bg-red-700 border border-gray-600 px-4 py-2 rounded text-sm text-gray-300 hover:bg-gray-600"
-        >
-          <X size={16} /> Close
-        </button>
+            {/* FOOTER BUTTONS */}
+            <div className="flex justify-end gap-3">
 
-        {/* SAVE BUTTON */}
-        <button
-          onClick={saveAttendee}
-          className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
-        >
-          <Save size={16} /> Save
-        </button>
+              {/* NEW CANCEL / CLOSE BUTTON */}
+              <button
+                onClick={() => setShowAttendeeModal(false)}
+                className="flex items-center gap-2 bg-red-700 border border-gray-600 px-4 py-2 rounded text-sm text-gray-300 hover:bg-gray-600"
+              >
+                <X size={16} /> Close
+              </button>
 
-      </div>
+              {/* SAVE BUTTON */}
+              <button
+                onClick={saveAttendee}
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
+              >
+                <Save size={16} /> Save
+              </button>
 
-    </div>
-  </div>
-)}
+            </div>
+
+          </div>
+        </div>
+      )}
 
 
       {/* SIMPLE MODALS */}
@@ -1243,7 +1273,7 @@ const handleDelete = async () => {
               <h3 className="text-white text-lg">Add State</h3>
               <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setAddStateModalOpen(false)} />
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-white">State Name *</label>
@@ -1285,7 +1315,7 @@ const handleDelete = async () => {
               <h3 className="text-white text-lg">Add City</h3>
               <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setAddCityModalOpen(false)} />
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-white">City Name *</label>

@@ -59,6 +59,7 @@ import ChartOfAccounts from "./pages/Financial/ChartOfAccounts";
 import Sales from "./pages/Sales/Sales";
 import SalesQuotation from "./pages/Sales/SalesQuotation";
 import SalesQuotationPreview from "./pages/Sales/SalesQuotationPreview";
+import SalesInvoicePreview from "./pages/Sales/SalesInvoicePreview";
 import Purchase from "./pages/Purchases/Purchase"
 import Invoices from "./pages/Services/Invoices";
 import Meetings from "./pages/Meeting/Meetings";
@@ -195,6 +196,7 @@ function App() {
           <Route path="sales/newsalequotation" element={<NewSaleQuotation />} /> 
           <Route path="sales/newsalequotation/:id" element={<NewSaleQuotation />} /> 
           <Route path="sales/preview/:id" element={<SalesQuotationPreview />} />
+          <Route path="sales/invoice/preview/:id" element={<SalesInvoicePreview />} />
 
 
 

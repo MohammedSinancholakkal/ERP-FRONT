@@ -116,6 +116,16 @@ const SalesQuotation = () => {
   const [customers, setCustomers] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [quotationsList, setQuotationsList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Helper to normalize
+  const normalizeQuotation = (q, cList = [], eList = []) => ({
+    ...q,
+    customerName:
+      q.customerName || cList.find((c) => String(c.id) === String(q.customerId) || String(c.id) === String(q.CustomerId))?.name || "-",
+    employeeName:
+      q.employeeName || eList.find((e) => String(e.id) === String(q.employeeId) || String(e.id) === String(q.EmployeeId))?.name || "-"
+  });
 
   
 
@@ -141,9 +151,13 @@ const SalesQuotation = () => {
   
 
   useEffect(() => {
-    fetchCustomers();
-    fetchEmployees();
-  }, []);
+    fetchAllData();
+  }, [limit]); // Fetch on mount or limit change (Wait, if I use fetchAllData on limit change it reloads everything. Just mount is better if we have pagination effect)
+  
+  // Actually, I'll stick to just mount for now, and rely on pagination effect for limit changes.
+  // But wait, my plan below (in next steps) will define fetchAllData.
+  // The original code had useEffect(() => { fetchCustomers(); fetchEmployees(); }, []);
+  // I will change it to fetchAllData.
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -182,64 +196,67 @@ const SalesQuotation = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchText, page, limit, customers, employees]);
 
-  const fetchQuotations = async () => {
+  const fetchAllData = async () => {
     try {
-      const res = await getQuotationsApi(page, limit);
-      console.log(res);
-      
-      if (res.status === 200) {
-        let rows = res.data.records || [];
-        rows = rows.map((q) => ({
-          ...q,
-          customerName:
-            q.customerName || customers.find((c) => String(c.id) === String(q.customerId) || String(c.id) === String(q.CustomerId))?.name || "-",
-          employeeName:
-            q.employeeName || employees.find((e) => String(e.id) === String(q.employeeId) || String(e.id) === String(q.EmployeeId))?.name || "-"
-        }));
+      setIsLoading(true);
+      const [cRes, eRes, qRes] = await Promise.all([
+        getCustomersApi(1, 1000),
+        getEmployeesApi(1, 1000),
+        getQuotationsApi(page, limit)
+      ]);
 
-        setQuotationsList(rows);
-      const totalRecords =
-  res.data.totalRecords ?? res.data.total ?? rows.length ?? 0;
+      let cList = [];
+      let eList = [];
 
-setTotalRecords(totalRecords);
-
-setTotalPages(
-  res.data.totalPages ?? Math.max(1, Math.ceil(totalRecords / limit))
-);
-      }
-    } catch (error) {
-      console.error("Error fetching quotations", error);
-    }
-  };
-
-  const fetchCustomers = async () => {
-    try {
-      const res = await getCustomersApi(1, 1000);
-      if (res.status === 200) {
-        const mapped = (res.data.records || []).map((c) => ({
+      // Process Customers
+      if (cRes.status === 200) {
+        cList = (cRes.data.records || []).map((c) => ({
           id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
           name:
             c.name ?? c.Name ?? c.companyName ?? c.CompanyName ?? `${c.firstName ?? c.FirstName ?? ""} ${c.lastName ?? c.LastName ?? ""}`.trim()
         }));
-        setCustomers(mapped);
+        setCustomers(cList);
       }
-    } catch (error) {
-      console.error("Error fetching customers", error);
-    }
-  };
 
-  const fetchEmployees = async () => {
-    try {
-      const res = await getEmployeesApi(1, 1000);
-      if (res.status === 200) {
-        const mapped = (res.data.records || []).map((e) => ({
+      // Process Employees
+      if (eRes.status === 200) {
+        eList = (eRes.data.records || []).map((e) => ({
           id: e.id ?? e.Id ?? e.employeeId ?? e.EmployeeId ?? null,
           name: e.fullName ?? e.fullname ?? e.name ?? e.Name ?? `${e.firstName ?? e.FirstName ?? ""} ${e.lastName ?? e.LastName ?? ""}`.trim()
         }));
-        setEmployees(mapped);
+        setEmployees(eList);
+      }
+
+      // Process Quotations
+      if (qRes.status === 200) {
+        let rows = qRes.data.records || [];
+        const normalized = rows.map(q => normalizeQuotation(q, cList, eList));
+        setQuotationsList(normalized);
+        const total = qRes.data.totalRecords ?? qRes.data.total ?? rows.length ?? 0;
+        setTotalRecords(total);
+        setTotalPages(qRes.data.totalPages ?? Math.max(1, Math.ceil(total / limit)));
       }
     } catch (error) {
-      console.error("Error fetching employees", error);
+      console.error("Error loading data", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchQuotations = async () => {
+    try {
+      const res = await getQuotationsApi(page, limit);
+      if (res.status === 200) {
+        let rows = res.data.records || [];
+        // Use current state for customers/employees
+        const normalized = rows.map(q => normalizeQuotation(q, customers, employees));
+        setQuotationsList(normalized);
+        const total = res.data.totalRecords ?? res.data.total ?? rows.length ?? 0;
+        setTotalRecords(total);
+        setTotalPages(res.data.totalPages ?? Math.max(1, Math.ceil(total / limit)));
+      }
+    } catch (error) {
+      console.error("Error fetching quotations", error);
     }
   };
 
@@ -293,13 +310,13 @@ setTotalPages(
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setSearchText("");
     setFilterCustomer("");
     setFilterDate("");
     setFilterExpiry("");
     setPage(1);
-    fetchQuotations();
+    await fetchAllData();
     toast.success("Refreshed");
   };
 

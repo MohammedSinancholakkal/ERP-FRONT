@@ -84,7 +84,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { getSettingsApi } from "../services/allAPI";
 import { updateFavicon } from "../utils/updateFavicon";
-
+import { useParams } from "react-router-dom";
 const SettingsContext = createContext();
 
 export const SettingsProvider = ({ children }) => {
