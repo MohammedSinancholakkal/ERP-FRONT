@@ -8,11 +8,13 @@ import {
   Save,
   Trash2,
   ArchiveRestore,
+  Star,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
+import SearchableSelect from "../../components/SearchableSelect";
 
 import {
   addTerritoryApi,
@@ -23,6 +25,7 @@ import {
   getInactiveTerritoriesApi,
   restoreTerritoryApi,
   getRegionsApi,
+  addRegionApi,
 } from "../../services/allAPI";
 
 const Territories = () => {
@@ -46,6 +49,10 @@ const Territories = () => {
     isInactive: false,
   });
 
+  // QUICK ADD STATE
+  const [addRegionModalOpen, setAddRegionModalOpen] = useState(false);
+  const [newRegionName, setNewRegionName] = useState("");
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -63,6 +70,7 @@ const Territories = () => {
     region: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
+  const [searchColumn, setSearchColumn] = useState("");
 
   const toggleColumn = (col) => {
     setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
@@ -105,7 +113,10 @@ const Territories = () => {
       const res = await getRegionsApi(1, 1000); // Assuming standard paginated api
       if (res?.status === 200) {
         const rows = res.data.records || res.data || [];
-        setRegions(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
+        setRegions(rows.map(r => ({ 
+            id: r.regionId || r.Id || r.id, 
+            name: r.regionName || r.Name || r.name 
+        })));
       }
     } catch (err) {
       console.error(err);
@@ -123,10 +134,10 @@ const Territories = () => {
       if (res?.status === 200) {
         const rows = res.data.records || res.data || [];
         const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            regionId: r.RegionId || r.regionId,
-            regionName: r.Region?.Name || r.regionName || "N/A"
+            id: r.id,
+            name: r.territoryDescription || r.name,
+            regionId: r.regionId,
+            regionName: r.regionName || "N/A"
         }));
         setTerritories(normalized);
         const total = res.data.total || normalized.length;
@@ -150,10 +161,10 @@ const Territories = () => {
       if (res?.status === 200) {
         const rows = res.data.records || res.data || [];
         const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            regionId: r.RegionId || r.regionId,
-            regionName: r.Region?.Name || r.regionName || "N/A"
+            id: r.id,
+            name: r.territoryDescription || r.name,
+            regionId: r.regionId,
+            regionName: r.regionName || "N/A"
         }));
         setInactiveTerritories(normalized);
       }
@@ -174,10 +185,10 @@ const Territories = () => {
       if (res?.status === 200) {
         const rows = res.data || [];
         const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            regionId: r.RegionId || r.regionId,
-            regionName: r.Region?.Name || r.regionName || "N/A" // Might need backend to join
+            id: r.id,
+            name: r.territoryDescription || r.name,
+            regionId: r.regionId,
+            regionName: r.regionName || "N/A"
         }));
         setTerritories(normalized);
         setTotalRecords(rows.length);
@@ -192,7 +203,11 @@ const Territories = () => {
     if (!newData.regionId) return toast.error("Region required");
     
     try {
-      const res = await addTerritoryApi({ ...newData, userId });
+      const res = await addTerritoryApi({
+        territoryDescription: newData.name,
+        regionId: newData.regionId,
+        userId
+      });
       if (res?.status === 200 || res?.status === 201) {
         toast.success("Added");
         setNewData({ name: "", regionId: "" });
@@ -214,7 +229,7 @@ const Territories = () => {
     
     try {
       const res = await updateTerritoryApi(editData.id, {
-        name: editData.name,
+        territoryDescription: editData.name,
         regionId: editData.regionId,
         userId
       });
@@ -266,6 +281,37 @@ const Territories = () => {
     }
   };
 
+  // --- QUICK ADD HANDLER ---
+  const handleAddRegion = async () => {
+      if(!newRegionName.trim()) return toast.error("Name required");
+      try {
+          const res = await addRegionApi({ regionName: newRegionName, userId });
+          if(res?.status === 200 || res?.status === 201) {
+              toast.success("Region added");
+              setAddRegionModalOpen(false);
+              setNewRegionName("");
+              
+              const resR = await getRegionsApi(1, 1000);
+              if(resR?.status === 200) {
+                  const rows = resR.data.records || resR.data || [];
+                  const created = rows.find(r => (r.Name || r.name).toLowerCase() === newRegionName.toLowerCase());
+                  setRegions(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
+                  
+                  if(created) {
+                      const createdId = created.Id || created.id;
+                      if(modalOpen) setNewData(prev => ({ ...prev, regionId: createdId }));
+                      if(editModalOpen) setEditData(prev => ({ ...prev, regionId: createdId }));
+                  }
+              }
+          } else {
+              toast.error("Failed to add region");
+          }
+      } catch(err) {
+          console.error(err);
+          toast.error("Server error");
+      }
+  };
+
   return (
     <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
@@ -315,8 +361,8 @@ const Territories = () => {
                 <thead className="sticky top-0 bg-gray-900 z-10">
                     <tr className="text-white text-center">
                         {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                        {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
-                        {visibleColumns.region && <SortableHeader label="Region" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
+                        {visibleColumns.name && <SortableHeader label="Territory Description" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
+                        {visibleColumns.region && <SortableHeader label="Region Name" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
                     </tr>
                 </thead>
                 <tbody>
@@ -365,22 +411,30 @@ const Territories = () => {
        {/* MODALS */}
        {modalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">New Territory</h2>
                   <button onClick={() => setModalOpen(false)}><X size={20}/></button>
                </div>
                <div className="p-5 space-y-4">
                   <div>
-                      <label className="text-sm">Name *</label>
+                      <label className="text-sm"> Territory Description *</label>
                       <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
                   </div>
                   <div>
                       <label className="text-sm">Region *</label>
-                      <select value={newData.regionId} onChange={e => setNewData({...newData, regionId: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2">
-                          <option value="">Select Region</option>
-                          {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                      </select>
+                      <div className="flex items-center gap-2">
+                          <SearchableSelect
+                            options={regions.map(r => ({ id: r.id, name: r.name }))}
+                            value={newData.regionId}
+                            onChange={(val) => setNewData({...newData, regionId: val})}
+                            placeholder="Select Region"
+                            className="w-full"
+                          />
+                          <button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                               <Star size={18} className="text-yellow-400" />
+                          </button>
+                      </div>
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
@@ -392,22 +446,33 @@ const Territories = () => {
 
        {editModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">{editData.isInactive ? "Restore Territory" : "Edit Territory"}</h2>
                   <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
                </div>
                <div className="p-5 space-y-4">
                   <div>
-                      <label className="text-sm">Name *</label>
+                      <label className="text-sm">Territory Description *</label>
                       <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
                   </div>
                   <div>
                       <label className="text-sm">Region *</label>
-                      <select value={editData.regionId} onChange={e => setEditData({...editData, regionId: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50">
-                          <option value="">Select Region</option>
-                          {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                      </select>
+                      <div className="flex items-center gap-2">
+                          <SearchableSelect
+                            options={regions.map(r => ({ id: r.id, name: r.name }))}
+                            value={editData.regionId}
+                            onChange={(val) => setEditData({...editData, regionId: val})}
+                            placeholder="Select Region"
+                            disabled={editData.isInactive}
+                            className="w-full"
+                          />
+                          {!editData.isInactive && (
+                              <button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                                   <Star size={18} className="text-yellow-400" />
+                              </button>
+                          )}
+                      </div>
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
@@ -424,27 +489,124 @@ const Territories = () => {
           </div>
        )}
 
+       {/* QUICK ADD REGION MODAL */}
+       {addRegionModalOpen && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
+                <div className="w-[400px] bg-gray-900 text-white rounded-lg border border-gray-700">
+                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
+                        <h2 className="font-semibold">Add Region</h2>
+                        <button onClick={() => setAddRegionModalOpen(false)}><X size={20}/></button>
+                    </div>
+                    <div className="p-5">
+                        <label className="text-sm">Region Name *</label>
+                        <input 
+                            value={newRegionName} 
+                            onChange={e => setNewRegionName(e.target.value)} 
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
+                            autoFocus
+                        />
+                    </div>
+                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+                        <button onClick={handleAddRegion} className="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600">Save</button>
+                    </div>
+                </div>
+            </div>
+       )}
+
+       {/* columnModal */}
        {columnModal && (
-           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-               <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5">
-                   <div className="flex justify-between items-center mb-4">
-                       <h3 className="font-semibold">Column Picker</h3>
-                       <button onClick={() => setColumnModal(false)}><X size={20}/></button>
-                   </div>
-                   <div className="space-y-2">
-                       {Object.keys(defaultColumns).map(col => (
-                           <div key={col} className="flex justify-between bg-gray-800 p-2 rounded">
-                               <span className="capitalize">{col}</span>
-                               <input type="checkbox" checked={visibleColumns[col]} onChange={() => toggleColumn(col)} />
-                           </div>
-                       ))}
-                   </div>
-                   <div className="mt-4 flex justify-end gap-2">
-                       <button onClick={restoreDefaultColumns} className="bg-gray-700 px-3 py-1 rounded text-sm">Default</button>
-                       <button onClick={() => setColumnModal(false)} className="bg-blue-600 px-3 py-1 rounded text-sm">Close</button>
-                   </div>
-               </div>
-           </div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
+              <h2 className="text-lg font-semibold">Column Picker</h2>
+              <button
+                onClick={() => setColumnModal(false)}
+                className="text-gray-300 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* SEARCH */}
+            <div className="px-5 py-3">
+              <input
+                type="text"
+                placeholder="search columns..."
+                value={searchColumn}
+                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
+                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
+              />
+            </div>
+
+            {/* VISIBLE / HIDDEN COLUMNS */}
+            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
+
+                {Object.keys(visibleColumns)
+                  .filter((col) => visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
+                  .map((col) => (
+                    <div
+                      key={col}
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                    >
+                      <span>☰ {col.toUpperCase()}</span>
+                      <button
+                        className="text-red-400"
+                        onClick={() => toggleColumn(col)}
+                      >
+                        ✖
+                      </button>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
+
+                {Object.keys(visibleColumns)
+                  .filter((col) => !visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
+                  .map((col) => (
+                    <div
+                      key={col}
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                    >
+                      <span>☰ {col.toUpperCase()}</span>
+                      <button
+                        className="text-green-400"
+                        onClick={() => toggleColumn(col)}
+                      >
+                        ➕
+                      </button>
+                    </div>
+                  ))}
+
+                {Object.keys(visibleColumns).filter(
+                  (col) => !visibleColumns[col]
+                ).length === 0 && (
+                  <p className="text-gray-400 text-sm">No hidden columns</p>
+                )}
+              </div>
+            </div>
+
+            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
+              <button
+                onClick={restoreDefaultColumns}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                Restore Defaults
+              </button>
+              <button
+                onClick={() => setColumnModal(false)}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
        )}
 
     </PageLayout>

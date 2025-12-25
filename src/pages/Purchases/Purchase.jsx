@@ -4,9 +4,7 @@ import {
   Plus,
   RefreshCw,
   List,
-  X,
   Eye,
-  Download,
   FileSpreadsheet,
   FileText
 } from "lucide-react";
@@ -18,68 +16,8 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
-
-/* Searchable Dropdown */
-const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const filtered =
-    !query.trim()
-      ? options
-      : options.filter((o) =>
-          o.name.toLowerCase().includes(query.toLowerCase())
-        );
-
-  const selected = options.find((o) => o.id == value)?.name || "";
-
-  return (
-    <div className="relative w-56">
-      <input
-        type="text"
-        value={open ? query : selected || query}
-        placeholder={placeholder}
-        onFocus={() => {
-          setOpen(true);
-          setQuery("");
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-full text-sm text-white"
-      />
-      {open && (
-        <div className="absolute z-50 w-full bg-gray-800 border border-gray-700 mt-1 max-h-48 overflow-y-auto rounded shadow-lg">
-          {filtered.length > 0 ? (
-            filtered.map((opt) => (
-              <div
-                key={opt.id}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
-                onClick={() => {
-                  onChange(opt.id);
-                  setOpen(false);
-                  setQuery("");
-                }}
-              >
-                {opt.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">No results</div>
-          )}
-        </div>
-      )}
-      {/* Overlay to close */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setOpen(false)}
-        ></div>
-      )}
-    </div>
-  );
-};
+import FilterBar from "../../components/FilterBar";
+import SortableHeader from "../../components/SortableHeader";
 
 const Purchase = () => {
   const navigate = useNavigate();
@@ -119,6 +57,9 @@ const Purchase = () => {
   const [totalPages, setTotalPages] = useState(1);
 
   const [suppliers, setSuppliers] = useState([]);
+  
+  // Sorting
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   useEffect(() => {
     fetchSuppliers();
@@ -196,6 +137,7 @@ const Purchase = () => {
     setSearchText("");
     setFilterSupplier("");
     setFilterDate("");
+    setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
     fetchPurchases();
     toast.success("Refreshed");
@@ -226,6 +168,14 @@ const Purchase = () => {
     doc.save("purchases.pdf");
   };
 
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const filteredList = purchasesList.filter(p => {
     let match = true;
     const pSupplierId = p.supplierId ?? p.SupplierId ?? "";
@@ -233,6 +183,51 @@ const Purchase = () => {
     if (filterDate && !String(p.date ?? "").includes(filterDate)) match = false;
     return match;
   });
+
+  const sortedList = [...filteredList].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    let aVal = a[sortConfig.key];
+    let bVal = b[sortConfig.key];
+
+    // Handle null/undefined
+    if (aVal === null || aVal === undefined) aVal = "";
+    if (bVal === null || bVal === undefined) bVal = "";
+
+    // Numeric sort for specific columns
+    if (["id", "totalDiscount", "shippingCost", "grandTotal", "netTotal", "paidAmount", "due", "change"].includes(sortConfig.key)) {
+        aVal = Number(aVal);
+        bVal = Number(bVal);
+    } else {
+        aVal = String(aVal).toLowerCase();
+        bVal = String(bVal).toLowerCase();
+    }
+
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const filters = [
+      {
+          label: "Supplier",
+          options: suppliers,
+          value: filterSupplier,
+          onChange: setFilterSupplier,
+          placeholder: "All Suppliers"
+      },
+      {
+          label: "Date",
+          type: "date",
+          value: filterDate,
+          onChange: setFilterDate
+      }
+  ];
+
+  const clearFilters = () => {
+      setFilterSupplier("");
+      setFilterDate("");
+  };
 
   return (
     <>
@@ -339,24 +334,12 @@ const Purchase = () => {
               </div>
             </div>
 
-            {/* FILTER BAR */}
-            <div className="flex items-center gap-3 bg-gray-900 p-3 rounded border border-gray-700 mb-4">
-              <SearchableDropdown
-                options={suppliers}
-                value={filterSupplier}
-                onChange={setFilterSupplier}
-                placeholder="Supplier"
-              />
-              <input
-                type="datetime-local"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white"
-              />
-              <button onClick={() => { setFilterSupplier(""); setFilterDate(""); }} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm hover:bg-gray-700">
-                Clear
-              </button>
-            </div>
+            {/* FILTER BAR Component */}
+            <FilterBar 
+                filters={filters} 
+                onClear={clearFilters}
+                className="mb-4"
+            />
 
             {/* TABLE */}
             <div className="flex-grow overflow-auto min-h-0 w-full">
@@ -364,23 +347,23 @@ const Purchase = () => {
                 <table className="min-w-[1800px] text-center border-separate border-spacing-y-1 text-sm w-full">
                   <thead className="sticky top-0 bg-gray-900">
                     <tr>
-                      {visibleColumns.id && <th className="pb-1 border-b">ID</th>}
-                      {visibleColumns.supplierName && <th className="pb-1 border-b">Supplier</th>}
-                      {visibleColumns.invoiceNo && <th className="pb-1 border-b">Invoice No</th>}
-                      {visibleColumns.date && <th className="pb-1 border-b">Date</th>}
-                      {visibleColumns.paymentAccount && <th className="pb-1 border-b">Payment</th>}
-                      {visibleColumns.totalDiscount && <th className="pb-1 border-b">Total Disc</th>}
-                      {visibleColumns.shippingCost && <th className="pb-1 border-b">Shipping</th>}
-                      {visibleColumns.grandTotal && <th className="pb-1 border-b">Grand Total</th>}
-                      {visibleColumns.netTotal && <th className="pb-1 border-b">Net Total</th>}
-                      {visibleColumns.paidAmount && <th className="pb-1 border-b">Paid</th>}
-                      {visibleColumns.due && <th className="pb-1 border-b">Due</th>}
-                      {visibleColumns.change && <th className="pb-1 border-b">Change</th>}
+                      {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+                      {visibleColumns.supplierName && <SortableHeader label="Supplier" sortOrder={sortConfig.key === "supplierName" ? sortConfig.direction : null} onClick={() => handleSort("supplierName")} />}
+                      {visibleColumns.invoiceNo && <SortableHeader label="Invoice No" sortOrder={sortConfig.key === "invoiceNo" ? sortConfig.direction : null} onClick={() => handleSort("invoiceNo")} />}
+                      {visibleColumns.date && <SortableHeader label="Date" sortOrder={sortConfig.key === "date" ? sortConfig.direction : null} onClick={() => handleSort("date")} />}
+                      {visibleColumns.paymentAccount && <SortableHeader label="Payment" sortOrder={sortConfig.key === "paymentAccount" ? sortConfig.direction : null} onClick={() => handleSort("paymentAccount")} />}
+                      {visibleColumns.totalDiscount && <SortableHeader label="Total Disc" sortOrder={sortConfig.key === "totalDiscount" ? sortConfig.direction : null} onClick={() => handleSort("totalDiscount")} />}
+                      {visibleColumns.shippingCost && <SortableHeader label="Shipping" sortOrder={sortConfig.key === "shippingCost" ? sortConfig.direction : null} onClick={() => handleSort("shippingCost")} />}
+                      {visibleColumns.grandTotal && <SortableHeader label="Grand Total" sortOrder={sortConfig.key === "grandTotal" ? sortConfig.direction : null} onClick={() => handleSort("grandTotal")} />}
+                      {visibleColumns.netTotal && <SortableHeader label="Net Total" sortOrder={sortConfig.key === "netTotal" ? sortConfig.direction : null} onClick={() => handleSort("netTotal")} />}
+                      {visibleColumns.paidAmount && <SortableHeader label="Paid" sortOrder={sortConfig.key === "paidAmount" ? sortConfig.direction : null} onClick={() => handleSort("paidAmount")} />}
+                      {visibleColumns.due && <SortableHeader label="Due" sortOrder={sortConfig.key === "due" ? sortConfig.direction : null} onClick={() => handleSort("due")} />}
+                      {visibleColumns.change && <SortableHeader label="Change" sortOrder={sortConfig.key === "change" ? sortConfig.direction : null} onClick={() => handleSort("change")} />}
                       {visibleColumns.details && <th className="pb-1 border-b">Details</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredList.map((p) => (
+                    {sortedList.map((p) => (
                       <tr
                         key={p.id}
                         onClick={() => navigate(`/app/purchasing/edit/${p.id}`)}
@@ -406,7 +389,7 @@ const Purchase = () => {
                           </td>
                         )}
                         {visibleColumns.invoiceNo && <td className="px-2 py-2">{p.invoiceNo}</td>}
-                        {visibleColumns.date && <td className="px-2 py-2">{p.date}</td>}
+                        {visibleColumns.date && <td className="px-2 py-2">{p.date ? p.date.split('T')[0] : ''}</td>}
                         {visibleColumns.paymentAccount && <td className="px-2 py-2">{p.paymentAccount}</td>}
                         {visibleColumns.totalDiscount && <td className="px-2 py-2">{p.totalDiscount}</td>}
                         {visibleColumns.shippingCost && <td className="px-2 py-2">{p.shippingCost}</td>}
@@ -424,7 +407,7 @@ const Purchase = () => {
             </div>
 
             {/* PAGINATION */}
-           
+            
               <Pagination
                 page={page}
                 setPage={setPage}

@@ -32,13 +32,12 @@ const MeetingTypes = () => {
   const [inactiveMeetingTypes, setInactiveMeetingTypes] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
 
-  const [newData, setNewData] = useState({ name: "", description: "" });
+  const [newData, setNewData] = useState({ name: "" });
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editData, setEditData] = useState({
     id: null,
     name: "",
-    description: "",
     isInactive: false,
   });
 
@@ -56,7 +55,6 @@ const MeetingTypes = () => {
   const defaultColumns = {
     id: true,
     name: true,
-    description: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [searchColumn, setSearchColumn] = useState("");
@@ -103,8 +101,7 @@ const MeetingTypes = () => {
         const rows = res.data.records || res.data || [];
         const normalized = rows.map(r => ({
             id: r.Id || r.id,
-            name: r.Name || r.name,
-            description: r.Description || r.description
+            name: r.Name || r.name
         }));
         setMeetingTypes(normalized);
         const total = res.data.total || normalized.length;
@@ -129,8 +126,7 @@ const MeetingTypes = () => {
         const rows = res.data.records || res.data || [];
         const normalized = rows.map(r => ({
             id: r.Id || r.id,
-            name: r.Name || r.name,
-            description: r.Description || r.description
+            name: r.Name || r.name
         }));
         setInactiveMeetingTypes(normalized);
       }
@@ -152,8 +148,7 @@ const MeetingTypes = () => {
         const rows = res.data || [];
         const normalized = rows.map(r => ({
             id: r.Id || r.id,
-            name: r.Name || r.name,
-            description: r.Description || r.description
+            name: r.Name || r.name
         }));
         setMeetingTypes(normalized);
         setTotalRecords(rows.length);
@@ -166,10 +161,10 @@ const MeetingTypes = () => {
   const handleAdd = async () => {
     if (!newData.name.trim()) return toast.error("Name required");
     try {
-      const res = await addMeetingTypeApi({ ...newData, userId });
+      const res = await addMeetingTypeApi({ name: newData.name, userId });
       if (res?.status === 200 || res?.status === 201) {
         toast.success("Added");
-        setNewData({ name: "", description: "" });
+        setNewData({ name: "" });
         setModalOpen(false);
         setPage(1); 
         loadMeetingTypes();
@@ -187,7 +182,6 @@ const MeetingTypes = () => {
     try {
       const res = await updateMeetingTypeApi(editData.id, {
         name: editData.name,
-        description: editData.description,
         userId
       });
       if (res?.status === 200) {
@@ -288,31 +282,28 @@ const MeetingTypes = () => {
                     <tr className="text-white text-center">
                         {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
                         {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
-                        {visibleColumns.description && <SortableHeader label="Description" sortOrder={sortConfig.key === "description" ? sortConfig.direction : null} onClick={() => handleSort("description")} />}
                     </tr>
                 </thead>
                 <tbody>
                     {!sortedMeetingTypes.length && !showInactive && (
-                         <tr><td colSpan="3" className="text-center py-4 text-gray-400">No records found</td></tr>
+                         <tr><td colSpan="2" className="text-center py-4 text-gray-400">No records found</td></tr>
                     )}
                     {!showInactive && sortedMeetingTypes.map(r => (
                         <tr key={r.id} onClick={() => {
-                            setEditData({ id: r.id, name: r.name, description: r.description, isInactive: false });
+                            setEditData({ id: r.id, name: r.name, isInactive: false });
                             setEditModalOpen(true);
                         }} className="bg-gray-900 hover:bg-gray-700 cursor-pointer text-center">
                             {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
                             {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.description && <td className="px-2 py-1">{r.description}</td>}
                         </tr>
                     ))}
                     {showInactive && inactiveMeetingTypes.map(r => (
                         <tr key={`inactive-${r.id}`} onClick={() => {
-                            setEditData({ id: r.id, name: r.name, description: r.description, isInactive: true });
+                            setEditData({ id: r.id, name: r.name, isInactive: true });
                             setEditModalOpen(true);
                         }} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer text-center">
                             {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
                             {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.description && <td className="px-2 py-1">{r.description}</td>}
                         </tr>
                     ))}
                 </tbody>
@@ -337,7 +328,7 @@ const MeetingTypes = () => {
        {/* MODALS */}
        {modalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">New Meeting Type</h2>
                   <button onClick={() => setModalOpen(false)}><X size={20}/></button>
@@ -346,10 +337,6 @@ const MeetingTypes = () => {
                   <div>
                       <label className="text-sm">Name *</label>
                       <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
-                  </div>
-                  <div>
-                      <label className="text-sm">Description</label>
-                      <textarea value={newData.description} onChange={e => setNewData({...newData, description: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" rows="3" />
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
@@ -361,7 +348,7 @@ const MeetingTypes = () => {
 
        {editModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">{editData.isInactive ? "Restore Meeting Type" : "Edit Meeting Type"}</h2>
                   <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
@@ -370,10 +357,6 @@ const MeetingTypes = () => {
                   <div>
                       <label className="text-sm">Name *</label>
                       <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                  </div>
-                  <div>
-                      <label className="text-sm">Description</label>
-                      <textarea value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" rows="3" />
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
@@ -390,27 +373,100 @@ const MeetingTypes = () => {
           </div>
        )}
 
+       {/* columnModal */}
        {columnModal && (
-           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-               <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5">
-                   <div className="flex justify-between items-center mb-4">
-                       <h3 className="font-semibold">Column Picker</h3>
-                       <button onClick={() => setColumnModal(false)}><X size={20}/></button>
-                   </div>
-                   <div className="space-y-2">
-                       {Object.keys(defaultColumns).map(col => (
-                           <div key={col} className="flex justify-between bg-gray-800 p-2 rounded">
-                               <span className="capitalize">{col}</span>
-                               <input type="checkbox" checked={visibleColumns[col]} onChange={() => toggleColumn(col)} />
-                           </div>
-                       ))}
-                   </div>
-                   <div className="mt-4 flex justify-end gap-2">
-                       <button onClick={restoreDefaultColumns} className="bg-gray-700 px-3 py-1 rounded text-sm">Default</button>
-                       <button onClick={() => setColumnModal(false)} className="bg-blue-600 px-3 py-1 rounded text-sm">Close</button>
-                   </div>
-               </div>
-           </div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
+              <h2 className="text-lg font-semibold">Column Picker</h2>
+              <button
+                onClick={() => setColumnModal(false)}
+                className="text-gray-300 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* SEARCH */}
+            <div className="px-5 py-3">
+              <input
+                type="text"
+                placeholder="search columns..."
+                value={searchColumn}
+                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
+                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
+              />
+            </div>
+
+            {/* VISIBLE / HIDDEN COLUMNS */}
+            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
+
+                {Object.keys(visibleColumns)
+                  .filter((col) => visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
+                  .map((col) => (
+                    <div
+                      key={col}
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                    >
+                      <span>☰ {col.toUpperCase()}</span>
+                      <button
+                        className="text-red-400"
+                        onClick={() => toggleColumn(col)}
+                      >
+                        ✖
+                      </button>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
+
+                {Object.keys(visibleColumns)
+                  .filter((col) => !visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
+                  .map((col) => (
+                    <div
+                      key={col}
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                    >
+                      <span>☰ {col.toUpperCase()}</span>
+                      <button
+                        className="text-green-400"
+                        onClick={() => toggleColumn(col)}
+                      >
+                        ➕
+                      </button>
+                    </div>
+                  ))}
+
+                {Object.keys(visibleColumns).filter(
+                  (col) => !visibleColumns[col]
+                ).length === 0 && (
+                  <p className="text-gray-400 text-sm">No hidden columns</p>
+                )}
+              </div>
+            </div>
+
+            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
+              <button
+                onClick={restoreDefaultColumns}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                Restore Defaults
+              </button>
+              <button
+                onClick={() => setColumnModal(false)}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
        )}
 
     </PageLayout>

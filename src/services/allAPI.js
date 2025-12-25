@@ -754,8 +754,13 @@ export const restoreAttendanceStatusApi = (id, data) =>
 
 
 // =================== LOCATIONS ===================
-export const getLocationsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/locations/all?page=${page}&limit=${limit}`, "", "");
+export const getLocationsApi = (page, limit, filters = {}) => {
+  let url = `${serverURL}/locations/all?page=${page}&limit=${limit}`;
+  if (filters.countryId) url += `&countryId=${filters.countryId}`;
+  if (filters.stateId) url += `&stateId=${filters.stateId}`;
+  if (filters.cityId) url += `&cityId=${filters.cityId}`;
+  return commonAPI("GET", url, "", "");
+};
 
 export const addLocationApi = (data) =>
   commonAPI("POST", `${serverURL}/locations/add`, data, "");
@@ -785,8 +790,13 @@ export const restoreLocationApi = (id, data) =>
 // ===============================
 
 // Get all warehouses (with pagination)
-export const getWarehousesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/warehouses/all?page=${page}&limit=${limit}`, "", "");
+export const getWarehousesApi = (page, limit, filters) => {
+  let url = `${serverURL}/warehouses/all?page=${page}&limit=${limit}`;
+  if(filters?.countryId) url += `&countryId=${filters.countryId}`;
+  if(filters?.stateId) url += `&stateId=${filters.stateId}`;
+  if(filters?.cityId) url += `&cityId=${filters.cityId}`;
+  return commonAPI("GET", url, "", "");
+};
 
 // Add warehouse
 export const addWarehouseApi = (data) =>

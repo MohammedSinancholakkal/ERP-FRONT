@@ -17,66 +17,14 @@ import PageLayout from "../../layout/PageLayout";
 import { getCustomersApi, getEmployeesApi, getQuotationsApi, searchQuotationApi, getQuotationByIdApi } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
+import FilterBar from "../../components/FilterBar";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
 
-/* Searchable Dropdown */
-const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
 
-  const filtered =
-    !query.trim()
-      ? options
-      : options.filter((o) =>
-          o.name.toLowerCase().includes(query.toLowerCase())
-        );
-
-  const selected = options.find((o) => o.id == value)?.name || "";
-
-  return (
-    <div className="relative w-56">
-      <input
-        type="text"
-        value={open ? query : selected || query}
-        placeholder={placeholder}
-        onFocus={() => {
-          setOpen(true);
-          setQuery("");
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-full text-sm"
-      />
-
-      {open && (
-        <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded max-h-56 overflow-auto mt-1 z-50">
-          {filtered.length ? (
-            filtered.map((o) => (
-              <div
-                key={o.id}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                onClick={() => {
-                  onChange(o.id);
-                  setOpen(false);
-                }}
-              >
-                {o.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">No results</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 /* Export Buttons Icons */
 const ExportButtons = ({ onExcel, onPdf }) => (
@@ -109,6 +57,17 @@ const SalesQuotation = () => {
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [filterExpiry, setFilterExpiry] = useState("");
+
+  // --- SORTING STATE ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -317,6 +276,7 @@ const SalesQuotation = () => {
     setFilterCustomer("");
     setFilterDate("");
     setFilterExpiry("");
+    setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
     await fetchAllData();
     toast.success("Refreshed");
@@ -331,76 +291,67 @@ const SalesQuotation = () => {
     return match;
   });
 
+   // --- SORTING LOGIC ---
+   const sortedList = React.useMemo(() => {
+    let sortableItems = [...filteredList];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
 
-  const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const wrapperRef = useRef(null);
+        // Handle numeric values
+        if (['discount', 'totalDiscount', 'vat', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'id'].includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             // String comparison
+             aValue = String(aValue).toLowerCase();
+             bValue = String(bValue).toLowerCase();
+        }
 
-  const filtered =
-    !query.trim()
-      ? options
-      : options.filter((o) =>
-          o.name.toLowerCase().includes(query.toLowerCase())
-        );
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredList, sortConfig]);
 
-  const selected = options.find((o) => o.id == value)?.name || "";
+  // --- FILTER BAR CONFIG ---
+  const filters = [
+    {
+        type: 'select',
+        value: filterCustomer,
+        onChange: setFilterCustomer,
+        options: customers,
+        placeholder: "All Customers"
+    },
+    {
+        type: 'date',
+        value: filterDate,
+        onChange: setFilterDate,
+        placeholder: "Filter by Date"
+    },
+     {
+        type: 'date',
+        value: filterExpiry,
+        onChange: setFilterExpiry,
+        placeholder: "Filter by Expiry"
+    }
+  ];
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
-        setQuery("");
-      }
-    };
+  const handleClearFilters = () => {
+    setFilterCustomer("");
+    setFilterDate("");
+    setFilterExpiry("");
+  };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
-  return (
-    <div ref={wrapperRef} className="relative w-56">
-      <input
-        type="text"
-        value={open ? query : selected || query}
-        placeholder={placeholder}
-        onFocus={() => {
-          setOpen(true);
-          setQuery("");
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-full text-sm"
-      />
 
-      {open && (
-        <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded max-h-56 overflow-auto mt-1 z-50">
-          {filtered.length ? (
-            filtered.map((o) => (
-              <div
-                key={o.id}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                onClick={() => {
-                  onChange(o.id);
-                  setOpen(false);
-                  setQuery("");
-                }}
-              >
-                {o.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">
-              No results
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 
   return (
@@ -507,49 +458,10 @@ const SalesQuotation = () => {
             <ExportButtons onExcel={handleExportExcel} onPdf={handleExportPDF} />
           </div>
 
-          {/* FILTER BAR */}
-          <div className="flex items-center gap-3 bg-gray-900 p-3 rounded border border-gray-700 mb-4">
-            <SearchableDropdown
-              options={customers}
-              value={filterCustomer}
-              onChange={setFilterCustomer}
-              placeholder="Customer"
-            />
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-300 whitespace-nowrap">Date:</label>
-              <input
-                type="datetime-local"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-              />
+            {/* FILTER BAR */}
+            <div className="mb-4">
+                 <FilterBar filters={filters} onClear={handleClearFilters} />
             </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-300 whitespace-nowrap">Expiry Date:</label>
-              <input
-                type="datetime-local"
-                value={filterExpiry}
-                onChange={(e) => setFilterExpiry(e.target.value)}
-                className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-              />
-            </div>
-
-            <button className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">
-              Apply
-            </button>
-            <button
-              onClick={() => {
-                setFilterCustomer("");
-                setFilterDate("");
-                setFilterExpiry("");
-              }}
-              className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
-            >
-              Clear
-            </button>
-          </div>
 
           {/* TABLE SCROLL */}
           <div className="flex-grow overflow-auto min-h-0 w-full">
@@ -557,38 +469,18 @@ const SalesQuotation = () => {
               <table className="min-w-[1800px] text-center border-separate border-spacing-y-1 text-sm w-full">
                 <thead className="sticky top-0 bg-gray-900">
                   <tr>
-                    {visibleColumns.id && <th className="pb-1 border-b">ID</th>}
-                    {visibleColumns.customerName && (
-                      <th className="pb-1 border-b">Customer</th>
-                    )}
-                    {visibleColumns.date && (
-                      <th className="pb-1 border-b">Date</th>
-                    )}
-                    {visibleColumns.discount && (
-                      <th className="pb-1 border-b">Disc</th>
-                    )}
-                    {visibleColumns.totalDiscount && (
-                      <th className="pb-1 border-b">Total Disc</th>
-                    )}
-                    {visibleColumns.vat && <th className="pb-1 border-b">VAT</th>}
-                    {visibleColumns.totalTax && (
-                      <th className="pb-1 border-b">Total Tax</th>
-                    )}
-                    {visibleColumns.shippingCost && (
-                      <th className="pb-1 border-b">Shipping</th>
-                    )}
-                    {visibleColumns.grandTotal && (
-                      <th className="pb-1 border-b">Grand Total</th>
-                    )}
-                    {visibleColumns.netTotal && (
-                      <th className="pb-1 border-b">Net Total</th>
-                    )}
-                    {visibleColumns.details && (
-                      <th className="pb-1 border-b">Details</th>
-                    )}
-                    {visibleColumns.expiryDate && (
-                      <th className="pb-1 border-b">Expiry</th>
-                    )}
+                    {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.customerName && <SortableHeader label="Customer" sortKey="customerName" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.discount && <SortableHeader label="Disc" sortKey="discount" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.totalDiscount && <SortableHeader label="Total Disc" sortKey="totalDiscount" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.vat && <SortableHeader label="VAT" sortKey="vat" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.totalTax && <SortableHeader label="Total Tax" sortKey="totalTax" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.shippingCost && <SortableHeader label="Shipping" sortKey="shippingCost" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.grandTotal && <SortableHeader label="Grand Total" sortKey="grandTotal" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.netTotal && <SortableHeader label="Net Total" sortKey="netTotal" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.details && <th className="pb-1 border-b">Details</th>}
+                    {visibleColumns.expiryDate && <SortableHeader label="Expiry" sortKey="expiryDate" currentSort={sortConfig} onSort={handleSort} />}
                   </tr>
                 </thead>
 

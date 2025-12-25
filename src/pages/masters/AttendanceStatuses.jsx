@@ -61,8 +61,15 @@ const AttendanceStatuses = () => {
   // Column Picker
   const defaultColumns = { id: true, name: true };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
-  const [columnSearch, setColumnSearch] = useState("");
+  const [searchColumn, setSearchColumn] = useState("");
+
+  const toggleColumn = (col) => {
+    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
+  };
+
+  const restoreDefaultColumns = () => {
+    setVisibleColumns(defaultColumns);
+  };
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -74,10 +81,30 @@ const AttendanceStatuses = () => {
   const end = Math.min(page * limit, totalRecords);
 
   // Sorting
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = null;
+    }
+    setSortConfig({ key: direction ? key : null, direction });
+  };
+
   const sortedActiveRows = [...rows];
-  if (sortOrder === "asc") {
-    sortedActiveRows.sort((a, b) => Number(a.id) - Number(b.id));
+  if (sortConfig.key) {
+    sortedActiveRows.sort((a, b) => {
+      let valA = a[sortConfig.key] || "";
+      let valB = b[sortConfig.key] || "";
+      if (typeof valA === "string") valA = valA.toLowerCase();
+      if (typeof valB === "string") valB = valB.toLowerCase();
+      
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
   }
 
   // Normalize helper
@@ -235,11 +262,7 @@ const AttendanceStatuses = () => {
     }
   };
 
-  // Column Picker
-  const openColumnPicker = () => {
-    setTempVisibleColumns(visibleColumns);
-    setColumnModalOpen(true);
-  };
+
 
   return (
     <>
@@ -248,7 +271,7 @@ const AttendanceStatuses = () => {
       {/* ADD MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[520px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Attendance Status</h2>
@@ -290,7 +313,7 @@ const AttendanceStatuses = () => {
       {/* EDIT / RESTORE MODAL */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[520px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">
@@ -350,103 +373,96 @@ const AttendanceStatuses = () => {
 
       {/* COLUMN PICKER */}
       {columnModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
-
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
+              <button
+                onClick={() => setColumnModalOpen(false)}
+                className="text-gray-300 hover:text-white"
+              >
+                <X size={20} />
               </button>
             </div>
 
+            {/* SEARCH */}
             <div className="px-5 py-3">
               <input
                 type="text"
-                placeholder="Search column..."
-                value={columnSearch}
-                onChange={(e) => setColumnSearch(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                placeholder="search columns..."
+                value={searchColumn}
+                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
+                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
               />
             </div>
 
-            {/* Visible + Hidden columns */}
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
+            {/* VISIBLE / HIDDEN COLUMNS */}
+            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
 
-              {/* Visible Columns */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
-
-                {Object.keys(tempVisibleColumns)
-                  .filter((col) => tempVisibleColumns[col])
-                  .filter((col) => col.includes(columnSearch))
+                {Object.keys(visibleColumns)
+                  .filter((col) => visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
                   .map((col) => (
-                    <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2">
-                      <span>{col.toUpperCase()}</span>
+                    <div
+                      key={col}
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                    >
+                      <span>☰ {col.toUpperCase()}</span>
                       <button
                         className="text-red-400"
-                        onClick={() =>
-                          setTempVisibleColumns((p) => ({ ...p, [col]: false }))
-                        }
+                        onClick={() => toggleColumn(col)}
                       >
-                        ✕
+                        ✖
                       </button>
                     </div>
                   ))}
               </div>
 
-              {/* Hidden Columns */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
 
-                {Object.keys(tempVisibleColumns)
-                  .filter((col) => !tempVisibleColumns[col])
-                  .filter((col) => col.includes(columnSearch))
+                {Object.keys(visibleColumns)
+                  .filter((col) => !visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
                   .map((col) => (
-                    <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2">
-                      <span>{col.toUpperCase()}</span>
+                    <div
+                      key={col}
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                    >
+                      <span>☰ {col.toUpperCase()}</span>
                       <button
                         className="text-green-400"
-                        onClick={() =>
-                          setTempVisibleColumns((p) => ({ ...p, [col]: true }))
-                        }
+                        onClick={() => toggleColumn(col)}
                       >
                         ➕
                       </button>
                     </div>
                   ))}
+
+                {Object.keys(visibleColumns).filter(
+                  (col) => !visibleColumns[col]
+                ).length === 0 && (
+                  <p className="text-gray-400 text-sm">No hidden columns</p>
+                )}
               </div>
             </div>
 
-            {/* Footer */}
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               <button
-                onClick={() => setTempVisibleColumns(defaultColumns)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+                onClick={restoreDefaultColumns}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 Restore Defaults
               </button>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setColumnModalOpen(false)}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={() => {
-                    setVisibleColumns(tempVisibleColumns);
-                    setColumnModalOpen(false);
-                  }}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  OK
-                </button>
-              </div>
+              <button
+                onClick={() => setColumnModalOpen(false)}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                OK
+              </button>
             </div>
-
           </div>
         </div>
       )}
@@ -495,7 +511,7 @@ const AttendanceStatuses = () => {
 
           {/* Column Picker */}
           <button
-            onClick={openColumnPicker}
+            onClick={() => setColumnModalOpen(true)}
             className="p-2 bg-gray-700 border border-gray-600 rounded"
           >
             <List size={16} className="text-blue-300" />
@@ -520,7 +536,7 @@ const AttendanceStatuses = () => {
         {/* TABLE */}
         <div className="flex-grow overflow-auto">
         <div className="w-full overflow-auto">
-          <table className="w-[350px] border-separate border-spacing-y-1 text-sm">
+          <table className="w-[500px] border-separate border-spacing-y-1 text-sm">
 
             {/* HEADER */}
             <thead className="sticky top-0 bg-gray-900 z-10">
@@ -529,15 +545,17 @@ const AttendanceStatuses = () => {
                 {visibleColumns.id && (
                   <SortableHeader
                     label="ID"
-                    sortOrder={sortOrder}
-                    onClick={() =>
-                      setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-                    }
+                    sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
+                    onClick={() => handleSort("id")}
                   />
                 )}
 
                 {visibleColumns.name && (
-                  <th className="pb-1 border-b border-white text-center">Name</th>
+                  <SortableHeader
+                    label="Name"
+                    sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
+                    onClick={() => handleSort("name")}
+                  />
                 )}
 
               </tr>

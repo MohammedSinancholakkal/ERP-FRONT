@@ -24,7 +24,9 @@ import {
   getResolutionStatusesApi,
   addResolutionStatusApi,
 } from "../../services/allAPI";
+import SearchableSelect from "../../components/SearchableSelect";
 import toast from "react-hot-toast";
+
 
 /* TAB BUTTON */
 const Tab = ({ label, active, onClick }) => (
@@ -225,68 +227,239 @@ const EditMeeting = () => {
   const [departments, setDepartments] = useState([]);
   const [locations, setLocations] = useState([]);
   const [employees, setEmployees] = useState([]);
+  
+  /* QUICK CREATE MODAL STATES */
+  const [meetingTypeModalOpen, setMeetingTypeModalOpen] = useState(false);
+  const [departmentModalOpen, setDepartmentModalOpen] = useState(false);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  
+  /* NESTED LOCATION MODAL STATES */
+  const [addCountryModalOpen, setAddCountryModalOpen] = useState(false);
+  const [addStateModalOpen, setAddStateModalOpen] = useState(false);
+  const [addCityModalOpen, setAddCityModalOpen] = useState(false);
 
-  /* LOAD DROPDOWNS */
+  /* FORM DATA FOR QUICK CREATE */
+  const [newMeetingType, setNewMeetingType] = useState("");
+  const [newDepartment, setNewDepartment] = useState({ department: "", description: "", parentDepartmentId: "" });
+  const [newLocation, setNewLocation] = useState({
+    name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: ""
+  });
+  
+  /* NESTED LOCATION FORM DATA */
+  const [newCountryName, setNewCountryName] = useState("");
+  const [newState, setNewState] = useState({ name: "", countryId: "" });
+  const [newCity, setNewCity] = useState({ name: "", countryId: "", stateId: "" });
+
+  /* DROPDOWN DATA FOR LOCATION MODALS */
+  const [modalCountries, setModalCountries] = useState([]);
+  const [locationModalStates, setLocationModalStates] = useState([]);
+  const [locationModalCities, setLocationModalCities] = useState([]);
+  const [modalStates, setModalStates] = useState([]); // For City Modal
+
+  /* SEARCH STATES */
+  const [parentDeptSearch, setParentDeptSearch] = useState("");
+
+  const user = JSON.parse(localStorage.getItem("user"));
+  const currentUserId = user?.userId || 1;
+
+  // ===============================
+  // HELPERS & LOADERS
+  // ===============================
+  const normalizeSimple = (records) =>
+    records.map(r => ({
+      id: String(r.Id ?? r.id),
+      name: r.Name ?? r.name
+    }));
+
+  const loadEmployees = async () => {
+    try {
+      const res = await getEmployeesApi(1, 5000);
+      setEmployees((res?.data?.records || []).map(r => ({
+          id: String(r.Id),
+          name: `${r.FirstName} ${r.LastName ?? ""}`.trim(),
+      })));
+    } catch (err) { console.error(err); }
+  };
+
+  const loadMeetingTypes = async () => {
+    try {
+      const res = await getMeetingTypesApi(1, 5000);
+      setMeetingTypes(normalizeSimple(res?.data?.records || []));
+    } catch (err) { console.error(err); }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const res = await getDepartmentsApi(1, 5000);
+      setDepartments((res?.data?.records || []).map(r => ({ id: r.id, name: r.department })));
+    } catch (err) { console.error(err); }
+  };
+
+  const loadLocations = async () => {
+     try {
+      const res = await getLocationsApi(1, 5000);
+      setLocations((res?.data?.records || []).map(l => ({
+        id: String(l.Id),
+        name: `${l.Name} (${l.CityName ?? ""})`
+      })));
+     } catch (err) { console.error(err); }
+  };
+  
+  const loadAgendaItemTypes = async () => {
+    try {
+        const res = await getAgendaItemTypesApi(1, 1000);
+        setAgendaItemTypes(normalizeSimple(res?.data?.records || []));
+    } catch (err) { console.error(err); }
+  };
+
+  const loadResolutionStatuses = async () => {
+    try {
+        const res = await getResolutionStatusesApi(1, 1000);
+        setResolutionStatuses(normalizeSimple(res?.data?.records || []));
+    } catch (err) { console.error(err); }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [mtRes, deptRes, locRes, empRes, atRes] = await Promise.all([
-          getMeetingTypesApi(1, 100),
-          getDepartmentsApi(1, 100),
-          getLocationsApi(1, 100),
-          getEmployeesApi(1, 100),
-          getAgendaItemTypesApi(1, 100)
-        ]);
+    loadEmployees();
+    loadMeetingTypes();
+    loadDepartments();
+    loadLocations();
+    loadAgendaItemTypes();
+    loadResolutionStatuses();
+  }, []);
 
-        // Normalize meeting types
-        const mtList = mtRes.data.records || mtRes.data || [];
-        setMeetingTypes(mtList.map(item => ({
-          id: item.Id || item.id,
-          name: item.Name || item.name
+  // NESTED MODAL EFFECTS
+  // Load Countries when Location Modal opens
+  useEffect(() => {
+    if (locationModalOpen || addStateModalOpen || addCityModalOpen) {
+      const fetchCountries = async () => {
+        const res = await getCountriesApi(1, 5000);
+        setModalCountries((res?.data?.records || []).map(c => ({ id: String(c.Id ?? c.id), name: c.Name ?? c.name })));
+      };
+      fetchCountries();
+    }
+  }, [locationModalOpen, addStateModalOpen, addCityModalOpen]);
+
+  // Load States when Country changes in Location Modal
+  useEffect(() => {
+    if (newLocation.countryId) {
+      const fetchStates = async () => {
+        const res = await getStatesByCountryApi(newLocation.countryId);
+        setLocationModalStates((res?.data || []).map(s => ({ id: String(s.Id ?? s.id), name: s.Name ?? s.name })));
+      };
+      fetchStates();
+    } else { setLocationModalStates([]); }
+  }, [newLocation.countryId]);
+
+  // Load Cities when State changes in Location Modal
+  useEffect(() => {
+    if (newLocation.stateId) {
+      const fetchCities = async () => {
+        const res = await getCitiesApi(1, 5000);
+        const allCities = res?.data?.records || [];
+        const filtered = allCities.filter(c => String(c.stateId) === String(newLocation.stateId));
+        setLocationModalCities(filtered.map(c => ({ id: String(c.Id ?? c.id), name: c.Name ?? c.name })));
+      };
+      fetchCities();
+    } else { setLocationModalCities([]); }
+  }, [newLocation.stateId]);
+
+  // Load States for Nested City Modal
+  useEffect(() => {
+    if (newCity.countryId) {
+      const fetchStates = async () => {
+        const res = await getStatesByCountryApi(newCity.countryId);
+        setModalStates((res?.data || []).map(s => ({
+            id: String(s.Id ?? s.id),
+            name: s.Name ?? s.name
         })));
+      };
+      fetchStates();
+    } else { setModalStates([]); }
+  }, [newCity.countryId]);
 
-        // Normalize departments
-        const deptList = deptRes.data.records || deptRes.data || [];
-        setDepartments(deptList.map(item => ({
-          id: item.Id || item.id,
-          name: item.Department || item.department
-        })));
 
-        // Normalize locations
-        const locList = locRes.data.records || locRes.data || [];
-        setLocations(locList.map(item => ({
-          id: item.Id || item.id,
-          name: item.Name || item.name
-        })));
+  // ===============================
+  // HANDLERS
+  // ===============================
 
-        // Normalize employees
-        const empList = empRes.data.records || empRes.data || [];
-        setEmployees(empList.map(item => ({
-          id: item.Id || item.id,
-          name: item.FirstName ? `${item.FirstName} ${item.LastName || ''}` : item.Name || `Emp ${item.Id}`
-        })));
+  const handleCreateNew = (type) => {
+    if (type === "Meeting Type") setMeetingTypeModalOpen(true);
+    else if (type === "Department") setDepartmentModalOpen(true);
+    else if (type === "Location") setLocationModalOpen(true);
+    else if (type === "Organizer" || type === "Reporter") {
+      navigate("/app/hr/newemployee", { state: { from: location.pathname } });
+    }
+  };
 
-        // Normalize Agenda Item Types
-        const atList = atRes.data.records || atRes.data || [];
-        setAgendaItemTypes(atList.map(item => ({
-            id: item.Id || item.id,
-            name: item.Name || item.name
-        })));
+  const handleSaveMeetingType = async () => {
+    if (!newMeetingType.trim()) return toast.error("Name is required");
+    try {
+      await addMeetingTypeApi({ name: newMeetingType, userId: currentUserId });
+      toast.success("Meeting Type Added");
+      setNewMeetingType("");
+      setMeetingTypeModalOpen(false);
+      loadMeetingTypes();
+    } catch (error) { toast.error("Failed to add Meeting Type"); }
+  };
 
-        // Load Resolution Statuses
-        const rsRes = await getResolutionStatusesApi(1, 100);
-        const rsList = rsRes.data.records || rsRes.data || [];
-        setResolutionStatuses(rsList.map(item => ({
-            id: item.Id || item.id,
-            name: item.Name || item.name
-        })));
+  const handleSaveDepartment = async () => {
+    if (!newDepartment.department.trim()) return toast.error("Department Name is required");
+    try {
+      await addDepartmentApi({ ...newDepartment, userId: currentUserId });
+      toast.success("Department Added");
+      setNewDepartment({ department: "", description: "", parentDepartmentId: "" });
+      setDepartmentModalOpen(false);
+      loadDepartments();
+    } catch (error) { toast.error("Failed to add Department"); }
+  };
 
-      } catch (err) {
-        console.error("Error loading dropdowns", err);
+   const handleSaveLocation = async () => {
+    if (!newLocation.name.trim()) return toast.error("Location Name is required");
+    try {
+      await addLocationApi({ ...newLocation, userId: currentUserId });
+      toast.success("Location Added");
+      setNewLocation({ name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" });
+      setLocationModalOpen(false);
+      loadLocations();
+    } catch (error) { toast.error("Failed to add Location"); }
+  };
+
+  const handleSaveCountry = async () => {
+    if (!newCountryName.trim()) return toast.error("Country Name is required");
+    try {
+      await addCountryApi({ name: newCountryName, userId: currentUserId });
+      toast.success("Country Added");
+      setNewCountryName("");
+      setAddCountryModalOpen(false);
+      const res = await getCountriesApi(1, 5000);
+      setModalCountries(res?.data?.records || []);
+    } catch (error) { toast.error("Failed to add Country"); }
+  };
+
+  const handleSaveState = async () => {
+    if (!newState.name.trim() || !newState.countryId) return toast.error("State Name and Country are required");
+    try {
+      await addStateApi({ ...newState, userId: currentUserId });
+      toast.success("State Added");
+      setNewState({ name: "", countryId: "" });
+      setAddStateModalOpen(false);
+      if (newLocation.countryId) {
+        const res = await getStatesByCountryApi(newLocation.countryId);
+        setLocationModalStates(res?.data || []);
       }
-    };
-    fetchData();
-  }, [id]);
+    } catch (error) { toast.error("Failed to add State"); }
+  };
+
+  const handleSaveCity = async () => {
+    if (!newCity.name.trim() || !newCity.stateId) return toast.error("City Name and State are required");
+    try {
+      await addCityApi({ ...newCity, userId: currentUserId });
+      toast.success("City Added");
+      setNewCity({ name: "", countryId: "", stateId: "", cityId: "" });
+      setAddCityModalOpen(false);
+    } catch (error) { toast.error("Failed to add City"); }
+  };
 
 
   /* LOAD DATA */
@@ -395,12 +568,12 @@ const EditMeeting = () => {
         formData.append("meetingId", id);
         formData.append("title", newAgendaItem.title);
         formData.append("description", newAgendaItem.description);
-        formData.append("itemType", newAgendaItem.itemType);
+        formData.append("itemTypeId", newAgendaItem.itemType);
         formData.append("requestedBy", newAgendaItem.requestedBy);
         formData.append("sequenceNo", newAgendaItem.sequenceNo);
         
-        if (newAgendaItem.attachmentFile) formData.append("attachment", newAgendaItem.attachmentFile);
-        if (newAgendaItem.imageFile) formData.append("image", newAgendaItem.imageFile);
+        if (newAgendaItem.attachmentFile) formData.append("attachmentFile", newAgendaItem.attachmentFile);
+        if (newAgendaItem.imageFile) formData.append("imageFile", newAgendaItem.imageFile);
 
         let res;
         if (newAgendaItem.id) {
@@ -441,11 +614,13 @@ const EditMeeting = () => {
         id: item.id,
         title: item.title || "",
         description: item.description || "",
-        itemType: item.itemType || item.agendaItemTypeId || "", 
+        itemType: item.itemTypeId || "", 
         requestedBy: item.requestedBy || item.requestedById || "", 
         sequenceNo: item.sequenceNo || "",
         attachmentFile: null, 
-        imageFile: null       
+        imageFile: null,
+        images: item.images || null,
+        attachments: item.attachments || null
     });
     setShowAgendaModal(true);
   };
@@ -522,8 +697,8 @@ const EditMeeting = () => {
         formData.append("relatedAgendaItem", newDecision.relatedAgendaItem);
         formData.append("resolutionStatus", newDecision.resolutionStatus);
         
-        if (newDecision.imageFile) formData.append("image", newDecision.imageFile);
-        if (newDecision.attachmentFile) formData.append("attachment", newDecision.attachmentFile);
+        if (newDecision.imageFile) formData.append("imageFile", newDecision.imageFile);
+        if (newDecision.attachmentFile) formData.append("attachmentFile", newDecision.attachmentFile);
 
         let res;
         if (newDecision.id) {
@@ -570,7 +745,9 @@ const EditMeeting = () => {
           relatedAgendaItem: item.relatedAgendaItem || item.relatedAgendaItemId || "",
           resolutionStatus: item.resolutionStatus || item.resolutionStatusId || "",
           imageFile: null,
-          attachmentFile: null
+          attachmentFile: null,
+          images: item.images || null,
+          attachments: item.attachments || null
       });
       setShowDecisionModal(true);
   };
@@ -718,8 +895,6 @@ const EditMeeting = () => {
                     disabled={isInactive}
                     className={`input-dark ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
                   />
-
-
                 </Field>
 
                 <Field label="Start Date *">
@@ -732,41 +907,81 @@ const EditMeeting = () => {
                       }
                       className="input-dark"
                     />
-
-
                     <input type="time" className="input-dark w-28" />
                   </div>
                 </Field>
 
-                <SelectField
-                  label="Department"
-                  value={meeting.department}
-                  options={departments}
-                  onChange={(v) => updateField("department", v)}
-                  disabled={isInactive}
-                />
+                <div>
+                   <label className="text-sm text-white">Department</label>
+                   <div className="flex gap-2">
+                      <SearchableSelect
+                        options={departments.map(d => ({ id: d.id, name: d.name }))}
+                        value={meeting.department}
+                        onChange={(v) => updateField("department", v)}
+                        disabled={isInactive}
+                        placeholder="--select--"
+                        className="w-full"
+                      />
+                      {!isInactive && (
+                          <button
+                            onClick={() => handleCreateNew("Department")}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add Department"
+                        >
+                            <Star size={16} />
+                        </button>
+                      )}
+                   </div>
+                </div>
 
-
-                <SelectField
-                  label="Organized By"
-                  value={meeting.organizedBy}
-                  options={employees}
-                  onChange={(v) => updateField("organizedBy", v)}
-                  disabled={isInactive}
-                />
-
+                <div>
+                   <label className="text-sm text-white">Organized By</label>
+                   <div className="flex gap-2">
+                      <SearchableSelect
+                        options={employees.map(e => ({ id: e.id, name: e.name }))}
+                        value={meeting.organizedBy}
+                        onChange={(v) => updateField("organizedBy", v)}
+                        disabled={isInactive}
+                        placeholder="--select--"
+                        className="w-full"
+                      />
+                      {!isInactive && (
+                          <button
+                            onClick={() => handleCreateNew("Organizer")}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add Organizer"
+                        >
+                            <Star size={16} />
+                        </button>
+                      )}
+                   </div>
+                </div>
               </div>
 
               {/* RIGHT */}
               <div className="space-y-4">
-                <SelectField
-                  label="Meeting Type *"
-                  value={meeting.meetingType}
-                  options={meetingTypes}
-                  onChange={(v) => updateField("meetingType", v)}
-                  disabled={isInactive}
-                />
-
+                <div>
+                   <label className="text-sm text-white">Meeting Type *</label>
+                   <div className="flex gap-2">
+                      <SearchableSelect
+                        options={meetingTypes.map(t => ({ id: t.id, name: t.name }))}
+                        value={meeting.meetingType}
+                        onChange={(v) => updateField("meetingType", v)}
+                        disabled={isInactive}
+                        placeholder="--select--"
+                        className="w-full"
+                      />
+                      {!isInactive && (
+                          <button
+                            onClick={() => handleCreateNew("Meeting Type")}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add Meeting Type"
+                        >
+                            <Star size={16} />
+                        </button>
+                      )}
+                   </div>
+                </div>
 
                 <Field label="End Date *">
                   <div className="flex gap-2">
@@ -778,28 +993,55 @@ const EditMeeting = () => {
                       }
                       className="input-dark"
                     />
-
                     <input type="time" className="input-dark w-28" />
                   </div>
                 </Field>
 
-                <SelectField
-                  label="Location"
-                  value={meeting.location}
-                  options={locations}
-                  onChange={(v) => updateField("location", v)}
-                  disabled={isInactive}
-                />
+                <div>
+                   <label className="text-sm text-white">Location</label>
+                   <div className="flex gap-2">
+                      <SearchableSelect
+                        options={locations.map(l => ({ id: l.id, name: l.name }))}
+                        value={meeting.location}
+                        onChange={(v) => updateField("location", v)}
+                        disabled={isInactive}
+                        placeholder="--select--"
+                        className="w-full"
+                      />
+                      {!isInactive && (
+                          <button
+                            onClick={() => handleCreateNew("Location")}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add Location"
+                        >
+                            <Star size={16} />
+                        </button>
+                      )}
+                   </div>
+                </div>
 
-
-                <SelectField
-                  label="Reporter"
-                  value={meeting.reporter}
-                  options={employees}
-                  onChange={(v) => updateField("reporter", v)}
-                  disabled={isInactive}
-                />
-
+                <div>
+                   <label className="text-sm text-white">Reporter</label>
+                   <div className="flex gap-2">
+                      <SearchableSelect
+                        options={employees.map(e => ({ id: e.id, name: e.name }))}
+                        value={meeting.reporter}
+                        onChange={(v) => updateField("reporter", v)}
+                        disabled={isInactive}
+                        placeholder="--select--"
+                        className="w-full"
+                      />
+                      {!isInactive && (
+                          <button
+                            onClick={() => handleCreateNew("Reporter")}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add Reporter"
+                        >
+                            <Star size={16} />
+                        </button>
+                      )}
+                   </div>
+                </div>
               </div>
             </div>
 
@@ -983,7 +1225,7 @@ const EditMeeting = () => {
         {/* NEW AGENDA ITEM MODAL */}
         {showAgendaModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900">
                         <h3 className="text-lg font-semibold text-white">{newAgendaItem.id ? "Edit Agenda Item" : "New Agenda Item"}</h3>
@@ -1023,14 +1265,12 @@ const EditMeeting = () => {
                                     <div className="space-y-1">
                                         <label className="text-sm text-white">Item Type <span className="text-red-400">*</span></label>
                                         <div className="flex gap-2">
-                                            <select 
-                                                className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 focus:border-blue-400 outline-none" 
+                                            <SearchableSelect 
+                                                className="w-full" 
+                                                options={agendaItemTypes}
                                                 value={newAgendaItem.itemType}
-                                                onChange={e => setNewAgendaItem({...newAgendaItem, itemType: e.target.value})}
-                                            >
-                                                <option value="">--select--</option>
-                                                {agendaItemTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                            </select>
+                                                onChange={(val) => setNewAgendaItem({...newAgendaItem, itemType: val})}
+                                            />
                                             <button 
                                                 onClick={() => setShowAgendaTypeModal(true)}
                                                 className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
@@ -1044,14 +1284,12 @@ const EditMeeting = () => {
                                     <div className="space-y-1">
                                         <label className="text-sm text-white">Requested By</label>
                                         <div className="flex gap-2">
-                                            <select 
-                                                className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 focus:border-blue-400 outline-none"
+                                            <SearchableSelect 
+                                                className="w-full"
+                                                options={employees}
                                                 value={newAgendaItem.requestedBy}
-                                                onChange={e => setNewAgendaItem({...newAgendaItem, requestedBy: e.target.value})}
-                                            >
-                                                <option value="">--select--</option>
-                                                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                                            </select>
+                                                onChange={(val) => setNewAgendaItem({...newAgendaItem, requestedBy: val})}
+                                            />
                                             <button 
                                                 onClick={() => navigate("/app/hr/newemployee", { state: { from: location.pathname } })}
                                                 className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
@@ -1074,23 +1312,27 @@ const EditMeeting = () => {
                                         />
                                     </div>
                                     
-                                     {/* Attachment Input */}
+                                    {/* Attachment Input */}
                                      <div className="space-y-1">
                                         <label className="text-sm text-white">Attachment</label>
                                         <div className="flex items-center gap-2">
                                              <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 border border-gray-600 rounded cursor-pointer hover:bg-gray-700 text-sm text-gray-300 transition-colors">
-                                                📎 {newAgendaItem.attachmentFile ? "Change File" : "Select File"}
+                                                📎 {newAgendaItem.attachmentFile || newAgendaItem.attachments ? "Change File" : "Select File"}
                                                 <input type="file" className="hidden" onChange={e => setNewAgendaItem({...newAgendaItem, attachmentFile: e.target.files[0]})} />
                                              </label>
-                                             {newAgendaItem.attachmentFile && (
-                                                <button onClick={() => setNewAgendaItem({...newAgendaItem, attachmentFile: null})} className="p-2 text-red-400 hover:text-red-300 bg-gray-800 border border-gray-600 rounded"><Trash2 size={16}/></button>
+                                             {(newAgendaItem.attachmentFile || newAgendaItem.attachments) && (
+                                                <button onClick={() => setNewAgendaItem({...newAgendaItem, attachmentFile: null, attachments: null})} className="p-2 text-red-400 hover:text-red-300 bg-gray-800 border border-gray-600 rounded"><Trash2 size={16}/></button>
                                              )}
                                         </div>
-                                        {newAgendaItem.attachmentFile && (
+                                        {newAgendaItem.attachmentFile ? (
                                             <div className="text-xs text-blue-300 mt-1 truncate">
                                                 {newAgendaItem.attachmentFile.name} ({(newAgendaItem.attachmentFile.size / 1024).toFixed(1)} KB)
                                             </div>
-                                        )}
+                                        ) : newAgendaItem.attachments ? (
+                                            <div className="text-xs text-green-300 mt-1 truncate">
+                                                Existing: {newAgendaItem.attachments}
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
                             </div>
@@ -1122,6 +1364,23 @@ const EditMeeting = () => {
                                                      >
                                                         <Trash2 size={14} />
                                                      </button>
+                                                </div>
+                                            </>
+                                        ) : newAgendaItem.images ? (
+                                            <>
+                                                <img 
+                                                    src={`http://localhost:5000/uploads/agenda_items/${newAgendaItem.images}`} 
+                                                    alt="Existing" 
+                                                    className="absolute inset-0 w-full h-full object-contain p-2"
+                                                />
+                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                     <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
+                                                        <Pencil size={14} />
+                                                        <input type="file" className="hidden" accept="image/*" onChange={e => setNewAgendaItem({...newAgendaItem, imageFile: e.target.files[0]})} />
+                                                     </label>
+                                                </div>
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 px-2 truncate">
+                                                    {newAgendaItem.images}
                                                 </div>
                                             </>
                                         ) : (
@@ -1158,7 +1417,7 @@ const EditMeeting = () => {
         {/* NEW AGENDA ITEM TYPE MODAL */}
         {showAgendaTypeModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                 <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-xl p-6">
+                 <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[700px] p-6">
                     <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
                          <h3 className="text-lg font-semibold text-white">New Item Type</h3>
                          <button onClick={() => setShowAgendaTypeModal(false)} className="text-gray-400 hover:text-white">✕</button>
@@ -1189,7 +1448,7 @@ const EditMeeting = () => {
         {/* NEW DECISION MODAL */}
         {showDecisionModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
                     <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900">
                         <h3 className="text-lg font-semibold text-white">New Agenda Decision</h3>
                         <button onClick={() => setShowDecisionModal(false)} className="text-gray-400 hover:text-white">✕</button>
@@ -1219,11 +1478,12 @@ const EditMeeting = () => {
 
                             <div className="space-y-1">
                                 <label className="text-sm text-white">Assigned To</label>
-                                <SearchableDropdown
+                                <SearchableSelect
                                     options={employees.map(e => ({ id: e.id, name: e.name }))}
                                     value={newDecision.assignedTo}
                                     onChange={val => setNewDecision({...newDecision, assignedTo: val})}
                                     placeholder="--select--"
+                                    className="w-full"
                                 />
                             </div>
 
@@ -1238,7 +1498,7 @@ const EditMeeting = () => {
 
                             <div className="space-y-1">
                                 <label className="text-sm text-white">Related Agenda Item</label>
-                                <SearchableDropdown
+                                <SearchableSelect
                                     options={agendaItems.map(item => ({ 
                                         id: item.id, 
                                         name: item.description ? item.description.substring(0, 50) + "..." : item.title || `Item ${item.id}` 
@@ -1246,6 +1506,7 @@ const EditMeeting = () => {
                                     value={newDecision.relatedAgendaItem}
                                     onChange={val => setNewDecision({...newDecision, relatedAgendaItem: val})}
                                     placeholder="--select--"
+                                    className="w-full"
                                 />
                             </div>
 
@@ -1253,16 +1514,17 @@ const EditMeeting = () => {
                                 <label className="text-sm text-white">Resolution Status</label>
                                 <div className="flex gap-2">
                                     <div className="flex-1">
-                                        <SearchableDropdown
+                                        <SearchableSelect
                                             options={resolutionStatuses.map(rs => ({ id: rs.id, name: rs.name }))}
                                             value={newDecision.resolutionStatus}
                                             onChange={val => setNewDecision({...newDecision, resolutionStatus: val})}
                                             placeholder="--select--"
+                                            className="w-full"
                                         />
                                     </div>
                                     <button 
                                         onClick={() => setShowResolutionStatusModal(true)}
-                                        className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700 h-[42px]" // Align with input
+                                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 h-[42px] hover:scale-105 transition-transform" // Align with input
                                         title="Add Status"
                                     >
                                         <Star size={16}/>
@@ -1301,6 +1563,23 @@ const EditMeeting = () => {
                                                     {newDecision.imageFile.name}
                                                 </div>
                                             </>
+                                        ) : newDecision.images ? (
+                                            <>
+                                                <img 
+                                                    src={`http://localhost:5000/uploads/agenda_items/${newDecision.images}`} 
+                                                    alt="Existing" 
+                                                    className="absolute inset-0 w-full h-full object-contain p-2"
+                                                />
+                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                     <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
+                                                        <Pencil size={14} />
+                                                        <input type="file" className="hidden" accept="image/*" onChange={e => setNewDecision({...newDecision, imageFile: e.target.files[0]})} />
+                                                     </label>
+                                                </div>
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 px-2 truncate">
+                                                    {newDecision.images}
+                                                </div>
+                                            </>
                                         ) : (
                                             <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4 text-center w-full h-full justify-center">
                                                 <Plus size={32} />
@@ -1317,10 +1596,10 @@ const EditMeeting = () => {
                                 <label className="text-sm text-white">Attachments</label>
                                 <div className="flex items-center gap-2">
                                      <label className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded cursor-pointer hover:bg-gray-700 transition">
-                                        <Pencil size={14} /> Select File
+                                        <Pencil size={14} /> {newDecision.attachmentFile || newDecision.attachments ? "Change File" : "Select File"}
                                         <input type="file" className="hidden" onChange={e => setNewDecision({...newDecision, attachmentFile: e.target.files[0]})} />
                                      </label>
-                                     {newDecision.attachmentFile && (
+                                     {newDecision.attachmentFile ? (
                                          <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 px-3 py-2 rounded">
                                              <div className="flex flex-col">
                                                  <span className="text-blue-300 text-sm font-medium truncate max-w-[200px]">{newDecision.attachmentFile.name}</span>
@@ -1328,7 +1607,15 @@ const EditMeeting = () => {
                                              </div>
                                              <button onClick={() => setNewDecision({...newDecision, attachmentFile: null})} className="text-red-400 hover:text-red-300 ml-2"><Trash2 size={16}/></button>
                                          </div>
-                                     )}
+                                     ) : newDecision.attachments ? (
+                                         <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 px-3 py-2 rounded">
+                                             <div className="flex flex-col">
+                                                 <span className="text-green-300 text-sm font-medium truncate max-w-[200px]">{newDecision.attachments}</span>
+                                                 <span className="text-gray-500 text-xs">Existing File</span>
+                                             </div>
+                                             <button onClick={() => setNewDecision({...newDecision, attachments: null})} className="text-red-400 hover:text-red-300 ml-2"><Trash2 size={16}/></button>
+                                         </div>
+                                     ) : null}
                                 </div>
                             </div>
 
@@ -1350,7 +1637,7 @@ const EditMeeting = () => {
         {/* DECISION RESOLUTION STATUS MODAL */}
         {showResolutionStatusModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                 <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-xl p-6">
+                 <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[700px] p-6">
                     <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
                          <h3 className="text-lg font-semibold text-white">New Resolution Status</h3>
                          <button onClick={() => setShowResolutionStatusModal(false)} className="text-gray-400 hover:text-white">✕</button>
@@ -1380,7 +1667,292 @@ const EditMeeting = () => {
 
 
 
-        
+      
+
+        {/* MEETING TYPE MODAL */}
+        <SimpleModal
+            title="Add Meeting Type"
+            isOpen={meetingTypeModalOpen}
+            onClose={() => setMeetingTypeModalOpen(false)}
+            onSave={handleSaveMeetingType}
+            value={newMeetingType}
+            setValue={setNewMeetingType}
+            placeholder="Enter Meeting Type Name"
+        />
+
+      {/* DEPARTMENT MODAL */}
+      {departmentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
+            <div className="flex justify-between mb-4">
+              <h3 className="text-white text-lg">Add Department</h3>
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setDepartmentModalOpen(false)} />
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-white">Department Name *</label>
+                <input
+                  type="text"
+                  value={newDepartment.department}
+                  onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-white">Description</label>
+                <textarea
+                  value={newDepartment.description}
+                  onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-white">Parent Department</label>
+                <SearchableSelect
+                  options={departments.map(d => ({ id: d.id, name: d.name }))}
+                  value={newDepartment.parentDepartmentId}
+                  onChange={(val) => setNewDepartment({ ...newDepartment, parentDepartmentId: val })}
+                  placeholder="--select--"
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setDepartmentModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-red-400 rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveDepartment} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOCATION MODAL */}
+      {locationModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="flex justify-between mb-4">
+              <h3 className="text-white text-lg">Add Location</h3>
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setLocationModalOpen(false)} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="text-sm text-white">Location Name *</label>
+                <input
+                  type="text"
+                  value={newLocation.name}
+                  onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+
+              <div>
+                 <div className="space-y-1">
+                    <label className="text-sm text-white">Country</label>
+                    <div className="flex gap-2">
+                        <SearchableSelect
+                          options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
+                          value={newLocation.countryId}
+                          onChange={(val) => setNewLocation({ ...newLocation, countryId: val, stateId: "", cityId: "" })}
+                          placeholder="--select--"
+                          className="w-full"
+                        />
+                         <button
+                            onClick={() => setAddCountryModalOpen(true)}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add Country"
+                        >
+                            <Star size={16} />
+                        </button>
+                    </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="space-y-1">
+                    <label className="text-sm text-white">State</label>
+                    <div className="flex gap-2">
+                        <SearchableSelect
+                          options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
+                          value={newLocation.stateId}
+                          onChange={(val) => setNewLocation({ ...newLocation, stateId: val, cityId: "" })}
+                          placeholder="--select--"
+                          className="w-full"
+                        />
+                         <button
+                            onClick={() => setAddStateModalOpen(true)}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add State"
+                        >
+                            <Star size={16} />
+                        </button>
+                    </div>
+                </div>
+              </div>
+
+              <div>
+                 <div className="space-y-1">
+                    <label className="text-sm text-white">City</label>
+                    <div className="flex gap-2">
+                        <SearchableSelect
+                          options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
+                          value={newLocation.cityId}
+                          onChange={(val) => setNewLocation({ ...newLocation, cityId: val })}
+                          placeholder="--select--"
+                          className="w-full"
+                        />
+                         <button
+                            onClick={() => setAddCityModalOpen(true)}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add City"
+                        >
+                            <Star size={16} />
+                        </button>
+                    </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-white">Address</label>
+                <input
+                  type="text"
+                  value={newLocation.address}
+                  onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-white">Latitude</label>
+                <input
+                  type="text"
+                  value={newLocation.latitude}
+                  onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-white">Longitude</label>
+                <input
+                  type="text"
+                  value={newLocation.longitude}
+                  onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setLocationModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-red-400 rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveLocation} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NESTED ADD COUNTRY MODAL */}
+      <SimpleModal
+        title="Add Country"
+        isOpen={addCountryModalOpen}
+        onClose={() => setAddCountryModalOpen(false)}
+        onSave={handleSaveCountry}
+        value={newCountryName}
+        setValue={setNewCountryName}
+        placeholder="Enter Country Name"
+      />
+
+      {/* NESTED ADD STATE MODAL */}
+      {addStateModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
+            <div className="flex justify-between mb-4">
+              <h3 className="text-white text-lg">Add State</h3>
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setAddStateModalOpen(false)} />
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-white">State Name *</label>
+                <input
+                  type="text"
+                  value={newState.name}
+                  onChange={(e) => setNewState({ ...newState, name: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-white">Country *</label>
+                <SearchableSelect
+                  options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
+                  value={newState.countryId}
+                  onChange={(val) => setNewState({ ...newState, countryId: val })}
+                  placeholder="--select--"
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setAddStateModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-red-400 rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveState} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NESTED ADD CITY MODAL */}
+      {addCityModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
+            <div className="flex justify-between mb-4">
+              <h3 className="text-white text-lg">Add City</h3>
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setAddCityModalOpen(false)} />
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-white">City Name *</label>
+                <input
+                  type="text"
+                  value={newCity.name}
+                  onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-white">Country *</label>
+                <SearchableSelect
+                  options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
+                  value={newCity.countryId}
+                  onChange={(val) => setNewCity({ ...newCity, countryId: val, stateId: "" })}
+                  placeholder="--select--"
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-white">State *</label>
+                <SearchableSelect
+                  options={modalStates.map(s => ({ id: s.id, name: s.name }))}
+                  value={newCity.stateId}
+                  onChange={(val) => setNewCity({ ...newCity, stateId: val })}
+                  placeholder="--select--"
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setAddCityModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-red-400 rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveCity} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </PageLayout>
   );
@@ -1388,5 +1960,38 @@ const EditMeeting = () => {
 
 
 
+
+
+// ===============================
+// SIMPLE MODAL COMPONENT (Internal)
+// ===============================
+const SimpleModal = ({ title, isOpen, onClose, onSave, value, setValue, placeholder }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
+        <div className="flex justify-between mb-4">
+          <h3 className="text-white text-lg">{title}</h3>
+          <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={onClose} />
+        </div>
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-4"
+        />
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-800 border border-gray-600 text-red-400 rounded hover:bg-gray-700">Cancel</button>
+          <button onClick={onSave} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+  
+const X = ({size, className, onClick}) => (
+    <span onClick={onClick} className={`cursor-pointer ${className}`}><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+);
 
 export default EditMeeting;

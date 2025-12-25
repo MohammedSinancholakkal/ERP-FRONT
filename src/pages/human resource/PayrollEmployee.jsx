@@ -10,99 +10,7 @@ import { getEmployeesApi, getEmployeeByIdApi, getBanksApi, getIncomesApi, getDed
 
 
 
-/* =========================
-    SEARCHABLE DROPDOWN
-========================= */
-const SearchableDropdown = ({
-  label,
-  list = [],
-  value,
-  onChange,
-  placeholder = "--select--",
-  required = false
-}) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const wrapperRef = useRef(null);
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    if (value?.name) setQuery(value.name);
-  }, [value?.id]);
-
-  /* ✅ CLOSE ON OUTSIDE CLICK */
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target)
-      ) {
-        setOpen(false);
-        inputRef.current?.blur();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const filtered = (list || []).filter((x) =>
-    x.name.toLowerCase().includes((query || "").toLowerCase())
-  );
-
-  const selectItem = (it) => {
-    onChange(it);
-    setOpen(false);
-    inputRef.current?.blur();
-  };
-
-  return (
-    <div className="w-full" ref={wrapperRef}>
-      <label className="text-sm text-white block mb-1">
-        {required && <span className="text-red-400 mr-1">*</span>}
-        {label}
-      </label>
-
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (!open) setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder={placeholder}
-          className="w-full bg-gray-800 border text-white border-gray-700 rounded px-3 py-2 text-sm"
-        />
-
-        {open && (
-          <div className="absolute left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded shadow-lg z-40 max-h-56 overflow-auto">
-            {filtered.length > 0 ? (
-              filtered.map((it) => (
-                <div
-                  key={it.id}
-                  onClick={() => selectItem(it)}
-                  className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-sm text-gray-200"
-                >
-                  {it.name}
-                </div>
-              ))
-            ) : (
-              <div className="px-3 py-2 text-sm text-gray-400">
-                No matches
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+import SearchableSelect from "../../components/SearchableSelect";
 
 
 /* =========================
@@ -136,31 +44,32 @@ const resetAndClose = () => {
 
 return (
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999]">
-    <div className="w-[680px] bg-gray-900 border border-gray-700 rounded">
-      <div className="flex justify-between p-4 border-b border-gray-700">
-        <h2 className="text-lg text-white">
-          {editingIncomeId ? "Edit Income" : "Add Income"}
-        </h2>
-        <button onClick={resetAndClose} className="p-1 text-white">
-          <X size={18} />
-        </button>
-      </div>
+      <div className="w-[700px] bg-gray-900 border border-gray-700 rounded">
+        <div className="flex justify-between p-4 border-b border-gray-700">
+          <h2 className="text-lg text-white">
+            {editingIncomeId ? "Edit Income" : "Add Income"}
+          </h2>
+          <button onClick={resetAndClose} className="p-1 text-white">
+            <X size={18} />
+          </button>
+        </div>
 
-      <div className="p-4 space-y-3">
-        <SearchableDropdown
-          label="Income Name"
-          list={incomeTypes}
-          value={incomeForm.type}
-          onChange={(item) => {
-            if (!incomeTypes.find((x) => x.id === item.id)) {
-              setIncomeTypes((p) => [item, ...p]);
-            }
-            setIncomeForm((p) => ({ ...p, type: item }));
-          }}
-          required
-          placeholder="Select Income..."
-          className="w-full text-white"
-        />
+        <div className="p-4 space-y-3">
+          <label className="text-sm text-white block mb-1">
+             <span className="text-red-400 mr-1">*</span>
+             Income Name
+          </label>
+          <SearchableSelect
+            options={incomeTypes}
+            value={incomeForm.type?.id}
+            onChange={(val) => {
+                const item = incomeTypes.find(x => x.id === val);
+                if (item) {
+                   setIncomeForm(p => ({ ...p, type: item }));
+                }
+            }}
+            placeholder="Select Income..."
+          />
 
         <div className="grid grid-cols-3 gap-2 items-end">
           <div>
@@ -239,7 +148,17 @@ return (
 /* =========================
    DEDUCTION MODAL
 ========================= */
-const DeductionModal = () => {
+const DeductionModal = ({
+  deductionTypes,
+  deductionForm,
+  setDeductionForm,
+  editingDeductionId,
+  setEditingDeductionId,
+  setShowDeductionModal,
+  updateDeductionRow,
+  addDeductionRow,
+  setDeductionTypes,
+}) => {
   const resetAndClose = () => {
     setDeductionForm({ type: null, amount: "", note: "" });
     setEditingDeductionId(null);
@@ -248,26 +167,27 @@ const DeductionModal = () => {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999]">
-      <div className="w-[680px] bg-gray-900 border border-gray-700 rounded">
+      <div className="w-[700px] bg-gray-900 border border-gray-700 rounded">
         <div className="flex justify-between p-4 border-b border-gray-700">
           <h2 className="text-lg text-white">{editingDeductionId ? "Edit Deduction" : "Add Deduction"}</h2>
           <button onClick={resetAndClose} className="p-1 text-white"><X size={18} /></button>
         </div>
 
         <div className="p-4 space-y-3">
-          <SearchableDropdown
-            label="Deduction Name"
-            list={deductionTypes}
-            value={deductionForm.type}
-            onChange={(item) => {
-              if (!deductionTypes.find((x) => x.id === item.id)) {
-                setDeductionTypes((p) => [item, ...p]);
-              }
-              setDeductionForm((p) => ({ ...p, type: item }));
-            }}
-            required
-            placeholder="Select Deduction..."
-            className="w-full text-white"
+           <label className="text-sm text-white block mb-1">
+             <span className="text-red-400 mr-1">*</span>
+             Deduction Name
+          </label>
+          <SearchableSelect
+             options={deductionTypes}
+             value={deductionForm.type?.id}
+             onChange={(val) => {
+                const item = deductionTypes.find(x => x.id === val);
+                if(item) {
+                     setDeductionForm(p => ({...p, type: item}));
+                }
+             }}
+             placeholder="Select Deduction..."
           />
 
           <div className="grid grid-cols-3 gap-2 items-end">
@@ -436,7 +356,11 @@ const [employee, setEmployee] = useState(null);
     try {
       const resp = await getBanksApi(1, 1000);
       const records = resp?.data?.records || [];
-      setBanks(records); // keep full records to resolve by id
+      const normalized = records.map(b => ({
+        id: b.Id,
+        name: b.BankName
+      }));
+      setBanks(normalized);
     } catch (err) {
       console.error("Error fetching banks", err);
     }
@@ -457,12 +381,13 @@ const [employee, setEmployee] = useState(null);
           if (currentBanks.length === 0) {
             // fallback if banks not loaded yet
             const respB = await getBanksApi(1, 1000);
-            currentBanks = respB?.data?.records || [];
+            const records = respB?.data?.records || [];
+            currentBanks = records.map(b => ({ id: b.Id, name: b.BankName }));
             setBanks(currentBanks);
           }
-          const bank = currentBanks.find(b => String(b.Id || b.id) === String(data.PayrollBankId));
+          const bank = currentBanks.find(b => String(b.id) === String(data.PayrollBankId));
           if (bank) {
-            setBankName(bank.BankName || bank.name || "");
+            setBankName(bank.name || "");
           }
         }
 
@@ -587,7 +512,7 @@ const handleSave = () => {
   ========================= */
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
 
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
@@ -609,17 +534,38 @@ const handleSave = () => {
 
         {/* EMPLOYEE INFO */}
         <Section title="Employee Info">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-<SearchableDropdown
-            label="Employee"
-            list={employees}
-            value={employee}
-            onChange={handleEmployeeSelect}
-            required
-            placeholder={employeesLoading ? "Loading..." : "Select Employee"}
-          />
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="w-full">
+                <label className="text-sm text-gray-300 block mb-1">
+                    <span className="text-red-400 mr-1">*</span>
+                    Employee
+                </label>
+                <SearchableSelect
+                    options={employees}
+                    value={employee?.id}
+                    onChange={(val) => {
+                        const emp = employees.find(e => e.id === val);
+                        if(emp) handleEmployeeSelect(emp);
+                    }}
+                    placeholder={employeesLoading ? "Loading..." : "Select Employee"}
+                />
+            </div>
             <Input label="Bank Account" value={bankAccount} onChange={setBankAccount} required />
-            <Input label="Bank Name" value={bankName} onChange={setBankName} required />
+            <div className="w-full">
+                <label className="text-sm text-gray-300 block mb-1">
+                    <span className="text-red-400 mr-1">*</span>
+                    Bank Name
+                </label>
+                <SearchableSelect
+                    options={banks}
+                    value={banks.find(b => b.name === bankName)?.id}
+                    onChange={(val) => {
+                        const bank = banks.find(b => b.id === val);
+                        if(bank) setBankName(bank.name);
+                    }}
+                    placeholder="Select Bank..."
+                />
+            </div>
           </div>
         </Section>
 
@@ -797,7 +743,21 @@ const handleSave = () => {
     />
   </Portal>
 )}
-      {showDeductionModal && <Portal><DeductionModal /></Portal>}
+      {showDeductionModal && (
+        <Portal>
+            <DeductionModal 
+                deductionTypes={deductionTypes}
+                deductionForm={deductionForm}
+                setDeductionForm={setDeductionForm}
+                editingDeductionId={editingDeductionId}
+                setEditingDeductionId={setEditingDeductionId}
+                setShowDeductionModal={setShowDeductionModal}
+                updateDeductionRow={updateDeductionRow}
+                addDeductionRow={addDeductionRow}
+                setDeductionTypes={setDeductionTypes}
+            />
+        </Portal>
+      )}
     </PageLayout>
   );
 };

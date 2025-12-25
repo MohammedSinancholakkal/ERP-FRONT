@@ -748,8 +748,11 @@ const Expenses = () => {
             <button
               onClick={() => {
                 setSearchText("");
-                setPage(1);
-                loadExpenses();
+                if (page === 1) {
+                  loadExpenses();
+                } else {
+                  setPage(1);
+                }
               }}
               className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
             >

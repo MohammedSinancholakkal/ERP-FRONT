@@ -38,86 +38,11 @@ import {
 import PageLayout from "../../layout/PageLayout";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
+import FilterBar from "../../components/FilterBar";
+import SearchableSelect from "../../components/SearchableSelect";
 
-/* ============================
-   SearchableDropdown (safe)
-   - closes on document 'click' (not mousedown)
-   - defers query update on focus
-   ============================ */
-const SearchableDropdown = ({
-  options = [],
-  value,
-  onChange,
-  placeholder,
-  fullWidth,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef(null);
 
-  const selectedName =
-    options.find((o) => String(o.id) === String(value))?.name || "";
 
-  useEffect(() => {
-    if (!open) setQuery(selectedName);
-  }, [selectedName, open]);
-
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, []);
-
-  const filtered = !query
-    ? options
-    : options.filter((c) =>
-        (c.name || "").toLowerCase().includes(query.toLowerCase())
-      );
-
-  return (
-    <div className={`relative ${fullWidth ? "w-full" : "w-56"}`} ref={ref}>
-      <input
-        value={open ? query : selectedName}
-        placeholder={placeholder}
-        onFocus={() => {
-          setOpen(true);
-          if (!query) setTimeout(() => setQuery(selectedName), 0);
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm w-full"
-      />
-
-      {open && (
-        <div className="absolute w-full bg-gray-800 border border-gray-700 rounded mt-1 max-h-56 overflow-auto z-40">
-          {filtered.length ? (
-            filtered.map((o) => (
-              <div
-                key={o.id}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                onClick={() => {
-                  onChange(o.id);
-                  setQuery(o.name);
-                  setOpen(false);
-                }}
-              >
-                {o.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400">No results</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 /* ============================
    Simple Portal Modal wrapper
@@ -180,6 +105,17 @@ const DamagedProducts = () => {
 
   const [searchText, setSearchText] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  
+  // --- SORTING STATE ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const user = JSON.parse(localStorage.getItem("user"));
   const currentUserId = user?.userId || 1;
@@ -513,6 +449,8 @@ const DamagedProducts = () => {
     return list;
   };
 
+
+
   const [displayed, setDisplayed] = useState([]);
 
   useEffect(() => {
@@ -520,10 +458,51 @@ const DamagedProducts = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [damaged, searchText, filterCategory]);
 
-  const clearFilters = () => {
+    // --- SORTING LOGIC ---
+  const sortedList = React.useMemo(() => {
+    let sortableItems = [...displayed];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle numeric values
+        if (['PurchasePrice', 'Quantity', 'Id'].includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             // String comparison
+             aValue = String(aValue || "").toLowerCase();
+             bValue = String(bValue || "").toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [displayed, sortConfig]);
+
+  // --- FILTER BAR CONFIG ---
+  const filters = [
+      {
+          type: 'select',
+          value: filterCategory,
+          onChange: setFilterCategory,
+          options: categories.map(c => ({ id: c.Id ?? c.id, name: c.Name ?? c.name ?? c.CategoryName ?? c.categoryName })),
+          placeholder: "All Categories"
+      }
+  ];
+
+  const handleClearFilters = () => {
     setSearchText("");
     setFilterCategory("");
-    setDisplayed(computeDisplayed());
+    setSortConfig({ key: null, direction: 'asc' });
   };
 
   /* =========================================================
@@ -609,7 +588,7 @@ const DamagedProducts = () => {
       <div className="p-6 grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <label className="font-semibold">* Select Product</label>
-          <SearchableDropdown
+          <SearchableSelect
             options={products.map((p) => ({
               id: p.Id ?? p.id,
               name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
@@ -619,7 +598,7 @@ const DamagedProducts = () => {
             value={newDP.ProductId}
             onChange={(v) => handleSelectProduct(v, "add")}
             placeholder="Search / select product"
-            fullWidth
+            className="w-full"
           />
         </div>
 
@@ -663,7 +642,8 @@ const DamagedProducts = () => {
         <div>
           <label className="font-semibold">* Category</label>
           <div className="h-[50px]">
-            <SearchableDropdown
+          <div className="h-[50px]">
+            <SearchableSelect
               options={categories.map((c) => ({
                 id: c.Id ?? c.id,
                 name:
@@ -676,8 +656,9 @@ const DamagedProducts = () => {
               value={newDP.CategoryId}
               onChange={(v) => setNewDP((prev) => ({ ...prev, CategoryId: v }))}
               placeholder="Select category"
-              fullWidth
+              className="w-full"
             />
+          </div>
           </div>
 
           <label className="mt-3">* Purchase Price</label>
@@ -705,7 +686,7 @@ const DamagedProducts = () => {
         <div>
           <label className="font-semibold">Warehouse</label>
           <div className="h-[50px]">
-            <SearchableDropdown
+            <SearchableSelect
               options={warehouses.map((w) => ({
                 id: w.Id ?? w.id,
                 name: w.Name ?? w.name ?? String(w.Id ?? w.id),
@@ -715,7 +696,7 @@ const DamagedProducts = () => {
                 setNewDP((prev) => ({ ...prev, WarehouseId: v }))
               }
               placeholder="Select warehouse (optional)"
-              fullWidth
+              className="w-full"
             />
           </div>
         </div>
@@ -768,7 +749,7 @@ const DamagedProducts = () => {
       <div className="p-6 grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <label className="font-semibold">* Select Product</label>
-          <SearchableDropdown
+          <SearchableSelect
             options={products.map((p) => ({
               id: p.Id ?? p.id,
               name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
@@ -778,7 +759,7 @@ const DamagedProducts = () => {
             value={editDP.ProductId}
             onChange={(v) => handleSelectProduct(v, "edit")}
             placeholder="Search / select product"
-            fullWidth
+            className="w-full"
           />
         </div>
 
@@ -820,7 +801,8 @@ const DamagedProducts = () => {
 
         <div className="h-[100px]">
           <label className="font-semibold">* Category</label>
-          <SearchableDropdown
+          <label className="font-semibold">* Category</label>
+          <SearchableSelect
             options={categories.map((c) => ({
               id: c.Id ?? c.id,
               name:
@@ -833,7 +815,7 @@ const DamagedProducts = () => {
             value={editDP.CategoryId}
             onChange={(v) => setEditDP((prev) => ({ ...prev, CategoryId: v }))}
             placeholder="Select category"
-            fullWidth
+            className="w-full"
           />
 
           <label className="mt-3">* Purchase Price</label>
@@ -863,7 +845,7 @@ const DamagedProducts = () => {
         <div>
           <label className="font-semibold">Warehouse</label>
           <div className="h-[50px]">
-            <SearchableDropdown
+            <SearchableSelect
               options={warehouses.map((w) => ({
                 id: w.Id ?? w.id,
                 name: w.Name ?? w.name ?? String(w.Id ?? w.id),
@@ -873,7 +855,7 @@ const DamagedProducts = () => {
                 setEditDP((prev) => ({ ...prev, WarehouseId: v }))
               }
               placeholder="Select warehouse (optional)"
-              fullWidth
+              className="w-full"
             />
           </div>
         </div>
@@ -1097,82 +1079,25 @@ const DamagedProducts = () => {
             </div>
           </div>
 
-          {/* FILTERS */}
-          <div className="flex items-center gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-            <SearchableDropdown
-              options={categories.map((c) => ({
-                id: c.Id ?? c.id,
-                name:
-                  c.Name ?? c.name ?? c.CategoryName ?? String(c.Id ?? c.id),
-              }))}
-              value={filterCategory}
-              onChange={setFilterCategory}
-              placeholder="Filter by Category"
-            />
-            <button
-              onClick={() => setDisplayed(computeDisplayed())}
-              className="px-2 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
-            >
-              Apply
-            </button>
-            <button
-              onClick={clearFilters}
-              className="px-2 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
-            >
-              Clear
-            </button>
-          </div>
+            {/* FILTER BAR - Replaced custom manual filters with FilterBar */}
+            <div className="mb-4">
+               <FilterBar filters={filters} onClear={handleClearFilters} />
+            </div>
 
           {/* TABLE */}
           <div className="flex-grow overflow-auto min-h-0 w-full">
-            <table className="min-w-[990px] text-left border-separate border-spacing-y-1 text-sm">
+            <table className="min-w-[1300px] text-left border-separate border-spacing-y-1 text-sm">
               <thead className="sticky top-0 bg-gray-900 z-10">
                 <tr>
-                  {visibleColumns.id && (
-                    <th className="border-b border-white pb-1 text-center">
-                      ID
-                    </th>
-                  )}
-                  {visibleColumns.code && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Code
-                    </th>
-                  )}
-                  {visibleColumns.name && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Name
-                    </th>
-                  )}
-                  {visibleColumns.category && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Category
-                    </th>
-                  )}
-                  {visibleColumns.warehouse && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Warehouse
-                    </th>
-                  )}
-                  {visibleColumns.purchasePrice && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Purchase Price
-                    </th>
-                  )}
-                  {visibleColumns.quantity && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Qty
-                    </th>
-                  )}
-                  {visibleColumns.date && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Date
-                    </th>
-                  )}
-                  {visibleColumns.note && (
-                    <th className="border-b border-white pb-1 text-center">
-                      Note
-                    </th>
-                  )}
+                  {visibleColumns.id && <SortableHeader label="ID" sortKey="Id" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.code && <SortableHeader label="Code" sortKey="Code" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.name && <SortableHeader label="Name" sortKey="Name" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.category && <SortableHeader label="Category" sortKey="CategoryName" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.warehouse && <SortableHeader label="Warehouse" sortKey="WarehouseName" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.purchasePrice && <SortableHeader label="Purchase Price" sortKey="PurchasePrice" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.quantity && <SortableHeader label="Qty" sortKey="Quantity" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.date && <SortableHeader label="Date" sortKey="Date" currentSort={sortConfig} onSort={handleSort} />}
+                  {visibleColumns.note && <th className="border-b border-white pb-1 text-center">Note</th>}
                 </tr>
               </thead>
 
@@ -1184,129 +1109,35 @@ const DamagedProducts = () => {
                     </td>
                   </tr>
                 )}
-                {!loading && displayed.length === 0 && (
-                  <tr>
-                    <td colSpan="9" className="text-center py-6 text-gray-400">
-                      No Records
-                    </td>
-                  </tr>
-                )}
-
                 {!loading &&
-                  displayed.map((r) => (
+                  sortedList.map((r) => (
                     <tr
                       key={r.Id ?? r.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm"
-                      onClick={() => openEditModalFn(r, false)}
+                      className={`bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm ${r.isInactive ? 'opacity-40 line-through' : ''}`}
+                      onClick={() => openEditModalFn(r, r.isInactive)}
                     >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Id ?? r.id}
-                        </td>
-                      )}
-                      {visibleColumns.code && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Code ?? r.code}
-                        </td>
-                      )}
-                      {visibleColumns.name && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Name ?? r.name}
-                        </td>
-                      )}
-                      {visibleColumns.category && (
-                        <td className="px-2 py-2 text-center">
-                          {(r.CategoryName ?? r.categoryName) || "-"}
-                        </td>
-                      )}
-                      {visibleColumns.warehouse && (
-                        <td className="px-2 py-2 text-center">
-                          {(r.WarehouseName ?? r.warehouseName) || "-"}
-                        </td>
-                      )}
-                      {visibleColumns.purchasePrice && (
-                        <td className="px-2 py-2 text-center">
-                          {r.PurchasePrice ?? r.purchasePrice}
-                        </td>
-                      )}
-                      {visibleColumns.quantity && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Quantity ?? r.quantity}
-                        </td>
-                      )}
-                      {visibleColumns.date && (
-                        <td className="px-2 py-2 text-center">
-                          {String((r.Date ?? r.date) || "").split("T")[0]}
-                        </td>
-                      )}
-                      {visibleColumns.note && (
-                        <td className="px-2 py-2 text-center">
-                          {(r.Note ?? r.note) || "-"}
-                        </td>
-                      )}
+                      {visibleColumns.id && (<td className="px-2 py-2 text-center">{r.Id ?? r.id}</td>)}
+                      {visibleColumns.code && (<td className="px-2 py-2 text-center">{r.Code ?? r.code}</td>)}
+                      {visibleColumns.name && (<td className="px-2 py-2 text-center">{r.Name ?? r.name}</td>)}
+                      {visibleColumns.category && (<td className="px-2 py-2 text-center">{(r.CategoryName ?? r.categoryName) || "-"}</td>)}
+                      {visibleColumns.warehouse && (<td className="px-2 py-2 text-center">{(r.WarehouseName ?? r.warehouseName) || "-"}</td>)}
+                      {visibleColumns.purchasePrice && (<td className="px-2 py-2 text-center">{r.PurchasePrice ?? r.purchasePrice}</td>)}
+                      {visibleColumns.quantity && (<td className="px-2 py-2 text-center">{r.Quantity ?? r.quantity}</td>)}
+                      {visibleColumns.date && (<td className="px-2 py-2 text-center">{String((r.Date ?? r.date) || "").split("T")[0]}</td>)}
+                      {visibleColumns.note && (<td className="px-2 py-2 text-center">{(r.Note ?? r.note) || "-"}</td>)}
                     </tr>
                   ))}
-
-                {showInactive &&
-                  inactive.map((r) => (
-                    <tr
-                      key={`inactive-${r.Id ?? r.id}`}
-                      className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer rounded shadow-sm"
-                      onClick={() => openEditModalFn(r, true)}
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Id ?? r.id}
-                        </td>
-                      )}
-                      {visibleColumns.code && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Code ?? r.code}
-                        </td>
-                      )}
-                      {visibleColumns.name && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Name ?? r.name}
-                        </td>
-                      )}
-                      {visibleColumns.category && (
-                        <td className="px-2 py-2 text-center">
-                          {r.CategoryName ?? r.categoryName}
-                        </td>
-                      )}
-                      {visibleColumns.warehouse && (
-                        <td className="px-2 py-2 text-center">
-                          {r.WarehouseName ?? r.warehouseName}
-                        </td>
-                      )}
-                      {visibleColumns.purchasePrice && (
-                        <td className="px-2 py-2 text-center">
-                          {r.PurchasePrice ?? r.purchasePrice}
-                        </td>
-                      )}
-                      {visibleColumns.quantity && (
-                        <td className="px-2 py-2 text-center">
-                          {r.Quantity ?? r.quantity}
-                        </td>
-                      )}
-                      {visibleColumns.date && (
-                        <td className="px-2 py-2 text-center">
-                          {String((r.Date ?? r.date) || "").split("T")[0]}
-                        </td>
-                      )}
-                      {visibleColumns.note && (
-                        <td className="px-2 py-2 text-center">
-                          {(r.Note ?? r.note) || "-"}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-              </tbody>
+                  
+                   {!loading && sortedList.length === 0 && (
+                     <tr>
+                        <td colSpan={9} className="text-center py-6 text-gray-400">No records found</td>
+                     </tr>
+                   )}
+                </tbody>
             </table>
           </div>
 
-          {/* PAGINATION */}
-              <Pagination
+          <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
@@ -1321,7 +1152,6 @@ const DamagedProducts = () => {
     </>
   );
 };
-
 export default DamagedProducts;
 
 

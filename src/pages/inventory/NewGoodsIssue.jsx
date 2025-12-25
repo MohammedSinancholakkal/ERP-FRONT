@@ -19,84 +19,7 @@ import {
   getSuppliersApi, // optional
 } from '../../services/allAPI'
 
-// Reusable searchable select component (same as yours)
-// Note: this component already supports disabled prop.
-const SearchableSelect = ({ value, onChange, placeholder, fetchOptions, options = [], className = '', searchable = true, disabled = false }) => {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const selectedLabel = options.find(o => String(o.id) === String(value))?.name || ''
-
-  const openDropdown = async () => {
-    if (disabled) return
-    setOpen(true)
-    setQuery('')
-    if ((options?.length || 0) === 0 && fetchOptions) {
-      setLoading(true)
-      try {
-        await fetchOptions()
-      } catch (e) {
-        console.error('SearchableSelect fetch error', e)
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
-
-  const filtered = !query.trim()
-    ? options
-    : options.filter(o => (o.name || '').toLowerCase().includes(query.toLowerCase()))
-
-  return (
-    <div className={`relative ${className}`}>
-      <input
-        type="text"
-        value={open ? (searchable ? query : '') : (selectedLabel || query)}
-        placeholder={placeholder}
-        onFocus={openDropdown}
-        onClick={openDropdown}
-        onChange={(e) => { if (searchable && !disabled) { setQuery(e.target.value); setOpen(true) } }}
-        readOnly={!searchable || disabled}
-        disabled={disabled}
-        className={`bg-gray-800 border border-gray-700 rounded px-3 py-2 w-full text-sm text-white outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      />
-{value && !open && !disabled && (
-  <button
-    className="absolute right-2 top-2 text-gray-400"
-    onClick={(e) => {
-      e.stopPropagation()
-      onChange('')
-    }}
-    title="Clear"
-  >
-    ✕
-  </button>
-)}
-
-      {open && (
-        <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 mt-1 max-h-56 overflow-y-auto rounded shadow-lg">
-          {loading ? (
-            <div className="px-3 py-2 text-gray-400 text-sm">Loading...</div>
-          ) : (filtered.length > 0 ? (
-            filtered.map(opt => (
-              <div
-                key={opt.id}
-                className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-sm text-white"
-                onClick={() => { onChange(opt.id); setOpen(false); setQuery('') }}
-              >
-                {opt.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">No results</div>
-          ))}
-        </div>
-      )}
-      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}></div>}
-    </div>
-  )
-}
+import SearchableSelect from "../../components/SearchableSelect";
 
 function NewGoodsIssue() {
   const navigate = useNavigate()
@@ -612,7 +535,7 @@ const handleRestoreIssue = async () => {
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
 
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
@@ -669,7 +592,6 @@ const handleRestoreIssue = async () => {
   value={sales}
   onChange={setSales}
   placeholder="Sales"
-  fetchOptions={fetchSales}
   options={salesList}
   disabled={isReadonly} // <-- disabled when readonly
 />
@@ -678,7 +600,6 @@ const handleRestoreIssue = async () => {
   value={customer}
   onChange={() => {}}
   placeholder="Customer"
-  fetchOptions={fetchCustomers}
   options={customersList}
   disabled={true}
 />
@@ -688,7 +609,6 @@ const handleRestoreIssue = async () => {
             value={salesPerson}
             onChange={setSalesPerson}
             placeholder="Sales Person"
-            fetchOptions={fetchEmployees}
             options={salesPersonsList}
             disabled={isReadonly} // <-- disabled when readonly
           />
@@ -806,7 +726,7 @@ const handleRestoreIssue = async () => {
       {/* ITEM MODAL (unchanged) */}
       {isItemModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl p-6 relative">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg w-[700px] p-6 relative">
             <button
               onClick={() => setIsItemModalOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -839,7 +759,6 @@ const handleRestoreIssue = async () => {
                     }
                   }}
                   placeholder="Product"
-                  fetchOptions={fetchProducts}
                   options={productsList}
                   disabled={isReadonly} // ensure modal also respects readonly (modal shouldn't open when readonly anyway)
                 />
@@ -875,7 +794,6 @@ const handleRestoreIssue = async () => {
                     }
                   }}
                   placeholder="Warehouse"
-                  fetchOptions={fetchWarehouses}
                   options={warehousesList}
                   disabled={isReadonly}
                 />

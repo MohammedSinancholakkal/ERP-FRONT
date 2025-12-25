@@ -5,18 +5,16 @@ import {
   Plus,
   RefreshCw,
   List,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import Pagination from "../../components/Pagination";
+import SortableHeader from "../../components/SortableHeader";
 import PageLayout from "../../layout/PageLayout";
-import { getPayrollsApi, deletePayrollApi } from "../../services/allAPI";
+import { getPayrollsApi } from "../../services/allAPI";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
-import Pagination from "../../components/Pagination";
+
 
 const Payroll = () => {
   const navigate = useNavigate();
@@ -55,7 +53,7 @@ const fetchPayrolls = async () => {
   
   try {
     setLoading(true);
-    const resp = await getPayrollsApi(page, limit);
+    const resp = await getPayrollsApi(1, 10000); // Fetch ALL for client-side sorting
 
     if (resp.status === 200) {
       const records = resp.data?.records || [];
@@ -100,15 +98,64 @@ const fetchPayrolls = async () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
-  const totalRecords = rows.length;
+  // -----------------------------------
+  // SORTING
+  // -----------------------------------
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const sortedRows = React.useMemo(() => {
+    let sortableItems = [...rows];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+          let aVal = a[sortConfig.key] || "";
+          let bVal = b[sortConfig.key] || "";
+
+          // Date check
+          if (sortConfig.key === 'paymentDate') {
+              aVal = new Date(aVal).getTime();
+              bVal = new Date(bVal).getTime();
+          }
+          // Number check
+          else if (['id', 'totalBasicSalary', 'totalIncome', 'totalDeduction', 'totalTakeHomePay', 'totalPaymentAmount'].includes(sortConfig.key)) {
+              aVal = Number(aVal);
+              bVal = Number(bVal);
+          }
+          
+          // String check
+          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+          
+          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+      });
+    } else {
+        // default sort by id
+        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
+    }
+    return sortableItems;
+  }, [rows, sortConfig]);
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+
+  const totalRecords = sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
+  
+  const paginatedRows = sortedRows.slice((page - 1) * limit, page * limit);
 
 
-    useEffect(() => {
+  useEffect(() => {
     fetchPayrolls();
-  }, [page, limit]);
+  }, []); // Fetch ONLY ONCE on mount
 
 
   // -------------------------------
@@ -297,37 +344,19 @@ const fetchPayrolls = async () => {
             <table className="min-w-[1900px] border-separate border-spacing-y-1 
                 text-sm table-fixed">
 
-              <thead className="sticky top-0 bg-gray-900 z-10">
+              <thead className="sticky top-0 bg-gray-900 z-10 text-center">
                 <tr className="text-center">
-                  {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-                  {visibleColumns.number && <th className="pb-2 border-b">Number</th>}
-                  {visibleColumns.description && (
-                    <th className="pb-2 border-b">Description</th>
-                  )}
-                  {visibleColumns.paymentDate && (
-                    <th className="pb-2 border-b">Payment Date</th>
-                  )}
-                  {visibleColumns.cashBank && (
-                    <th className="pb-2 border-b">Cash / Bank</th>
-                  )}
-                  {visibleColumns.currency && (
-                    <th className="pb-2 border-b">Currency</th>
-                  )}
-                  {visibleColumns.totalBasicSalary && (
-                    <th className="pb-2 border-b">Total Basic Salary</th>
-                  )}
-                  {visibleColumns.totalIncome && (
-                    <th className="pb-2 border-b">Total Income</th>
-                  )}
-                  {visibleColumns.totalDeduction && (
-                    <th className="pb-2 border-b">Total Deduction</th>
-                  )}
-                  {visibleColumns.totalTakeHomePay && (
-                    <th className="pb-2 border-b">Take Home Pay</th>
-                  )}
-                  {visibleColumns.totalPaymentAmount && (
-                    <th className="pb-2 border-b">Total Payment</th>
-                  )}
+                    {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.number && <SortableHeader label="Number" sortKey="number" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.description && <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.paymentDate && <SortableHeader label="Payment Date" sortKey="paymentDate" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.cashBank && <SortableHeader label="Cash / Bank" sortKey="cashBank" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.currency && <SortableHeader label="Currency" sortKey="currencyName" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.totalBasicSalary && <SortableHeader label="Total Basic Salary" sortKey="totalBasicSalary" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.totalIncome && <SortableHeader label="Total Income" sortKey="totalIncome" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.totalDeduction && <SortableHeader label="Total Deduction" sortKey="totalDeduction" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.totalTakeHomePay && <SortableHeader label="Take Home Pay" sortKey="totalTakeHomePay" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.totalPaymentAmount && <SortableHeader label="Total Payment" sortKey="totalPaymentAmount" currentSort={sortConfig} onSort={handleSort} />}
                 </tr>
               </thead>
 
@@ -345,7 +374,7 @@ const fetchPayrolls = async () => {
                     </td>
                   </tr>
                 ) : (
-                  rows.map((r) => (
+                  paginatedRows.map((r) => (
                     <tr
                       key={r.id}
                       onClick={() => navigate(`/app/hr/editpayroll/${r.id}`)}

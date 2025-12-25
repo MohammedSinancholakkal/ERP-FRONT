@@ -10,6 +10,8 @@ import {
 import Pagination from "../../components/Pagination";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import SortableHeader from "../../components/SortableHeader";
+import FilterBar from "../../components/FilterBar";
 import toast from "react-hot-toast";
 import {
   getCountriesApi,
@@ -66,23 +68,6 @@ const Customers = () => {
   const [filterRegion, setFilterRegion] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
 
-  // Dropdown refs + open states
-  const dropdownRefs = {
-    country: useRef(),
-    state: useRef(),
-    city: useRef(),
-    region: useRef(),
-    group: useRef(),
-  };
-
-  const [dropdownOpen, setDropdownOpen] = useState({
-    country: false,
-    state: false,
-    city: false,
-    region: false,
-    group: false,
-  });
-
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lookupMaps, setLookupMaps] = useState({
@@ -99,13 +84,6 @@ const Customers = () => {
     regions: [],
     groups: [],
   });
-  const [filterSearch, setFilterSearch] = useState({
-    country: "",
-    state: "",
-    city: "",
-    region: "",
-    group: "",
-  });
 
   // Search
   const [searchText, setSearchText] = useState("");
@@ -116,13 +94,12 @@ const Customers = () => {
 
   // Filtering helper
   const applyFilters = (data = []) => {
-    const t = (v) => (v || "").toString().toLowerCase();
     return data.filter((r) => {
-      if (filterCountry && t(r.countryName) !== t(filterCountry)) return false;
-      if (filterState && t(r.stateName) !== t(filterState)) return false;
-      if (filterCity && t(r.cityName) !== t(filterCity)) return false;
-      if (filterRegion && t(r.regionName) !== t(filterRegion)) return false;
-      if (filterGroup && t(r.customerGroupName) !== t(filterGroup)) return false;
+      if (filterCountry && String(r.countryId) !== String(filterCountry)) return false;
+      if (filterState && String(r.stateId) !== String(filterState)) return false;
+      if (filterCity && String(r.cityId) !== String(filterCity)) return false;
+      if (filterRegion && String(r.regionId) !== String(filterRegion)) return false;
+      if (filterGroup && String(r.customerGroupId) !== String(filterGroup)) return false;
       return true;
     });
   };
@@ -157,9 +134,41 @@ const loadInactive = async () => {
 
 
 
+
 const dataSource = showInactive ? inactiveRows : rows;
 const filteredRows = applyFilters(dataSource);
-  const totalRecords = filteredRows.length;
+
+  // Sorting
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = null; 
+    }
+    setSortConfig({ key: direction ? key : null, direction });
+  };
+
+  const sortedRows = [...filteredRows].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    // Helper to get comparable value 
+    const getValue = (item, key) => {
+        // Special handlings if needed, but usually the normalized data is flat
+        return String(item[key] || "").toLowerCase();
+    };
+
+    const valA = getValue(a, sortConfig.key);
+    const valB = getValue(b, sortConfig.key);
+
+    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const totalRecords = sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
 
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
@@ -363,139 +372,56 @@ setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
   useEffect(() => {
     loadCustomers();
     loadLookups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const renderFilterDropdown = (label, key, list = []) => {
-    const displayValue =
-      {
-        country: filterCountry,
-        state: filterState,
-        city: filterCity,
-        region: filterRegion,
-        group: filterGroup,
-      }[key] || "";
+  // -------------------------------
+  // Filter Config
+  // -------------------------------
+  const filterFilters = [
+    {
+      label: "Country",
+      options: lookupLists.countries.map(x => ({ id: x.Id ?? x.id, name: x.CountryName ?? x.name })),
+      value: filterCountry,
+      onChange: (val) => setFilterCountry(val),
+      placeholder: "Select Country"
+    },
+    {
+      label: "State",
+      options: lookupLists.states.map(x => ({ id: x.Id ?? x.id, name: x.StateName ?? x.name })),
+      value: filterState,
+      onChange: (val) => setFilterState(val),
+      placeholder: "Select State"
+    },
+    {
+      label: "City",
+      options: lookupLists.cities.map(x => ({ id: x.Id ?? x.id, name: x.CityName ?? x.name })),
+      value: filterCity,
+      onChange: (val) => setFilterCity(val),
+      placeholder: "Select City"
+    },
+    {
+      label: "Region",
+      options: lookupLists.regions.map(x => ({ id: x.Id ?? x.id, name: x.RegionName ?? x.regionName ?? x.name ?? x.Name ?? x.label })),
+      value: filterRegion,
+      onChange: (val) => setFilterRegion(val),
+      placeholder: "Select Region"
+    },
+    {
+      label: "Group",
+      options: lookupLists.groups.map(x => ({ id: x.Id ?? x.id, name: x.GroupName ?? x.CustomerGroupName ?? x.name })),
+      value: filterGroup,
+      onChange: (val) => setFilterGroup(val),
+      placeholder: "Select Group"
+    }
+  ];
 
-    return (
-      <div className="relative w-48" ref={dropdownRefs[key]} key={key}>
-        <div
-          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm cursor-pointer flex justify-between items-center"
-          onClick={() =>
-            setDropdownOpen((prev) => ({ ...prev, [key]: !prev[key] }))
-          }
-        >
-          <span className={displayValue ? "text-white" : "text-gray-400"}>
-            {displayValue || `Select ${label}`}
-          </span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-gray-400"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </div>
-
-        {dropdownOpen[key] && (
-          <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[220px] overflow-auto">
-            <div className="p-2">
-              <input
-                value={filterSearch[key]}
-                onChange={(e) =>
-                  setFilterSearch((p) => ({ ...p, [key]: e.target.value }))
-                }
-                placeholder={`Search ${label.toLowerCase()}...`}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm"
-              />
-            </div>
-            <div className="max-h-48 overflow-auto">
-              {list
-                .filter((item) => {
-                  const txt =
-                    item.CountryName ||
-                    item.StateName ||
-                    item.CityName ||
-                    item.RegionName ||
-                    item.regionName ||
-                    item.GroupName ||
-                    item.groupName ||
-                    item.CustomerGroupName ||
-                    item.name ||
-                    item.label ||
-                    "";
-                  return txt
-                    .toString()
-                    .toLowerCase()
-                    .includes(filterSearch[key].toLowerCase());
-                })
-                .map((item) => {
-                  const val =
-                    item.CountryName ||
-                    item.StateName ||
-                    item.CityName ||
-                    item.RegionName ||
-                    item.regionName ||
-                    item.GroupName ||
-                    item.groupName ||
-                    item.CustomerGroupName ||
-                    item.name ||
-                    item.label ||
-                    "";
-                  return (
-                    <div
-                      key={item.Id ?? item.id}
-                      onClick={() => {
-                        const setter = {
-                          country: setFilterCountry,
-                          state: setFilterState,
-                          city: setFilterCity,
-                          region: setFilterRegion,
-                          group: setFilterGroup,
-                        }[key];
-                        if (setter) setter(val);
-                        setDropdownOpen((prev) => ({ ...prev, [key]: false }));
-                      }}
-                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                    >
-                      {val}
-                    </div>
-                  );
-                })}
-              {list.length === 0 && (
-                <div className="px-3 py-2 text-gray-400 text-sm">
-                  No options
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  const handleResetFilters = () => {
+    setFilterCountry("");
+    setFilterState("");
+    setFilterCity("");
+    setFilterRegion("");
+    setFilterGroup("");
   };
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      Object.keys(dropdownRefs).forEach((key) => {
-        if (
-          dropdownRefs[key].current &&
-          !dropdownRefs[key].current.contains(e.target)
-        ) {
-          setDropdownOpen((prev) => ({ ...prev, [key]: false }));
-        }
-      });
-    };
-
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
 
   // -------------------------------
   // UI
@@ -686,25 +612,8 @@ setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
         </div>
 
         {/* FILTER BAR */}
-        <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {renderFilterDropdown("Country", "country", lookupLists.countries)}
-          {renderFilterDropdown("State", "state", lookupLists.states)}
-          {renderFilterDropdown("City", "city", lookupLists.cities)}
-          {renderFilterDropdown("Region", "region", lookupLists.regions)}
-          {renderFilterDropdown("Group", "group", lookupLists.groups)}
-
-          <button
-            onClick={() => {
-              setFilterCountry("");
-              setFilterState("");
-              setFilterCity("");
-              setFilterRegion("");
-              setFilterGroup("");
-            }}
-            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm"
-          >
-            Reset
-          </button>
+        <div className="mb-4">
+          <FilterBar filters={filterFilters} onClear={handleResetFilters} />
         </div>
 {/* TABLE */}
 <div className="flex-grow overflow-auto w-full min-h-0">
@@ -712,27 +621,27 @@ setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
     <table className="min-w-[3300px] border-separate border-spacing-y-1 text-sm table-fixed">
       <thead className="sticky top-0 bg-gray-900 z-10 h-10">
         <tr className="text-white text-center">
-          {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-          {visibleColumns.companyName && <th className="pb-2 border-b">Company Name</th>}
-          {visibleColumns.contactName && <th className="pb-2 border-b">Contact Name</th>}
-          {visibleColumns.contactTitle && <th className="pb-2 border-b">Contact Title</th>}
-          {visibleColumns.countryName && <th className="pb-2 border-b">Country</th>}
-          {visibleColumns.stateName && <th className="pb-2 border-b">State</th>}
-          {visibleColumns.cityName && <th className="pb-2 border-b">City</th>}
-          {visibleColumns.regionName && <th className="pb-2 border-b">Region</th>}
-          {visibleColumns.customerGroupName && <th className="pb-2 border-b">Group</th>}
-          {visibleColumns.postalCode && <th className="pb-2 border-b">Postal Code</th>}
-          {visibleColumns.phone && <th className="pb-2 border-b">Phone</th>}
-          {visibleColumns.fax && <th className="pb-2 border-b">Fax</th>}
-          {visibleColumns.website && <th className="pb-2 border-b">Website</th>}
-          {visibleColumns.email && <th className="pb-2 border-b">Email</th>}
-          {visibleColumns.emailAddress && <th className="pb-2 border-b">Email Address</th>}
-          {visibleColumns.previousCreditBalance && <th className="pb-2 border-b">Prev. Credit</th>}
-          {visibleColumns.cnic && <th className="pb-2 border-b">CNIC</th>}
-          {visibleColumns.ntn && <th className="pb-2 border-b">NTN</th>}
-          {visibleColumns.strn && <th className="pb-2 border-b">STRN</th>}
-          {visibleColumns.salesMan && <th className="pb-2 border-b">Sales Man</th>}
-          {visibleColumns.orderBooker && <th className="pb-2 border-b">Order Booker</th>}
+          {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+          {visibleColumns.companyName && <SortableHeader label="Company Name" sortOrder={sortConfig.key === "companyName" ? sortConfig.direction : null} onClick={() => handleSort("companyName")} />}
+          {visibleColumns.contactName && <SortableHeader label="Contact Name" sortOrder={sortConfig.key === "contactName" ? sortConfig.direction : null} onClick={() => handleSort("contactName")} />}
+          {visibleColumns.contactTitle && <SortableHeader label="Contact Title" sortOrder={sortConfig.key === "contactTitle" ? sortConfig.direction : null} onClick={() => handleSort("contactTitle")} />}
+          {visibleColumns.countryName && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
+          {visibleColumns.stateName && <SortableHeader label="State" sortOrder={sortConfig.key === "stateName" ? sortConfig.direction : null} onClick={() => handleSort("stateName")} />}
+          {visibleColumns.cityName && <SortableHeader label="City" sortOrder={sortConfig.key === "cityName" ? sortConfig.direction : null} onClick={() => handleSort("cityName")} />}
+          {visibleColumns.regionName && <SortableHeader label="Region" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
+          {visibleColumns.customerGroupName && <SortableHeader label="Group" sortOrder={sortConfig.key === "customerGroupName" ? sortConfig.direction : null} onClick={() => handleSort("customerGroupName")} />}
+          {visibleColumns.postalCode && <SortableHeader label="Postal Code" sortOrder={sortConfig.key === "postalCode" ? sortConfig.direction : null} onClick={() => handleSort("postalCode")} />}
+          {visibleColumns.phone && <SortableHeader label="Phone" sortOrder={sortConfig.key === "phone" ? sortConfig.direction : null} onClick={() => handleSort("phone")} />}
+          {visibleColumns.fax && <SortableHeader label="Fax" sortOrder={sortConfig.key === "fax" ? sortConfig.direction : null} onClick={() => handleSort("fax")} />}
+          {visibleColumns.website && <SortableHeader label="Website" sortOrder={sortConfig.key === "website" ? sortConfig.direction : null} onClick={() => handleSort("website")} />}
+          {visibleColumns.email && <SortableHeader label="Email" sortOrder={sortConfig.key === "email" ? sortConfig.direction : null} onClick={() => handleSort("email")} />}
+          {visibleColumns.emailAddress && <SortableHeader label="Email Address" sortOrder={sortConfig.key === "emailAddress" ? sortConfig.direction : null} onClick={() => handleSort("emailAddress")} />}
+          {visibleColumns.previousCreditBalance && <SortableHeader label="Prev. Credit" sortOrder={sortConfig.key === "previousCreditBalance" ? sortConfig.direction : null} onClick={() => handleSort("previousCreditBalance")} />}
+          {visibleColumns.cnic && <SortableHeader label="CNIC" sortOrder={sortConfig.key === "cnic" ? sortConfig.direction : null} onClick={() => handleSort("cnic")} />}
+          {visibleColumns.ntn && <SortableHeader label="NTN" sortOrder={sortConfig.key === "ntn" ? sortConfig.direction : null} onClick={() => handleSort("ntn")} />}
+          {visibleColumns.strn && <SortableHeader label="STRN" sortOrder={sortConfig.key === "strn" ? sortConfig.direction : null} onClick={() => handleSort("strn")} />}
+          {visibleColumns.salesMan && <SortableHeader label="Sales Man" sortOrder={sortConfig.key === "salesMan" ? sortConfig.direction : null} onClick={() => handleSort("salesMan")} />}
+          {visibleColumns.orderBooker && <SortableHeader label="Order Booker" sortOrder={sortConfig.key === "orderBooker" ? sortConfig.direction : null} onClick={() => handleSort("orderBooker")} />}
         </tr>
       </thead>
 
@@ -750,7 +659,7 @@ setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
             </td>
           </tr>
         ) : (
-          filteredRows.slice(start - 1, end).map((r) => (
+          sortedRows.slice(start - 1, end).map((r) => (
             <tr
               key={r.id}
               className={`cursor-pointer ${

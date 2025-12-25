@@ -10,9 +10,10 @@ import {
   Edit,
   Check
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
+import SearchableSelect from "../../components/SearchableSelect";
 
 // APIs
 import {
@@ -32,6 +33,7 @@ import {
 
 const NewSale = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
 
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -72,9 +74,9 @@ const NewSale = () => {
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
 
-  // --- QUICK CREATE CUSTOMER MODAL STATE ---
-  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState("");
+  // --- QUICK CREATE CUSTOMER MODAL STATE (Removed in favor of navigation) ---
+  // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  // const [newCustomerName, setNewCustomerName] = useState("");
 
 
 const [openCustomer, setOpenCustomer] = useState(false);
@@ -192,6 +194,26 @@ useEffect(() => {
     fetchUnits();
     fetchCategories();
   }, []);
+
+  // --- HANDLE RETURN FROM NEW CUSTOMER ---
+  useEffect(() => {
+    if (location.state?.newCustomerId) {
+      const newId = location.state.newCustomerId;
+      getCustomersApi(1, 1000).then(res => {
+         if(res.status === 200) {
+             const list = (res.data.records || []).map(r => ({
+                id: r.id ?? r.Id ?? r.customerId ?? r.CustomerId ?? null,
+                companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
+             }));
+             setCustomersList(list);
+             if(list.find(c => String(c.id) === String(newId))) {
+                 setCustomer(newId);
+             }
+         }
+      });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // --- FETCH SALE FOR EDIT ---
   useEffect(() => {
@@ -378,34 +400,8 @@ useEffect(() => {
     }
   };
 
-  // --- QUICK CREATE CUSTOMER ---
-  const handleCreateCustomer = async () => {
-    if (!newCustomerName.trim()) return toast.error("Customer name required");
-    try {
-      const res = await addCustomerApi({ companyName: newCustomerName, userId });
-      if (res.status === 200) {
-        toast.success("Customer added");
-        
-        const updatedCustomers = await getCustomersApi(1, 1000);
-        if (updatedCustomers.status === 200) {
-          const records = Array.isArray(updatedCustomers?.data?.records) ? updatedCustomers.data.records : [];
-          const normalized = records.map((r) => ({
-            id: r.id ?? r.Id ?? r.customerId ?? r.CustomerId ?? null,
-            companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
-          }));
-          setCustomersList(normalized);
-          const newCustomer = normalized.find(c => c.companyName === newCustomerName || String(c.id) === String(res?.data?.id));
-          if (newCustomer) {
-            setCustomer(newCustomer.id);
-          }
-        }
-        setIsCustomerModalOpen(false);
-        setNewCustomerName("");
-      }
-    } catch (error) {
-      toast.error("Failed to add customer");
-    }
-  };
+  // --- QUICK CREATE CUSTOMER REMOVED (Replaced by Navigation) ---
+  // const handleCreateCustomer = async () => { ... }
 
   // --- QUICK CREATE PRODUCT ---
   const generateNextSNLocal = () => {
@@ -707,7 +703,7 @@ const openProductModal = () => {
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
         
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
@@ -744,17 +740,18 @@ const openProductModal = () => {
                 <span className="text-red-400">*</span> Customer
               </label>
               <div className="flex-1 flex items-center gap-2">
-                <select
+                <SearchableSelect
+                  options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
                   value={customer}
-                  onChange={(e) => setCustomer(e.target.value)}
-                  className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                >
-                  <option value="">--select--</option>
-                  {customersList.map(c => (
-                    <option key={c.id} value={c.id}>{c.companyName}</option>
-                  ))}
-                </select>
-                <Star size={20} className="text-white cursor-pointer hover:text-yellow-400" onClick={() => navigate("/app/businesspartners/newcustomer")} />
+                  onChange={setCustomer}
+                  placeholder="Select customer..."
+                  className="w-full"
+                />
+                <Star
+                  size={20}
+                  className="text-white cursor-pointer hover:text-yellow-400"
+                  onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                />
               </div>
             </div>
 
@@ -971,7 +968,7 @@ const openProductModal = () => {
       {/* --- ADD ITEM MODAL --- */}
       {isItemModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl p-6 relative">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-[700px] p-6 relative">
             <button 
               onClick={() => setIsItemModalOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -985,16 +982,13 @@ const openProductModal = () => {
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Brand</label>
                 <div className="flex items-center gap-2">
-                  <select
+                  <SearchableSelect
+                    options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                     value={newItem.brandId}
-                    onChange={(e) => setNewItem({ ...newItem, brandId: e.target.value, productId: "", productName: "" })}
-                    className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                  >
-                    <option value="">--select--</option>
-                    {brandsList.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
+                    placeholder="--select brand--"
+                    className="flex-1"
+                  />
                   <Star 
                     size={20} 
                     className="text-yellow-500 cursor-pointer hover:scale-110"
@@ -1007,26 +1001,25 @@ const openProductModal = () => {
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Product</label>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={newItem.productId}
-                    onChange={(e) => handleProductSelect(e.target.value)}
-                    disabled={!newItem.brandId}
-                    className={`flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none ${!newItem.brandId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <option value="">--select--</option>
-                    {productsList
+                  <SearchableSelect
+                    options={productsList
                       .filter(p => String(p.BrandId) === String(newItem.brandId) || String(p.brandId) === String(newItem.brandId))
-                      .map(p => (
-                        <option key={p.id} value={p.id}>{p.ProductName}</option>
-                      ))
+                      .map(p => ({ id: p.id, name: p.ProductName }))
                     }
-                  </select>
+                    value={newItem.productId}
+                    onChange={handleProductSelect}
+                    placeholder="--select product--"
+                    disabled={!newItem.brandId}
+                    className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''}`}
+                  />
                   <Star 
                     size={20} 
-                    className="text-yellow-500 cursor-pointer hover:scale-110"
+                    className={`cursor-pointer hover:scale-110 ${newItem.brandId ? 'text-yellow-500' : 'text-gray-500'}`}
                     onClick={() => {
-                      setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
-                      openProductModal();
+                      if (newItem.brandId) {
+                        setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                        openProductModal();
+                      }
                     }}
                   />
                 </div>
@@ -1109,7 +1102,7 @@ const openProductModal = () => {
       {/* --- ADD BRAND MODAL --- */}
 {isBrandModalOpen && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-    <div className="bg-gray-800 border border-gray-700 rounded-lg w-96 p-6 relative">
+    <div className="bg-gray-800 border border-gray-700 rounded-lg w-[700px] p-6 relative">
       <button
         onClick={() => setIsBrandModalOpen(false)}
         className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -1145,43 +1138,7 @@ const openProductModal = () => {
 )}
 
 
-      {/* --- ADD CUSTOMER MODAL --- */}
-{isCustomerModalOpen && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-    <div className="bg-gray-800 border border-gray-700 rounded-lg w-96 p-6 relative">
-      <button
-        onClick={() => setIsCustomerModalOpen(false)}
-        className="absolute top-4 right-4 text-gray-400 hover:text-white"
-      >
-        <X size={20} />
-      </button>
-
-      <h3 className="text-lg font-semibold text-white mb-4">Add New Customer</h3>
-
-      <input
-        value={newCustomerName}
-        onChange={(e) => setNewCustomerName(e.target.value)}
-        placeholder="Customer Name"
-        className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
-      />
-
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={() => setIsCustomerModalOpen(false)}
-          className="px-3 py-1.5 border border-gray-600 rounded text-gray-300 hover:bg-gray-700"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleCreateCustomer}
-          className="px-4 py-2 bg-gray-800 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      {/* --- ADD CUSTOMER MODAL REMOVED (Replaced by navigation) --- */}
 
       {/* --- ADD PRODUCT MODAL --- */}
 {isProductModalOpen && (

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
 
 // API
@@ -73,12 +74,30 @@ const Countries = () => {
     setVisibleColumns(defaultColumns);
   };
 
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
-  // Sort Active Records
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = null;
+    }
+    setSortConfig({ key: direction ? key : null, direction });
+  };
+
   const sortedCountries = [...countries];
-  if (sortOrder === "asc") {
-    sortedCountries.sort((a, b) => a.id - b.id);
+  if (sortConfig.key) {
+    sortedCountries.sort((a, b) => {
+      let valA = a[sortConfig.key] || "";
+      let valB = b[sortConfig.key] || "";
+      if (typeof valA === "string") valA = valA.toLowerCase();
+      if (typeof valB === "string") valB = valB.toLowerCase();
+      
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
   }
 
   // LOAD ACTIVE COUNTRIES
@@ -196,7 +215,7 @@ const Countries = () => {
         ============================== */}
         {modalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
               <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
                 <h2 className="text-lg font-semibold">New Country</h2>
 
@@ -468,28 +487,8 @@ const Countries = () => {
                 <table className="w-[400px] text-left border-separate border-spacing-y-1 text-sm">
                   <thead className="sticky top-0 bg-gray-900 z-10">
                     <tr className="text-white">
-                      {visibleColumns.id && (
-                        <th
-                          className="pb-1 border-b border-white text-center cursor-pointer select-none"
-                          onClick={() =>
-                            setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-                          }
-                        >
-                          <div className="flex items-center justify-center gap-1">
-                            {sortOrder === "asc" && <span>▲</span>}
-                            {sortOrder === null && (
-                              <span className="opacity-40">⬍</span>
-                            )}
-                            <span>ID</span>
-                          </div>
-                        </th>
-                      )}
-
-                      {visibleColumns.name && (
-                        <th className="pb-1 border-b border-white text-center">
-                          Name
-                        </th>
-                      )}
+                      {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+                      {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
                     </tr>
                   </thead>
 

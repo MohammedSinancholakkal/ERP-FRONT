@@ -1,5 +1,6 @@
 // src/pages/purchases/NewPurchase.jsx
 import React, { useEffect, useState } from "react";
+import SearchableSelect from "../../components/SearchableSelect";
 import {
   Save,
   Plus,
@@ -30,10 +31,11 @@ import {
   updatePurchaseApi,
   deletePurchaseApi
 } from "../../services/allAPI";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 
 const NewPurchase = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams(); // Get ID from URL
   const userData = JSON.parse(localStorage.getItem("user"));
   const userId = userData?.userId || userData?.id || userData?.Id;
@@ -97,12 +99,31 @@ const NewPurchase = () => {
     fetchProducts();
   }, []);
 
+  // --- HANDLE RETURN FROM NEW SUPPLIER ---
+  useEffect(() => {
+    if (location.state?.newSupplierId) {
+      const newId = location.state.newSupplierId;
+      getSuppliersApi(1, 1000).then(res => {
+         if(res.status === 200) {
+             const list = res.data.records || [];
+             setSuppliersList(list);
+             if(list.find(s => String(s.id) === String(newId))) {
+                 setSupplier(newId);
+             }
+         }
+      });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   // --- FETCH PURCHASE FOR EDIT ---
   useEffect(() => {
     if (id) {
       fetchPurchaseDetails(id);
     }
   }, [id]);
+
+
 
   const fetchPurchaseDetails = async (purchaseId) => {
     try {
@@ -466,54 +487,70 @@ const NewPurchase = () => {
   };
 
 
-  // --- MAIN CALCULATION EFFECT ---
+
+
+
   useEffect(() => {
-    let sumLineTotals = 0;
-    let sumLineDiscounts = 0;
+  const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
-    rows.forEach((row) => {
-      const qty = parseFloat(row.quantity) || 0;
-      const price = parseFloat(row.unitPrice) || 0;
-      const discPercent = parseFloat(row.discount) || 0;
+  // 1️⃣ Line calculations
+  let subTotal = 0;
+  let lineDiscountTotal = 0;
 
-      const lineBase = qty * price;
-      const lineDisc = (lineBase * discPercent) / 100;
-      const lineTotal = lineBase - lineDisc;
+  rows.forEach((row) => {
+    const qty = Number(row.quantity) || 0;
+    const price = Number(row.unitPrice) || 0;
+    const discPct = Number(row.discount) || 0;
 
-      sumLineTotals += lineTotal;
-      sumLineDiscounts += lineDisc;
-    });
+    const lineBase = qty * price;
+    const lineDiscount = (lineBase * discPct) / 100;
+    const lineTotal = lineBase - lineDiscount;
 
-    const subTotal = sumLineTotals;
-    const gDiscount = parseFloat(globalDiscount) || 0;
-    const shipping = parseFloat(shippingCost) || 0;
-    const paid = parseFloat(paidAmount) || 0;
+    subTotal += lineTotal;
+    lineDiscountTotal += lineDiscount;
+  });
 
-    let taxableAmount = subTotal - gDiscount;
-    if (taxableAmount < 0) taxableAmount = 0;
+  subTotal = round2(subTotal);
+  lineDiscountTotal = round2(lineDiscountTotal);
 
-    let tax = 0;
-    if (!noTax) {
-      tax = (taxableAmount * 0.10); // 10% VAT
-    }
+  // 2️⃣ Global discount & shipping
+  const globalDisc = Number(globalDiscount) || 0;
+  const shipping = Number(shippingCost) || 0;
+  const paid = Number(paidAmount) || 0;
 
-    const finalTotal = taxableAmount + tax + shipping;
+  // 3️⃣ Taxable amount
+  let taxableAmount = subTotal - globalDisc;
+  if (taxableAmount < 0) taxableAmount = 0;
+  taxableAmount = round2(taxableAmount);
 
-    setNetTotal(finalTotal);
-    setGrandTotal(subTotal);
-    setTaxAmount(tax);
-    setTotalDiscount(sumLineDiscounts + gDiscount);
+  // 4️⃣ Tax
+  const tax = noTax ? 0 : round2(taxableAmount * 0.10);
 
-    // Update Due and Change
-    if (paid >= finalTotal) {
-      setChangeAmount(paid - finalTotal);
-      setDueAmount(0);
-    } else {
-      setChangeAmount(0);
-      setDueAmount(finalTotal - paid);
-    }
+  // 5️⃣ Final payable (THIS is Net Total)
+  const netPayable = round2(taxableAmount + tax + shipping);
 
-  }, [rows, globalDiscount, shippingCost, paidAmount, noTax]);
+  // 6️⃣ Due / Change
+  let due = 0;
+  let change = 0;
+
+  if (paid >= netPayable) {
+    change = round2(paid - netPayable);
+  } else {
+    due = round2(netPayable - paid);
+  }
+
+  // 7️⃣ Set states (single source of truth)
+  setGrandTotal(subTotal);                     // purely informational
+  setNetTotal(netPayable);                     // FINAL amount
+  setTaxAmount(tax);
+  setTotalDiscount(round2(lineDiscountTotal + globalDisc));
+  setDueAmount(due);
+  setChangeAmount(change);
+
+}, [rows, globalDiscount, shippingCost, paidAmount, noTax]);
+
+
+
 
   // --- SAVE PURCHASE ---
   const handleSavePurchase = async () => {
@@ -656,7 +693,7 @@ const NewPurchase = () => {
         
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate(-1)} className="text-white-500 hover:text-yellow-400">
+          <button onClick={() => navigate(-1)} className="text-white-500 hover:text-white-400">
             <ArrowLeft size={24} />
           </button>
           <h2 className="text-xl text-white-500 font-medium">{id ? "Edit Purchase" : "New Purchase"}</h2>
@@ -693,17 +730,15 @@ const NewPurchase = () => {
                 <span className="text-red-400">*</span> Supplier
               </label>
               <div className="flex-1 flex items-center gap-2">
-                <select
-                  value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                  className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                >
-                  <option value="">--select--</option>
-                  {suppliersList.map(s => (
-                    <option key={s.id} value={s.id}>{s.companyName}</option>
-                  ))}
-                </select>
-                <Star size={20} className="text-white cursor-pointer hover:text-yellow-400" onClick={() => navigate("/app/businesspartners/newsupplier")} />
+                <div className="flex-1">
+                  <SearchableSelect
+                    options={suppliersList.map(s => ({ id: s.id, name: s.companyName }))}
+                    value={supplier}
+                    onChange={(val) => setSupplier(val)}
+                    placeholder="--select--"
+                  />
+                </div>
+                <Star size={20} className="text-white cursor-pointer hover:text-yellow-400" onClick={() => navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname } })} />
               </div>
             </div>
 
@@ -832,12 +867,13 @@ const NewPurchase = () => {
             </div>
             <div className="flex items-center justify-between">
               <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Paid Amount</label>
-              <input
-                type="number"
-                value={paidAmount}
-                onChange={(e) => setPaidAmount(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
-              />
+           <input
+              type="number"
+              value={paidAmount}
+              onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
+              className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+            />
+
             </div>
             <div className="pt-2">
               <label className="text-sm text-gray-300 block mb-1">Details</label>
@@ -856,7 +892,7 @@ const NewPurchase = () => {
               <input
                 type="number"
                 value={globalDiscount}
-                onChange={(e) => setGlobalDiscount(e.target.value)}
+onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
                 className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
               />
             </div>
@@ -887,7 +923,7 @@ const NewPurchase = () => {
               <input
                 type="number"
                 value={shippingCost}
-                onChange={(e) => setShippingCost(e.target.value)}
+onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
                 className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
               />
             </div>
@@ -934,16 +970,14 @@ const NewPurchase = () => {
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Brand</label>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={newItem.brandId}
-                    onChange={(e) => setNewItem({ ...newItem, brandId: e.target.value, productId: "", productName: "" })}
-                    className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                  >
-                    <option value="">--select--</option>
-                    {brandsList.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex-1">
+                    <SearchableSelect
+                      options={brandsList.map(b => ({ id: b.id, name: b.name }))}
+                      value={newItem.brandId}
+                      onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
+                      placeholder="--select--"
+                    />
+                  </div>
                   <Star 
                     size={20} 
                     className="text-yellow-500 cursor-pointer hover:scale-110"
@@ -956,24 +990,23 @@ const NewPurchase = () => {
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Product</label>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={newItem.productId}
-                    onChange={(e) => handleProductSelect(e.target.value)}
-                    disabled={!newItem.brandId}
-                    className={`flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none ${!newItem.brandId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <option value="">--select--</option>
-                    {productsList
-                      .filter(p => String(p.BrandId) === String(newItem.brandId) || String(p.brandId) === String(newItem.brandId))
-                      .map(p => (
-                        <option key={p.id} value={p.id}>{p.ProductName}</option>
-                      ))
-                    }
-                  </select>
+                  <div className="flex-1">
+                    <SearchableSelect
+                      options={productsList
+                        .filter(p => String(p.BrandId) === String(newItem.brandId) || String(p.brandId) === String(newItem.brandId))
+                        .map(p => ({ id: p.id, name: p.ProductName }))
+                      }
+                      value={newItem.productId}
+                      onChange={(val) => handleProductSelect(val)}
+                      disabled={!newItem.brandId}
+                      placeholder="--select--"
+                    />
+                  </div>
                   <Star 
                     size={20} 
-                    className="text-yellow-500 cursor-pointer hover:scale-110"
+                    className={`cursor-pointer hover:scale-110 ${!newItem.brandId ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-yellow-500'}`}
                     onClick={() => {
+                        if (!newItem.brandId) return;
                         setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
                         openProductModal();
                     }}
@@ -999,7 +1032,9 @@ const NewPurchase = () => {
                 <input
                   type="number"
                   value={newItem.quantity}
-                  onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+                 onChange={(e) =>
+                    setNewItem({ ...newItem, quantity: Number(e.target.value) || 0 })
+                  }
                   className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
                 />
               </div>
@@ -1010,7 +1045,9 @@ const NewPurchase = () => {
                 <input
                   type="number"
                   value={newItem.unitPrice}
-                  onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+                 onChange={(e) =>
+  setNewItem({ ...newItem, unitPrice: Number(e.target.value) || 0 })
+}
                   className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
                 />
               </div>
@@ -1021,7 +1058,10 @@ const NewPurchase = () => {
                 <input
                   type="number"
                   value={newItem.discount}
-                  onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
+                  onChange={(e) =>
+  setNewItem({ ...newItem, discount: Number(e.target.value) || 0 })
+}
+
                   className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
                 />
               </div>
@@ -1061,7 +1101,7 @@ const NewPurchase = () => {
       {/* --- ADD BRAND MODAL --- */}
       {isBrandModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-96 p-6 relative">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg w-[700px] p-6 relative">
              <button 
               onClick={() => setIsBrandModalOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"

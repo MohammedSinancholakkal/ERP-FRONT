@@ -18,75 +18,16 @@ import PageLayout from "../../layout/PageLayout";
 import { getSalesApi, getCustomersApi, searchSaleApi } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
+import FilterBar from "../../components/FilterBar";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
 
-/* Searchable Dropdown */
-const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const filtered =
-    !query.trim()
-      ? options
-      : options.filter((o) =>
-          o.name.toLowerCase().includes(query.toLowerCase())
-        );
-
-  const selected = options.find((o) => o.id == value)?.name || "";
-
-  return (
-    <div className="relative w-56">
-      <input
-        type="text"
-        value={open ? query : selected || query}
-        placeholder={placeholder}
-        onFocus={() => {
-          setOpen(true);
-          setQuery("");
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-full text-sm text-white"
-      />
-      {open && (
-        <div className="absolute z-50 w-full bg-gray-800 border border-gray-700 mt-1 max-h-48 overflow-y-auto rounded shadow-lg">
-          {filtered.length > 0 ? (
-            filtered.map((opt) => (
-              <div
-                key={opt.id}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
-                onClick={() => {
-                  onChange(opt.id);
-                  setOpen(false);
-                  setQuery("");
-                }}
-              >
-                {opt.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">No results</div>
-          )}
-        </div>
-      )}
-      {/* Overlay to close */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setOpen(false)}
-        ></div>
-      )}
-    </div>
-  );
-};
-
 const Sales = () => {
+  const [open, setOpen] = useState(false);
+
   const navigate = useNavigate();
 
   // --- COLUMN VISIBILITY ---
@@ -127,6 +68,17 @@ const Sales = () => {
   const [limit, setLimit] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+
+  // --- SORTING STATE ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   // --- PAYMENT ACCOUNTS DROPDOWN ---
   const paymentAccounts = [
@@ -214,6 +166,7 @@ const Sales = () => {
     setFilterCustomer("");
     setFilterDate("");
     setFilterPayment("");
+    setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
     await fetchAllData();
     toast.success("Refreshed");
@@ -307,7 +260,68 @@ const Sales = () => {
     }
     
     return match;
+    return match;
   });
+
+  // --- SORTING LOGIC ---
+  const sortedList = React.useMemo(() => {
+    let sortableItems = [...filteredList];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle numeric values
+        if (['discount', 'totalDiscount', 'vat', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'id'].includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             // String comparison
+             aValue = String(aValue).toLowerCase();
+             bValue = String(bValue).toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredList, sortConfig]);
+
+  // --- FILTER BAR CONFIG ---
+  const filters = [
+      {
+          type: 'select',
+          value: filterCustomer,
+          onChange: setFilterCustomer,
+          options: customers,
+          placeholder: "All Customers"
+      },
+      {
+           type: 'select',
+           value: filterPayment,
+           onChange: setFilterPayment,
+           options: paymentAccounts,
+           placeholder: "Payment Account"
+      },
+      {
+          type: 'date',
+          value: filterDate,
+          onChange: setFilterDate,
+          placeholder: "Filter by Date"
+      }
+  ];
+
+  const handleClearFilters = () => {
+      setFilterCustomer("");
+      setFilterPayment("");
+      setFilterDate("");
+  };
 
   return (
     <>
@@ -415,31 +429,8 @@ const Sales = () => {
             </div>
 
             {/* FILTER BAR */}
-            <div className="flex items-center gap-3 bg-gray-900 p-3 rounded border border-gray-700 mb-4 flex-wrap">
-              <SearchableDropdown
-                options={customers}
-                value={filterCustomer}
-                onChange={setFilterCustomer}
-                placeholder="Customer"
-              />
-              <select
-                value={filterPayment}
-                onChange={(e) => setFilterPayment(e.target.value)}
-                className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white"
-              >
-                <option value="">-- Payment Account --</option>
-                <option value="Cash at Hand">Cash at Hand</option>
-                <option value="Cash at Bank">Cash at Bank</option>
-              </select>
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white"
-              />
-              <button onClick={() => { setFilterCustomer(""); setFilterPayment(""); setFilterDate(""); }} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm hover:bg-gray-700 text-white">
-                Clear
-              </button>
+            <div className="mb-4">
+               <FilterBar filters={filters} onClear={handleClearFilters} />
             </div>
 
             {/* TABLE */}
@@ -448,26 +439,26 @@ const Sales = () => {
                 <table className="min-w-[1800px] text-center border-separate border-spacing-y-1 text-sm w-full">
                   <thead className="sticky top-0 bg-gray-900">
                     <tr>
-                      {visibleColumns.id && <th className="pb-1 border-b text-gray-300">ID</th>}
-                      {visibleColumns.customerName && <th className="pb-1 border-b text-gray-300">Customer</th>}
-                      {visibleColumns.invoiceNo && <th className="pb-1 border-b text-gray-300">Invoice No</th>}
-                      {visibleColumns.date && <th className="pb-1 border-b text-gray-300">Date</th>}
-                      {visibleColumns.paymentAccount && <th className="pb-1 border-b text-gray-300">Payment</th>}
-                      {visibleColumns.discount && <th className="pb-1 border-b text-gray-300">Discount</th>}
-                      {visibleColumns.totalDiscount && <th className="pb-1 border-b text-gray-300">Total Disc</th>}
-                      {visibleColumns.vat && <th className="pb-1 border-b text-gray-300">Vat</th>}
-                      {visibleColumns.totalTax && <th className="pb-1 border-b text-gray-300">Total Tax</th>}
-                      {visibleColumns.shippingCost && <th className="pb-1 border-b text-gray-300">Shipping</th>}
-                      {visibleColumns.grandTotal && <th className="pb-1 border-b text-gray-300">Grand Total</th>}
-                      {visibleColumns.netTotal && <th className="pb-1 border-b text-gray-300">Net Total</th>}
-                      {visibleColumns.paidAmount && <th className="pb-1 border-b text-gray-300">Paid</th>}
-                      {visibleColumns.due && <th className="pb-1 border-b text-gray-300">Due</th>}
-                      {visibleColumns.change && <th className="pb-1 border-b text-gray-300">Change</th>}
+                      {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.customerName && <SortableHeader label="Customer" sortKey="customerName" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.invoiceNo && <SortableHeader label="Invoice No" sortKey="invoiceNo" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.paymentAccount && <SortableHeader label="Payment" sortKey="paymentAccount" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.discount && <SortableHeader label="Discount" sortKey="discount" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.totalDiscount && <SortableHeader label="Total Disc" sortKey="totalDiscount" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.vat && <SortableHeader label="Vat" sortKey="vat" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.totalTax && <SortableHeader label="Total Tax" sortKey="totalTax" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.shippingCost && <SortableHeader label="Shipping" sortKey="shippingCost" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.grandTotal && <SortableHeader label="Grand Total" sortKey="grandTotal" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.netTotal && <SortableHeader label="Net Total" sortKey="netTotal" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.paidAmount && <SortableHeader label="Paid" sortKey="paidAmount" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.due && <SortableHeader label="Due" sortKey="due" currentSort={sortConfig} onSort={handleSort} />}
+                      {visibleColumns.change && <SortableHeader label="Change" sortKey="change" currentSort={sortConfig} onSort={handleSort} />}
                       {visibleColumns.details && <th className="pb-1 border-b text-gray-300">Details</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredList.map((s) => (
+                    {sortedList.map((s) => (
                       <tr
                         key={s.id}
                         onClick={() => navigate(`/app/sales/edit/${s.id}`)}
@@ -514,7 +505,7 @@ const Sales = () => {
                     ))}
                   </tbody>
                 </table>
-                {filteredList.length === 0 && (
+                {sortedList.length === 0 && (
                   <div className="text-center py-8 text-gray-400">
                     No sales found
                   </div>

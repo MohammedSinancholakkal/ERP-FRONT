@@ -39,6 +39,65 @@ deleteEmployeeApi,
 
 } from "../../services/allAPI";
 import { serverURL } from "../../services/serverURL";
+import SearchableSelect from "../../components/SearchableSelect";
+
+const EmpSearchableSelect = ({
+  label,
+  value,
+  options,
+  onChange,
+  required = false,
+  onAdd,
+  onEdit,
+  placeholder = "Select...",
+  disabled = false
+}) => {
+  return (
+    <div className="w-full">
+      <label className="text-sm text-white block mb-1">
+        {label} 
+        {required && <span className="text-red-400"> *</span>}
+      </label>
+      <div className="flex gap-2 items-start">
+        <div className="flex-grow">
+          <SearchableSelect
+            options={options}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+          />
+        </div>
+        
+        <div className="flex flex-col gap-1 mt-0.5">
+          {onAdd && (
+            <button
+              type="button"
+              onClick={onAdd}
+              disabled={disabled}
+              className={`p-1 rounded bg-gray-800 border border-gray-600 transition ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+              title="Add"
+            >
+              <Star size={16} className="text-yellow-400" />
+            </button>
+          )}
+
+          {onEdit && value && (
+            <button
+              type="button"
+              onClick={onEdit}
+              disabled={disabled}
+              className={`p-1 rounded bg-gray-800 border border-gray-600 transition ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+              title="Edit"
+            >
+              <Pencil size={14} className="text-blue-300" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -200,54 +259,8 @@ const loadEmployeeForEdit = async () => {
   const [incomes, setIncomes] = useState([]);
   const [deductions, setDeductions] = useState([]);
 
-  // generic search text used for banks/table pagination (kept for parity)
-  const [searchText, setSearchText] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-  const [totalRecords, setTotalRecords] = useState(0);
+  // generic search text used for banks/table pagination
 
-  // dropdown search + open flags + refs (territories-style)
-  const [search, setSearch] = useState({
-    designation: "",
-    department: "",
-    country: "",
-    state: "",
-    city: "",
-    region: "",
-    territory: "",
-    bank: "",
-    incomeType: "",
-    deductionType: "",
-    user: "",
-  });
-
-  const [open, setOpen] = useState({
-    designation: false,
-    department: false,
-    country: false,
-    state: false,
-    city: false,
-    region: false,
-    territory: false,
-    bank: false,
-    incomeType: false,
-    deductionType: false,
-    user: false,
-  });
-
-  const refs = {
-    designation: useRef(null),
-    department: useRef(null),
-    country: useRef(null),
-    state: useRef(null),
-    city: useRef(null),
-    region: useRef(null),
-    territory: useRef(null),
-    bank: useRef(null),
-    incomeType: useRef(null),
-    deductionType: useRef(null),
-    user: useRef(null),
-  };
 
   // INCOME MODAL STATES
   const [showIncomeModal, setShowIncomeModal] = useState(false);
@@ -268,34 +281,11 @@ const loadEmployeeForEdit = async () => {
     mode: "add",
     typedName: ""
   });
-
-  const handleToggle = (key) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-  const handleClose = (key) => setOpen((prev) => ({ ...prev, [key]: false }));
   
   const lookupSetters = {
       setCountries, setStates, setCities, setRegions, setTerritories,
       setDesignations, setDepartments, setIncomeTypes, setDeductionTypes, setBanks
   };
-
-  // Portal helper to avoid stacking-context issues (render modal into document.body)
-
-
-  // click-outside to close dropdowns (global)
-  useEffect(() => {
-    const handler = (e) => {
-      // Disable global dropdown close when any modal is open
-      if (showIncomeModal || showDeductionModal || showLookupCreateModal) return;
-
-      Object.entries(refs).forEach(([key, ref]) => {
-        if (ref?.current && !ref.current.contains(e.target)) {
-          setOpen((p) => ({ ...p, [key]: false }));
-        }
-      });
-    };
-
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, [showIncomeModal, showDeductionModal, showLookupCreateModal]);
 
   // load initial lookups
   useEffect(() => {
@@ -426,26 +416,14 @@ const loadEmployeeForEdit = async () => {
 
   const loadBanks = async () => {
     try {
-      if (searchText?.trim()) {
-        const res = await searchBankApi(searchText.trim());
-        const raw = Array.isArray(res?.data) ? res.data : res?.data?.records || [];
-        const items = raw.map((item) => ({
-          ...item,
-          SignaturePicture: item.SignaturePicture ? fullImageURL(item.SignaturePicture) : "",
-        }));
-        setBanks(items);
-        setTotalRecords(items.length);
-        return;
-      }
-
-      const res = await getBanksApi(page, limit);
+      // Use large limit to load all banks for client-side search
+      const res = await getBanksApi(1, 5000); 
       if (res?.status === 200) {
         const normalized = (res.data.records || []).map((item) => ({
           ...item,
           SignaturePicture: item.SignaturePicture ? fullImageURL(item.SignaturePicture) : "",
         }));
         setBanks(normalized);
-        setTotalRecords(res.data.total);
       }
     } catch (err) {
       console.error("loadBanks error", err);
@@ -463,8 +441,8 @@ const loadIncomeTypes = async () => {
 
     // normalize fields EXACTLY for your dropdown
     const normalized = items.map(r => ({
-      id: r.Id,                     // dropdown uses .id
-      name: r.IncomeName            // dropdown uses .name
+      id: r.Id,                     
+      name: r.IncomeName            
     }));
 
     setIncomeTypes(normalized);
@@ -591,43 +569,7 @@ const handleDelete = async () => {
 
 
 
-  // ---------- helper to find label for selected id ----------
-  const findLabel = (key, id) => {
-    if (!id) return "";
-    const map = {
-      designation: designations,
-      department: departments,
-      country: countries,
-      state: states,
-      city: cities,
-      region: regions,
-      territory: territories,
-      bank: banks,
-      incomeType: incomeTypes,
-      deductionType: deductionTypes,
-      user: users,
-    };
-    const list = map[key] || [];
-    const f = list.find((x) => {
-      const candidateId = x.id ?? x.Id ?? x.regionId ?? x.territoryId ?? x.countryId ?? x.stateId ?? x.userId;
-      return String(candidateId) === String(id);
-    });
-    if (key === "bank" && f) {
-      return f.BankName || f.name || "";
-    }
-    if (key === "user" && f) {
-      return f.username || f.name || f.email || "";
-    }
-    // return f ? (f.name || f.designation || f.department || f.regionName || f.territoryDescription) : "";
-    return f
-  ? (f.territoryDescription ||
-     f.regionName ||
-     f.name ||
-     f.designation ||
-     f.department)
-  : "";
 
-  };
   // ================================
   // PART 2: SearchableDropdown + Modal Components
   // ================================
@@ -702,139 +644,123 @@ const handleDelete = async () => {
               {basicTab ? (
                 <div className="p-4">
                   {/* UNIFIED GRID for better Tab Order (Left->Right) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-w-6xl mx-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-w-full">
                     
                     {/* Row 1: Names */}
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">First Name <span className="text-red-400">*</span></label>
+                      <label className="text-sm text-white block mb-1">First Name <span className="text-red-400">*</span></label>
                       <input 
                         value={form.firstName} 
                         onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))} 
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
                         placeholder="John" 
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">Last Name <span className="text-red-400">*</span></label>
+                      <label className="text-sm text-white block mb-1">Last Name <span className="text-red-400">*</span></label>
                       <input 
                         value={form.lastName} 
                         onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))} 
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
                         placeholder="Doe" 
                       />
                     </div>
 
                     {/* Row 2: Contact */}
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">Phone</label>
+                      <label className="text-sm text-white block mb-1">Phone</label>
                       <input 
                         value={form.phone} 
                         onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))} 
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">Email</label>
+                      <label className="text-sm text-white block mb-1">Email</label>
                       <input 
                         value={form.email} 
                         onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))} 
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
                       />
                     </div>
 
                     {/* Row 3: Role Info */}
                     <div className="z-[50]">
-                      <CustomDropdown
+                      <EmpSearchableSelect
                         label="Designation"
-                        keyName="designation"
-                        list={designations}
-                        valueId={form.designationId}
-                        required={true}
-                        onSelect={(item) => setForm({ ...form, designationId: item?.id || "" })}
-                        showStar={!isEditMode}
-                        showPencil={isEditMode}
-                        isOpen={open.designation}
-                        onToggle={() => handleToggle("designation")}
-                        onClose={() => handleClose("designation")}
-                        setLookupCreateContext={setLookupCreateContext}
-                        setShowLookupCreateModal={setShowLookupCreateModal}
-                        findLabel={findLabel}
-                        containerRef={refs.designation}
+                        options={designations.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.designation ?? x.DesignationName }))}
+                        value={form.designationId}
+                        onChange={(val) => setForm({ ...form, designationId: val })}
+                        required
+                        onAdd={isEditMode ? null : () => {
+                           setLookupCreateContext({ key: 'designation', callback: (c) => setForm(p=>({...p, designationId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
+                        onEdit={isEditMode ? () => {
+                           const item = designations.find(x => String(x.id??x.Id) === String(form.designationId));
+                           setLookupCreateContext({ key: 'designation', item, mode: 'edit', callback: (c) => setForm(p=>({...p, designationId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        } : null}
                       />
                     </div>
                     <div className="z-[50]">
-                      <CustomDropdown
+                      <EmpSearchableSelect
                         label="Department"
-                        keyName="department" 
-                        list={departments}
-                        valueId={form.departmentId}
-                        required={true}
-                        onSelect={(item) => setForm({ ...form, departmentId: item?.id || "" })}
-                        showStar={!isEditMode}
-                        showPencil={true}
-                        isOpen={open.department}
-                        onToggle={() => handleToggle("department")}
-                        onClose={() => handleClose("department")}
-                        setLookupCreateContext={setLookupCreateContext}
-                        setShowLookupCreateModal={setShowLookupCreateModal}
-                        findLabel={findLabel}
-                        containerRef={refs.department}
+                        options={departments.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.department ?? x.DepartmentName }))}
+                        value={form.departmentId}
+                        onChange={(val) => setForm({ ...form, departmentId: val })}
+                        required
+                        onAdd={isEditMode ? null : () => {
+                           setLookupCreateContext({ key: 'department', callback: (c) => setForm(p=>({...p, departmentId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
+                        onEdit={() => {
+                           const item = departments.find(x => String(x.id??x.Id) === String(form.departmentId));
+                           setLookupCreateContext({ key: 'department', item, mode: 'edit', callback: (c) => setForm(p=>({...p, departmentId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
                       />
                     </div>
 
                     {/* Row 4: Compensation */}
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">Rate Type</label>
-                      <select 
-                        value={form.rateType} 
-                        onChange={(e) => setForm(p => ({ ...p, rateType: e.target.value }))} 
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">--select--</option>
-                        <option value="hourly">Hourly</option>
-                        <option value="salary">Salary</option>
-                      </select>
+                      <label className="text-sm text-white block mb-1">Rate Type</label>
+                      <SearchableSelect
+                         options={[{id: 'hourly', name: 'Hourly'}, {id: 'salary', name: 'Salary'}]}
+                         value={form.rateType}
+                         onChange={(val) => setForm(p => ({ ...p, rateType: val }))}
+                         placeholder="Select Rate Type"
+                      />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">Hour Rate / Salary</label>
+                      <label className="text-sm text-white block mb-1">Hour Rate / Salary</label>
                       <input 
                         value={form.hourlyRate} 
                         onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))} 
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" 
                       />
                     </div>
 
                     {/* Row 5: Details & Picture */}
+                    {/* Details: Blood Group & Zip Code */ }
                     <div>
-                      <label className="text-sm text-gray-400 block mb-1">Blood Group</label>
-                      <select 
-                        value={form.bloodGroup} 
-                        onChange={(e) => setForm(p => ({ ...p, bloodGroup: e.target.value }))} 
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">--select--</option>
-                        {BLOOD_GROUPS.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                      <label className="text-sm text-white block mb-1">Blood Group</label>
+                      <SearchableSelect
+                         options={BLOOD_GROUPS.map(b => ({ id: b, name: b }))}
+                         value={form.bloodGroup}
+                         onChange={(val) => setForm(p => ({ ...p, bloodGroup: val }))}
+                         placeholder="Select Blood Group"
+                         dropdownHeight="max-h-36"
+                      />
                     </div>
                     
                     <div>
-                       <label className="text-sm text-gray-400 block mb-1">Picture</label>
-                       <div className="flex items-center gap-4 bg-gray-900 border border-gray-700 rounded p-2">
-                          <div className="w-10 h-10 rounded overflow-hidden bg-gray-800 flex-shrink-0">
-                            {form.picturePreview ? (
-                              <img src={form.picturePreview} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <ImageIcon size={20} className="text-gray-500 m-auto mt-2" />
-                            )}
-                          </div>
-                          <label className="cursor-pointer text-sm text-blue-300 hover:text-blue-200">
-                             {form.pictureFile ? "Change Image" : "Select Image"}
-                             <input type="file" accept="image/*" onChange={(e) => handlePictureChange(e.target.files?.[0])} className="hidden" />
-                          </label>
-                          {form.picturePreview && (
-                            <button onClick={removePicture} className="text-red-400 hover:text-red-300 ml-auto"><Trash2 size={16} /></button>
-                          )}
-                       </div>
+                      <label className="text-sm text-white block mb-1">Zip Code</label>
+                      <input 
+                        value={form.zipCode} 
+                        onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))} 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" 
+                      />
                     </div>
 
                     {/* DIVIDER */}
@@ -842,149 +768,168 @@ const handleDelete = async () => {
 
                     {/* LOCATION SECTION */}
                     <div className="z-[40]">
-                      <CustomDropdown
+                      <EmpSearchableSelect
                         label="Country"
-                        keyName="country"
-                        list={countries}
-                        valueId={form.countryId}
-                        required={true}
-                        onSelect={(item) => {
-                          setForm({ ...form, countryId: item?.id || "" });
-                          if (item?.id) awaitLoadStatesForCountry(item.id);
+                        options={countries.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
+                        value={form.countryId}
+                        onChange={(val) => {
+                          setForm({ ...form, countryId: val });
+                          if(val) awaitLoadStatesForCountry(val);
                         }}
-                        showStar={!isEditMode}
-                        showPencil={true}
-                        isOpen={open.country}
-                        onToggle={() => handleToggle("country")}
-                        onClose={() => handleClose("country")}
-                        setLookupCreateContext={setLookupCreateContext}
-                        setShowLookupCreateModal={setShowLookupCreateModal}
-                        findLabel={findLabel}
-                        containerRef={refs.country}
+                        required
+                        onAdd={isEditMode ? null : () => {
+                           setLookupCreateContext({ key: 'country', callback: (c) => {
+                             setForm(p=>({...p, countryId: c.id}));
+                             awaitLoadStatesForCountry(c.id);
+                           }});
+                           setShowLookupCreateModal(true);
+                        }}
+                        onEdit={() => {
+                           const item = countries.find(x => String(x.id??x.Id) === String(form.countryId));
+                           setLookupCreateContext({ key: 'country', item, mode: 'edit', callback: (c) => setForm(p=>({...p, countryId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
                       />
                     </div>
                     <div className="z-[40]">
-                      <CustomDropdown
+                      <EmpSearchableSelect
                         label="State"
-                        keyName="state"
-                        list={states.filter(s => (form.countryId ? String(s.countryId) === String(form.countryId) : true))}
-                        valueId={form.stateId}
-                        required={true}
-                        onSelect={(item) => {
-                          setForm({ ...form, stateId: item?.id || "" });
-                          if (item?.id) awaitLoadCitiesForState(item.id);
+                        options={states.filter(s => (form.countryId ? String(s.countryId) === String(form.countryId) : true)).map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
+                        value={form.stateId}
+                        onChange={(val) => {
+                          setForm({ ...form, stateId: val });
+                          if(val) awaitLoadCitiesForState(val);
                         }}
-                        showStar={!isEditMode}
-                        showPencil={true}
-                        isOpen={open.state}
-                        onToggle={() => handleToggle("state")}
-                        onClose={() => handleClose("state")}
-                        setLookupCreateContext={setLookupCreateContext}
-                        setShowLookupCreateModal={setShowLookupCreateModal}
-                        findLabel={findLabel}
-                        containerRef={refs.state}
+                        required
+                        disabled={!form.countryId}
+                        onAdd={isEditMode ? null : () => {
+                           setLookupCreateContext({ key: 'state', callback: (c) => {
+                             setForm(p=>({...p, stateId: c.id}));
+                             awaitLoadCitiesForState(c.id);
+                           }});
+                           setShowLookupCreateModal(true);
+                        }}
+                        onEdit={() => {
+                           const item = states.find(x => String(x.id??x.Id) === String(form.stateId));
+                           setLookupCreateContext({ key: 'state', item, mode: 'edit', callback: (c) => setForm(p=>({...p, stateId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
                       />
                     </div>
 
                     <div className="z-[30]">
-                      <CustomDropdown
+                      <EmpSearchableSelect
                         label="City"
-                        keyName="city"
-                        list={cities.filter(c => (form.stateId ? String(c.stateId) === String(form.stateId) : true))}
-                        valueId={form.cityId}
-                        required={true}
-                        onSelect={(item) => setForm({ ...form, cityId: item?.id || "" })}
-                        showStar={!isEditMode}
-                        showPencil={true}
-                        isOpen={open.city}
-                        onToggle={() => handleToggle("city")}
-                        onClose={() => handleClose("city")}
-                        setLookupCreateContext={setLookupCreateContext}
-                        setShowLookupCreateModal={setShowLookupCreateModal}
-                        findLabel={findLabel}
-                        containerRef={refs.city}
+                        options={cities.filter(c => (form.stateId ? String(c.stateId) === String(form.stateId) : true)).map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
+                        value={form.cityId}
+                        onChange={(val) => setForm({ ...form, cityId: val })}
+                        required
+                        disabled={!form.stateId}
+                        onAdd={isEditMode ? null : () => {
+                           setLookupCreateContext({ key: 'city', callback: (c) => setForm(p=>({...p, cityId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
+                        onEdit={() => {
+                           const item = cities.find(x => String(x.id??x.Id) === String(form.cityId));
+                           setLookupCreateContext({ key: 'city', item, mode: 'edit', callback: (c) => setForm(p=>({...p, cityId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
                       />
                     </div>
                     <div className="z-[30]">
-                      <CustomDropdown
+                      <EmpSearchableSelect
                         label="Region"
-                        keyName="region"
-                        list={regions}
-                        valueId={form.regionId}
-                        required={false}
-                        onSelect={(item) => {
-                          setForm({ ...form, regionId: item?.regionId ?? item?.id ?? "" });
-                          if (item) awaitLoadTerritoriesForRegion(item.regionId ?? item.id);
+                        options={regions.map(x => ({ id: x.regionId ?? x.id, name: x.regionName ?? x.name }))}
+                        value={form.regionId}
+                        onChange={(val) => {
+                          setForm({ ...form, regionId: val });
+                          if(val) awaitLoadTerritoriesForRegion(val);
                         }}
-                        showStar={!isEditMode}
-                        showPencil={true}
-                        isOpen={open.region}
-                        onToggle={() => handleToggle("region")}
-                        onClose={() => handleClose("region")}
-                        setLookupCreateContext={setLookupCreateContext}
-                        setShowLookupCreateModal={setShowLookupCreateModal}
-                        findLabel={findLabel}
-                        containerRef={refs.region}
+                        onAdd={isEditMode ? null : () => {
+                           setLookupCreateContext({ key: 'region', callback: (c) => {
+                              setForm(p=>({...p, regionId: c.id}));
+                              awaitLoadTerritoriesForRegion(c.id);
+                           }});
+                           setShowLookupCreateModal(true);
+                        }}
+                        onEdit={() => {
+                           const item = regions.find(x => String(x.regionId??x.id) === String(form.regionId));
+                           setLookupCreateContext({ key: 'region', item, mode: 'edit', callback: (c) => setForm(p=>({...p, regionId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
                       />
                     </div>
 
                     <div className="z-[20]">
-                       <CustomDropdown
+                       <EmpSearchableSelect
                           label="Territory"
-                          keyName="territory"
-                          list={territories}
-                          valueId={form.territoryId}
-                          required={false}
-                          onSelect={(item) => setForm({ ...form, territoryId: item?.id || "" })}
-                          showStar={!isEditMode}
-                          showPencil={true}
-                          isOpen={open.territory}
-                          onToggle={() => handleToggle("territory")}
-                          onClose={() => handleClose("territory")}
-                          setLookupCreateContext={setLookupCreateContext}
-                          setShowLookupCreateModal={setShowLookupCreateModal}
-                          findLabel={findLabel}
-                          containerRef={refs.territory}
+                          options={territories.map(x => ({ id: x.territoryId ?? x.id, name: x.territoryDescription ?? x.name }))}
+                          value={form.territoryId}
+                          onChange={(val) => setForm({ ...form, territoryId: val })}
+                          onAdd={isEditMode ? null : () => {
+                             setLookupCreateContext({ key: 'territory', callback: (c) => setForm(p=>({...p, territoryId: c.id})) });
+                             setShowLookupCreateModal(true);
+                          }}
+                          onEdit={() => {
+                             const item = territories.find(x => String(x.territoryId??x.id) === String(form.territoryId));
+                             setLookupCreateContext({ key: 'territory', item, mode: 'edit', callback: (c) => setForm(p=>({...p, territoryId: c.id})) });
+                             setShowLookupCreateModal(true);
+                          }}
                        />
                     </div>
+
+
+
                     <div className="z-[20]">
-                      <CustomDropdown
+                      <EmpSearchableSelect
                           label="User Mapping (Optional)"
-                          keyName="user"
-                          list={users}
-                          valueId={form.userId}
-                          required={false}
-                          onSelect={(item) => setForm({ ...form, userId: item?.userId || item?.id || "" })}
-                          showStar={false}
-                          showPencil={false}
-                          isOpen={open.user}
-                          onToggle={() => handleToggle("user")}
-                          onClose={() => handleClose("user")}
-                          setLookupCreateContext={setLookupCreateContext}
-                          setShowLookupCreateModal={setShowLookupCreateModal}
-                          findLabel={findLabel}
-                          containerRef={refs.user}
+                          options={users.map(x => ({ id: x.userId ?? x.id, name: x.username ?? x.email ?? x.name }))}
+                          value={form.userId}
+                          onChange={(val) => setForm({ ...form, userId: val })}
                         />
                     </div>
+                    
+                    {/* Empty div for alignment if needed, or leave blank */}
+                    <div className="hidden md:block"></div>
 
-                    {/* ADDRESS BLOCK */}
-                    <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="text-sm text-gray-400 block mb-1">Address</label>
-                          <textarea 
-                            value={form.address} 
-                            onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} 
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                            rows={2}
-                          />
+                    {/* ADDRESS & PICTURE BLOCK (Footer) */}
+                    <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                        {/* Address */}
+                        <div className="flex flex-col h-full">
+                          <label className="text-sm text-white block mb-1">Address</label>
+                           <div className="flex-grow">
+                            <textarea 
+                              value={form.address} 
+                              onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} 
+                              className="w-full h-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none"
+                              style={{ minHeight: '120px' }}
+                            />
+                           </div>
                         </div>
-                        <div>
-                          <label className="text-sm text-gray-400 block mb-1">Zip Code</label>
-                          <input 
-                            value={form.zipCode} 
-                            onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))} 
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" 
-                          />
+
+                        {/* Picture */}
+                        <div className="flex flex-col h-full">
+                           <label className="text-sm text-white block mb-1">Picture</label>
+                           <div className="flex-grow flex items-center justify-center bg-gray-800 border border-gray-600 rounded p-4 h-full" style={{ minHeight: '120px' }}>
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-700 flex-shrink-0 border border-gray-600">
+                                  {form.picturePreview ? (
+                                    <img src={form.picturePreview} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <ImageIcon size={32} className="text-gray-500 m-auto mt-6" />
+                                  )}
+                                </div>
+                                <div className="flex gap-2 text-sm">
+                                  <label className="cursor-pointer text-blue-300 hover:text-blue-200">
+                                     {form.pictureFile ? "Change" : "Upload"}
+                                     <input type="file" accept="image/*" onChange={(e) => handlePictureChange(e.target.files?.[0])} className="hidden" />
+                                  </label>
+                                  {form.picturePreview && (
+                                    <button onClick={removePicture} className="text-red-400 hover:text-red-300">Remove</button>
+                                  )}
+                                </div>
+                              </div>
+                           </div>
                         </div>
                     </div>
 
@@ -995,34 +940,28 @@ const handleDelete = async () => {
                 <div>
                   <div className="grid grid-cols-3 gap-3 items-end mb-3 ms-3 me-3">
                     <div>
-                      <label className="text-sm">Basic Salary *</label>
-                      <input value={form.salary} onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm  h-[38px]" />
+                      <label className="text-sm text-white">Basic Salary *</label>
+                      <input value={form.salary} onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm  h-[38px]" />
                     </div>
 
                     {/* Payroll Bank */}
                     <div>
-                      <CustomDropdown
+                      <EmpSearchableSelect
                         label="Payroll Bank"
-                        keyName="bank"
-                        list={banks}
-                        valueId={form.payrollBankId}
-                        required={true}
-                        onSelect={(item) => setForm({ ...form, payrollBankId: item?.id ?? item?.Id ?? "" })}
-                        showStar={false}
-                        showPencil={false}
-                        isOpen={open.bank}
-                        onToggle={() => handleToggle("bank")}
-                        onClose={() => handleClose("bank")}
-                        setLookupCreateContext={setLookupCreateContext}
-                        setShowLookupCreateModal={setShowLookupCreateModal}
-                        findLabel={findLabel}
-                        containerRef={refs.bank}
+                        options={banks.map(x => ({ id: x.Id ?? x.id, name: x.BankName ?? x.name }))}
+                        value={form.payrollBankId}
+                        onChange={(val) => setForm({ ...form, payrollBankId: val })}
+                        required
+                        onAdd={() => {
+                           setLookupCreateContext({ key: 'bank', callback: (c) => setForm(p=>({...p, payrollBankId: c.id})) });
+                           setShowLookupCreateModal(true);
+                        }}
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm">Bank Account *</label>
-                      <input value={form.payrollBankAccount} onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm h-[38px]" />
+                      <label className="text-sm text-white">Bank Account *</label>
+                      <input value={form.payrollBankAccount} onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm h-[38px]" />
                     </div>
                   </div>
 
@@ -1158,220 +1097,7 @@ const Portal = ({ children }) => {
   return ReactDOM.createPortal(children, document.body);
 };
 
-const CustomDropdown = ({
-  label,
-  keyName,
-  list = [],
-  valueId,
-  required = false,
-  onSelect,
-  showStar = true,
-  showPencil = true,
-  isOpen,
-  onToggle,
-  onClose,
-  setLookupCreateContext,
-  setShowLookupCreateModal,
-  findLabel,
-  containerRef
-}) => {
-  const [inputValue, setInputValue] = useState("");
-  const [localSearch, setLocalSearch] = useState("");
-  const [openUpward, setOpenUpward] = useState(false);
-  const searchInputRef = useRef(null);
-  const internalRef = useRef(null);
-  
-  // Use passed ref or internal ref
-  const activeRef = containerRef || internalRef;
 
-  useEffect(() => {
-    const labelText = findLabel(keyName, valueId);
-    setInputValue(labelText || "");
-  }, [valueId, keyName, label, findLabel]);
-
-  useEffect(() => {
-    if (isOpen) {
-      setLocalSearch("");
-      setTimeout(() => searchInputRef.current?.focus(), 50);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (activeRef.current && !activeRef.current.contains(event.target)) {
-        if (isOpen) onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose, activeRef]);
-
-  const filtered = (list || []).filter((x) => {
-    let labelText = "";
-    if (keyName === "bank") {
-      labelText = (x.BankName || x.name || "").toString().toLowerCase();
-    } else if (keyName === "user") {
-      labelText = (x.username || x.email || x.name || "").toString().toLowerCase();
-    } else {
-      labelText = (x.name || x.designation || x.department || x.regionName || x.territoryDescription || "").toString().toLowerCase();
-    }
-    return labelText.includes(localSearch.toLowerCase());
-  });
-
-  const handleToggle = () => {
-    const willBeOpen = !isOpen;
-    if (willBeOpen && activeRef.current) {
-      const rect = activeRef.current.getBoundingClientRect();
-      const dropdownHeight = 192;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      setOpenUpward(spaceBelow < dropdownHeight && spaceAbove > spaceBelow);
-    }
-    onToggle();
-  };
-
-  return (
-    <div className="w-full">
-      <label className="text-sm block mb-1 text-gray-300">
-        {label} {required && <span className="text-red-400"> *</span>}
-      </label>
-
-      <div className="flex items-start gap-2">
-        <div className="relative w-full" ref={activeRef}>
-          <div
-            onClick={handleToggle}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm flex justify-between items-center cursor-pointer hover:border-gray-600 transition-colors"
-          >
-            <span className={inputValue ? "text-white" : "text-gray-500"}>
-              {inputValue || "--select--"}
-            </span>
-            <div className="flex items-center gap-1">
-              {inputValue && inputValue !== "--select--" && (
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect(null);
-                    setInputValue("");
-                    setLocalSearch("");
-                  }}
-                  className="p-1 hover:bg-gray-700 rounded-full transition-colors"
-                  title="Clear"
-                >
-                  <X size={14} className="text-gray-400 hover:text-red-400" />
-                </div>
-              )}
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-                <path d="m6 9 6 6 6-6"/>
-              </svg>
-            </div>
-          </div>
-
-          {isOpen && (
-            <div 
-              className={`absolute left-0 right-0 max-h-48 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 flex flex-col transition-all duration-150 ease-out ${
-                openUpward ? 'bottom-full mb-1 animate-slideUp' : 'mt-1 animate-slideDown'
-              }`}
-            >
-              <div className="p-2 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
-                <input
-                  type="text"
-                  ref={searchInputRef}
-                  value={localSearch}
-                  onChange={(e) => setLocalSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-
-              <div className="overflow-auto flex-1">
-                {filtered.length > 0 ? (
-                  filtered.map((opt) => {
-                    const optId = opt.id ?? opt.Id ?? opt.regionId ?? opt.territoryId ?? opt.countryId ?? opt.stateId ?? opt.userId;
-                    let labelText = "";
-                    if (keyName === "bank") {
-                      labelText = opt.BankName ?? opt.name ?? opt.designation ?? opt.department ?? opt.regionName ?? opt.territoryDescription;
-                    } else if (keyName === "user") {
-                      labelText = opt.username ?? opt.email ?? opt.name ?? "";
-                    } else {
-                      labelText = opt.name ?? opt.designation ?? opt.department ?? opt.regionName ?? opt.territoryDescription;
-                    }
-                    return (
-                      <div
-                        key={String(optId) + (labelText || "")}
-                        onClick={() => {
-                          onSelect(opt);
-                          onClose();
-                          setLocalSearch("");
-                        }}
-                        className="px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm text-gray-200"
-                      >
-                        {labelText}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="px-3 py-2 text-sm text-gray-400">
-                    <div className="mb-1">No matches found</div>
-                    {showStar && (
-                      <div className="text-xs text-gray-500">(Use star to create)</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2 mt-1">
-          {showStar && (
-            <button
-              type="button"
-              onClick={() => {
-                setLookupCreateContext({
-                  key: keyName,
-                  typedName: localSearch,
-                  callback: (created) => {
-                    if (!created) return;
-                    onSelect(created);
-                  },
-                });
-                setShowLookupCreateModal(true);
-              }}
-              className="p-1 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-              title={`Add ${label}`}
-            >
-              <Star size={16} className="text-yellow-400" />
-            </button>
-          )}
-
-          {showPencil && valueId && keyName !== "bank" && (
-            <button
-              type="button"
-              onClick={() => {
-                 const item = (list || []).find((x) => String(x.id ?? x.Id ?? x.regionId ?? x.territoryId) === String(valueId));
-                setLookupCreateContext({
-                  key: keyName,
-                  item,
-                  mode: "edit",
-                  callback: (updated) => {
-                    if (!updated) return;
-                    onSelect(updated);
-                  },
-                });
-                setShowLookupCreateModal(true);
-              }}
-              className="p-1 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
-              title={`Edit ${label}`}
-            >
-              <Pencil size={14} className="text-blue-300" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const LookupCreateModal = ({ context, onClose, setters, form }) => {
   const { key, callback, item, mode, typedName } = context || {};
@@ -1450,12 +1176,8 @@ const LookupCreateModal = ({ context, onClose, setters, form }) => {
           <button onClick={onClose} className="p-1"><X size={18} /></button>
         </div>
         <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
-           {/* SIMPLIFIED FOR BREVITY - FULL FORM LOGIC NEEDED HERE FROM ORIGINAL */}
-           {/* Re-implementing just input for brevity as most logic was generic, 
-               but Country/State/City logic is specific. 
-               I am copying the generic input logic. */}
-           <label className="text-sm">Name *</label>
-           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+           <label className="text-sm text-white">Name *</label>
+           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" />
         </div>
         <div className="px-4 py-2 border-t border-gray-700 flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Cancel</button>
@@ -1486,34 +1208,32 @@ const IncomeModal = ({
         </div>
         <div className="p-4 space-y-3">
           <div>
-            <label className="text-sm block mb-1 text-gray-300">Income *</label>
-            <select 
-              value={localForm.typeId || ""} 
-              onChange={(e) => setLocalForm({ ...localForm, typeId: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-2 text-sm"
-            >
-              <option value="">--select--</option>
-              {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            <label className="text-sm block mb-1 text-white">Income *</label>
+            <SearchableSelect
+              options={types}
+              value={localForm.typeId}
+              onChange={(val) => setLocalForm({ ...localForm, typeId: val })}
+              placeholder="Select Income Type"
+            />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-sm">Amount *</label>
+              <label className="text-sm text-white">Amount *</label>
               <input 
                 type="number" 
                 value={localForm.amount} 
                 onChange={(e) => setLocalForm(p => ({ ...p, amount: e.target.value }))} 
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
                 autoFocus 
               />
             </div>
             <div className="col-span-2">
-              <label className="text-sm">Description</label>
+              <label className="text-sm text-white">Description</label>
               <input 
                 type="text" 
                 value={localForm.description} 
                 onChange={(e) => setLocalForm(p => ({ ...p, description: e.target.value }))} 
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
               />
             </div>
           </div>
@@ -1560,34 +1280,32 @@ const DeductionModal = ({
         </div>
         <div className="p-4 space-y-3">
           <div>
-            <label className="text-sm block mb-1 text-gray-300">Deduction *</label>
-            <select 
-              value={localForm.typeId || ""} 
-              onChange={(e) => setLocalForm({ ...localForm, typeId: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-2 text-sm"
-            >
-              <option value="">--select--</option>
-              {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            <label className="text-sm block mb-1 text-white">Deduction *</label>
+            <SearchableSelect
+              options={types}
+              value={localForm.typeId}
+              onChange={(val) => setLocalForm({ ...localForm, typeId: val })}
+              placeholder="Select Deduction Type"
+            />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-sm">Amount *</label>
+              <label className="text-sm text-white">Amount *</label>
               <input 
                 type="number" 
                 value={localForm.amount} 
                 onChange={(e) => setLocalForm(p => ({ ...p, amount: e.target.value }))} 
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
                 autoFocus
               />
             </div>
             <div className="col-span-2">
-              <label className="text-sm">Description</label>
+              <label className="text-sm text-white">Description</label>
               <input 
                 type="text" 
                 value={localForm.description} 
                 onChange={(e) => setLocalForm(p => ({ ...p, description: e.target.value }))} 
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
               />
             </div>
           </div>

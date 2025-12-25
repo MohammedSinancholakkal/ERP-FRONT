@@ -6,12 +6,9 @@ import {
   RefreshCw,
   List,
   ArchiveRestore,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
 } from "lucide-react";
 import SortableHeader from "../../components/SortableHeader";
+import FilterBar from "../../components/FilterBar";
 import Pagination from "../../components/Pagination";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
@@ -69,22 +66,6 @@ const Suppliers = () => {
   const [filterRegion, setFilterRegion] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
 
-  const dropdownRefs = {
-    country: useRef(),
-    state: useRef(),
-    city: useRef(),
-    region: useRef(),
-    group: useRef(),
-  };
-
-  const [dropdownOpen, setDropdownOpen] = useState({
-    country: false,
-    state: false,
-    city: false,
-    region: false,
-    group: false,
-  });
-
   const [rows, setRows] = useState([]);
   const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
@@ -115,14 +96,6 @@ const Suppliers = () => {
     setSortConfig({ key, direction });
   };
 
-  const [filterSearch, setFilterSearch] = useState({
-    country: "",
-    state: "",
-    city: "",
-    region: "",
-    group: "",
-  });
-
   // --------------------------------------
   // Search
   // --------------------------------------
@@ -136,31 +109,11 @@ const Suppliers = () => {
 
   const applyFilters = (data) => {
     return data.filter((row) => {
-      const countryMatch = filterCountry
-        ? (lookupMaps.countries[String(row.countryId)] || row.countryName || "")
-            .toLowerCase()
-            .includes(filterCountry.toLowerCase())
-        : true;
-      const stateMatch = filterState
-        ? (lookupMaps.states[String(row.stateId)] || row.stateName || "")
-            .toLowerCase()
-            .includes(filterState.toLowerCase())
-        : true;
-      const cityMatch = filterCity
-        ? (lookupMaps.cities[String(row.cityId)] || row.cityName || "")
-            .toLowerCase()
-            .includes(filterCity.toLowerCase())
-        : true;
-      const regionMatch = filterRegion
-        ? (lookupMaps.regions[String(row.regionId)] || row.regionName || "")
-            .toLowerCase()
-            .includes(filterRegion.toLowerCase())
-        : true;
-      const groupMatch = filterGroup
-        ? (lookupMaps.groups[String(row.supplierGroupId)] || row.supplierGroupName || "")
-            .toLowerCase()
-            .includes(filterGroup.toLowerCase())
-        : true;
+      const countryMatch = filterCountry ? String(row.countryId) === String(filterCountry) : true;
+      const stateMatch = filterState ? String(row.stateId) === String(filterState) : true;
+      const cityMatch = filterCity ? String(row.cityId) === String(filterCity) : true;
+      const regionMatch = filterRegion ? String(row.regionId) === String(filterRegion) : true;
+      const groupMatch = filterGroup ? String(row.supplierGroupId) === String(filterGroup) : true;
       return countryMatch && stateMatch && cityMatch && regionMatch && groupMatch;
     });
   };
@@ -374,138 +327,54 @@ const Suppliers = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const renderFilterDropdown = (label, key, list = []) => {
-    const displayValue =
-      {
-        country: filterCountry,
-        state: filterState,
-        city: filterCity,
-        region: filterRegion,
-        group: filterGroup,
-      }[key] || "";
+  // --------------------------------------
+  // Filter Config
+  // --------------------------------------
+  const filterFilters = [
+    {
+      label: "Country",
+      options: lookupLists.countries.map(x => ({ id: x.Id ?? x.id, name: x.CountryName ?? x.name })),
+      value: filterCountry,
+      onChange: (val) => setFilterCountry(val),
+      placeholder: "Select Country"
+    },
+    {
+      label: "State",
+      options: lookupLists.states.map(x => ({ id: x.Id ?? x.id, name: x.StateName ?? x.name })),
+      value: filterState,
+      onChange: (val) => setFilterState(val),
+      placeholder: "Select State"
+    },
+    {
+      label: "City",
+      options: lookupLists.cities.map(x => ({ id: x.Id ?? x.id, name: x.CityName ?? x.name })),
+      value: filterCity,
+      onChange: (val) => setFilterCity(val),
+      placeholder: "Select City"
+    },
+    {
+      label: "Region",
+      options: lookupLists.regions.map(x => ({ id: x.Id ?? x.id, name: x.RegionName ?? x.regionName ?? x.name ?? x.Name ?? x.label })),
+      value: filterRegion,
+      onChange: (val) => setFilterRegion(val),
+      placeholder: "Select Region"
+    },
+    {
+      label: "Supplier Group",
+      options: lookupLists.groups.map(x => ({ id: x.Id ?? x.id, name: x.GroupName ?? x.SupplierGroupName ?? x.name })),
+      value: filterGroup,
+      onChange: (val) => setFilterGroup(val),
+      placeholder: "Select Group"
+    }
+  ];
 
-    return (
-      <div className="relative w-48" ref={dropdownRefs[key]} key={key}>
-        <div
-          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm cursor-pointer flex justify-between items-center"
-          onClick={() =>
-            setDropdownOpen((prev) => ({ ...prev, [key]: !prev[key] }))
-          }
-        >
-          <span className={displayValue ? "text-white" : "text-gray-400"}>
-            {displayValue || `Select ${label}`}
-          </span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-gray-400"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </div>
-
-        {dropdownOpen[key] && (
-          <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[220px] overflow-auto">
-            <div className="p-2">
-              <input
-                value={filterSearch[key]}
-                onChange={(e) =>
-                  setFilterSearch((p) => ({ ...p, [key]: e.target.value }))
-                }
-                placeholder={`Search ${label.toLowerCase()}...`}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm"
-              />
-            </div>
-            <div className="max-h-48 overflow-auto">
-              {list
-                .filter((item) => {
-                  const txt =
-                    item.CountryName ||
-                    item.StateName ||
-                    item.CityName ||
-                    item.RegionName ||
-                    item.regionName ||
-                    item.GroupName ||
-                    item.groupName ||
-                    item.SupplierGroupName ||
-                    item.name ||
-                    item.label ||
-                    "";
-                  return txt
-                    .toString()
-                    .toLowerCase()
-                    .includes(filterSearch[key].toLowerCase());
-                })
-                .map((item) => {
-                  const val =
-                    item.CountryName ||
-                    item.StateName ||
-                    item.CityName ||
-                    item.RegionName ||
-                    item.regionName ||
-                    item.GroupName ||
-                    item.groupName ||
-                    item.SupplierGroupName ||
-                    item.name ||
-                    item.label ||
-                    "";
-                  return (
-                    <div
-                      key={item.Id ?? item.id}
-                      onClick={() => {
-                        const setter = {
-                          country: setFilterCountry,
-                          state: setFilterState,
-                          city: setFilterCity,
-                          region: setFilterRegion,
-                          group: setFilterGroup,
-                        }[key];
-                        if (setter) setter(val);
-                        setDropdownOpen((prev) => ({ ...prev, [key]: false }));
-                      }}
-                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                    >
-                      {val}
-                    </div>
-                  );
-                })}
-              {list.length === 0 && (
-                <div className="px-3 py-2 text-gray-400 text-sm">
-                  No options
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  const handleResetFilters = () => {
+    setFilterCountry("");
+    setFilterState("");
+    setFilterCity("");
+    setFilterRegion("");
+    setFilterGroup("");
   };
-
-  // --------------------------------------
-  // Close dropdown when clicking outside
-  // --------------------------------------
-  useEffect(() => {
-    const handler = (e) => {
-      Object.keys(dropdownRefs).forEach((key) => {
-        if (
-          dropdownRefs[key].current &&
-          !dropdownRefs[key].current.contains(e.target)
-        ) {
-          setDropdownOpen((prev) => ({ ...prev, [key]: false }));
-        }
-      });
-    };
-
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
 
   // --------------------------------------
   // Render
@@ -683,25 +552,8 @@ const Suppliers = () => {
         </div>
 
         {/* FILTER BAR */}
-        <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {renderFilterDropdown("Country", "country", lookupLists.countries)}
-          {renderFilterDropdown("State", "state", lookupLists.states)}
-          {renderFilterDropdown("City", "city", lookupLists.cities)}
-          {renderFilterDropdown("Region", "region", lookupLists.regions)}
-          {renderFilterDropdown("Group", "group", lookupLists.groups)}
-
-          <button
-            onClick={() => {
-              setFilterCountry("");
-              setFilterState("");
-              setFilterCity("");
-              setFilterRegion("");
-              setFilterGroup("");
-            }}
-            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm"
-          >
-            Reset
-          </button>
+        <div className="mb-4">
+          <FilterBar filters={filterFilters} onClear={handleResetFilters} />
         </div>
 
         {/* TABLE */}
@@ -710,62 +562,26 @@ const Suppliers = () => {
             <table className="min-w-[2500px] border-separate border-spacing-y-1 text-sm table-fixed">
               <thead className="sticky top-0 bg-gray-900 z-10 h-10">
                 <tr className="text-white text-center">
-                  {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-                  {visibleColumns.companyName && (
-                    <th className="pb-2 border-b">Company Name</th>
-                  )}
-                  {visibleColumns.contactName && (
-                    <th className="pb-2 border-b">Contact Name</th>
-                  )}
-                  {visibleColumns.contactTitle && (
-                    <th className="pb-2 border-b">Contact Title</th>
-                  )}
-                  {visibleColumns.countryName && (
-                    <th className="pb-2 border-b">Country</th>
-                  )}
-                  {visibleColumns.stateName && (
-                    <th className="pb-2 border-b">State</th>
-                  )}
-                  {visibleColumns.cityName && (
-                    <th className="pb-2 border-b">City</th>
-                  )}
-                  {visibleColumns.regionName && (
-                    <th className="pb-2 border-b">Region</th>
-                  )}
-                  {visibleColumns.supplierGroupName && (
-                    <th className="pb-2 border-b">Supplier Group</th>
-                  )}
-                  {visibleColumns.postalCode && (
-                    <th className="pb-2 border-b">Postal</th>
-                  )}
-                  {visibleColumns.phone && (
-                    <th className="pb-2 border-b">Phone</th>
-                  )}
-                  {visibleColumns.fax && (
-                    <th className="pb-2 border-b">Fax</th>
-                  )}
-                  {visibleColumns.website && (
-                    <th className="pb-2 border-b">Website</th>
-                  )}
-                  {visibleColumns.email && (
-                    <th className="pb-2 border-b">Email</th>
-                  )}
-                  {visibleColumns.emailAddress && (
-                    <th className="pb-2 border-b">Email Address</th>
-                  )}
-                  {visibleColumns.previousCreditBalance && (
-                    <th className="pb-2 border-b">Prev Credit</th>
-                  )}
-                  {visibleColumns.cnic && (
-                    <th className="pb-2 border-b">CNIC</th>
-                  )}
-                  {visibleColumns.ntn && <th className="pb-2 border-b">NTN</th>}
-                  {visibleColumns.strn && (
-                    <th className="pb-2 border-b">STRN</th>
-                  )}
-                  {visibleColumns.orderBooker && (
-                    <th className="pb-2 border-b">Order Booker</th>
-                  )}
+                  {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+                  {visibleColumns.companyName && <SortableHeader label="Company Name" sortOrder={sortConfig.key === "companyName" ? sortConfig.direction : null} onClick={() => handleSort("companyName")} />}
+                  {visibleColumns.contactName && <SortableHeader label="Contact Name" sortOrder={sortConfig.key === "contactName" ? sortConfig.direction : null} onClick={() => handleSort("contactName")} />}
+                  {visibleColumns.contactTitle && <SortableHeader label="Contact Title" sortOrder={sortConfig.key === "contactTitle" ? sortConfig.direction : null} onClick={() => handleSort("contactTitle")} />}
+                  {visibleColumns.countryName && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
+                  {visibleColumns.stateName && <SortableHeader label="State" sortOrder={sortConfig.key === "stateName" ? sortConfig.direction : null} onClick={() => handleSort("stateName")} />}
+                  {visibleColumns.cityName && <SortableHeader label="City" sortOrder={sortConfig.key === "cityName" ? sortConfig.direction : null} onClick={() => handleSort("cityName")} />}
+                  {visibleColumns.regionName && <SortableHeader label="Region" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
+                  {visibleColumns.supplierGroupName && <SortableHeader label="Supplier Group" sortOrder={sortConfig.key === "supplierGroupName" ? sortConfig.direction : null} onClick={() => handleSort("supplierGroupName")} />}
+                  {visibleColumns.postalCode && <SortableHeader label="Postal" sortOrder={sortConfig.key === "postalCode" ? sortConfig.direction : null} onClick={() => handleSort("postalCode")} />}
+                  {visibleColumns.phone && <SortableHeader label="Phone" sortOrder={sortConfig.key === "phone" ? sortConfig.direction : null} onClick={() => handleSort("phone")} />}
+                  {visibleColumns.fax && <SortableHeader label="Fax" sortOrder={sortConfig.key === "fax" ? sortConfig.direction : null} onClick={() => handleSort("fax")} />}
+                  {visibleColumns.website && <SortableHeader label="Website" sortOrder={sortConfig.key === "website" ? sortConfig.direction : null} onClick={() => handleSort("website")} />}
+                  {visibleColumns.email && <SortableHeader label="Email" sortOrder={sortConfig.key === "email" ? sortConfig.direction : null} onClick={() => handleSort("email")} />}
+                  {visibleColumns.emailAddress && <SortableHeader label="Email Address" sortOrder={sortConfig.key === "emailAddress" ? sortConfig.direction : null} onClick={() => handleSort("emailAddress")} />}
+                  {visibleColumns.previousCreditBalance && <SortableHeader label="Prev Credit" sortOrder={sortConfig.key === "previousCreditBalance" ? sortConfig.direction : null} onClick={() => handleSort("previousCreditBalance")} />}
+                  {visibleColumns.cnic && <SortableHeader label="CNIC" sortOrder={sortConfig.key === "cnic" ? sortConfig.direction : null} onClick={() => handleSort("cnic")} />}
+                  {visibleColumns.ntn && <SortableHeader label="NTN" sortOrder={sortConfig.key === "ntn" ? sortConfig.direction : null} onClick={() => handleSort("ntn")} />}
+                  {visibleColumns.strn && <SortableHeader label="STRN" sortOrder={sortConfig.key === "strn" ? sortConfig.direction : null} onClick={() => handleSort("strn")} />}
+                  {visibleColumns.orderBooker && <SortableHeader label="Order Booker" sortOrder={sortConfig.key === "orderBooker" ? sortConfig.direction : null} onClick={() => handleSort("orderBooker")} />}
                 </tr>
               </thead>
 
@@ -895,6 +711,3 @@ const Suppliers = () => {
 };
 
 export default Suppliers;
-
-
-

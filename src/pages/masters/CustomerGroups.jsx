@@ -60,17 +60,14 @@ const CustomerGroups = () => {
   // COLUMN PICKER
   const defaultCols = { id: true, name: true, description: true };
   const [visibleColumns, setVisibleColumns] = useState(defaultCols);
-  const [tempCols, setTempCols] = useState(defaultCols); // used inside modal
   const [searchColumn, setSearchColumn] = useState("");
 
-  const toggleColumnTemp = (col) =>
-    setTempCols((prev) => ({ ...prev, [col]: !prev[col] }));
+  const toggleColumn = (col) => {
+    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
+  };
 
-  const restoreDefaults = () => setTempCols(defaultCols);
-
-  const applyColumnChanges = () => {
-    setVisibleColumns(tempCols);
-    setColumnModal(false);
+  const restoreDefaults = () => {
+    setVisibleColumns(defaultCols);
   };
 
   // PAGINATION
@@ -82,11 +79,30 @@ const CustomerGroups = () => {
   const start = (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
 
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = null;
+    }
+    setSortConfig({ key: direction ? key : null, direction });
+  };
 
   const sortedGroups = [...groups];
-  if (sortOrder === "asc") {
-    sortedGroups.sort((a, b) => Number(a.id) - Number(b.id));
+  if (sortConfig.key) {
+    sortedGroups.sort((a, b) => {
+      let valA = a[sortConfig.key] || "";
+      let valB = b[sortConfig.key] || "";
+      if (typeof valA === "string") valA = valA.toLowerCase();
+      if (typeof valB === "string") valB = valB.toLowerCase();
+      
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
   }
 
   // LOAD GROUPS
@@ -276,11 +292,7 @@ const CustomerGroups = () => {
     }
   };
 
-  // When opening column modal, copy visibleColumns into temp so modal edits don't reflect until OK
-  const openColumnModal = () => {
-    setTempCols(visibleColumns);
-    setColumnModal(true);
-  };
+
 
   // =============================================================
   // UI START
@@ -418,95 +430,95 @@ const CustomerGroups = () => {
 
       {/* COLUMN PICKER MODAL */}
       {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)}>
-                <X className="text-gray-300 hover:text-white" />
+              <button
+                onClick={() => setColumnModal(false)}
+                className="text-gray-300 hover:text-white"
+              >
+                <X size={20} />
               </button>
             </div>
 
+            {/* SEARCH */}
             <div className="px-5 py-3">
               <input
                 type="text"
-                placeholder="Search column..."
+                placeholder="search columns..."
                 value={searchColumn}
                 onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              {/* Visible */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
+            {/* VISIBLE / HIDDEN COLUMNS */}
+            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
 
-                {Object.keys(tempCols)
-                  .filter((col) => tempCols[col])
+                {Object.keys(visibleColumns)
+                  .filter((col) => visibleColumns[col])
                   .filter((col) => col.includes(searchColumn))
                   .map((col) => (
                     <div
                       key={col}
-                      className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2"
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
                     >
-                      <span>{col.toUpperCase()}</span>
+                      <span>☰ {col.toUpperCase()}</span>
                       <button
-                        onClick={() => toggleColumnTemp(col)}
                         className="text-red-400"
+                        onClick={() => toggleColumn(col)}
                       >
-                        ✕
+                        ✖
                       </button>
                     </div>
                   ))}
               </div>
 
-              {/* Hidden */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
 
-                {Object.keys(tempCols)
-                  .filter((col) => !tempCols[col])
+                {Object.keys(visibleColumns)
+                  .filter((col) => !visibleColumns[col])
                   .filter((col) => col.includes(searchColumn))
                   .map((col) => (
                     <div
                       key={col}
-                      className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2"
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
                     >
-                      <span>{col.toUpperCase()}</span>
+                      <span>☰ {col.toUpperCase()}</span>
                       <button
-                        onClick={() => toggleColumnTemp(col)}
                         className="text-green-400"
+                        onClick={() => toggleColumn(col)}
                       >
                         ➕
                       </button>
                     </div>
                   ))}
+
+                {Object.keys(visibleColumns).filter(
+                  (col) => !visibleColumns[col]
+                ).length === 0 && (
+                  <p className="text-gray-400 text-sm">No hidden columns</p>
+                )}
               </div>
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               <button
                 onClick={restoreDefaults}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 Restore Defaults
               </button>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={applyColumnChanges}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  OK
-                </button>
-                <button
-                  onClick={() => setColumnModal(false)}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                onClick={() => setColumnModal(false)}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
@@ -550,7 +562,7 @@ const CustomerGroups = () => {
           </button>
 
           <button
-            onClick={() => openColumnModal()}
+            onClick={() => setColumnModal(true)}
             className="p-2 bg-gray-700 border border-gray-600 rounded"
           >
             <List size={16} className="text-blue-300" />
@@ -579,19 +591,25 @@ const CustomerGroups = () => {
                 {visibleColumns.id && (
                   <SortableHeader
                     label="ID"
-                    sortOrder={sortOrder}
-                    onClick={() =>
-                      setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-                    }
+                    sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
+                    onClick={() => handleSort("id")}
                   />
                 )}
 
                 {visibleColumns.name && (
-                  <th className="pb-1 border-b border-white text-center">Group Name</th>
+                  <SortableHeader
+                    label="Group Name"
+                    sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
+                    onClick={() => handleSort("name")}
+                  />
                 )}
 
                 {visibleColumns.description && (
-                  <th className="pb-1 border-b border-white text-center">Description</th>
+                  <SortableHeader
+                    label="Description"
+                    sortOrder={sortConfig.key === "description" ? sortConfig.direction : null}
+                    onClick={() => handleSort("description")}
+                  />
                 )}
               </tr>
             </thead>

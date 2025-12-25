@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
+import FilterBar from "../../components/FilterBar";
+import SearchableSelect from "../../components/SearchableSelect";
 import toast from 'react-hot-toast';
 import {
   getGoodsReceiptsApi,
@@ -64,47 +66,22 @@ const GoodsReceipt = () => {
   const [serverTotal, setServerTotal] = useState(0);
 
   /* -------------------- search & filters -------------------- */
+  /* -------------------- search & filters -------------------- */
   const [searchText, setSearchText] = useState("");
-
   const [filterSupplier, setFilterSupplier] = useState("");
   const [filterPurchaseBill, setFilterPurchaseBill] = useState("");
-  const [filterDate, setFilterDate] = useState("");
-  const [filterTime, setFilterTime] = useState("");
   const [filterEmployee, setFilterEmployee] = useState("");
+  
+  // --- SORTING STATE ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  // dropdown refs & open states for filter bar
-  const dropdownRefs = {
-    supplier: useRef(null),
-    purchaseBill: useRef(null),
-    date: useRef(null),
-    time: useRef(null),
-    employee: useRef(null),
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
-  const [dropdownOpen, setDropdownOpen] = useState({
-    supplier: false,
-    purchaseBill: false,
-    date: false,
-    time: false,
-    employee: false,
-  });
-  const [ddSearch, setDdSearch] = useState({
-    supplier: "",
-    purchaseBill: "",
-    employee: "",
-  });
-
-  // close dropdowns clicking outside
-  useEffect(() => {
-    const handler = (e) => {
-      Object.keys(dropdownRefs).forEach((k) => {
-        if (dropdownRefs[k].current && !dropdownRefs[k].current.contains(e.target)) {
-          setDropdownOpen((p) => ({ ...p, [k]: false }));
-        }
-      });
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
 
   // -------------------- pagination -------------------- 
   const [page, setPage] = useState(1);
@@ -188,24 +165,85 @@ const GoodsReceipt = () => {
   };
 
   /* -------------------- filtering logic (client side) -------------------- */
-  const filteredRows = rows.filter((r) => {
-    let ok = true;
+  const filteredRows = React.useMemo(() => {
+    let list = rows;
     if (searchText.trim()) {
       const s = searchText.toLowerCase();
-      ok =
-        ok &&
-        (String(r.id).includes(s) ||
-          r.supplierName.toLowerCase().includes(s) ||
-          r.purchaseBill.toLowerCase().includes(s) ||
-          (r.reference || "").toLowerCase().includes(s));
+      list = list.filter(r =>
+        String(r.id).includes(s) ||
+          (r.supplierName || "").toLowerCase().includes(s) ||
+          (r.purchaseBill || "").toLowerCase().includes(s) ||
+          (r.reference || "").toLowerCase().includes(s)
+      );
     }
-    if (filterSupplier) ok = ok && r.supplierName === filterSupplier;
-    if (filterPurchaseBill) ok = ok && r.purchaseBill === filterPurchaseBill;
-    if (filterDate) ok = ok && r.date === filterDate;
-    if (filterTime) ok = ok && r.time === filterTime;
-    if (filterEmployee) ok = ok && r.employeeName?.toLowerCase().includes(filterEmployee.toLowerCase());
-    return ok;
-  });
+    if (filterSupplier) list = list.filter(r => r.supplierName === filterSupplier);
+    if (filterPurchaseBill) list = list.filter(r => r.purchaseBill === filterPurchaseBill);
+    if (filterEmployee) list = list.filter(r => r.employeeName?.toLowerCase().includes(filterEmployee.toLowerCase()));
+    return list;
+  }, [rows, searchText, filterSupplier, filterPurchaseBill, filterEmployee]);
+
+    // --- SORTING LOGIC ---
+  const sortedList = React.useMemo(() => {
+    let sortableItems = [...filteredRows];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle numeric values
+        if (['id', 'totalQuantity'].includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             // String comparison
+             aValue = String(aValue || "").toLowerCase();
+             bValue = String(bValue || "").toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredRows, sortConfig]);
+
+  // --- FILTER BAR CONFIG ---
+  const filters = [
+      {
+          type: 'select',
+          value: filterSupplier,
+          onChange: setFilterSupplier,
+          options: supplierOptions,
+          placeholder: "All Suppliers"
+      },
+      {
+          type: 'select',
+          value: filterPurchaseBill,
+          onChange: setFilterPurchaseBill,
+          options: purchaseOptions,
+          placeholder: "All Bills"
+      },
+      {
+          type: 'select',
+          value: filterEmployee,
+          onChange: setFilterEmployee,
+          options: employeeOptions,
+          placeholder: "All Employees"
+      }
+  ];
+
+  const handleClearFilters = () => {
+    setSearchText("");
+    setFilterSupplier("");
+    setFilterPurchaseBill("");
+    setFilterEmployee("");
+    setSortConfig({ key: null, direction: 'asc' });
+  };
 
   // -------------------- server interactions --------------------
   const normalize = (rec) => {
@@ -498,16 +536,12 @@ const GoodsReceipt = () => {
               <div className="col-span-1 relative">
                 <label className="text-sm">Supplier *</label>
                 <div className="flex gap-2 items-center">
-                  <input
-                    value={form.supplierSearch || getSupplierName(form.supplier)}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, supplierSearch: e.target.value, supplierDropdown: true }))
-                    }
-                    onClick={() =>
-                      setForm((p) => ({ ...p, supplierDropdown: !p.supplierDropdown }))
-                    }
+                  <SearchableSelect
+                    options={supplierOptions}
+                    value={form.supplier}
+                    onChange={(v) => setForm((p) => ({ ...p, supplier: v }))}
                     placeholder="Search or select supplier..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
+                    className="w-full"
                   />
                   <button
                     onClick={openSupplierCreate}
@@ -517,48 +551,19 @@ const GoodsReceipt = () => {
                   </button>
                 </div>
 
-                {form.supplierDropdown && (
-                  <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[180px] overflow-auto">
-                    <div className="p-2">
-                      <input
-                        value={form.supplierSearch}
-                        onChange={(e) => setForm((p) => ({ ...p, supplierSearch: e.target.value }))}
-                        placeholder="Type to filter..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                      />
-                    </div>
-                    <div>
-                      {supplierOptions.filter(s => s.name.toLowerCase().includes((form.supplierSearch || "").toLowerCase())).map(s => (
-                        <div
-                          key={s.id}
-                          onClick={() => setForm((p) => ({ ...p, supplier: s.id, supplierSearch: "", supplierDropdown: false }))}
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                        >
-                          {s.name}
-                        </div>
-                      ))}
-                      {supplierOptions.filter(s => s.name.toLowerCase().includes((form.supplierSearch || "").toLowerCase())).length === 0 && (
-                        <div className="px-3 py-2 text-sm text-gray-400">No suppliers found</div>
-                      )}
-                    </div>
-                  </div>
-                )}
+
               </div>
 
               {/* Purchase Bill (searchable + star) */}
               <div className="col-span-1 relative">
                 <label className="text-sm">Purchase Bill *</label>
                 <div className="flex gap-2 items-center">
-                  <input
-                    value={form.purchaseBillSearch || getPurchaseName(form.purchaseBill)}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, purchaseBillSearch: e.target.value, purchaseBillDropdown: true }))
-                    }
-                    onClick={() =>
-                      setForm((p) => ({ ...p, purchaseBillDropdown: !p.purchaseBillDropdown }))
-                    }
+                  <SearchableSelect
+                    options={purchaseOptions}
+                    value={form.purchaseBill}
+                    onChange={(v) => setForm((p) => ({ ...p, purchaseBill: v }))}
                     placeholder="Search or select purchase bill..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
+                    className="w-full"
                   />
                   <button
                     onClick={openPurchaseCreate}
@@ -568,32 +573,7 @@ const GoodsReceipt = () => {
                   </button>
                 </div>
 
-                {form.purchaseBillDropdown && (
-                  <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[180px] overflow-auto">
-                    <div className="p-2">
-                      <input
-                        value={form.purchaseBillSearch}
-                        onChange={(e) => setForm((p) => ({ ...p, purchaseBillSearch: e.target.value }))}
-                        placeholder="Type to filter..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                      />
-                    </div>
-                    <div>
-                      {purchaseOptions.filter(pb => pb.name.toLowerCase().includes((form.purchaseBillSearch || "").toLowerCase())).map(pb => (
-                        <div
-                          key={pb.id}
-                          onClick={() => setForm((p) => ({ ...p, purchaseBill: pb.id, purchaseBillSearch: "", purchaseBillDropdown: false }))}
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                        >
-                          {pb.name}
-                        </div>
-                      ))}
-                      {purchaseOptions.filter(pb => pb.name.toLowerCase().includes((form.purchaseBillSearch || "").toLowerCase())).length === 0 && (
-                        <div className="px-3 py-2 text-sm text-gray-400">No purchase bills</div>
-                      )}
-                    </div>
-                  </div>
-                )}
+
               </div>
 
               {/* Date */}
@@ -634,12 +614,12 @@ const GoodsReceipt = () => {
               <div className="relative col-span-2">
                 <label className="text-sm">Employee *</label>
                 <div className="flex gap-2 items-center">
-                  <input
-                    value={form.employeeSearch || getEmployeeName(form.employee)}
-                    onChange={(e) => setForm((p) => ({ ...p, employeeSearch: e.target.value, employeeDropdown: true }))}
-                    onClick={() => setForm((p) => ({ ...p, employeeDropdown: !p.employeeDropdown }))}
+                  <SearchableSelect
+                    options={employeeOptions}
+                    value={form.employee}
+                    onChange={(v) => setForm((p) => ({ ...p, employee: v }))}
                     placeholder="Search or select employee..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
+                    className="w-full"
                   />
                   <button
                     onClick={openEmployeeCreate}
@@ -649,32 +629,7 @@ const GoodsReceipt = () => {
                   </button>
                 </div>
 
-                {form.employeeDropdown && (
-                  <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[180px] overflow-auto">
-                    <div className="p-2">
-                      <input
-                        value={form.employeeSearch}
-                        onChange={(e) => setForm((p) => ({ ...p, employeeSearch: e.target.value }))}
-                        placeholder="Type to filter..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                      />
-                    </div>
-                    <div>
-                      {employeeOptions.filter(em => em.name.toLowerCase().includes((form.employeeSearch || "").toLowerCase())).map(em => (
-                        <div
-                          key={em.id}
-                          onClick={() => setForm((p) => ({ ...p, employee: em.id, employeeSearch: "", employeeDropdown: false }))}
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                        >
-                          {em.name}
-                        </div>
-                      ))}
-                      {employeeOptions.filter(em => em.name.toLowerCase().includes((form.employeeSearch || "").toLowerCase())).length === 0 && (
-                        <div className="px-3 py-2 text-sm text-gray-400">No employees</div>
-                      )}
-                    </div>
-                  </div>
-                )}
+
               </div>
 
               {/* Employee Remarks */}
@@ -779,219 +734,50 @@ const GoodsReceipt = () => {
               </button>
             </div>
             {/* filters */}
-            <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-              {/* supplier filter */}
-              <div className="relative w-40" ref={dropdownRefs.supplier}>
-                <input
-                  readOnly
-                  onClick={() => setDropdownOpen((p) => ({ ...p, supplier: !p.supplier }))}
-                  value={filterSupplier || ""}
-                  placeholder="Supplier"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm cursor-pointer"
-                />
-                {dropdownOpen.supplier && (
-                  <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[180px] overflow-auto">
-                    <div className="p-2">
-                      <input
-                        value={ddSearch.supplier}
-                        onChange={(e) => setDdSearch((p) => ({ ...p, supplier: e.target.value }))}
-                        placeholder="Search supplier..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
-                      />
-                    </div>
-                    {supplierOptions
-                      .filter(s => s.name.toLowerCase().includes((ddSearch.supplier || "").toLowerCase()))
-                      .map(s => (
-                        <div
-                          key={s.id}
-                          onClick={() => {
-                            setFilterSupplier(s.name);
-                            setDropdownOpen((p) => ({ ...p, supplier: false }));
-                            setDdSearch((p) => ({ ...p, supplier: "" }));
-                          }}
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                        >
-                          {s.name}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-
-              {/* purchase bill filter */}
-              <div className="relative w-36" ref={dropdownRefs.purchaseBill}>
-                <input
-                  readOnly
-                  onClick={() => setDropdownOpen((p) => ({ ...p, purchaseBill: !p.purchaseBill }))}
-                  value={filterPurchaseBill || ""}
-                  placeholder="Purchase Bill"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm cursor-pointer"
-                />
-                {dropdownOpen.purchaseBill && (
-                  <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[160px] overflow-auto">
-                    <div className="p-2">
-                      <input
-                        value={ddSearch.purchaseBill}
-                        onChange={(e) => setDdSearch((p) => ({ ...p, purchaseBill: e.target.value }))}
-                        placeholder="Search bill..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
-                      />
-                    </div>
-                    {purchaseOptions.filter(pb => pb.name.toLowerCase().includes((ddSearch.purchaseBill || "").toLowerCase())).map(pb => (
-                      <div
-                        key={pb.id}
-                        onClick={() => {
-                          setFilterPurchaseBill(pb.name);
-                          setDropdownOpen((p) => ({ ...p, purchaseBill: false }));
-                          setDdSearch((p) => ({ ...p, purchaseBill: "" }));
-                        }}
-                        className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                      >
-                        {pb.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* date filter */}
-              <div className="w-36">
-                <input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm"
-                />
-              </div>
-
-              {/* time filter */}
-              <div className="w-28">
-                <input
-                  type="time"
-                  value={filterTime}
-                  onChange={(e) => setFilterTime(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm"
-                />
-              </div>
-
-              {/* employee filter */}
-              <div className="relative w-40" ref={dropdownRefs.employee}>
-                <input
-                  readOnly
-                  onClick={() => setDropdownOpen((p) => ({ ...p, employee: !p.employee }))}
-                  value={filterEmployee || ""}
-                  placeholder="Employee"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm cursor-pointer"
-                />
-                {dropdownOpen.employee && (
-                  <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[160px] overflow-auto">
-                    <div className="p-2">
-                      <input
-                        value={ddSearch.employee}
-                        onChange={(e) => setDdSearch((p) => ({ ...p, employee: e.target.value }))}
-                        placeholder="Search employee..."
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm outline-none"
-                      />
-                      {employeeOptions.length === 0 && (
-                        <div className="text-xs text-yellow-500 mt-2">Loading employees... ({employeeOptions.length})</div>
-                      )}
-                    </div>
-                    {employeeOptions && employeeOptions.length > 0 ? (
-                      employeeOptions.filter(em => em.name && em.name.toLowerCase().includes((ddSearch.employee || "").toLowerCase())).map(em => (
-                        <div
-                          key={em.id}
-                          onClick={() => {
-                            setFilterEmployee(em.name);
-                            setDropdownOpen((p) => ({ ...p, employee: false }));
-                            setDdSearch((p) => ({ ...p, employee: "" }));
-                          }}
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                        >
-                          {em.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-sm text-gray-400">No employees available</div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => {
-                  setFilterSupplier("");
-                  setFilterPurchaseBill("");
-                  setFilterDate("");
-                  setFilterTime("");
-                  setFilterEmployee("");
-                }}
-                className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm"
-              >
-                Clear Filters
-              </button>
+            {/* FILTER BAR */}
+            <div className="mb-4">
+               <FilterBar filters={filters} onClear={handleClearFilters} />
             </div>
-
             {/* table (scroll behavior same as Bank Transactions) */}
             <div className="flex-grow overflow-auto w-full min-h-0">
               <div className="w-full overflow-x-auto">
                 <table className="min-w-[1200px] border-separate border-spacing-y-1 text-sm table-fixed">
                   <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white text-center">
-                      {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-                      {visibleColumns.supplier && <th className="pb-2 border-b">Supplier</th>}
-                      {visibleColumns.purchaseBill && <th className="pb-2 border-b">Purchase Bill</th>}
-                      {visibleColumns.date && <th className="pb-2 border-b">Date</th>}
-                      {visibleColumns.totalQuantity && <th className="pb-2 border-b">Total Qty</th>}
-                      {visibleColumns.employee && <th className="pb-2 border-b">Employee</th>}
-                      {visibleColumns.remarks && <th className="pb-2 border-b">Remarks</th>}
-                      {visibleColumns.reference && <th className="pb-2 border-b">Reference</th>}
+                    <tr>
+                       {visibleColumns.id && <SortableHeader label="Number" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
+                       {visibleColumns.supplier && <SortableHeader label="Supplier" sortKey="supplierName" currentSort={sortConfig} onSort={handleSort} />}
+                       {visibleColumns.purchaseBill && <SortableHeader label="Bill" sortKey="purchaseBill" currentSort={sortConfig} onSort={handleSort} />}
+                       {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
+                       {visibleColumns.totalQuantity && <SortableHeader label="Total Qty" sortKey="totalQuantity" currentSort={sortConfig} onSort={handleSort} />}
+                       {visibleColumns.employee && <SortableHeader label="Employee" sortKey="employeeName" currentSort={sortConfig} onSort={handleSort} />}
+                       {visibleColumns.remarks && <th className="px-4 py-2 font-semibold">Remarks</th>}
+                       {visibleColumns.reference && <SortableHeader label="Reference" sortKey="reference" currentSort={sortConfig} onSort={handleSort} />}
                     </tr>
                   </thead>
-
-                  <tbody className="text-center">
-                    {filteredRows.map((r) => (
-                      <tr
-                        key={r.id}
-                        onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`, {
-                          state: { mode: !r.isActive ? 'restore' : 'edit' }
-                        })}
-                        className={`bg-gray-900 cursor-pointer ${!r.isActive
-                          ? "opacity-40 line-through hover:bg-gray-800"
-                          : "hover:bg-gray-700"
-                          }`}
-                      >
-                        {visibleColumns.id && <td className="px-2 py-3 text-center">{r.id}</td>}
-                        {visibleColumns.supplier && (
-                          <td className="px-2 py-3 text-center">{r.supplierName}</td>
-                        )}
-                        {visibleColumns.purchaseBill && (
-                          <td className="px-2 py-3 text-center">{r.purchaseBill}</td>
-                        )}
-                        {visibleColumns.date && <td className="px-2 py-3 text-center">{r.date}</td>}
-                        {visibleColumns.totalQuantity && (
-                          <td className="px-2 py-3 text-center">{r.totalQuantity}</td>
-                        )}
-                        {visibleColumns.employee && (
-                          <td className="px-2 py-3 text-center">{r.employeeName}</td>
-                        )}
-                        {visibleColumns.remarks && (
-                          <td className="px-2 py-3 text-center">{r.remarks}</td>
-                        )}
-                        {visibleColumns.reference && (
-                          <td className="px-2 py-3 text-center">{r.reference}</td>
-                        )}
-                      </tr>
-                    ))}
-
-                    {filteredRows.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={Object.values(visibleColumns).filter(Boolean).length}
-                          className="px-4 py-6 text-center text-gray-400"
-                        >
-                          No records found
-                        </td>
-                      </tr>
+                  <tbody>
+                    {sortedList.length > 0 ? (
+                        sortedList.slice(start - 1, end).map((r) => (
+                          <tr
+                            key={r.id}
+                            className={`border-b border-gray-800 bg-gray-900 cursor-pointer transition-colors ${!r.isActive ? 'opacity-40 line-through' : ''}`}
+                            onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`, { state: { mode: !r.isActive ? 'restore' : 'edit' } })}
+                          >
+                           {visibleColumns.id && <td className="px-2 py-3 text-center">{r.id}</td>}
+                           {visibleColumns.supplier && <td className="px-2 py-3 text-center">{r.supplierName}</td>}
+                           {visibleColumns.purchaseBill && <td className="px-2 py-3 text-center">{r.purchaseBill}</td>}
+                           {visibleColumns.date && <td className="px-2 py-3 text-center">{r.date || "-"}</td>}
+                           {visibleColumns.totalQuantity && <td className="px-2 py-3 text-center">{r.totalQuantity}</td>}
+                           {visibleColumns.employee && <td className="px-2 py-3 text-center">{r.employeeName || "-"}</td>}
+                           {visibleColumns.remarks && <td className="px-2 py-3 text-center">{r.remarks || "-"}</td>}
+                           {visibleColumns.reference && <td className="px-2 py-3 text-center">{r.reference || "-"}</td>}
+                          </tr>
+                        ))
+                    ) : (
+                        <tr>
+                          <td colSpan={10} className="px-4 py-6 text-center text-gray-400">
+                            No records found
+                          </td>
+                        </tr>
                     )}
                   </tbody>
                 </table>

@@ -12,6 +12,8 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
+import SearchableSelect from "../../components/SearchableSelect";
+import { useLocation } from "react-router-dom";
 
 // APIs (service-invoice & supporting)
 import {
@@ -27,6 +29,7 @@ import {
 
 const NewInvoices = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
 
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -64,8 +67,9 @@ const [newItem, setNewItem] = useState({
 
 
   // --- QUICK CREATE CUSTOMER MODAL STATE ---
-  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState("");
+  // --- QUICK CREATE CUSTOMER MODAL STATE ---
+  // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false); // Removed in favor of navigation
+  // const [newCustomerName, setNewCustomerName] = useState("");
 
   // --- BOTTOM SECTION STATE ---
   const [globalDiscount, setGlobalDiscount] = useState(0);
@@ -86,6 +90,26 @@ const [newItem, setNewItem] = useState({
     fetchEmployees();
     fetchServices();
   }, []);
+
+  // --- HANDLE RETURN FROM NEW CUSTOMER ---
+  useEffect(() => {
+    if (location.state?.newCustomerId) {
+      const newId = location.state.newCustomerId;
+      getCustomersApi(1, 1000).then(res => {
+         if(res.status === 200) {
+             const list = (res.data.records || []).map(r => ({
+                id: r.id ?? r.Id ?? r.customerId ?? r.CustomerId ?? null,
+                companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
+             }));
+             setCustomersList(list);
+             if(list.find(c => String(c.id) === String(newId))) {
+                 setCustomer(newId);
+             }
+         }
+      });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const fetchCustomers = async () => {
     try {
@@ -294,34 +318,8 @@ const [newItem, setNewItem] = useState({
   };
 
   /* ================= QUICK CREATE CUSTOMER ================= */
-  const handleCreateCustomer = async () => {
-    if (!newCustomerName.trim()) return toast.error("Customer name required");
-    try {
-      const res = await addCustomerApi({ companyName: newCustomerName, userId });
-      if (res.status === 200) {
-        toast.success("Customer added");
-        const updatedCustomers = await getCustomersApi(1, 1000);
-        if (updatedCustomers.status === 200) {
-          const records = Array.isArray(updatedCustomers?.data?.records)
-            ? updatedCustomers.data.records
-            : Array.isArray(updatedCustomers?.data)
-            ? updatedCustomers.data
-            : [];
-          const normalized = records.map((r) => ({
-            id: r.id ?? r.Id ?? r.customerId ?? r.CustomerId ?? null,
-            companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
-          }));
-          setCustomersList(normalized);
-          const newCustomer = normalized.find(c => c.companyName === newCustomerName || String(c.id) === String(res?.data?.id));
-          if (newCustomer) setCustomer(newCustomer.id);
-        }
-        setIsCustomerModalOpen(false);
-        setNewCustomerName("");
-      }
-    } catch (error) {
-      toast.error("Failed to add customer");
-    }
-  };
+  /* ================= QUICK CREATE CUSTOMER REMOVED (Replaced by Navigation) ================= */
+ /* const handleCreateCustomer = async () => { ... } */
 
   /* ================= TOTAL CALC (no tax on UI) ================= */
   useEffect(() => {
@@ -555,23 +553,18 @@ const [newItem, setNewItem] = useState({
         </label>
 
         <div className="flex-1 flex items-center gap-2">
-          <select
+          <SearchableSelect
+            options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
             value={customer}
-            onChange={(e) => setCustomer(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-          >
-            <option value="">-- select --</option>
-            {customersList.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.companyName}
-              </option>
-            ))}
-          </select>
+            onChange={setCustomer}
+            placeholder="Select customer..."
+            className="w-full"
+          />
 
           <Star
             size={20}
             className="text-white cursor-pointer hover:text-yellow-400"
-            onClick={() => setIsCustomerModalOpen(true)}
+            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
           />
         </div>
       </div>
@@ -625,18 +618,13 @@ const [newItem, setNewItem] = useState({
           <span className="text-red-400">*</span> Employee
         </label>
 
-        <select
-          value={employee}
-          onChange={(e) => setEmployee(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-        >
-          <option value="">-- select --</option>
-          {employeesList.map((emp) => (
-            <option key={emp.id} value={emp.id}>
-              {emp.name}
-            </option>
-          ))}
-        </select>
+        <SearchableSelect
+            options={employeesList.map(e => ({ id: e.id, name: e.name }))}
+            value={employee}
+            onChange={setEmployee}
+            placeholder="Select employee..."
+            className="w-full"
+        />
       </div>
     </div>
 
@@ -806,24 +794,25 @@ const [newItem, setNewItem] = useState({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Service select */}
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Service</label>
-                <div className="flex items-center gap-2">
-                 <select
-                    value={newItem.serviceId}
-                    onChange={(e) => handleServiceSelect(e.target.value)}
-                    className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                    required
-                    >
-                    <option value="">--select service--</option>
-                    {servicesList.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name ?? s.ServiceName ?? s.serviceName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+             <div className="md:col-span-2 w-full">
+  <label className="block text-sm text-gray-300 mb-1">
+    Service
+  </label>
+
+  <div className="w-full">
+    <SearchableSelect
+      options={servicesList.map(s => ({
+        id: s.id,
+        name: s.name ?? s.ServiceName ?? s.serviceName
+      }))}
+      value={newItem.serviceId}
+      onChange={handleServiceSelect}
+      placeholder="--select service--"
+      className="w-full"
+    />
+  </div>
+</div>
+
 
               {/* Description */}
               <div className="md:col-span-2">
@@ -932,40 +921,7 @@ const [newItem, setNewItem] = useState({
       )}
 
       {/* --- ADD CUSTOMER MODAL --- */}
-      {isCustomerModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-96 p-6 relative">
-            <button
-              onClick={() => setIsCustomerModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg text-white font-semibold mb-4">Add New Customer</h3>
-            <input
-              type="text"
-              placeholder="Customer Name"
-              value={newCustomerName}
-              onChange={(e) => setNewCustomerName(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsCustomerModalOpen(false)}
-                className="px-3 py-1.5 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateCustomer}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* --- ADD CUSTOMER MODAL REMOVED --- */}
 
     </PageLayout>
   );

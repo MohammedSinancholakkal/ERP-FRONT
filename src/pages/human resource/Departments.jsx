@@ -27,6 +27,8 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import SearchableSelect from "../../components/SearchableSelect";
+import SortableHeader from "../../components/SortableHeader";
 
 const Departments = () => {
   // =============================
@@ -82,34 +84,35 @@ const Departments = () => {
   const [searchColumn, setSearchColumn] = useState("");
 
   // SORT
-  const [sortOrder, setSortOrder] = useState("asc");
-  const sortedDepartments = [...departments];
-  if (sortOrder === "asc") sortedDepartments.sort((a, b) => a.id - b.id);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  // =============================
-  // SEARCHABLE DROPDOWN STATES
-  // =============================
-  const [parentSearchAdd, setParentSearchAdd] = useState("");
-  const [parentSearchEdit, setParentSearchEdit] = useState("");
-  const [parentDropdownAddOpen, setParentDropdownAddOpen] = useState(false);
-  const [parentDropdownEditOpen, setParentDropdownEditOpen] = useState(false);
+  const sortedDepartments = React.useMemo(() => {
+    let sortableItems = [...departments];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+          let aVal = a[sortConfig.key] || "";
+          let bVal = b[sortConfig.key] || "";
+          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+          
+          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+      });
+    } else {
+        // default sort by id
+        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
+    }
+    return sortableItems;
+  }, [departments, sortConfig]);
 
-  const addDropdownRef = useRef(null);
-  const editDropdownRef = useRef(null);
-
-  // close dropdown if clicking outside
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target)) {
-        setParentDropdownAddOpen(false);
-      }
-      if (editDropdownRef.current && !editDropdownRef.current.contains(e.target)) {
-        setParentDropdownEditOpen(false);
-      }
-    };
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, []);
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   // =============================
   // LOADERS
@@ -160,7 +163,6 @@ const Departments = () => {
     if (res.status === 200) {
       toast.success("Department added");
       setNewDepartment({ department: "", description: "", parentDepartmentId: null });
-      setParentSearchAdd("");
       setModalOpen(false);
       loadDepartments();
     }
@@ -183,7 +185,6 @@ const Departments = () => {
 
     if (res.status === 200) {
       toast.success("Updated");
-      setParentSearchEdit("");
       setEditModalOpen(false);
       loadDepartments();
     }
@@ -217,22 +218,7 @@ const Departments = () => {
     }
   };
 
-  // =============================
-  // FILTER FOR DROPDOWN
-  // =============================
-  const filteredAddParents = departments.filter((c) =>
-    c.department.toLowerCase().includes(parentSearchAdd.toLowerCase())
-  );
 
-  const filteredEditParents = departments.filter((c) =>
-    c.department.toLowerCase().includes(parentSearchEdit.toLowerCase())
-  );
-
-  // DROP-DOWN LABEL GETTER
-  const getParentName = (id) => {
-    const c = departments.find((x) => String(x.id) === String(id));
-    return c ? c.department : "";
-  };
 
   return (
     <>
@@ -241,7 +227,7 @@ const Departments = () => {
 ============================= */}
 {modalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
       
       {/* HEADER */}
       <div className="flex justify-between px-5 py-3 border-b border-gray-700">
@@ -276,50 +262,14 @@ const Departments = () => {
 
         {/* PARENT DEPARTMENT */}
         <label>Parent Department</label>
-
-        <div className="relative mt-1" ref={addDropdownRef}>
-          <input
-            type="text"
-            placeholder="Search parent department..."
-            value={
-              parentSearchAdd ||
-              newDepartment.parentName ||
-              getParentName(newDepartment.parentDepartmentId)
-            }
-            onChange={(e) => {
-              setParentSearchAdd(e.target.value);
-              setParentDropdownAddOpen(true);
-            }}
-            onFocus={() => setParentDropdownAddOpen(true)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-          />
-
-          {parentDropdownAddOpen && (
-            <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded mt-1 max-h-56 overflow-auto z-50">
-              {filteredAddParents.length > 0 ? (
-                filteredAddParents.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setNewDepartment((p) => ({
-                        ...p,
-                        parentDepartmentId: c.id,
-                        parentName: c.department
-                      }));
-                      setParentSearchAdd("");
-                      setParentDropdownAddOpen(false);
-                    }}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                  >
-                    {c.department}
-                  </div>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-400">No matches</div>
-              )}
-            </div>
-          )}
-        </div>
+        <SearchableSelect
+            value={newDepartment.parentDepartmentId}
+            onChange={(val) => setNewDepartment({ ...newDepartment, parentDepartmentId: val })}
+            options={departments.map(d => ({ id: d.id, name: d.department }))}
+            placeholder="Select parent department"
+            className="w-full mt-1"
+            direction = "up"
+        />
       </div>
 
       {/* FOOTER */}
@@ -340,7 +290,7 @@ const Departments = () => {
 ============================= */}
 {editModalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
       
       {/* HEADER */}
       <div className="flex justify-between px-5 py-3 border-b border-gray-700">
@@ -378,51 +328,15 @@ const Departments = () => {
 
         {/* PARENT DEPARTMENT */}
         <label>Parent Department</label>
-
-        <div className="relative mt-1" ref={editDropdownRef}>
-          <input
-            type="text"
-            placeholder="Search parent department..."
-            value={
-              parentSearchEdit ||
-              editDepartment.parentName ||
-              getParentName(editDepartment.parentDepartmentId)
-            }
-            onChange={(e) => {
-              setParentSearchEdit(e.target.value);
-              setParentDropdownEditOpen(true);
-            }}
-            onFocus={() => setParentDropdownEditOpen(true)}
+         <SearchableSelect
+            value={editDepartment.parentDepartmentId}
+            onChange={(val) => setEditDepartment({ ...editDepartment, parentDepartmentId: val })}
+            options={departments.map(d => ({ id: d.id, name: d.department }))}
+            placeholder="Select parent department"
             disabled={editDepartment.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-          />
-
-          {parentDropdownEditOpen && (
-            <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded mt-1 max-h-56 overflow-auto z-50">
-              {filteredEditParents.length > 0 ? (
-                filteredEditParents.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setEditDepartment((p) => ({
-                        ...p,
-                        parentDepartmentId: c.id,
-                        parentName: c.department
-                      }));
-                      setParentSearchEdit("");
-                      setParentDropdownEditOpen(false);
-                    }}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                  >
-                    {c.department}
-                  </div>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-400">No matches</div>
-              )}
-            </div>
-          )}
-        </div>
+            className="w-full mt-1"
+            direction="up"
+        />
       </div>
 
       {/* FOOTER */}
@@ -611,17 +525,17 @@ const Departments = () => {
                 <thead className="sticky top-0 bg-gray-900 z-10">
                   <tr className="text-white">
                     {visibleColumns.id && (
-                      <th className="pb-1 border-b border-white text-center cursor-pointer select-none" onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}>
-                        <div className="flex items-center justify-center gap-1">
-                          {sortOrder === "asc" && <span>▲</span>}
-                          {sortOrder === null && <span className="opacity-40">⬍</span>}
-                          <span>ID</span>
-                        </div>
-                      </th>
+                       <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
                     )}
-                    {visibleColumns.department && <th className="pb-1 border-b border-white text-center">Department</th>}
-                    {visibleColumns.description && <th className="pb-1 border-b border-white text-center">Description</th>}
-                    {visibleColumns.parentName && <th className="pb-1 border-b border-white text-center">Parent Department</th>}
+                    {visibleColumns.department && (
+                        <SortableHeader label="Department" sortKey="department" currentSort={sortConfig} onSort={handleSort} />
+                    )}
+                    {visibleColumns.description && (
+                         <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
+                    )}
+                    {visibleColumns.parentName && (
+                        <SortableHeader label="Parent Department" sortKey="parentName" currentSort={sortConfig} onSort={handleSort} />
+                    )}
                   </tr>
                 </thead>
 

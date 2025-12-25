@@ -4,6 +4,7 @@ import { Save, Star, X, ArrowLeft, Trash2, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import SearchableSelect from "../../components/SearchableSelect";
 import {
   getCountriesApi,
   getStatesApi,
@@ -39,129 +40,56 @@ const CustomDropdown = ({
   showStar = true,
   showPencil = true,
   onAddClick,
+  direction = "down", // "down" | "up"
 }) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const ref = useRef(null);
-  const searchInputRef = useRef(null);
-
-  // close on outside click
-  useEffect(() => {
-    const h = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-        setSearch("");
-      }
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  // ✅ auto focus search
-  useEffect(() => {
-    if (open && searchInputRef.current) {
-      setTimeout(() => searchInputRef.current.focus(), 0);
-    }
-  }, [open]);
-
-  const selected = list.find(
-    (x) => String(x.id ?? x.Id) === String(valueId)
-  );
-
-  const display =
-    selected?.label ||
-    selected?.name ||
-    selected?.CountryName ||
-    selected?.StateName ||
-    selected?.CityName ||
-    selected?.RegionName ||
-    selected?.regionName ||
-    selected?.GroupName ||
-    selected?.groupName ||
-    selected?.SupplierGroupName ||
-    "";
-
-  const filtered = list.filter((x) => {
-    const txt =
-      x.label ||
-      x.name ||
-      x.CountryName ||
-      x.StateName ||
-      x.CityName ||
-      x.RegionName ||
-      x.regionName ||
-      x.GroupName ||
-      x.groupName ||
-      x.SupplierGroupName ||
-      "";
-    return txt.toLowerCase().includes(search.toLowerCase());
-  });
+  // Map list items to { id, name } for SearchableSelect
+  const options = list.map(item => ({
+    id: item.id ?? item.Id,
+    name: item.label ||
+          item.name ||
+          item.CountryName ||
+          item.StateName ||
+          item.CityName ||
+          item.RegionName ||
+          item.regionName ||
+          item.GroupName ||
+          item.groupName ||
+          item.SupplierGroupName ||
+          ""
+  }));
 
   return (
-    <div ref={ref} className="relative w-full">
+    <div className="relative w-full">
       <label className="text-sm text-gray-300 mb-1 block">
         {label} {required && <span className="text-red-400">*</span>}
       </label>
 
       <div className="flex gap-2">
-        <div
-          onClick={() => setOpen((o) => !o)}
-          className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm flex justify-between items-center cursor-pointer"
-        >
-          <span className={display ? "text-white" : "text-gray-500"}>
-            {display || "--select--"}
-          </span>
-          <svg width="14" height="14" viewBox="0 0 24 24" className="text-gray-400">
-            <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" />
-          </svg>
+        <div className="flex-1">
+          <SearchableSelect
+            options={options}
+            value={valueId}
+            onChange={(id) => {
+               // Find original item to pass back
+               const originalItem = list.find(x => String(x.id ?? x.Id) === String(id));
+               onSelect(originalItem);
+             }}
+            placeholder="--select--"
+            direction={direction}
+            className="w-full"
+          />
         </div>
 
         {showStar && (
           <button
             type="button"
             onClick={onAddClick}
-            className="p-2 bg-gray-800 border border-gray-600 rounded"
+            className="p-2 bg-gray-800 border border-gray-600 rounded flex items-center justify-center"
           >
             <Star size={14} className="text-yellow-400" />
           </button>
         )}
       </div>
-
-      {open && (
-        <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow">
-          <input
-            ref={searchInputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
-            className="w-full bg-gray-900 px-3 py-2 text-sm border-b border-gray-700 outline-none"
-          />
-
-          {/* ✅ FIXED HEIGHT */}
-          <div className="max-h-[160px] overflow-y-auto">
-            {filtered.length ? (
-              filtered.map((item) => (
-                <div
-                  key={item.id ?? item.Id}
-                  onClick={() => {
-                    onSelect(item);
-                    setOpen(false);
-                    setSearch("");
-                  }}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                >
-                  {item.label || item.name}
-                </div>
-              ))
-            ) : (
-              <div className="px-3 py-2 text-gray-400 text-sm">
-                No results
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -525,7 +453,11 @@ const NewCustomers = () => {
         const res = await addCustomerApi(payload);
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Customer created");
-          navigate("/app/businesspartners/customers");
+          if (location.state?.returnTo) {
+             navigate(location.state.returnTo, { state: { newCustomerId: res.data?.record?.id || res.data?.id }});
+          } else {
+             navigate("/app/businesspartners/customers");
+          }
           return;
         }
       }
@@ -574,11 +506,17 @@ const NewCustomers = () => {
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-hidden">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-hidden">
         <div className="h-full overflow-y-auto pr-2">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
-              <button onClick={() => navigate("/app/businesspartners/customers")} className="p-1">
+              <button onClick={() => {
+                if(location.state?.returnTo) {
+                   navigate(location.state.returnTo);
+                } else {
+                   navigate("/app/businesspartners/customers");
+                }
+              }} className="p-1">
                 <ArrowLeft />
               </button>
               <h2 className="text-2xl font-semibold">
@@ -786,26 +724,28 @@ const NewCustomers = () => {
             </div>
 
             <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">NTN</label>
-              <input
-                value={form.ntn}
-                onChange={(e) => update("ntn", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
+              <label className="text-sm">NTN & VAT</label>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                    value={form.ntn}
+                    onChange={(e) => update("ntn", e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                    placeholder="NTN"
+                />
+                <input
+                    value={form.vat}
+                    onChange={(e) => update("vat", e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                    placeholder="VAT"
+                />
+              </div>
             </div>
+
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">STRN</label>
               <input
                 value={form.strn}
                 onChange={(e) => update("strn", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Vat</label>
-              <input
-                value={form.vat}
-                onChange={(e) => update("vat", e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
               />
             </div>
@@ -819,6 +759,7 @@ const NewCustomers = () => {
                 showStar={!isEditMode}
                 showPencil={isEditMode}
                 onAddClick={() => openQuickAdd("salesMan", "Sales Man")}
+                direction="up"
               />
             </div>
 
@@ -831,6 +772,7 @@ const NewCustomers = () => {
                 showStar={!isEditMode}
                 showPencil={isEditMode}
                 onAddClick={() => openQuickAdd("orderBooker", "Order Booker")}
+                direction="up"
               />
             </div>
           </div>

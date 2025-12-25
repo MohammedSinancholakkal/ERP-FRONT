@@ -33,6 +33,7 @@ import {
 
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import SearchableSelect from "../../components/SearchableSelect";
 
 const NewMeeting = () => {
   const navigate = useNavigate();
@@ -116,8 +117,8 @@ const NewMeeting = () => {
       id: String(r.Id),
       name: `${r.FirstName} ${r.LastName ?? ""}`.trim(),
       employeeId: r.Id,
-      departmentName: "",     // ❗ employees API DOES NOT HAVE THIS
-      designationName: ""     // ❗ employees API DOES NOT HAVE THIS
+      departmentName: "",    
+      designationName: ""    
     }));
 
 
@@ -223,11 +224,9 @@ const NewMeeting = () => {
 
         if (!m) return;
 
-        // Smart Match Helper: specific to this scope
         const resolveId = (val, list) => {
           if (!val) return "";
           const strVal = String(val);
-          // If it's already a number/ID in the list, return it
           if (list.some(item => String(item.id) === strVal)) return strVal;
 
           // Otherwise try to find by Name (case insensitive)
@@ -237,8 +236,6 @@ const NewMeeting = () => {
 
         setForm({
           meetingName: m.meetingName ?? "",
-
-          // 🔑 Use resolveId to handle text values ("Review" -> "5")
           meetingType: resolveId(m.meetingType, meetingTypes),
           department: resolveId(m.department, departments),
           location: resolveId(m.location, locations),
@@ -297,8 +294,8 @@ const NewMeeting = () => {
         const res = await getCountriesApi(1, 5000);
         setModalCountries(
           (res?.data?.records || []).map(c => ({
-            id: String(c.Id),
-            name: c.Name
+            id: String(c.Id ?? c.id),
+            name: c.Name ?? c.name
           }))
         );
 
@@ -314,8 +311,8 @@ const NewMeeting = () => {
         const res = await getStatesByCountryApi(newLocation.countryId);
         setLocationModalStates(
           (res?.data || []).map(s => ({
-            id: String(s.Id),
-            name: s.Name
+            id: String(s.Id ?? s.id),
+            name: s.Name ?? s.name
           }))
         );
       };
@@ -334,8 +331,8 @@ const NewMeeting = () => {
         const filtered = allCities.filter(c => String(c.stateId) === String(newLocation.stateId));
         setLocationModalCities(
           filtered.map(c => ({
-            id: String(c.Id),
-            name: c.Name
+            id: String(c.Id ?? c.id),
+            name: c.Name ?? c.name
           }))
         );
       };
@@ -350,7 +347,10 @@ const NewMeeting = () => {
     if (newCity.countryId) {
       const fetchStates = async () => {
         const res = await getStatesByCountryApi(newCity.countryId);
-        setModalStates(res?.data || []);
+        setModalStates((res?.data || []).map(s => ({
+            id: String(s.Id ?? s.id),
+            name: s.Name ?? s.name
+        })));
       };
       fetchStates();
     } else {
@@ -626,12 +626,7 @@ const NewMeeting = () => {
       toast.success("City Added");
       setNewCity({ name: "", countryId: "", stateId: "" });
       setAddCityModalOpen(false);
-      // Refresh cities if state selected
       if (newLocation.stateId) {
-        // Note: getCitiesApi is paginated, but we might need a way to get cities by state or just refresh the list.
-        // For now, let's assume we rely on the main location modal to re-fetch or we might need a specific API.
-        // Actually, the Location modal usually filters cities by state.
-        // Let's just re-fetch all cities or handle it via useEffect in the modal.
       }
     } catch (error) {
       console.error(error);
@@ -681,7 +676,7 @@ const NewMeeting = () => {
 
   return (
     <PageLayout>
-      <div className="p-5 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+      <div className="p-5 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <button
@@ -759,63 +754,65 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">Department</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Department")} />
+                <label className="text-sm text-white">Department</label>
+                <div className="flex gap-2">
+                    <SearchableSelect
+                      options={departments.map(d => ({ id: d.id, name: d.name }))}
+                      value={form.department}
+                      onChange={(val) => updateField("department", val)}
+                      placeholder="--select--"
+                      className="w-full"
+                    />
+                    <button
+                        onClick={() => handleCreateNew("Department")}
+                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                        title="Add Department"
+                    >
+                        <Star size={16} />
+                    </button>
                 </div>
-                <select
-                  value={form.department}
-                  onChange={(e) => updateField("department", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id} className="text-white bg-gray-800">
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">Organized By</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Organizer")} />
+                <label className="text-sm text-white">Organized By</label>
+                <div className="flex gap-2">
+                    <SearchableSelect
+                      options={employees.map(e => ({ id: e.id, name: e.name }))}
+                      value={form.organizedBy}
+                      onChange={(val) => updateField("organizedBy", val)}
+                      placeholder="--select--"
+                      className="w-full"
+                    />
+                    <button
+                        onClick={() => handleCreateNew("Organizer")}
+                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                        title="Add Organizer"
+                    >
+                        <Star size={16} />
+                    </button>
                 </div>
-                <select
-                  value={form.organizedBy}
-                  onChange={(e) => updateField("organizedBy", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id} className="text-white bg-gray-800">
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">Meeting Type *</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Meeting Type")} />
+                <label className="text-sm text-white">Meeting Type *</label>
+                <div className="flex gap-2">
+                    <SearchableSelect
+                      options={meetingTypes.map(mt => ({ id: mt.id, name: mt.name }))}
+                      value={form.meetingType}
+                      onChange={(val) => updateField("meetingType", val)}
+                      placeholder="--select--"
+                      className="w-full"
+                    />
+                    <button
+                        onClick={() => handleCreateNew("Meeting Type")}
+                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                        title="Add Meeting Type"
+                    >
+                        <Star size={16} />
+                    </button>
                 </div>
-                <select
-                  value={String(form.meetingType || "")}
-                  onChange={(e) => updateField("meetingType", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {meetingTypes.map((mt) => (
-                    <option key={mt.id} value={mt.id} className="text-white bg-gray-800">
-                      {mt.name}
-                    </option>
-                  ))}
-                </select>
-
               </div>
 
               <div>
@@ -829,41 +826,43 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">Location</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Location")} />
+                <label className="text-sm text-white">Location</label>
+                <div className="flex gap-2">
+                    <SearchableSelect
+                      options={locations.map(l => ({ id: l.id, name: l.name }))}
+                      value={form.location}
+                      onChange={(val) => updateField("location", val)}
+                      placeholder="--select--"
+                      className="w-full"
+                    />
+                    <button
+                        onClick={() => handleCreateNew("Location")}
+                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                        title="Add Location"
+                    >
+                        <Star size={16} />
+                    </button>
                 </div>
-                <select
-                  value={form.location}
-                  onChange={(e) => updateField("location", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id} className="text-white bg-gray-800">
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">Reporter</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Reporter")} />
+                <label className="text-sm text-white">Reporter</label>
+                <div className="flex gap-2">
+                    <SearchableSelect
+                      options={employees.map(e => ({ id: e.id, name: e.name }))}
+                      value={form.reporter}
+                      onChange={(val) => updateField("reporter", val)}
+                      placeholder="--select--"
+                      className="w-full"
+                    />
+                     <button
+                        onClick={() => handleCreateNew("Reporter")}
+                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                        title="Add Reporter"
+                    >
+                        <Star size={16} />
+                    </button>
                 </div>
-                <select
-                  value={form.reporter}
-                  onChange={(e) => updateField("reporter", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id} className="text-white bg-gray-800">
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
           </div>
@@ -935,7 +934,7 @@ const NewMeeting = () => {
 
       {showAttendeeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center overflow-y-auto py-10 z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[500px] max-h-[80vh] overflow-y-auto shadow-xl">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] max-h-[80vh] overflow-y-auto shadow-xl">
 
             {/* HEADER */}
             <div className="flex justify-between mb-4">
@@ -946,79 +945,73 @@ const NewMeeting = () => {
               {/* TOP CLOSE BUTTON */}
               <X
                 size={22}
-                className="cursor-pointer hover:text-red-400"
+                className="cursor-pointer hover:text-white"
                 onClick={() => setShowAttendeeModal(false)}
               />
             </div>
 
             {/* ATTENDEE DROPDOWN */}
-            <label className="text-sm text-white">Attendee *</label>
-            <select
-              value={attendeeForm.attendee}
-              onChange={(e) =>
-                setAttendeeForm({ ...attendeeForm, attendee: e.target.value })
-              }
-              className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1 mb-3"
-            >
-              <option value="">--select--</option>
-              {employees.map((e) => (
-                <option
-                  key={e.id}
-                  value={e.id}
-                  className="text-gray-200 bg-gray-800"
-                >
-                  {e.name}
-                </option>
-              ))}
-            </select>
+            <div className="mb-3">
+              <label className="text-sm text-white">Attendee *</label>
+              <div className="flex gap-2">
+                  <SearchableSelect
+                    options={employees.map(e => ({ id: e.id, name: e.name }))}
+                    value={attendeeForm.attendee}
+                    onChange={(val) => setAttendeeForm({ ...attendeeForm, attendee: val })}
+                    placeholder="--select--"
+                    className="w-full"
+                  />
+                  <button
+                      onClick={() => handleCreateNew("Organizer")}
+                      className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                      title="Add Attendee"
+                  >
+                      <Star size={16} />
+                  </button>
+              </div>
+            </div>
 
             {/* TYPE DROPDOWN */}
-            <div className="flex items-center gap-2 mb-1">
+             <div className="mb-3">
               <label className="text-sm text-white">Attendee Type *</label>
-              <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Attendee Type")} />
+              <div className="flex gap-2">
+                  <SearchableSelect
+                    options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
+                    value={attendeeForm.attendeeType}
+                    onChange={(val) => setAttendeeForm({ ...attendeeForm, attendeeType: val })}
+                    placeholder="--select--"
+                    className="w-full"
+                  />
+                   <button
+                      onClick={() => handleCreateNew("Attendee Type")}
+                      className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                      title="Add Attendee Type"
+                  >
+                      <Star size={16} />
+                  </button>
+              </div>
             </div>
-            <select
-              value={attendeeForm.attendeeType}
-              onChange={(e) =>
-                setAttendeeForm({ ...attendeeForm, attendeeType: e.target.value })
-              }
-              className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-3"
-            >
-              <option value="">--select--</option>
-              {attendeeTypes.map((t) => (
-                <option
-                  key={t.id}
-                  value={t.id}
-                  className="text-gray-200 bg-gray-800"
-                >
-                  {t.name}
-                </option>
-              ))}
-            </select>
 
             {/* STATUS DROPDOWN */}
-            <div className="flex items-center gap-2 mb-1">
+             <div className="mb-6">
               <label className="text-sm text-white">Attendance Status *</label>
-              <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => handleCreateNew("Attendance Status")} />
+              <div className="flex gap-2">
+                  <SearchableSelect
+                    options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
+                    value={attendeeForm.attendanceStatus}
+                    onChange={(val) => setAttendeeForm({ ...attendeeForm, attendanceStatus: val })}
+                    placeholder="--select--"
+                    className="w-full"
+                  />
+                   <button
+                      onClick={() => handleCreateNew("Attendance Status")}
+                      className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                      title="Add Status"
+                  >
+                      <Star size={16} />
+                  </button>
+              </div>
             </div>
-            <select
-              value={attendeeForm.attendanceStatus}
-              onChange={(e) =>
-                setAttendeeForm({ ...attendeeForm, attendanceStatus: e.target.value })
-              }
-              className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-6"
-            >
-              <option value="">--select--</option>
-              {attendanceStatuses.map((s) => (
-                <option
-                  key={s.id}
-                  value={s.id}
-                  className="text-gray-200 bg-gray-800"
-                >
-                  {s.name}
-                </option>
-              ))}
-            </select>
 
             {/* FOOTER BUTTONS */}
             <div className="flex justify-end gap-3">
@@ -1028,7 +1021,7 @@ const NewMeeting = () => {
                 onClick={() => setShowAttendeeModal(false)}
                 className="flex items-center gap-2 bg-red-700 border border-gray-600 px-4 py-2 rounded text-sm text-gray-300 hover:bg-gray-600"
               >
-                <X size={16} /> Close
+                <X size={16} /> Cancel
               </button>
 
               {/* SAVE BUTTON */}
@@ -1080,10 +1073,10 @@ const NewMeeting = () => {
       {/* DEPARTMENT MODAL */}
       {departmentModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[500px] shadow-xl">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
             <div className="flex justify-between mb-4">
               <h3 className="text-white text-lg">Add Department</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setDepartmentModalOpen(false)} />
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setDepartmentModalOpen(false)} />
             </div>
 
             <div className="space-y-4">
@@ -1108,37 +1101,19 @@ const NewMeeting = () => {
 
               <div>
                 <label className="text-sm text-white">Parent Department</label>
-                <input
-                  type="text"
-                  placeholder="Search parent..."
-                  value={parentDeptSearch}
-                  onChange={(e) => setParentDeptSearch(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                <SearchableSelect
+                  options={departments.map(d => ({ id: d.id, name: d.name }))}
+                  value={newDepartment.parentDepartmentId}
+                  onChange={(val) => setNewDepartment({ ...newDepartment, parentDepartmentId: val })}
+                  placeholder="--select--"
+                  className="w-full"
                 />
-                {parentDeptSearch && (
-                  <div className="max-h-40 overflow-y-auto bg-gray-800 border border-gray-600 rounded mt-1">
-                    {departments
-                      .filter((d) => d.name.toLowerCase().includes(parentDeptSearch.toLowerCase()))
-                      .map((d) => (
-                        <div
-                          key={d.id}
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-white"
-                          onClick={() => {
-                            setNewDepartment({ ...newDepartment, parentDepartmentId: d.id });
-                            setParentDeptSearch(d.name);
-                          }}
-                        >
-                          {d.name}
-                        </div>
-                      ))}
-                  </div>
-                )}
               </div>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setDepartmentModalOpen(false)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Cancel</button>
-              <button onClick={handleSaveDepartment} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              <button onClick={() => setDepartmentModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveDepartment} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
             </div>
           </div>
         </div>
@@ -1147,10 +1122,10 @@ const NewMeeting = () => {
       {/* LOCATION MODAL */}
       {locationModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[600px] max-h-[90vh] overflow-y-auto shadow-xl">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between mb-4">
               <h3 className="text-white text-lg">Add Location</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setLocationModalOpen(false)} />
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setLocationModalOpen(false)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1165,54 +1140,69 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">Country</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => setAddCountryModalOpen(true)} />
+                 <div className="space-y-1">
+                    <label className="text-sm text-white">Country</label>
+                    <div className="flex gap-2">
+                        <SearchableSelect
+                          options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
+                          value={newLocation.countryId}
+                          onChange={(val) => setNewLocation({ ...newLocation, countryId: val, stateId: "", cityId: "" })}
+                          placeholder="--select--"
+                          className="w-full"
+                        />
+                         <button
+                            onClick={() => setAddCountryModalOpen(true)}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add Country"
+                        >
+                            <Star size={16} />
+                        </button>
+                    </div>
                 </div>
-                <select
-                  value={newLocation.countryId}
-                  onChange={(e) => setNewLocation({ ...newLocation, countryId: e.target.value, stateId: "", cityId: "" })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {modalCountries.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">State</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => setAddStateModalOpen(true)} />
+                <div className="space-y-1">
+                    <label className="text-sm text-white">State</label>
+                    <div className="flex gap-2">
+                        <SearchableSelect
+                          options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
+                          value={newLocation.stateId}
+                          onChange={(val) => setNewLocation({ ...newLocation, stateId: val, cityId: "" })}
+                          placeholder="--select--"
+                          className="w-full"
+                        />
+                         <button
+                            onClick={() => setAddStateModalOpen(true)}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add State"
+                        >
+                            <Star size={16} />
+                        </button>
+                    </div>
                 </div>
-                <select
-                  value={newLocation.stateId}
-                  onChange={(e) => setNewLocation({ ...newLocation, stateId: e.target.value, cityId: "" })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {locationModalStates.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm text-white">City</label>
-                  <Star size={14} className="text-yellow-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => setAddCityModalOpen(true)} />
+                 <div className="space-y-1">
+                    <label className="text-sm text-white">City</label>
+                    <div className="flex gap-2">
+                        <SearchableSelect
+                          options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
+                          value={newLocation.cityId}
+                          onChange={(val) => setNewLocation({ ...newLocation, cityId: val })}
+                          placeholder="--select--"
+                          className="w-full"
+                        />
+                         <button
+                            onClick={() => setAddCityModalOpen(true)}
+                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            title="Add City"
+                        >
+                            <Star size={16} />
+                        </button>
+                    </div>
                 </div>
-                <select
-                  value={newLocation.cityId}
-                  onChange={(e) => setNewLocation({ ...newLocation, cityId: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
-                >
-                  <option value="">--select--</option>
-                  {locationModalCities.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
               </div>
 
               <div>
@@ -1246,9 +1236,11 @@ const NewMeeting = () => {
               </div>
             </div>
 
+
+
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setLocationModalOpen(false)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Cancel</button>
-              <button onClick={handleSaveLocation} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              <button onClick={() => setLocationModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveLocation} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
             </div>
           </div>
         </div>
@@ -1268,10 +1260,10 @@ const NewMeeting = () => {
       {/* NESTED ADD STATE MODAL */}
       {addStateModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[400px] shadow-xl">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
             <div className="flex justify-between mb-4">
               <h3 className="text-white text-lg">Add State</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setAddStateModalOpen(false)} />
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setAddStateModalOpen(false)} />
             </div>
 
             <div className="space-y-4">
@@ -1286,22 +1278,19 @@ const NewMeeting = () => {
               </div>
               <div>
                 <label className="text-sm text-white">Country *</label>
-                <select
+                <SearchableSelect
+                  options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newState.countryId}
-                  onChange={(e) => setNewState({ ...newState, countryId: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
-                >
-                  <option value="">--select--</option>
-                  {modalCountries.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setNewState({ ...newState, countryId: val })}
+                  placeholder="--select--"
+                  className="w-full"
+                />
               </div>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setAddStateModalOpen(false)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Cancel</button>
-              <button onClick={handleSaveState} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              <button onClick={() => setAddStateModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveState} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
             </div>
           </div>
         </div>
@@ -1310,10 +1299,10 @@ const NewMeeting = () => {
       {/* NESTED ADD CITY MODAL */}
       {addCityModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[400px] shadow-xl">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
             <div className="flex justify-between mb-4">
               <h3 className="text-white text-lg">Add City</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={() => setAddCityModalOpen(false)} />
+              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setAddCityModalOpen(false)} />
             </div>
 
             <div className="space-y-4">
@@ -1328,35 +1317,29 @@ const NewMeeting = () => {
               </div>
               <div>
                 <label className="text-sm text-white">Country *</label>
-                <select
+                <SearchableSelect
+                  options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newCity.countryId}
-                  onChange={(e) => setNewCity({ ...newCity, countryId: e.target.value, stateId: "" })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
-                >
-                  <option value="">--select--</option>
-                  {modalCountries.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setNewCity({ ...newCity, countryId: val, stateId: "" })}
+                  placeholder="--select--"
+                  className="w-full"
+                />
               </div>
               <div>
                 <label className="text-sm text-white">State *</label>
-                <select
+                <SearchableSelect
+                  options={modalStates.map(s => ({ id: s.id, name: s.name }))}
                   value={newCity.stateId}
-                  onChange={(e) => setNewCity({ ...newCity, stateId: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
-                >
-                  <option value="">--select--</option>
-                  {modalStates.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setNewCity({ ...newCity, stateId: val })}
+                  placeholder="--select--"
+                  className="w-full"
+                />
               </div>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setAddCityModalOpen(false)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Cancel</button>
-              <button onClick={handleSaveCity} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+              <button onClick={() => setAddCityModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white rounded hover:bg-gray-700">Cancel</button>
+              <button onClick={handleSaveCity} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
             </div>
           </div>
         </div>
@@ -1373,10 +1356,10 @@ const SimpleModal = ({ title, isOpen, onClose, onSave, value, setValue, placehol
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[400px] shadow-xl">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
         <div className="flex justify-between mb-4">
           <h3 className="text-white text-lg">{title}</h3>
-          <X size={20} className="cursor-pointer text-gray-400 hover:text-red-400" onClick={onClose} />
+          <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={onClose} />
         </div>
         <input
           type="text"
@@ -1386,8 +1369,8 @@ const SimpleModal = ({ title, isOpen, onClose, onSave, value, setValue, placehol
           className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-4"
         />
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Cancel</button>
-          <button onClick={onSave} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+          <button onClick={onClose} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
+          <button onClick={onSave} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
         </div>
       </div>
     </div>

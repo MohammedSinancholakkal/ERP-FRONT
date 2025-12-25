@@ -72,20 +72,16 @@ const Banks = () => {
     acName: true,
     acNumber: true,
     branch: true,
-    signature: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultCols);
-  const [tempCols, setTempCols] = useState(defaultCols);
   const [searchColumn, setSearchColumn] = useState("");
 
-  const toggleColumnTemp = (col) =>
-    setTempCols((prev) => ({ ...prev, [col]: !prev[col] }));
+  const toggleColumn = (col) => {
+    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
+  };
 
-  const restoreDefaults = () => setTempCols(defaultCols);
-
-  const applyColumnChanges = () => {
-    setVisibleColumns(tempCols);
-    setColumnModal(false);
+  const restoreDefaults = () => {
+    setVisibleColumns(defaultCols);
   };
 
   // PAGINATION
@@ -338,7 +334,7 @@ const Banks = () => {
       {/* ADD MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Bank</h2>
               <button onClick={() => setModalOpen(false)}>
@@ -406,7 +402,7 @@ const Banks = () => {
       {/* EDIT MODAL */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">
                 {editData.isInactive ? "Restore Bank" : "Edit Bank"}
@@ -499,69 +495,95 @@ const Banks = () => {
 
       {/* COLUMN PICKER MODAL */}
       {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)}>
-                <X className="text-gray-300 hover:text-white" />
+              <button
+                onClick={() => setColumnModal(false)}
+                className="text-gray-300 hover:text-white"
+              >
+                <X size={20} />
               </button>
             </div>
+
+            {/* SEARCH */}
             <div className="px-5 py-3">
               <input
                 type="text"
-                placeholder="Search column..."
+                placeholder="search columns..."
                 value={searchColumn}
                 onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
               />
             </div>
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
-                {Object.keys(tempCols)
-                  .filter((col) => tempCols[col] && col.includes(searchColumn))
+
+            {/* VISIBLE / HIDDEN COLUMNS */}
+            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
+
+                {Object.keys(visibleColumns)
+                  .filter((col) => visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
                   .map((col) => (
                     <div
                       key={col}
-                      className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2"
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
                     >
-                      <span>{col.toUpperCase()}</span>
-                      <button onClick={() => toggleColumnTemp(col)} className="text-red-400">
-                        ✕
+                      <span>☰ {col.toUpperCase()}</span>
+                      <button
+                        className="text-red-400"
+                        onClick={() => toggleColumn(col)}
+                      >
+                        ✖
                       </button>
                     </div>
                   ))}
               </div>
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
-                {Object.keys(tempCols)
-                  .filter((col) => !tempCols[col] && col.includes(searchColumn))
+
+              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
+                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
+
+                {Object.keys(visibleColumns)
+                  .filter((col) => !visibleColumns[col])
+                  .filter((col) => col.includes(searchColumn))
                   .map((col) => (
                     <div
                       key={col}
-                      className="bg-gray-800 px-3 py-2 rounded flex justify-between mb-2"
+                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
                     >
-                      <span>{col.toUpperCase()}</span>
-                      <button onClick={() => toggleColumnTemp(col)} className="text-green-400">
+                      <span>☰ {col.toUpperCase()}</span>
+                      <button
+                        className="text-green-400"
+                        onClick={() => toggleColumn(col)}
+                      >
                         ➕
                       </button>
                     </div>
                   ))}
+
+                {Object.keys(visibleColumns).filter(
+                  (col) => !visibleColumns[col]
+                ).length === 0 && (
+                  <p className="text-gray-400 text-sm">No hidden columns</p>
+                )}
               </div>
             </div>
+
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={restoreDefaults} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
+              <button
+                onClick={restoreDefaults}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
                 Restore Defaults
               </button>
-              <div className="flex gap-3">
-                <button onClick={applyColumnChanges} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
-                  OK
-                </button>
-                <button onClick={() => setColumnModal(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
-                  Cancel
-                </button>
-              </div>
+              <button
+                onClick={() => setColumnModal(false)}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
@@ -599,10 +621,7 @@ const Banks = () => {
                 <RefreshCw size={16} className="text-blue-400" />
               </button>
               <button
-                onClick={() => {
-                   setTempCols(visibleColumns);
-                   setColumnModal(true);
-                }}
+                onClick={() => setColumnModal(true)}
                 className="p-2 bg-gray-700 border border-gray-600 rounded"
               >
                 <List size={16} className="text-blue-300" />
@@ -620,7 +639,7 @@ const Banks = () => {
             </div>
 
             <div className="flex-grow overflow-auto min-h-0">
-              <table className="w-full border-separate border-spacing-y-1 text-sm">
+              <table className="w-[1000px] border-separate border-spacing-y-1 text-sm">
                 <thead className="sticky top-0 bg-gray-900 z-10">
                   <tr className="text-white">
                     {visibleColumns.id && (
@@ -635,11 +654,8 @@ const Banks = () => {
                     {visibleColumns.acName && (
                        <SortableHeader label="A/C Name" sortOrder={sortConfig.key === "acName" ? sortConfig.direction : null} onClick={() => handleSort("acName")} />
                     )}
-                     {visibleColumns.branch && (
+                    {visibleColumns.branch && (
                        <SortableHeader label="Branch" sortOrder={sortConfig.key === "branch" ? sortConfig.direction : null} onClick={() => handleSort("branch")} />
-                    )}
-                    {visibleColumns.signature && (
-                      <th className="pb-1 border-b border-white text-center">Signature</th>
                     )}
                   </tr>
                 </thead>
@@ -663,13 +679,6 @@ const Banks = () => {
                          {visibleColumns.acNumber && <td className="px-2 py-1">{r.acNumber}</td>}
                          {visibleColumns.acName && <td className="px-2 py-1">{r.acName}</td>}
                          {visibleColumns.branch && <td className="px-2 py-1">{r.branch}</td>}
-                         {visibleColumns.signature && (
-                             <td className="px-2 py-1">
-                                {r.signature ? (
-                                    <img src={`${serverURL}/uploads/${r.signature}`} alt="Sig" className="h-6 mx-auto" />
-                                ) : '-'}
-                             </td>
-                         )}
                       </tr>
                     ))}
 
@@ -685,13 +694,6 @@ const Banks = () => {
                          {visibleColumns.acNumber && <td className="px-2 py-1">{r.acNumber}</td>}
                          {visibleColumns.acName && <td className="px-2 py-1">{r.acName}</td>}
                          {visibleColumns.branch && <td className="px-2 py-1">{r.branch}</td>}
-                          {visibleColumns.signature && (
-                             <td className="px-2 py-1">
-                                {r.signature ? (
-                                    <img src={`${serverURL}/uploads/${r.signature}`} alt="Sig" className="h-6 mx-auto" />
-                                ) : '-'}
-                             </td>
-                         )}
                       </tr>
                     ))}
                 </tbody>

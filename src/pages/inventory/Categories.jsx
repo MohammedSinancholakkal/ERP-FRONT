@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
+import SearchableSelect from "../../components/SearchableSelect";
 
 import toast from "react-hot-toast";
 
@@ -105,20 +106,14 @@ const end = Math.min(page * limit, totalRecords);
   // =============================
   // SEARCHABLE DROPDOWN STATES
   // =============================
-  const [parentSearchAdd, setParentSearchAdd] = useState("");
   const [parentSearchEdit, setParentSearchEdit] = useState("");
-  const [parentDropdownAddOpen, setParentDropdownAddOpen] = useState(false);
   const [parentDropdownEditOpen, setParentDropdownEditOpen] = useState(false);
 
-  const addDropdownRef = useRef(null);
   const editDropdownRef = useRef(null);
 
   // close dropdown if clicking outside
   useEffect(() => {
     const handleClick = (e) => {
-      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target)) {
-        setParentDropdownAddOpen(false);
-      }
       if (editDropdownRef.current && !editDropdownRef.current.contains(e.target)) {
         setParentDropdownEditOpen(false);
       }
@@ -176,7 +171,6 @@ const end = Math.min(page * limit, totalRecords);
     if (res.status === 200) {
       toast.success("Category added");
       setNewCategory({ name: "", description: "", parentCategoryId: null });
-      setParentSearchAdd("");
       setModalOpen(false);
       loadCategories();
     }
@@ -236,9 +230,7 @@ const end = Math.min(page * limit, totalRecords);
   // =============================
   // FILTER FOR DROPDOWN
   // =============================
-  const filteredAddParents = categories.filter((c) =>
-    c.name.toLowerCase().includes(parentSearchAdd.toLowerCase())
-  );
+
 
   const filteredEditParents = categories.filter((c) =>
     c.name.toLowerCase().includes(parentSearchEdit.toLowerCase())
@@ -257,7 +249,7 @@ const end = Math.min(page * limit, totalRecords);
 ============================= */}
 {modalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
       
       {/* HEADER */}
       <div className="flex justify-between px-5 py-3 border-b border-gray-700">
@@ -293,48 +285,18 @@ const end = Math.min(page * limit, totalRecords);
         {/* PARENT CATEGORY */}
         <label>Parent Category</label>
 
-        <div className="relative mt-1" ref={addDropdownRef}>
-          <input
-            type="text"
-            placeholder="Search parent category..."
-            value={
-              parentSearchAdd ||
-              newCategory.parentName ||
-              getParentName(newCategory.parentCategoryId)
-            }
-            onChange={(e) => {
-              setParentSearchAdd(e.target.value);
-              setParentDropdownAddOpen(true);
+        <div className="mt-1">
+          <SearchableSelect
+            options={categories.map(c => ({ id: c.id, name: c.name }))}
+            value={newCategory.parentCategoryId}
+            onChange={(v) => {
+               const selected = categories.find(c => String(c.id) === String(v));
+               setNewCategory(p => ({ ...p, parentCategoryId: v, parentName: selected ? selected.name : "" }));
             }}
-            onFocus={() => setParentDropdownAddOpen(true)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+            placeholder="Search parent category..."
+            className="w-full"
+            direction="up"
           />
-
-          {parentDropdownAddOpen && (
-            <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded mt-1 max-h-56 overflow-auto z-50">
-              {filteredAddParents.length > 0 ? (
-                filteredAddParents.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setNewCategory((p) => ({
-                        ...p,
-                        parentCategoryId: c.id,
-                        parentName: c.name   // <— ADDED
-                      }));
-                      setParentSearchAdd("");
-                      setParentDropdownAddOpen(false);
-                    }}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                  >
-                    {c.name}
-                  </div>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-400">No matches</div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -627,32 +589,16 @@ const end = Math.min(page * limit, totalRecords);
                 <thead className="sticky top-0 bg-gray-900 z-10">
                   <tr className="text-white">
                     {visibleColumns.id && (
-                      <SortableHeader
-                        label="ID"
-                        sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
-                        onClick={() => handleSort("id")}
-                      />
+                      <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
                     )}
                     {visibleColumns.name && (
-                      <SortableHeader
-                        label="Name"
-                        sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
-                        onClick={() => handleSort("name")}
-                      />
+                      <SortableHeader label="Name" sortKey="name" currentSort={sortConfig} onSort={handleSort} />
                     )}
                     {visibleColumns.description && (
-                      <SortableHeader
-                        label="Description"
-                        sortOrder={sortConfig.key === "description" ? sortConfig.direction : null}
-                        onClick={() => handleSort("description")}
-                      />
+                      <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
                     )}
                     {visibleColumns.parentName && (
-                      <SortableHeader
-                        label="Parent Category"
-                        sortOrder={sortConfig.key === "parentName" ? sortConfig.direction : null}
-                        onClick={() => handleSort("parentName")}
-                      />
+                      <SortableHeader label="Parent Category" sortKey="parentName" currentSort={sortConfig} onSort={handleSort} />
                     )}
                   </tr>
                 </thead>

@@ -188,7 +188,7 @@ const Units = () => {
       ======================================================= */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Unit</h2>
@@ -445,27 +445,15 @@ const Units = () => {
                   <tr className="text-white">
 
                     {visibleColumns.id && (
-                      <SortableHeader
-                        label="ID"
-                        sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
-                        onClick={() => handleSort("id")}
-                      />
+                      <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
                     )}
 
                     {visibleColumns.name && (
-                      <SortableHeader
-                        label="Name"
-                        sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
-                        onClick={() => handleSort("name")}
-                      />
+                      <SortableHeader label="Name" sortKey="name" currentSort={sortConfig} onSort={handleSort} />
                     )}
 
                     {visibleColumns.description && (
-                      <SortableHeader
-                        label="Description"
-                        sortOrder={sortConfig.key === "description" ? sortConfig.direction : null}
-                        onClick={() => handleSort("description")}
-                      />
+                      <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
                     )}
 
                   </tr>

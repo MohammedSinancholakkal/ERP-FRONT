@@ -33,6 +33,8 @@ import {
 import PageLayout from "../../layout/PageLayout";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
+import FilterBar from "../../components/FilterBar";
+import SearchableSelect from "../../components/SearchableSelect";
 
 const UpdateStocks = () => {
   // UI states
@@ -100,145 +102,95 @@ const UpdateStocks = () => {
   const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
   const [columnSearch, setColumnSearch] = useState("");
 
-  // -------------------
-  // Separate dropdown states/refs: modal vs filter
-  // -------------------
 
-  // Product dropdown (Add modal)
-  const [productDropdownOpenAddModal, setProductDropdownOpenAddModal] =
-    useState(false);
-  const [productDropdownSearchAddModal, setProductDropdownSearchAddModal] =
-    useState("");
-  const productAddModalRef = useRef(null);
-  const productDropdownSearchAddModalRef = useRef(null);
-
-  // Product dropdown (Filter row)
-  const [productDropdownOpenFilter, setProductDropdownOpenFilter] =
-    useState(false);
-  const [productDropdownSearchFilter, setProductDropdownSearchFilter] =
-    useState("");
-  const productFilterRef = useRef(null);
-  const productDropdownSearchFilterRef = useRef(null);
-
-  // Product dropdown (Edit modal)
-  const [productDropdownOpenEditModal, setProductDropdownOpenEditModal] =
-    useState(false);
-  const [productDropdownSearchEditModal, setProductDropdownSearchEditModal] =
-    useState("");
-  const productEditModalRef = useRef(null);
-  const productDropdownSearchEditModalRef = useRef(null);
-
-  // Warehouse dropdown (Add modal)
-  const [warehouseDropdownOpenAddModal, setWarehouseDropdownOpenAddModal] =
-    useState(false);
-  const [warehouseDropdownSearchAddModal, setWarehouseDropdownSearchAddModal] =
-    useState("");
-  const warehouseAddModalRef = useRef(null);
-  const warehouseDropdownSearchAddModalRef = useRef(null);
-
-  // Warehouse dropdown (Filter row)
-  const [warehouseDropdownOpenFilter, setWarehouseDropdownOpenFilter] =
-    useState(false);
-  const [warehouseDropdownSearchFilter, setWarehouseDropdownSearchFilter] =
-    useState("");
-  const warehouseFilterRef = useRef(null);
-  const warehouseDropdownSearchFilterRef = useRef(null);
-
-  // Warehouse dropdown (Edit modal)
-  const [warehouseDropdownOpenEditModal, setWarehouseDropdownOpenEditModal] =
-    useState(false);
-  const [
-    warehouseDropdownSearchEditModal,
-    setWarehouseDropdownSearchEditModal,
-  ] = useState("");
-  const warehouseEditModalRef = useRef(null);
-  const warehouseDropdownSearchEditModalRef = useRef(null);
-
-  // prevent body scroll when modal open
-  useEffect(() => {
-    const locked = modalOpen || editModalOpen || columnModalOpen;
-    document.body.style.overflow = locked ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [modalOpen, editModalOpen, columnModalOpen]);
-
-  // close dropdowns when clicking outside their wrappers
-  useEffect(() => {
-    const onDocClick = (e) => {
-      // product add modal
-      if (
-        productAddModalRef.current &&
-        !productAddModalRef.current.contains(e.target)
-      ) {
-        setProductDropdownOpenAddModal(false);
-        setProductDropdownSearchAddModal("");
-      }
-      // product filter
-      if (
-        productFilterRef.current &&
-        !productFilterRef.current.contains(e.target)
-      ) {
-        setProductDropdownOpenFilter(false);
-        setProductDropdownSearchFilter("");
-      }
-      // product edit modal
-      if (
-        productEditModalRef.current &&
-        !productEditModalRef.current.contains(e.target)
-      ) {
-        setProductDropdownOpenEditModal(false);
-        setProductDropdownSearchEditModal("");
-      }
-
-      // warehouse add modal
-      if (
-        warehouseAddModalRef.current &&
-        !warehouseAddModalRef.current.contains(e.target)
-      ) {
-        setWarehouseDropdownOpenAddModal(false);
-        setWarehouseDropdownSearchAddModal("");
-      }
-      // warehouse filter
-      if (
-        warehouseFilterRef.current &&
-        !warehouseFilterRef.current.contains(e.target)
-      ) {
-        setWarehouseDropdownOpenFilter(false);
-        setWarehouseDropdownSearchFilter("");
-      }
-      // warehouse edit modal
-      if (
-        warehouseEditModalRef.current &&
-        !warehouseEditModalRef.current.contains(e.target)
-      ) {
-        setWarehouseDropdownOpenEditModal(false);
-        setWarehouseDropdownSearchEditModal("");
-      }
-    };
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, []);
 
   // user
   const user = JSON.parse(localStorage.getItem("user")) || null;
   const currentUserId = user?.userId || 1;
 
-  // sort
-  const [sortOrder, setSortOrder] = useState("asc");
+  // --- SORTING STATE ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  // filtered rows for product/warehouse filters
-  const filteredRows = rows.filter((r) => {
-    let ok = true;
-    if (filterProduct) ok = ok && String(r.productId) === String(filterProduct);
-    if (filterWarehouse)
-      ok = ok && String(r.warehouseId) === String(filterWarehouse);
-    return ok;
-  });
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
-  const sortedRows = [...filteredRows];
-  if (sortOrder === "asc")
-    sortedRows.sort((a, b) => Number(a.id) - Number(b.id));
+  // --- FILTERED & SORTED LIST ---
+  const filteredRows = React.useMemo(() => {
+    let list = rows;
+    
+    // Global Search
+    if (searchText.trim()) {
+        const s = searchText.toLowerCase();
+        list = list.filter(r => 
+            String(r.id).includes(s) ||
+            (r.productName || "").toLowerCase().includes(s) ||
+            (r.warehouseName || "").toLowerCase().includes(s) ||
+            (r.note || "").toLowerCase().includes(s)
+        );
+    }
+
+    if (filterProduct) list = list.filter(r => String(r.productId) === String(filterProduct));
+    if (filterWarehouse) list = list.filter(r => String(r.warehouseId) === String(filterWarehouse));
+    
+    return list;
+  }, [rows, searchText, filterProduct, filterWarehouse]);
+
+  const sortedList = React.useMemo(() => {
+    let sortableItems = [...filteredRows];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        if (['id', 'quantity', 'productId', 'warehouseId'].includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             aValue = String(aValue || "").toLowerCase();
+             bValue = String(bValue || "").toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredRows, sortConfig]);
+
+  // --- FILTER BAR CONFIG ---
+   const filters = [
+      {
+          type: 'select',
+          value: filterProduct,
+          onChange: setFilterProduct,
+          options: products.map(p => ({ id: p.id, name: p.name })),
+          placeholder: "All Products"
+      },
+      {
+          type: 'select',
+          value: filterWarehouse,
+          onChange: setFilterWarehouse,
+          options: warehouses.map(w => ({ id: w.id, name: w.name })),
+          placeholder: "All Warehouses"
+      }
+  ];
+
+  const handleClearFilters = () => {
+    setSearchText("");
+    setFilterProduct("");
+    setFilterWarehouse("");
+    setSortConfig({ key: null, direction: 'asc' });
+  };
 
   // ========================= LOADERS =========================
   const parseArray = (res) => {
@@ -484,8 +436,6 @@ const UpdateStocks = () => {
       vNo: row.vNo || "",
       isInactive: !!inactive,
     });
-    setProductDropdownSearchEditModal("");
-    setWarehouseDropdownSearchEditModal("");
     setEditModalOpen(true);
   };
 
@@ -568,76 +518,18 @@ const UpdateStocks = () => {
     return w ? w.name : "";
   };
 
-  // filtered lists for dropdowns (we filter inside dropdown with the dropdown search state)
-  const filteredProductsForAddModal = products.filter((p) =>
-    String(p.name ?? "")
-      .toLowerCase()
-      .includes(productDropdownSearchAddModal.toLowerCase())
-  );
-  const filteredProductsForFilter = products.filter((p) =>
-    String(p.name ?? "")
-      .toLowerCase()
-      .includes(productDropdownSearchFilter.toLowerCase())
-  );
-  const filteredProductsForEditModal = products.filter((p) =>
-    String(p.name ?? "")
-      .toLowerCase()
-      .includes(productDropdownSearchEditModal.toLowerCase())
-  );
 
-  const filteredWarehousesForAddModal = warehouses.filter((w) =>
-    String(w.name ?? "")
-      .toLowerCase()
-      .includes(warehouseDropdownSearchAddModal.toLowerCase())
-  );
-  const filteredWarehousesForFilter = warehouses.filter((w) =>
-    String(w.name ?? "")
-      .toLowerCase()
-      .includes(warehouseDropdownSearchFilter.toLowerCase())
-  );
-  const filteredWarehousesForEditModal = warehouses.filter((w) =>
-    String(w.name ?? "")
-      .toLowerCase()
-      .includes(warehouseDropdownSearchEditModal.toLowerCase())
-  );
-
-  // column picker open
-  const openColumnPicker = () => {
-    setTempVisibleColumns(visibleColumns);
-    setColumnModalOpen(true);
-  };
-
-  // focus internal search inputs when dropdown opens
-  useEffect(() => {
-    if (productDropdownOpenAddModal)
-      productDropdownSearchAddModalRef.current?.focus();
-  }, [productDropdownOpenAddModal]);
-  useEffect(() => {
-    if (productDropdownOpenFilter)
-      productDropdownSearchFilterRef.current?.focus();
-  }, [productDropdownOpenFilter]);
-  useEffect(() => {
-    if (productDropdownOpenEditModal)
-      productDropdownSearchEditModalRef.current?.focus();
-  }, [productDropdownOpenEditModal]);
-
-  useEffect(() => {
-    if (warehouseDropdownOpenAddModal)
-      warehouseDropdownSearchAddModalRef.current?.focus();
-  }, [warehouseDropdownOpenAddModal]);
-  useEffect(() => {
-    if (warehouseDropdownOpenFilter)
-      warehouseDropdownSearchFilterRef.current?.focus();
-  }, [warehouseDropdownOpenFilter]);
-  useEffect(() => {
-    if (warehouseDropdownOpenEditModal)
-      warehouseDropdownSearchEditModalRef.current?.focus();
-  }, [warehouseDropdownOpenEditModal]);
 
   // small helper to refresh dropdown lists
   const refreshDropdowns = async () => {
     await loadProducts();
     await loadWarehouses();
+  };
+
+  // column picker open
+  const openColumnPicker = () => {
+    setTempVisibleColumns(visibleColumns);
+    setColumnModalOpen(true);
   };
 
   // ------------------- RENDER -------------------
@@ -653,7 +545,7 @@ const UpdateStocks = () => {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative w-[650px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl"
+            className="relative w-[700px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl"
           >
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Stock</h2>
@@ -669,62 +561,13 @@ const UpdateStocks = () => {
               {/* Product (Add modal) */}
               <div>
                 <label className="text-sm">Product *</label>
-                <div className="mt-1 relative" ref={productAddModalRef}>
-                  <input
-                    readOnly
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // toggle modal product dropdown; ensure filter dropdown closed
-                      setProductDropdownOpenAddModal((s) => !s);
-                      setProductDropdownOpenFilter(false);
-                      setProductDropdownOpenEditModal(false);
-                    }}
-                    value={getProductName(newItem.productId) || ""}
-                    placeholder="Click to select product"
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm cursor-pointer"
-                  />
-
-                  {/* dropdown for add modal */}
-                  {productDropdownOpenAddModal && (
-                    <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[240px]">
-                      <div className="p-2">
-                        <input
-                          ref={productDropdownSearchAddModalRef}
-                          value={productDropdownSearchAddModal}
-                          onChange={(e) =>
-                            setProductDropdownSearchAddModal(e.target.value)
-                          }
-                          placeholder="Search product..."
-                          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                        />
-                      </div>
-                      <div className="max-h-[192px] overflow-auto divide-y divide-gray-700">
-                        {filteredProductsForAddModal.length > 0 ? (
-                          filteredProductsForAddModal.map((p) => (
-                            <div
-                              key={p.id}
-                              onClick={() => {
-                                setNewItem((prev) => ({
-                                  ...prev,
-                                  productId: p.id,
-                                }));
-                                setProductDropdownOpenAddModal(false);
-                                setProductDropdownSearchAddModal("");
-                              }}
-                              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                            >
-                              {p.name}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-3 py-4 text-sm text-gray-300">
-                            No products found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <SearchableSelect 
+                    options={products.map(p => ({ id: p.id, name: p.name }))}
+                    value={newItem.productId}
+                    onChange={(v) => setNewItem((p) => ({ ...p, productId: v }))}
+                    placeholder="Select Product"
+                    className="mt-1"
+                />
               </div>
 
               {/* Quantity */}
@@ -746,60 +589,13 @@ const UpdateStocks = () => {
               {/* Warehouse (Add modal) */}
               <div>
                 <label className="text-sm">Warehouse (optional)</label>
-                <div className="mt-1 relative" ref={warehouseAddModalRef}>
-                  <input
-                    readOnly
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setWarehouseDropdownOpenAddModal((s) => !s);
-                      setWarehouseDropdownOpenFilter(false);
-                      setWarehouseDropdownOpenEditModal(false);
-                    }}
-                    value={getWarehouseName(newItem.warehouseId) || ""}
-                    placeholder="Click to select warehouse (optional)"
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm cursor-pointer"
-                  />
-
-                  {warehouseDropdownOpenAddModal && (
-                    <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[240px]">
-                      <div className="p-2">
-                        <input
-                          ref={warehouseDropdownSearchAddModalRef}
-                          value={warehouseDropdownSearchAddModal}
-                          onChange={(e) =>
-                            setWarehouseDropdownSearchAddModal(e.target.value)
-                          }
-                          placeholder="Search warehouse..."
-                          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                        />
-                      </div>
-                      <div className="max-h-[192px] overflow-auto divide-y divide-gray-700">
-                        {filteredWarehousesForAddModal.length > 0 ? (
-                          filteredWarehousesForAddModal.map((w) => (
-                            <div
-                              key={w.id}
-                              onClick={() => {
-                                setNewItem((p) => ({
-                                  ...p,
-                                  warehouseId: w.id,
-                                }));
-                                setWarehouseDropdownOpenAddModal(false);
-                                setWarehouseDropdownSearchAddModal("");
-                              }}
-                              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                            >
-                              {w.name}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-3 py-4 text-sm text-gray-300">
-                            No warehouses found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <SearchableSelect
+                    options={warehouses.map(w => ({ id: w.id, name: w.name }))}
+                    value={newItem.warehouseId}
+                    onChange={(v) => setNewItem((p) => ({ ...p, warehouseId: v }))}
+                    placeholder="Select Warehouse"
+                    className="mt-1"
+                />
               </div>
 
               {/* Mode & Status */}
@@ -884,7 +680,7 @@ const UpdateStocks = () => {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative w-[650px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl"
+            className="relative w-[700px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl"
           >
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">
@@ -902,64 +698,14 @@ const UpdateStocks = () => {
               {/* Product (Edit modal) */}
               <div>
                 <label className="text-sm">Product *</label>
-                <div className="mt-1 relative" ref={productEditModalRef}>
-                  <input
-                    readOnly
-                    onClick={(e) => {
-                      if (editItem.isInactive) return;
-                      e.stopPropagation();
-                      setProductDropdownOpenEditModal((s) => !s);
-                      setProductDropdownOpenAddModal(false);
-                      setProductDropdownOpenFilter(false);
-                    }}
-                    value={getProductName(editItem.productId) || ""}
-                    placeholder="Click to select product"
-                    className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm cursor-pointer ${
-                      editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
+                 <SearchableSelect 
+                    options={products.map(p => ({ id: p.id, name: p.name }))}
+                    value={editItem.productId}
+                    onChange={(v) => setEditItem((p) => ({ ...p, productId: v }))}
+                    placeholder="Select Product"
                     disabled={editItem.isInactive}
-                  />
-
-                  {productDropdownOpenEditModal && !editItem.isInactive && (
-                    <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[240px]">
-                      <div className="p-2">
-                        <input
-                          ref={productDropdownSearchEditModalRef}
-                          value={productDropdownSearchEditModal}
-                          onChange={(e) =>
-                            setProductDropdownSearchEditModal(e.target.value)
-                          }
-                          placeholder="Search product..."
-                          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                        />
-                      </div>
-                      <div className="max-h-[192px] overflow-auto divide-y divide-gray-700">
-                        {filteredProductsForEditModal.length > 0 ? (
-                          filteredProductsForEditModal.map((p) => (
-                            <div
-                              key={p.id}
-                              onClick={() => {
-                                setEditItem((prev) => ({
-                                  ...prev,
-                                  productId: p.id,
-                                }));
-                                setProductDropdownOpenEditModal(false);
-                                setProductDropdownSearchEditModal("");
-                              }}
-                              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                            >
-                              {p.name}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-3 py-4 text-sm text-gray-300">
-                            No products found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    className="mt-1"
+                />
               </div>
 
               {/* Quantity */}
@@ -984,64 +730,14 @@ const UpdateStocks = () => {
               {/* Warehouse (Edit modal) */}
               <div>
                 <label className="text-sm">Warehouse (optional)</label>
-                <div className="mt-1 relative" ref={warehouseEditModalRef}>
-                  <input
-                    readOnly
-                    onClick={(e) => {
-                      if (editItem.isInactive) return;
-                      e.stopPropagation();
-                      setWarehouseDropdownOpenEditModal((s) => !s);
-                      setWarehouseDropdownOpenAddModal(false);
-                      setWarehouseDropdownOpenFilter(false);
-                    }}
-                    value={getWarehouseName(editItem.warehouseId) || ""}
-                    placeholder="Click to select warehouse (optional)"
-                    className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm cursor-pointer ${
-                      editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
+                <SearchableSelect
+                    options={warehouses.map(w => ({ id: w.id, name: w.name }))}
+                    value={editItem.warehouseId}
+                    onChange={(v) => setEditItem((p) => ({ ...p, warehouseId: v }))}
+                    placeholder="Select Warehouse"
                     disabled={editItem.isInactive}
-                  />
-
-                  {warehouseDropdownOpenEditModal && !editItem.isInactive && (
-                    <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[240px]">
-                      <div className="p-2">
-                        <input
-                          ref={warehouseDropdownSearchEditModalRef}
-                          value={warehouseDropdownSearchEditModal}
-                          onChange={(e) =>
-                            setWarehouseDropdownSearchEditModal(e.target.value)
-                          }
-                          placeholder="Search warehouse..."
-                          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                        />
-                      </div>
-                      <div className="max-h-[192px] overflow-auto divide-y divide-gray-700">
-                        {filteredWarehousesForEditModal.length > 0 ? (
-                          filteredWarehousesForEditModal.map((w) => (
-                            <div
-                              key={w.id}
-                              onClick={() => {
-                                setEditItem((p) => ({
-                                  ...p,
-                                  warehouseId: w.id,
-                                }));
-                                setWarehouseDropdownOpenEditModal(false);
-                                setWarehouseDropdownSearchEditModal("");
-                              }}
-                              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                            >
-                              {w.name}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-3 py-4 text-sm text-gray-300">
-                            No warehouses found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    className="mt-1"
+                />
               </div>
 
               {/* Mode & Status */}
@@ -1318,121 +1014,8 @@ const UpdateStocks = () => {
         </div>
 
         {/* FILTER BAR */}
-        <div className="flex flex-wrap gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          {/* Product filter (separate wrapper) */}
-          <div className="relative w-48" ref={productFilterRef}>
-            <input
-              readOnly
-              onClick={(e) => {
-                e.stopPropagation();
-                setProductDropdownOpenFilter((s) => !s);
-                // close other product dropdowns
-                setProductDropdownOpenAddModal(false);
-                setProductDropdownOpenEditModal(false);
-              }}
-              value={getProductName(filterProduct) || ""}
-              placeholder="Filter by Product..."
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm cursor-pointer"
-            />
-            {productDropdownOpenFilter && (
-              <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[240px]">
-                <div className="p-2">
-                  <input
-                    ref={productDropdownSearchFilterRef}
-                    value={productDropdownSearchFilter}
-                    onChange={(e) =>
-                      setProductDropdownSearchFilter(e.target.value)
-                    }
-                    placeholder="Search product..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                  />
-                </div>
-                <div className="max-h-[192px] overflow-auto divide-y divide-gray-700">
-                  {filteredProductsForFilter.length > 0 ? (
-                    filteredProductsForFilter.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => {
-                          setFilterProduct(p.id);
-                          setProductDropdownOpenFilter(false);
-                          setProductDropdownSearchFilter("");
-                        }}
-                        className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                      >
-                        {p.name}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-sm text-gray-300">
-                      No products found
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Warehouse filter (separate wrapper) */}
-          <div className="relative w-48" ref={warehouseFilterRef}>
-            <input
-              readOnly
-              onClick={(e) => {
-                e.stopPropagation();
-                setWarehouseDropdownOpenFilter((s) => !s);
-                setWarehouseDropdownOpenAddModal(false);
-                setWarehouseDropdownOpenEditModal(false);
-              }}
-              value={getWarehouseName(filterWarehouse) || ""}
-              placeholder="Filter by Warehouse..."
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm cursor-pointer"
-            />
-            {warehouseDropdownOpenFilter && (
-              <div className="absolute left-0 right-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[240px]">
-                <div className="p-2">
-                  <input
-                    ref={warehouseDropdownSearchFilterRef}
-                    value={warehouseDropdownSearchFilter}
-                    onChange={(e) =>
-                      setWarehouseDropdownSearchFilter(e.target.value)
-                    }
-                    placeholder="Search warehouse..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm outline-none"
-                  />
-                </div>
-                <div className="max-h-[192px] overflow-auto divide-y divide-gray-700">
-                  {filteredWarehousesForFilter.length > 0 ? (
-                    filteredWarehousesForFilter.map((w) => (
-                      <div
-                        key={w.id}
-                        onClick={() => {
-                          setFilterWarehouse(w.id);
-                          setWarehouseDropdownOpenFilter(false);
-                          setWarehouseDropdownSearchFilter("");
-                        }}
-                        className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                      >
-                        {w.name}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-sm text-gray-300">
-                      No warehouses found
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              setFilterProduct("");
-              setFilterWarehouse("");
-            }}
-            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm"
-          >
-            Clear Filters
-          </button>
+        <div className="mb-4">
+          <FilterBar filters={filters} onClear={handleClearFilters} />
         </div>
 
         {/* TABLE */}
@@ -1453,64 +1036,20 @@ const UpdateStocks = () => {
 
               <thead className="sticky top-0 bg-gray-900 z-10">
                 <tr className="text-white text-center">
-                  {visibleColumns.id && (
-                    <th
-                      className="pb-2 border-b border-white cursor-pointer text-center"
-                      onClick={() =>
-                        setSortOrder((prev) => (prev === "asc" ? null : "asc"))
-                      }
-                    >
-                      ID
-                    </th>
-                  )}
-
-                  {visibleColumns.product && (
-                    <th className="pb-2 border-b border-white text-center">
-                      Product
-                    </th>
-                  )}
-
-                  {visibleColumns.quantity && (
-                    <th className="pb-2 border-b border-white text-center">
-                      Qty
-                    </th>
-                  )}
-
-                  {visibleColumns.warehouse && (
-                    <th className="pb-2 border-b border-white text-center">
-                      Warehouse
-                    </th>
-                  )}
-
-                  {visibleColumns.mode && (
-                    <th className="pb-2 border-b border-white text-center">
-                      Mode
-                    </th>
-                  )}
-
-                  {visibleColumns.status && (
-                    <th className="pb-2 border-b border-white text-center">
-                      Status
-                    </th>
-                  )}
-
-                  {/* {visibleColumns.vNo && (
-                    <th className="pb-2 border-b border-white text-center">
-                      VNo
-                    </th>
-                  )} */}
-
-                  {visibleColumns.note && (
-                    <th className="pb-2 border-b border-white text-center">
-                      Note
-                    </th>
-                  )}
+                   {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
+                   {visibleColumns.product && <SortableHeader label="Product" sortKey="productName" currentSort={sortConfig} onSort={handleSort} />}
+                   {visibleColumns.quantity && <SortableHeader label="Qty" sortKey="quantity" currentSort={sortConfig} onSort={handleSort} />}
+                   {visibleColumns.warehouse && <SortableHeader label="Warehouse" sortKey="warehouseName" currentSort={sortConfig} onSort={handleSort} />}
+                   {visibleColumns.mode && <SortableHeader label="Mode" sortKey="mode" currentSort={sortConfig} onSort={handleSort} />}
+                   {visibleColumns.status && <SortableHeader label="Status" sortKey="status" currentSort={sortConfig} onSort={handleSort} />}
+                   {visibleColumns.vNo && <SortableHeader label="VNo" sortKey="vNo" currentSort={sortConfig} onSort={handleSort} />}
+                   {visibleColumns.note && <SortableHeader label="Note" sortKey="note" currentSort={sortConfig} onSort={handleSort} />}
                 </tr>
               </thead>
 
               <tbody className="text-center">
                 {/* NO RECORDS */}
-                {sortedRows.length === 0 &&
+                {sortedList.length === 0 &&
                   (!showInactive || inactiveRows.length === 0) && (
                     <tr >
                       <td
@@ -1525,7 +1064,7 @@ const UpdateStocks = () => {
                   )}
 
                 {/* ACTIVE ROWS */}
-                {sortedRows.map((row) => (
+                {sortedList.map((row) => (
                   <tr
                     key={row.id}
                     className="bg-gray-900 hover:bg-gray-700 cursor-pointer"

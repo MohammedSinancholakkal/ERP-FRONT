@@ -13,6 +13,7 @@ import Swal from "sweetalert2";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
 import { getBanksApi, addPayrollApi, getPayrollByIdApi, updatePayrollApi, deletePayrollApi } from "../../services/allAPI"; // adjust import path if needed
+import SearchableSelect from "../../components/SearchableSelect";
 
 const NewPayroll = () => {
   const navigate = useNavigate();
@@ -37,10 +38,7 @@ const NewPayroll = () => {
 
   // cashBank is an object { id, name } or special string 'Cash'
   const [cashBank, setCashBank] = useState(null);
-  const [bankOpen, setBankOpen] = useState(false);
-  const bankRef = useRef(null);
 
-  const [bankQuery, setBankQuery] = useState("");
   const [banks, setBanks] = useState([]);
   const [banksLoading, setBanksLoading] = useState(false);
 
@@ -286,96 +284,11 @@ const handleDeletePayroll = async () => {
 
 
 
-  const BankSelect = () => {
-    const searchRef = useRef(null);
-    const filtered = banks.filter((b) =>
-      (b.name || "").toLowerCase().includes(bankQuery.toLowerCase())
-    );
 
-    useEffect(() => {
-      if (bankOpen && searchRef.current) {
-        searchRef.current.focus();
-      }
-    }, [bankOpen]);
-
-
-
-
-
-
-
-    return (
-      <div
-        ref={bankRef}
-        className="relative"
-        tabIndex={0}
-        onFocus={() => setBankOpen(true)}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget)) {
-            setBankOpen(false);
-          }
-        }}
-      >
-        <label className="text-sm text-gray-300 block mb-1">
-          <span className="text-red-400 mr-1">*</span> Cash / Bank
-        </label>
-        <div className="bg-gray-800 border border-gray-600 rounded px-3 py-2 flex items-center justify-between">
-          <span className={cashBank ? "text-gray-200" : "text-gray-400"}>
-            {cashBank ? cashBank.name : "Select Bank"}
-          </span>
-          <ChevronDown
-            size={16}
-            className={`text-gray-400 transition-transform ${bankOpen ? "rotate-180" : ""}`}
-          />
-        </div>
-        {bankOpen && (
-          <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 rounded mt-1">
-            <input
-              ref={searchRef}
-              placeholder="Search bank..."
-              className="w-full px-3 py-2 bg-gray-800 border-b border-gray-700 text-sm outline-none"
-              value={bankQuery}
-              onChange={(e) => setBankQuery(e.target.value)}
-            />
-            <div className="max-h-56 overflow-auto">
-              {banksLoading && <div className="px-3 py-2 text-sm text-gray-400">Loading...</div>}
-              {!banksLoading && filtered.length === 0 && <div className="px-3 py-2 text-sm text-gray-400">No matches</div>}
-              {!banksLoading && filtered.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  className="w-full text-left px-3 py-2 hover:bg-gray-800 text-sm text-gray-200"
-                  onClick={() => {
-                    setCashBank(b);
-                    setBankQuery("");
-                    setBankOpen(false);
-                  }}
-                >
-                  {b.name}
-                </button>
-              ))}
-            </div>
-            {cashBank && (
-              <button
-                type="button"
-                className="w-full text-sm text-red-400 py-2 border-t border-gray-700"
-                onClick={() => {
-                  setCashBank(null);
-                  setBankQuery("");
-                }}
-              >
-                Clear Selection
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate("/app/hr/payroll")} className="text-gray-400 hover:text-white">
@@ -418,9 +331,20 @@ const handleDeletePayroll = async () => {
               />
             </div>
             <div className="flex items-center">
-              <div className="w-full">
-                <BankSelect />
-              </div>
+               <label className="w-32 text-sm text-gray-300">
+                  <span className="text-red-400 mr-1">*</span> Cash / Bank
+               </label>
+               <div className="flex-1">
+                <SearchableSelect
+                    options={banks}
+                    value={cashBank?.id}
+                    onChange={(val) => {
+                         const b = banks.find(x => x.id === val);
+                         if (b) setCashBank(b);
+                    }}
+                    placeholder="Select Bank..."
+                />
+               </div>
             </div>
           </div>
           <div className="lg:col-span-4">

@@ -296,7 +296,13 @@ const CustomerReceive = () => {
           </button>
 
           {/* Refresh */}
-          <button className="p-2 bg-gray-700 border border-gray-600 rounded">
+          <button
+            onClick={() => {
+              setSearchText("");
+              setPage(1);
+            }}
+            className="p-2 bg-gray-700 border border-gray-600 rounded"
+          >
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 

@@ -23,7 +23,9 @@ import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
-import "jspdf-autotable";   
+import "jspdf-autotable";
+import FilterBar from "../../components/FilterBar";
+import SearchableSelect from "../../components/SearchableSelect";   
 
 import {
   addProductApi,
@@ -67,67 +69,7 @@ const ExportButtons = ({ onExcel, onPDF }) => (
   </div>
 );
 
-/* Searchable dropdown: accepts fullWidth to match other inputs */
-const SearchableDropdown = ({ options = [], value, onChange, placeholder = "Search...", fullWidth = false }) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef(null);
 
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, []);
-
-  const filtered =
-    !query.trim()
-      ? options
-      : options.filter((o) => o.name.toLowerCase().includes(query.toLowerCase()));
-
-  const selectedName = options.find((o) => String(o.id) === String(value))?.name || "";
-
-  return (
-    <div className={`relative ${fullWidth ? "w-full" : ""}`} ref={ref}>
-      <input
-        type="text"
-        value={open ? query : (selectedName || query)}
-        placeholder={placeholder}
-        onFocus={() => {
-          setOpen(true);
-          setQuery("");
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        className={`bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm ${fullWidth ? "w-full" : "w-56"}`}
-      />
-      {open && (
-        <div className="absolute left-0 right-0 z-50 mt-1 bg-gray-800 border border-gray-700 rounded max-h-56 overflow-auto">
-          {filtered.length ? (
-            filtered.map((o) => (
-              <div
-                key={o.id}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                onClick={() => {
-                  onChange(o.id);
-                  setOpen(false);
-                  setQuery("");
-                }}
-              >
-                {o.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400">No results</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 /* ------------------------------
    Main Products component
@@ -168,12 +110,12 @@ const Products = () => {
   const currentUserId = user?.userId || 1;
 
   // sort/search/filters
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
-  
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
   const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
     }
     setSortConfig({ key, direction });
   };
@@ -688,7 +630,70 @@ const Products = () => {
   useEffect(() => {
     setDisplayedProducts(computeDisplayed());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, searchText, filterCategory, filterUnit, filterBrand, sortConfig, products.length]);
+  }, [products, searchText, filterCategory, filterUnit, filterBrand, products.length]);
+
+  // --- SORTING LOGIC ---
+  const sortedList = React.useMemo(() => {
+    let sortableItems = [...displayedProducts];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle numeric values
+        if (['unitPrice', 'unitsInStock', 'reorderLevel', 'id'].includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             // String comparison
+             aValue = String(aValue || "").toLowerCase();
+             bValue = String(bValue || "").toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [displayedProducts, sortConfig]);
+
+  // --- FILTER BAR CONFIG ---
+  const filters = [
+      {
+          type: 'select',
+          value: filterCategory,
+          onChange: setFilterCategory,
+          options: categories,
+          placeholder: "All Categories"
+      },
+      {
+           type: 'select',
+           value: filterBrand,
+           onChange: setFilterBrand,
+           options: brands,
+           placeholder: "All Brands"
+      },
+      {
+           type: 'select',
+           value: filterUnit,
+           onChange: setFilterUnit,
+           options: units,
+           placeholder: "All Units"
+      }
+  ];
+
+  const handleClearFilters = () => {
+      setFilterCategory("");
+      setFilterBrand("");
+      setFilterUnit("");
+  };
+
+
 
   const applyFilters = () => {
     setDisplayedProducts(computeDisplayed());
@@ -706,6 +711,7 @@ const Products = () => {
     setFilterCategory("");
     setFilterUnit("");
     setFilterBrand("");
+    setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
     loadProducts(1, limit);
   };
@@ -762,23 +768,23 @@ const Products = () => {
 
               <div>
                 <label className="font-semibold">* Category</label>
-                <SearchableDropdown
+                <SearchableSelect
                   options={categories}
                   value={newProduct.CategoryId}
                   onChange={(v) => setNewProduct((p) => ({ ...p, CategoryId: v }))}
                   placeholder="Search / select category"
-                  fullWidth
+                  className="w-full"
                 />
 
                 <div className="flex gap-2 items-start mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Unit</label>
-                    <SearchableDropdown
+                    <SearchableSelect
                       options={units}
                       value={newProduct.UnitId}
                       onChange={(v) => setNewProduct((p) => ({ ...p, UnitId: v }))}
                       placeholder="Search / select unit"
-                      fullWidth
+                      className="w-full"
                     />
                   </div>
                   <button
@@ -793,12 +799,12 @@ const Products = () => {
                 <div className="flex gap-2 items-start mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Company / Brand</label>
-                    <SearchableDropdown
+                    <SearchableSelect
                       options={brands}
                       value={newProduct.BrandId}
                       onChange={(v) => setNewProduct((p) => ({ ...p, BrandId: v }))}
                       placeholder="Search / select brand"
-                      fullWidth
+                      className="w-full"
                     />
                   </div>
                   <button
@@ -940,12 +946,12 @@ const Products = () => {
 
               <div>
                 <label className="font-semibold">* Category</label>
-                <SearchableDropdown options={categories} value={editProduct.CategoryId} onChange={(v) => setEditProduct((p) => ({ ...p, CategoryId: v }))} placeholder="Search / select category" fullWidth />
+                <SearchableSelect options={categories} value={editProduct.CategoryId} onChange={(v) => setEditProduct((p) => ({ ...p, CategoryId: v }))} placeholder="Search / select category" className="w-full" />
 
                 <div className="flex gap-2 items-start mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Unit</label>
-                    <SearchableDropdown options={units} value={editProduct.UnitId} onChange={(v) => setEditProduct((p) => ({ ...p, UnitId: v }))} placeholder="Search / select unit" fullWidth />
+                    <SearchableSelect options={units} value={editProduct.UnitId} onChange={(v) => setEditProduct((p) => ({ ...p, UnitId: v }))} placeholder="Search / select unit" className="w-full" />
                   </div>
                   <button title="Add Unit" onClick={() => setUnitModalOpen(true)} className="mt-6 p-2 bg-gray-800 border border-gray-700 rounded"><Star size={16} /></button>
                 </div>
@@ -953,7 +959,7 @@ const Products = () => {
                 <div className="flex gap-2 items-start mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Company / Brand</label>
-                    <SearchableDropdown options={brands} value={editProduct.BrandId} onChange={(v) => setEditProduct((p) => ({ ...p, BrandId: v }))} placeholder="Search / select brand" fullWidth />
+                    <SearchableSelect options={brands} value={editProduct.BrandId} onChange={(v) => setEditProduct((p) => ({ ...p, BrandId: v }))} placeholder="Search / select brand" className="w-full" />
                   </div>
                   <button title="Add Brand" onClick={() => setBrandModalOpen(true)} className="mt-6 p-2 bg-gray-800 border border-gray-700 rounded"><Star size={16} /></button>
                 </div>
@@ -1148,33 +1154,28 @@ const Products = () => {
             <ExportButtons onExcel={exportToExcel} onPDF={exportToPDF} />
           </div>
 
-          {/* FILTER ROW */}
-          <div className="flex items-center gap-3  bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-            <SearchableDropdown options={categories} value={filterCategory} onChange={setFilterCategory} placeholder="Filter by Category" />
-            <SearchableDropdown options={units} value={filterUnit} onChange={setFilterUnit} placeholder="Filter by Unit" />
-            <SearchableDropdown options={brands} value={filterBrand} onChange={setFilterBrand} placeholder="Filter by Brand" />
-
-            <button onClick={applyFilters} className="px-2 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Apply</button>
-            <button onClick={clearFilters} className="px-2 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Clear</button>
-          </div>
-
+            {/* FILTER BAR - Replaced custom manual filters with FilterBar */}
+            <div className="mb-4">
+               <FilterBar filters={filters} onClear={handleClearFilters} />
+            </div>
           {/* TABLE (increased height, wider) */}
           <div className="flex-grow overflow-auto min-h-0 w-full">
             <div className="w-full overflow-auto">
               <table className="min-w-[1400px] text-left border-separate border-spacing-y-1 text-sm">
                 <thead className="sticky top-0 bg-gray-900 z-10">
                   <tr className="text-white">
-                    {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                    {visibleColumns.barcode && <SortableHeader label="Product Code" sortOrder={sortConfig.key === "Barcode" ? sortConfig.direction : null} onClick={() => handleSort("Barcode")} />}
-                    {visibleColumns.sn && <SortableHeader label="SN" sortOrder={sortConfig.key === "SN" ? sortConfig.direction : null} onClick={() => handleSort("SN")} />}
-                    {visibleColumns.productName && <SortableHeader label="Name" sortOrder={sortConfig.key === "ProductName" ? sortConfig.direction : null} onClick={() => handleSort("ProductName")} />}
-                    {visibleColumns.model && <SortableHeader label="Model" sortOrder={sortConfig.key === "Model" ? sortConfig.direction : null} onClick={() => handleSort("Model")} />}
-                    {visibleColumns.unitPrice && <SortableHeader label="Unit Price" sortOrder={sortConfig.key === "UnitPrice" ? sortConfig.direction : null} onClick={() => handleSort("UnitPrice")} />}
-                    {visibleColumns.unitsInStock && <SortableHeader label="In Stock" sortOrder={sortConfig.key === "UnitsInStock" ? sortConfig.direction : null} onClick={() => handleSort("UnitsInStock")} />}
-                    {visibleColumns.reorderLevel && <SortableHeader label="Reorder Level" sortOrder={sortConfig.key === "ReorderLevel" ? sortConfig.direction : null} onClick={() => handleSort("ReorderLevel")} />}
-                    {visibleColumns.categoryName && <SortableHeader label="Category" sortOrder={sortConfig.key === "categoryName" ? sortConfig.direction : null} onClick={() => handleSort("categoryName")} />}
-                    {visibleColumns.unitName && <SortableHeader label="Unit" sortOrder={sortConfig.key === "unitName" ? sortConfig.direction : null} onClick={() => handleSort("unitName")} />}
-                    {visibleColumns.brandName && <SortableHeader label="Brand" sortOrder={sortConfig.key === "brandName" ? sortConfig.direction : null} onClick={() => handleSort("brandName")} />}
+                    {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.barcode && <SortableHeader label="Code" sortKey="barcode" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.sn && <SortableHeader label="SN" sortKey="sn" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.productName && <SortableHeader label="Product" sortKey="productName" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.model && <SortableHeader label="Model" sortKey="model" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.unitPrice && <SortableHeader label="Price" sortKey="unitPrice" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.unitsInStock && <SortableHeader label="Stock" sortKey="unitsInStock" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.reorderLevel && <SortableHeader label="Reorder" sortKey="reorderLevel" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.categoryName && <SortableHeader label="Category" sortKey="categoryName" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.unitName && <SortableHeader label="Unit" sortKey="unitName" currentSort={sortConfig} onSort={handleSort} />}
+                    {visibleColumns.brandName && <SortableHeader label="Brand" sortKey="brandName" currentSort={sortConfig} onSort={handleSort} />}
+
                   </tr>
                 </thead>
 
@@ -1185,43 +1186,29 @@ const Products = () => {
                     </tr>
                   )}
 
-                  {!loading && displayedProducts.length === 0 && (
+                  {!loading && sortedList.slice(start - 1, end).map((p) => (
+                    <tr key={p.id} className={`bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm ${p.isInactive ? 'opacity-40 line-through' : ''}`} onClick={() => openEditModal(p, p.isInactive)}>
+                      {visibleColumns.id && <td className="px-2 py-2 text-center">{p.id}</td>}
+                      {visibleColumns.barcode && <td className="px-2 py-2 text-center">{p.Barcode}</td>}
+                      {visibleColumns.sn && <td className="px-2 py-2 text-center">{p.SN}</td>}
+                      {visibleColumns.productName && <td className="px-2 py-2 text-center">{p.ProductName}</td>}
+                      {visibleColumns.model && <td className="px-2 py-2 text-center">{p.Model}</td>}
+                      {visibleColumns.unitPrice && <td className="px-2 py-2 text-center">{p.UnitPrice}</td>}
+                      {visibleColumns.unitsInStock && <td className="px-2 py-2 text-center">{p.UnitsInStock}</td>}
+                      {visibleColumns.reorderLevel && <td className="px-2 py-2 text-center">{p.ReorderLevel}</td>}
+                      {visibleColumns.categoryName && <td className="px-2 py-2 text-center">{p.categoryName || "-"}</td>}
+                      {visibleColumns.unitName && <td className="px-2 py-2 text-center">{p.unitName || "-"}</td>}
+                      {visibleColumns.brandName && <td className="px-2 py-2 text-center">{p.brandName || "-"}</td>}
+
+                    </tr>
+                  ))}
+
+                  {!loading && sortedList.length === 0 && (
                     <tr>
                       <td colSpan={12} className="text-center py-6 text-gray-400">No records found</td>
                     </tr>
                   )}
 
-                  {!loading && displayedProducts.map((p) => (
-                    <tr key={p.id} className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm" onClick={() => openEditModal(p, false)}>
-                      {visibleColumns.id && <td className="px-2 py-2 text-center">{p.id}</td>}
-                      {visibleColumns.barcode && <td className="px-2 py-2 text-center">{p.Barcode}</td>}
-                      {visibleColumns.sn && <td className="px-2 py-2 text-center">{p.SN}</td>}
-                      {visibleColumns.productName && <td className="px-2 py-2 text-center">{p.ProductName}</td>}
-                      {visibleColumns.model && <td className="px-2 py-2 text-center">{p.Model}</td>}
-                      {visibleColumns.unitPrice && <td className="px-2 py-2 text-center">{p.UnitPrice}</td>}
-                      {visibleColumns.unitsInStock && <td className="px-2 py-2 text-center">{p.UnitsInStock}</td>}
-                      {visibleColumns.reorderLevel && <td className="px-2 py-2 text-center">{p.ReorderLevel}</td>}
-                      {visibleColumns.categoryName && <td className="px-2 py-2 text-center">{p.categoryName || "-"}</td>}
-                      {visibleColumns.unitName && <td className="px-2 py-2 text-center">{p.unitName || "-"}</td>}
-                      {visibleColumns.brandName && <td className="px-2 py-2 text-center">{p.brandName || "-"}</td>}
-                    </tr>
-                  ))}
-
-                  {showInactive && inactiveProducts.map((p) => (
-                    <tr key={`inactive-${p.id}`} className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm" onClick={() => openEditModal(p, true)}>
-                      {visibleColumns.id && <td className="px-2 py-2 text-center">{p.id}</td>}
-                      {visibleColumns.barcode && <td className="px-2 py-2 text-center">{p.Barcode}</td>}
-                      {visibleColumns.sn && <td className="px-2 py-2 text-center">{p.SN}</td>}
-                      {visibleColumns.productName && <td className="px-2 py-2 text-center">{p.ProductName}</td>}
-                      {visibleColumns.model && <td className="px-2 py-2 text-center">{p.Model}</td>}
-                      {visibleColumns.unitPrice && <td className="px-2 py-2 text-center">{p.UnitPrice}</td>}
-                      {visibleColumns.unitsInStock && <td className="px-2 py-2 text-center">{p.UnitsInStock}</td>}
-                      {visibleColumns.reorderLevel && <td className="px-2 py-2 text-center">{p.ReorderLevel}</td>}
-                      {visibleColumns.categoryName && <td className="px-2 py-2 text-center">{p.categoryName || "-"}</td>}
-                      {visibleColumns.unitName && <td className="px-2 py-2 text-center">{p.unitName || "-"}</td>}
-                      {visibleColumns.brandName && <td className="px-2 py-2 text-center">{p.brandName || "-"}</td>}
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>

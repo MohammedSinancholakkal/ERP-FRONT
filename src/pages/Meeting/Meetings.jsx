@@ -5,16 +5,12 @@ import {
   RefreshCw,
   List,
   ArchiveRestore,
-  ChevronsLeft, // Keep if referenced elsewhere, or remove if unused after refactor
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ChevronDown,
 } from "lucide-react";
 
 import SortableHeader from "../../components/SortableHeader";
+import FilterBar from "../../components/FilterBar";
 import Pagination from "../../components/Pagination";
-
 import PageLayout from "../../layout/PageLayout";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -25,86 +21,7 @@ import {
 } from "../../services/allAPI";
 import toast from "react-hot-toast";
 
-/* Searchable Filter Dropdown (Same as Employees.jsx) */
-const SearchableFilterDropdown = ({ label, list, value, onSelect, placeholder = "Search..." }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const filtered = list.filter((item) => {
-    const name = item.name || "";
-    return name.toLowerCase().includes(search.toLowerCase());
-  });
-
-  return (
-    <div className="relative w-40" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700 text-white"
-      >
-        <span className="truncate">{value || label}</span>
-        <ChevronDown size={14} className="text-gray-400" />
-      </button>
-
-      {isOpen && (
-        <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[250px] flex flex-col text-white">
-          <div className="p-2 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={placeholder}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-blue-500 text-white"
-              autoFocus
-            />
-          </div>
-          <div className="overflow-auto flex-grow">
-            <div
-              onClick={() => {
-                onSelect("");
-                setIsOpen(false);
-                setSearch("");
-              }}
-              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-400 italic"
-            >
-              Clear
-            </div>
-            {filtered.length > 0 ? (
-              filtered.map((item, idx) => {
-                const name = item.name || "";
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      onSelect(name);
-                      setIsOpen(false);
-                      setSearch("");
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {name}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="px-3 py-2 text-gray-500 text-xs text-center">No results</div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const Meetings = () => {
   const navigate = useNavigate();
@@ -185,7 +102,9 @@ const Meetings = () => {
         if (!Array.isArray(records)) records = [];
         setAllMeetings(records);
         
-        const unique = (key) => [...new Set(records.map(r => r[key]).filter(Boolean))].sort().map(val => ({ name: val }));
+        setAllMeetings(records);
+        
+        const unique = (key) => [...new Set(records.map(r => r[key]).filter(Boolean))].sort().map(val => ({ id: val, name: val }));
         
         setDropdownOptions({
           meetingTypes: unique('meetingType'),
@@ -323,6 +242,26 @@ const Meetings = () => {
     return () => document.removeEventListener("click", handler);
   }, []);
 
+  const filterFilters = [
+      { label: "Meeting Type", options: dropdownOptions.meetingTypes, value: filterMeetingType, onChange: setFilterMeetingType, placeholder: "Select Type" },
+      { label: "Start Date", options: dropdownOptions.startDates, value: filterStartDate, onChange: setFilterStartDate, placeholder: "Select Start Date" },
+      { label: "End Date", options: dropdownOptions.endDates, value: filterEndDate, onChange: setFilterEndDate, placeholder: "Select End Date" },
+      { label: "Department", options: dropdownOptions.departments, value: filterDepartment, onChange: setFilterDepartment, placeholder: "Select Department" },
+      { label: "Location", options: dropdownOptions.locations, value: filterLocation, onChange: setFilterLocation, placeholder: "Select Location" },
+      { label: "Organized By", options: dropdownOptions.organizers, value: filterOrganizedBy, onChange: setFilterOrganizedBy, placeholder: "Select Organizer" },
+      { label: "Reporter", options: dropdownOptions.reporters, value: filterReporter, onChange: setFilterReporter, placeholder: "Select Reporter" }
+  ];
+
+  const handleClearFilters = () => {
+    setFilterMeetingType("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setFilterDepartment("");
+    setFilterLocation("");
+    setFilterOrganizedBy("");
+    setFilterReporter("");
+  };
+
   return (
     <>
       {/* COLUMN PICKER MODAL */}
@@ -373,7 +312,7 @@ const Meetings = () => {
               <button onClick={() => setTempVisibleColumns(defaultColumns)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700 text-white">Restore Defaults</button>
               <div className="flex gap-3">
                 <button onClick={() => setColumnModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700 text-white">Cancel</button>
-                <button onClick={() => { setVisibleColumns(tempVisibleColumns); setColumnModalOpen(false); }} className="px-3 py-2 bg-blue-600 border border-blue-500 rounded hover:bg-blue-500 text-white">OK</button>
+                <button onClick={() => { setVisibleColumns(tempVisibleColumns); setColumnModalOpen(false); }} className="px-3 py-2 bg-gray-800  rounded hover:bg-gray-800 text-white">OK</button>
               </div>
             </div>
           </div>
@@ -433,29 +372,8 @@ const Meetings = () => {
             </div>
 
             {/* FILTER BAR - Always Visible */}
-            <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-                 <SearchableFilterDropdown label="Meeting Type" list={dropdownOptions.meetingTypes} value={filterMeetingType} onSelect={setFilterMeetingType} />
-                 <SearchableFilterDropdown label="Start Date" list={dropdownOptions.startDates} value={filterStartDate} onSelect={setFilterStartDate} />
-                 <SearchableFilterDropdown label="End Date" list={dropdownOptions.endDates} value={filterEndDate} onSelect={setFilterEndDate} />
-                 <SearchableFilterDropdown label="Department" list={dropdownOptions.departments} value={filterDepartment} onSelect={setFilterDepartment} />
-                 <SearchableFilterDropdown label="Location" list={dropdownOptions.locations} value={filterLocation} onSelect={setFilterLocation} />
-                 <SearchableFilterDropdown label="Organized By" list={dropdownOptions.organizers} value={filterOrganizedBy} onSelect={setFilterOrganizedBy} />
-                 <SearchableFilterDropdown label="Reporter" list={dropdownOptions.reporters} value={filterReporter} onSelect={setFilterReporter} />
-
-                 <button
-                    onClick={() => {
-                      setFilterMeetingType("");
-                      setFilterStartDate("");
-                      setFilterEndDate("");
-                      setFilterDepartment("");
-                      setFilterLocation("");
-                      setFilterOrganizedBy("");
-                      setFilterReporter("");
-                    }}
-                    className="px-3 py-1.5 bg-red-900/40 border border-red-700 rounded text-xs hover:bg-red-900/60 text-white"
-                  >
-                    Clear All
-                  </button>
+            <div className="mb-4">
+                 <FilterBar filters={filterFilters} onClear={handleClearFilters} />
             </div>
 
             {/* TABLE */}
@@ -467,64 +385,73 @@ const Meetings = () => {
                       {visibleColumns.id && (
                         <SortableHeader
                           label="ID"
-                          sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
-                          onClick={() => handleSort("id")}
+                          sortKey="id"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.meetingName && (
                         <SortableHeader
                           label="Meeting Name"
-                          sortOrder={sortConfig.key === "meetingName" ? sortConfig.direction : null}
-                          onClick={() => handleSort("meetingName")}
+                          sortKey="meetingName"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.meetingType && (
                         <SortableHeader
                           label="Meeting Type"
-                          sortOrder={sortConfig.key === "meetingType" ? sortConfig.direction : null}
-                          onClick={() => handleSort("meetingType")}
+                          sortKey="meetingType"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.startDate && (
                         <SortableHeader
                           label="Start Date"
-                          sortOrder={sortConfig.key === "startDate" ? sortConfig.direction : null}
-                          onClick={() => handleSort("startDate")}
+                          sortKey="startDate"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.endDate && (
                         <SortableHeader
                           label="End Date"
-                          sortOrder={sortConfig.key === "endDate" ? sortConfig.direction : null}
-                          onClick={() => handleSort("endDate")}
+                          sortKey="endDate"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.department && (
                         <SortableHeader
                           label="Department"
-                          sortOrder={sortConfig.key === "department" ? sortConfig.direction : null}
-                          onClick={() => handleSort("department")}
+                          sortKey="department"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.location && (
                         <SortableHeader
                           label="Location"
-                          sortOrder={sortConfig.key === "location" ? sortConfig.direction : null}
-                          onClick={() => handleSort("location")}
+                          sortKey="location"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.organizedBy && (
                         <SortableHeader
                           label="Organized By"
-                          sortOrder={sortConfig.key === "organizedBy" ? sortConfig.direction : null}
-                          onClick={() => handleSort("organizedBy")}
+                          sortKey="organizedBy"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                       {visibleColumns.reporter && (
                         <SortableHeader
                           label="Reporter"
-                          sortOrder={sortConfig.key === "reporter" ? sortConfig.direction : null}
-                          onClick={() => handleSort("reporter")}
+                          sortKey="reporter"
+                          currentSort={sortConfig}
+                          onSort={handleSort}
                         />
                       )}
                     </tr>

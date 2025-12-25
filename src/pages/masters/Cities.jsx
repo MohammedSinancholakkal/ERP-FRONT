@@ -8,10 +8,6 @@ import {
   X,
   Save,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Star,
   Pencil,
   ArchiveRestore,
@@ -41,6 +37,7 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import SearchableSelect from "../../components/SearchableSelect";
 
 const Cities = () => {
   // ---------- modals ----------
@@ -136,9 +133,44 @@ const Cities = () => {
   const [countryModalCallback, setCountryModalCallback] = useState(null);
   const [stateModalCallback, setStateModalCallback] = useState(null);
 
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = null;
+    }
+    setSortConfig({ key: direction ? key : null, direction });
+  };
+
   const sortedCities = [...cities];
-  if (sortOrder === "asc") sortedCities.sort((a, b) => a.id - b.id);
+  if (sortConfig.key) {
+    sortedCities.sort((a, b) => {
+      let valA = a[sortConfig.key];
+      let valB = b[sortConfig.key];
+
+      if (sortConfig.key === "countryName") {
+         valA = a.countryName || getCountryName(a.countryId);
+         valB = b.countryName || getCountryName(b.countryId);
+      }
+      if (sortConfig.key === "stateName") {
+         valA = a.stateName || getStateName(a.stateId);
+         valB = b.stateName || getStateName(b.stateId);
+      }
+
+      valA = valA || "";
+      valB = valB || "";
+
+      if (typeof valA === "string") valA = valA.toLowerCase();
+      if (typeof valB === "string") valB = valB.toLowerCase();
+      
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
 
   // close dropdowns when clicking outside
   useEffect(() => {
@@ -612,50 +644,16 @@ return (
             <div>
               <label className="block text-sm mb-1">Country *</label>
               <div className="flex items-center gap-2">
-                <div className="relative w-full" ref={addCountryRef}>
-                  <input
-                    type="text"
-                    value={countrySearchAdd || getCountryName(newCity.countryId) || countrySearchAdd}
-                    onChange={(e) => {
-                      setCountrySearchAdd(e.target.value);
-                      setCountryDropdownOpenAdd(true);
-                    }}
-                    onFocus={() => setCountryDropdownOpenAdd(true)}
-                    placeholder="Search..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
-                  />
-
-                  {countryDropdownOpenAdd && (
-                    <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                      {filteredCountriesAdd.length > 0 ? (
-                        filteredCountriesAdd.map((c) => (
-                          <div
-                            key={c.id}
-                            onClick={() => {
-                              setNewCity((p) => ({ ...p, countryId: String(c.id), stateId: "" }));
-                              setCountryDropdownOpenAdd(false);
-                              setCountrySearchAdd("");
-                              loadStates(String(c.id));
-                            }}
-                            className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                          >
-                            {c.name}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-sm">
-                          <div className="mb-2 text-gray-300">No matches</div>
-                          <button
-                            onClick={() => onSuggestionCreateCountryFromAdd(countrySearchAdd)}
-                            className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-                          >
-                            Create new country "{countrySearchAdd}" — open create modal
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SearchableSelect
+                  options={countries.map(c => ({ id: c.id, name: c.name }))}
+                  value={newCity.countryId}
+                  onChange={(val) => {
+                     setNewCity((p) => ({ ...p, countryId: val, stateId: "" }));
+                     loadStates(String(val));
+                  }}
+                  placeholder="Select Country"
+                  className="w-full"
+                />
 
                 {/* STAR BUTTON -> opens add country modal */}
                 <button type="button" className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition" onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}>
@@ -668,55 +666,21 @@ return (
             <div>
               <label className="block text-sm mb-1">State *</label>
               <div className="flex items-center gap-2">
-                <div className="relative w-full" ref={addStateRef}>
-                  <input
-                    type="text"
-                    value={stateSearchAdd || getStateName(newCity.stateId) || stateSearchAdd}
-                    onChange={(e) => {
-                      setStateSearchAdd(e.target.value);
-                      setStateDropdownOpenAdd(true);
-                    }}
-                    onFocus={() => setStateDropdownOpenAdd(true)}
-                    placeholder="Search..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
-                  />
-
-                  {stateDropdownOpenAdd && (
-                    <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                      {filteredStatesAdd.length > 0 ? (
-                        filteredStatesAdd.map((s) => (
-                          <div
-                            key={s.id}
-                            onClick={() => {
-                              setNewCity((p) => ({ ...p, stateId: String(s.id) }));
-                              setStateDropdownOpenAdd(false);
-                              setStateSearchAdd("");
-                            }}
-                            className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                          >
-                            {s.name}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-sm">
-                          <div className="mb-2 text-gray-300">No matches</div>
-                          <button
-                            onClick={() => onSuggestionCreateStateFromAdd(stateSearchAdd)}
-                            className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-                          >
-                            Create new state "{stateSearchAdd}" — open create modal
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SearchableSelect
+                  options={states.map(s => ({ id: s.id, name: s.name }))}
+                  value={newCity.stateId}
+                  onChange={(val) => setNewCity((p) => ({ ...p, stateId: val }))}
+                  placeholder="Select State"
+                  disabled={!newCity.countryId}
+                  className="w-full"
+                />
 
                 {/* STAR BUTTON -> open add state modal */}
                 <button
                   type="button"
                   className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
                   onClick={() => { setStateFormName(""); setStateModalCallback(null); setAddStateModalOpen(true); }}
+                  disabled={!newCity.countryId}
                 >
                   <Star size={18} className="text-yellow-400" />
                 </button>
@@ -755,57 +719,24 @@ return (
             <div>
               <label className="block text-sm mb-1">Country *</label>
               <div className="flex items-center gap-2">
-                <div className="relative w-full" ref={editCountryRef}>
-                  <input
-                    type="text"
-                    value={countrySearchEdit || getCountryName(editCity.countryId) || countrySearchEdit}
-                    onChange={(e) => {
-                      setCountrySearchEdit(e.target.value);
-                      setCountryDropdownOpenEdit(true);
-                    }}
-                    onFocus={() => setCountryDropdownOpenEdit(true)}
-                    placeholder="Search..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
-                  />
+                <SearchableSelect
+                  options={countries.map(c => ({ id: c.id, name: c.name }))}
+                  value={editCity.countryId}
+                  onChange={(val) => {
+                     setEditCity((p) => ({ ...p, countryId: val, stateId: "" }));
+                     loadStates(String(val));
+                  }}
+                  placeholder="Select Country"
+                  className="w-full"
+                />
 
-                  {countryDropdownOpenEdit && (
-                    <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                      {filteredCountriesEdit.length > 0 ? (
-                        filteredCountriesEdit.map((c) => (
-                          <div
-                            key={c.id}
-                            onClick={() => {
-                              setEditCity((p) => ({ ...p, countryId: String(c.id), stateId: "" }));
-                              setCountryDropdownOpenEdit(false);
-                              setCountrySearchEdit("");
-                              loadStates(String(c.id));
-                            }}
-                            className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                          >
-                            {c.name}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-sm">
-                          <div className="mb-2 text-gray-300">No matches</div>
-                          <button onClick={() => onSuggestionCreateCountryFromEdit(countrySearchEdit)} className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded">
-                            Create new country "{countrySearchEdit}" — open create modal
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* PENCIL -> open edit country modal */}
-                <button type="button" className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition" onClick={() => {
-                  const id = editCity.countryId;
-                  if (!id) return toast.error("No country selected to edit");
-                  const name = (countries.find((c) => String(c.id) === String(id)) || {}).name || "";
-                  setCountryEditData({ id, name });
-                  setEditCountryModalOpen(true);
-                }}>
-                  <Pencil size={18} className="text-blue-400" />
+                {/* STAR BUTTON */}
+                <button
+                    type="button"
+                    className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                    onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}
+                >
+                    <Star size={18} className="text-yellow-400" />
                 </button>
               </div>
             </div>
@@ -814,57 +745,6 @@ return (
             <div>
               <label className="block text-sm mb-1">State *</label>
               <div className="flex items-center gap-2">
-                <div className="relative w-full" ref={editStateRef}>
-                  <input
-                    type="text"
-                    value={stateSearchEdit || getStateName(editCity.stateId) || stateSearchEdit}
-                    onChange={(e) => {
-                      setStateSearchEdit(e.target.value);
-                      setStateDropdownOpenEdit(true);
-                    }}
-                    onFocus={() => setStateDropdownOpenEdit(true)}
-                    placeholder="Search..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm sm:text-base"
-                  />
-
-                  {stateDropdownOpenEdit && (
-                    <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                      {filteredStatesEdit.length > 0 ? (
-                        filteredStatesEdit.map((s) => (
-                          <div
-                            key={s.id}
-                            onClick={() => {
-                              setEditCity((p) => ({ ...p, stateId: String(s.id) }));
-                              setStateDropdownOpenEdit(false);
-                              setStateSearchEdit("");
-                            }}
-                            className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                          >
-                            {s.name}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-sm">
-                          <div className="mb-2 text-gray-300">No matches</div>
-                          <button onClick={() => onSuggestionCreateStateFromEdit(stateSearchEdit)} className="w-full text-left px-3 py-2 bg-gray-900 border border-gray-700 rounded">
-                            Create new state "{stateSearchEdit}" — open create modal
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* PENCIL -> open edit state modal */}
-                <button type="button" className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition" onClick={() => {
-                  const id = editCity.stateId;
-                  if (!id) return toast.error("No state selected to edit");
-                  const stateName = (states.find((s) => String(s.id) === String(id)) || {}).name || "";
-                  setStateEditData({ id, name: stateName, countryId: editCity.countryId });
-                  setEditStateModalOpen(true);
-                }}>
-                  <Pencil size={18} className="text-blue-400" />
-                </button>
               </div>
             </div>
           </div>
@@ -907,23 +787,51 @@ return (
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 sm:px-5 pb-5">
             <div className="bg-gray-800 p-3 rounded border border-gray-700">
-              <h3 className="text-sm font-medium mb-3">Visible Columns</h3>
-              {Object.keys(visibleColumns).filter((c) => visibleColumns[c]).filter((c) => c.includes(searchColumn)).map((c) => (
-                <div key={c} className="flex justify-between bg-gray-700 p-2 rounded mb-2">
-                  <span>{c}</span>
-                  <button onClick={() => toggleColumn(c)} className="text-red-400">✕</button>
-                </div>
-              ))}
+              <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
+              {Object.keys(visibleColumns)
+                .filter((col) => visibleColumns[col])
+                .filter((col) => col.includes(searchColumn))
+                .map((col) => (
+                  <div
+                    key={col}
+                    className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                  >
+                    <span>☰ {col.toUpperCase()}</span>
+                    <button
+                      className="text-red-400"
+                      onClick={() => toggleColumn(col)}
+                    >
+                      ✖
+                    </button>
+                  </div>
+                ))}
             </div>
 
             <div className="bg-gray-800 p-3 rounded border border-gray-700">
-              <h3 className="text-sm font-medium mb-3">Hidden Columns</h3>
-              {Object.keys(visibleColumns).filter((c) => !visibleColumns[c]).filter((c) => c.includes(searchColumn)).map((c) => (
-                <div key={c} className="flex justify-between bg-gray-700 p-2 rounded mb-2">
-                  <span>{c}</span>
-                  <button onClick={() => toggleColumn(c)} className="text-green-400">➕</button>
-                </div>
-              ))}
+              <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
+              {Object.keys(visibleColumns)
+                .filter((col) => !visibleColumns[col])
+                .filter((col) => col.includes(searchColumn))
+                .map((col) => (
+                  <div
+                    key={col}
+                    className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
+                  >
+                    <span>☰ {col.toUpperCase()}</span>
+                    <button
+                      className="text-green-400"
+                      onClick={() => toggleColumn(col)}
+                    >
+                      ➕
+                    </button>
+                  </div>
+                ))}
+
+              {Object.keys(visibleColumns).filter(
+                (col) => !visibleColumns[col]
+              ).length === 0 && (
+                <p className="text-gray-400 text-sm">No hidden columns</p>
+              )}
             </div>
           </div>
 
@@ -1056,10 +964,10 @@ return (
             <table className="w-[690px] border-separate border-spacing-y-1 text-sm">
               <thead className="sticky top-0 bg-gray-900 z-10">
                 <tr className="text-white text-center">
-                  {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortOrder} onClick={() => setSortOrder(prev => (prev === "asc" ? null : "asc"))} />}
-                  {visibleColumns.name && <th className="pb-1 border-b border-white">Name</th>}
-                  {visibleColumns.country && <th className="pb-1 border-b border-white">Country</th>}
-                  {visibleColumns.state && <th className="pb-1 border-b border-white">State</th>}
+                  {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+                  {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
+                  {visibleColumns.country && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
+                  {visibleColumns.state && <SortableHeader label="State" sortOrder={sortConfig.key === "stateName" ? sortConfig.direction : null} onClick={() => handleSort("stateName")} />}
                 </tr>
               </thead>
 

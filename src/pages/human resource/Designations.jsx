@@ -27,6 +27,8 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import SearchableSelect from "../../components/SearchableSelect";
+import SortableHeader from "../../components/SortableHeader";
 
 const Designations = () => {
   // =============================
@@ -82,34 +84,35 @@ const Designations = () => {
   const [searchColumn, setSearchColumn] = useState("");
 
   // SORT
-  const [sortOrder, setSortOrder] = useState("asc");
-  const sortedDesignations = [...designations];
-  if (sortOrder === "asc") sortedDesignations.sort((a, b) => a.id - b.id);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  // =============================
-  // SEARCHABLE DROPDOWN STATES
-  // =============================
-  const [parentSearchAdd, setParentSearchAdd] = useState("");
-  const [parentSearchEdit, setParentSearchEdit] = useState("");
-  const [parentDropdownAddOpen, setParentDropdownAddOpen] = useState(false);
-  const [parentDropdownEditOpen, setParentDropdownEditOpen] = useState(false);
+  const sortedDesignations = React.useMemo(() => {
+    let sortableItems = [...designations];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+          let aVal = a[sortConfig.key] || "";
+          let bVal = b[sortConfig.key] || "";
+          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+          
+          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+      });
+    } else {
+        // default sort by id
+        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
+    }
+    return sortableItems;
+  }, [designations, sortConfig]);
 
-  const addDropdownRef = useRef(null);
-  const editDropdownRef = useRef(null);
-
-  // close dropdown if clicking outside
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target)) {
-        setParentDropdownAddOpen(false);
-      }
-      if (editDropdownRef.current && !editDropdownRef.current.contains(e.target)) {
-        setParentDropdownEditOpen(false);
-      }
-    };
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, []);
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   // =============================
   // LOADERS
@@ -160,7 +163,6 @@ const Designations = () => {
     if (res.status === 200) {
       toast.success("Designation added");
       setNewDesignation({ designation: "", description: "", parentDesignationId: null });
-      setParentSearchAdd("");
       setModalOpen(false);
       loadDesignations();
     }
@@ -183,7 +185,6 @@ const Designations = () => {
 
     if (res.status === 200) {
       toast.success("Updated");
-      setParentSearchEdit("");
       setEditModalOpen(false);
       loadDesignations();
     }
@@ -217,22 +218,7 @@ const Designations = () => {
     }
   };
 
-  // =============================
-  // FILTER FOR DROPDOWN
-  // =============================
-  const filteredAddParents = designations.filter((c) =>
-    c.designation.toLowerCase().includes(parentSearchAdd.toLowerCase())
-  );
 
-  const filteredEditParents = designations.filter((c) =>
-    c.designation.toLowerCase().includes(parentSearchEdit.toLowerCase())
-  );
-
-  // DROP-DOWN LABEL GETTER
-  const getParentName = (id) => {
-    const c = designations.find((x) => String(x.id) === String(id));
-    return c ? c.designation : "";
-  };
 
   return (
     <>
@@ -241,7 +227,7 @@ const Designations = () => {
 ============================= */}
 {modalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
       
       {/* HEADER */}
       <div className="flex justify-between px-5 py-3 border-b border-gray-700">
@@ -276,50 +262,14 @@ const Designations = () => {
 
         {/* PARENT DESIGNATION */}
         <label>Parent Designation</label>
-
-        <div className="relative mt-1" ref={addDropdownRef}>
-          <input
-            type="text"
-            placeholder="Search parent designation..."
-            value={
-              parentSearchAdd ||
-              newDesignation.parentName ||
-              getParentName(newDesignation.parentDesignationId)
-            }
-            onChange={(e) => {
-              setParentSearchAdd(e.target.value);
-              setParentDropdownAddOpen(true);
-            }}
-            onFocus={() => setParentDropdownAddOpen(true)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-          />
-
-          {parentDropdownAddOpen && (
-            <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded mt-1 max-h-56 overflow-auto z-50">
-              {filteredAddParents.length > 0 ? (
-                filteredAddParents.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setNewDesignation((p) => ({
-                        ...p,
-                        parentDesignationId: c.id,
-                        parentName: c.designation
-                      }));
-                      setParentSearchAdd("");
-                      setParentDropdownAddOpen(false);
-                    }}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                  >
-                    {c.designation}
-                  </div>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-400">No matches</div>
-              )}
-            </div>
-          )}
-        </div>
+        <SearchableSelect
+            value={newDesignation.parentDesignationId}
+            onChange={(val) => setNewDesignation({ ...newDesignation, parentDesignationId: val })}
+            options={designations.map(d => ({ id: d.id, name: d.designation }))}
+            placeholder="Select parent designation"
+            className="w-full mt-1"
+            direction="up"
+        />
       </div>
 
       {/* FOOTER */}
@@ -340,7 +290,7 @@ const Designations = () => {
 ============================= */}
 {editModalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
       
       {/* HEADER */}
       <div className="flex justify-between px-5 py-3 border-b border-gray-700">
@@ -378,51 +328,15 @@ const Designations = () => {
 
         {/* PARENT DESIGNATION */}
         <label>Parent Designation</label>
-
-        <div className="relative mt-1" ref={editDropdownRef}>
-          <input
-            type="text"
-            placeholder="Search parent designation..."
-            value={
-              parentSearchEdit ||
-              editDesignation.parentName ||
-              getParentName(editDesignation.parentDesignationId)
-            }
-            onChange={(e) => {
-              setParentSearchEdit(e.target.value);
-              setParentDropdownEditOpen(true);
-            }}
-            onFocus={() => setParentDropdownEditOpen(true)}
+         <SearchableSelect
+            value={editDesignation.parentDesignationId}
+            onChange={(val) => setEditDesignation({ ...editDesignation, parentDesignationId: val })}
+            options={designations.map(d => ({ id: d.id, name: d.designation }))}
+            placeholder="Select parent designation"
             disabled={editDesignation.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-          />
-
-          {parentDropdownEditOpen && (
-            <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded mt-1 max-h-56 overflow-auto z-50">
-              {filteredEditParents.length > 0 ? (
-                filteredEditParents.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setEditDesignation((p) => ({
-                        ...p,
-                        parentDesignationId: c.id,
-                        parentName: c.designation
-                      }));
-                      setParentSearchEdit("");
-                      setParentDropdownEditOpen(false);
-                    }}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                  >
-                    {c.designation}
-                  </div>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-400">No matches</div>
-              )}
-            </div>
-          )}
-        </div>
+            className="w-full mt-1"
+            direction="up"
+        />
       </div>
 
       {/* FOOTER */}
@@ -611,17 +525,17 @@ const Designations = () => {
                 <thead className="sticky top-0 bg-gray-900 z-10">
                   <tr className="text-white">
                     {visibleColumns.id && (
-                      <th className="pb-1 border-b border-white text-center cursor-pointer select-none" onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}>
-                        <div className="flex items-center justify-center gap-1">
-                          {sortOrder === "asc" && <span>▲</span>}
-                          {sortOrder === null && <span className="opacity-40">⬍</span>}
-                          <span>ID</span>
-                        </div>
-                      </th>
+                       <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
                     )}
-                    {visibleColumns.designation && <th className="pb-1 border-b border-white text-center">Designation</th>}
-                    {visibleColumns.description && <th className="pb-1 border-b border-white text-center">Description</th>}
-                    {visibleColumns.parentName && <th className="pb-1 border-b border-white text-center">Parent Designation</th>}
+                    {visibleColumns.designation && (
+                        <SortableHeader label="Designation" sortKey="designation" currentSort={sortConfig} onSort={handleSort} />
+                    )}
+                    {visibleColumns.description && (
+                         <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
+                    )}
+                    {visibleColumns.parentName && (
+                        <SortableHeader label="Parent Designation" sortKey="parentName" currentSort={sortConfig} onSort={handleSort} />
+                    )}
                   </tr>
                 </thead>
 

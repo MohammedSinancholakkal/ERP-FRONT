@@ -10,10 +10,11 @@ import {
   Edit,
   Check
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import ReactDOM from "react-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
+import SearchableSelect from "../../components/SearchableSelect";
 
 // APIs
 import {
@@ -33,6 +34,7 @@ import {
 
 const NewSaleQuotation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
 
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -90,9 +92,9 @@ useEffect(() => {
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
 
-  // --- QUICK CREATE CUSTOMER MODAL STATE ---
-  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState("");
+  // --- QUICK CREATE CUSTOMER MODAL STATE (Removed in favor of navigation) ---
+  // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  // const [newCustomerName, setNewCustomerName] = useState("");
 
   // --- QUICK CREATE PRODUCT MODAL STATE ---
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -177,6 +179,26 @@ useEffect(() => {
     fetchUnits();
     fetchCategories();
   }, []);
+
+  // --- HANDLE RETURN FROM NEW CUSTOMER ---
+  useEffect(() => {
+    if (location.state?.newCustomerId) {
+      const newId = location.state.newCustomerId;
+      getCustomersApi(1, 1000).then(res => {
+         if(res.status === 200) {
+             const list = (res.data.records || []).map(r => ({
+                id: r.id ?? r.Id ?? r.customerId ?? r.CustomerId ?? null,
+                companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
+             }));
+             setCustomersList(list);
+             if(list.find(c => String(c.id) === String(newId))) {
+                 setCustomer(newId);
+             }
+         }
+      });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // --- FETCH SALE FOR EDIT ---
   useEffect(() => {
@@ -371,34 +393,8 @@ useEffect(() => {
     }
   };
 
-  // --- QUICK CREATE CUSTOMER ---
-  const handleCreateCustomer = async () => {
-    if (!newCustomerName.trim()) return toast.error("Customer name required");
-    try {
-      const res = await addCustomerApi({ companyName: newCustomerName, userId });
-      if (res.status === 200) {
-        toast.success("Customer added");
-
-        const updatedCustomers = await getCustomersApi(1, 1000);
-        if (updatedCustomers.status === 200) {
-          const records = Array.isArray(updatedCustomers?.data?.records) ? updatedCustomers.data.records : [];
-          const normalized = records.map((r) => ({
-            id: r.id ?? r.Id ?? r.customerId ?? r.CustomerId ?? null,
-            companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
-          }));
-          setCustomersList(normalized);
-          const newCustomer = normalized.find(c => c.companyName === newCustomerName || String(c.id) === String(res?.data?.id));
-          if (newCustomer) {
-            setCustomer(newCustomer.id);
-          }
-        }
-        setIsCustomerModalOpen(false);
-        setNewCustomerName("");
-      }
-    } catch (error) {
-      toast.error("Failed to add customer");
-    }
-  };
+  // --- QUICK CREATE CUSTOMER REMOVED (Replaced by Navigation) ---
+  // const handleCreateCustomer = async () => { ... }
 
   // --- QUICK CREATE PRODUCT ---
   const generateNextSNLocal = () => {
@@ -820,7 +816,7 @@ const CustomDropdown = ({
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
 
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
@@ -857,74 +853,20 @@ const CustomDropdown = ({
                 <span className="text-red-400">*</span> Customer
               </label>
               <div className="flex-1 flex items-center gap-2">
-                <div className="flex-1 relative" ref={customerRef}>
-  {/* TRIGGER */}
-  <div
-    onClick={() => setOpenCustomer(o => !o)}
-    className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer flex justify-between items-center"
-  >
-    <span>
-      {customersList.find(c => String(c.id) === String(customer))?.companyName || "--select--"}
-    </span>
-    <svg
-      className="w-4 h-4 text-gray-400"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  </div>
-
-  {/* DROPDOWN */}
-  {openCustomer && (
-    <div className="absolute z-50 mt-1 w-full bg-gray-900 border border-gray-700 rounded shadow-lg max-h-56 overflow-hidden">
-      
-      {/* SEARCH */}
-      <input
-        autoFocus
-        value={customerSearch}
-        onChange={(e) => setCustomerSearch(e.target.value)}
-        placeholder="Search customer..."
-        className="w-full px-3 py-2 text-sm bg-gray-900 text-white border-b border-gray-700 outline-none"
-      />
-
-      {/* LIST */}
-      <div className="max-h-44 overflow-y-auto">
-        {customersList
-          .filter(c =>
-            c.companyName
-              ?.toLowerCase()
-              .includes(customerSearch.toLowerCase())
-          )
-          .map(c => (
-            <div
-              key={c.id}
-              onClick={() => {
-                setCustomer(c.id);
-                setOpenCustomer(false);
-                setCustomerSearch("");
-              }}
-              className="px-3 py-2 cursor-pointer hover:bg-gray-700 text-sm text-white"
-            >
-              {c.companyName}
-            </div>
-          ))}
-
-        {customersList.filter(c =>
-          c.companyName?.toLowerCase().includes(customerSearch.toLowerCase())
-        ).length === 0 && (
-          <div className="px-3 py-2 text-gray-400 text-sm">
-            No results
-          </div>
-        )}
-      </div>
-    </div>
-  )}
-</div>
-
-                <Star size={20} className="text-white cursor-pointer hover:text-yellow-400" onClick={() => navigate("/app/businesspartners/newcustomer")} />
+                <div className="flex-1 flex items-center gap-2">
+                  <SearchableSelect
+                    options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
+                    value={customer}
+                    onChange={setCustomer}
+                    placeholder="Select customer..."
+                    className="w-full"
+                  />
+                  <Star
+                    size={20}
+                    className="text-white cursor-pointer hover:text-yellow-400"
+                    onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1123,25 +1065,20 @@ const CustomDropdown = ({
         <div>
   <label className="block text-sm text-gray-300 mb-1">Brand</label>
 
-  <CustomDropdown
-    label=""
-    list={brandsList.map(b => ({
-      id: b.id,
-      label: b.name,
-    }))}
-    valueId={newItem.brandId}
-    onSelect={(item) => {
-      setNewItem({
-        ...newItem,
-        brandId: item?.id ?? "",
-        productId: "",
-        productName: "",
-      });
-    }}
-    showStar
-    showPencil={false}
-    onAddClick={() => setIsBrandModalOpen(true)}
-  />
+  <div className="flex items-center gap-2">
+    <SearchableSelect
+        options={brandsList.map(b => ({ id: b.id, name: b.name }))}
+        value={newItem.brandId}
+        onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
+        placeholder="--select brand--"
+        className="flex-1"
+    />
+    <Star
+        size={20}
+        className="text-yellow-500 cursor-pointer hover:scale-110"
+        onClick={() => setIsBrandModalOpen(true)}
+    />
+  </div>
 </div>
 
 
@@ -1149,30 +1086,29 @@ const CustomDropdown = ({
              <div>
   <label className="block text-sm text-gray-300 mb-1">Product</label>
 
-  <CustomDropdown
-    label=""
-    list={productsList
-      .filter(
-        p =>
-          String(p.BrandId ?? p.brandId) === String(newItem.brandId)
-      )
-      .map(p => ({
-        id: p.id,
-        label: p.ProductName,
-      }))
-    }
-    valueId={newItem.productId}
-    onSelect={(item) => handleProductSelect(item?.id)}
-    showStar
-    showPencil={false}
-    onAddClick={() => {
-      setNewProductData(prev => ({
-        ...prev,
-        brandId: newItem.brandId,
-      }));
-      openProductModal();
-    }}
-  />
+  <div className="flex items-center gap-2">
+    <SearchableSelect
+        options={productsList
+            .filter(p => String(p.BrandId ?? p.brandId) === String(newItem.brandId))
+            .map(p => ({ id: p.id, name: p.ProductName }))
+        }
+        value={newItem.productId}
+        onChange={handleProductSelect}
+        placeholder="--select product--"
+        disabled={!newItem.brandId}
+        className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''}`}
+    />
+    <Star
+        size={20}
+        className={`cursor-pointer hover:scale-110 ${newItem.brandId ? 'text-yellow-500' : 'text-gray-500'}`}
+        onClick={() => {
+            if(newItem.brandId) {
+                setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                openProductModal();
+            }
+        }}
+    />
+  </div>
 </div>
 
 
@@ -1259,7 +1195,7 @@ const CustomDropdown = ({
         onClick={() => setIsBrandModalOpen(false)}
       />
 
-      <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-5">
+      <div className="relative w-[700px]  bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-5">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-white">Add New Brand</h3>
           <button onClick={() => setIsBrandModalOpen(false)}>
@@ -1277,7 +1213,7 @@ const CustomDropdown = ({
         <div className="flex justify-end gap-3">
           <button
             onClick={() => setIsBrandModalOpen(false)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white"
           >
             Cancel
           </button>
@@ -1294,41 +1230,7 @@ const CustomDropdown = ({
   )}
 
 
-      {/* --- ADD CUSTOMER MODAL --- */}
-      {isCustomerModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-96 p-6 relative">
-            <button
-              onClick={() => setIsCustomerModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg text-white font-semibold mb-4">Add New Customer</h3>
-            <input
-              type="text"
-              placeholder="Customer Name"
-              value={newCustomerName}
-              onChange={(e) => setNewCustomerName(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsCustomerModalOpen(false)}
-                className="px-3 py-1.5 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateCustomer}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* --- ADD CUSTOMER MODAL REMOVED (Replaced by navigation) --- */}
 
       {/* --- ADD PRODUCT MODAL --- */}
       {isProductModalOpen && (

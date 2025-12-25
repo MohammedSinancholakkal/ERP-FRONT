@@ -21,6 +21,8 @@ import {
 
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import SearchableSelect from "../../components/SearchableSelect";
+import SortableHeader from "../../components/SortableHeader";
 
 const Attendance = () => {
   const defaultColumns = {
@@ -49,12 +51,18 @@ const Attendance = () => {
     checkOutDate: getTodayDate(),
     checkOutTime: getCurrentTime(),
   });
-
-  const [employeeDDOpen, setEmployeeDDOpen] = useState(false);
-  const employeeRef = useRef();
-
   const [employees, setEmployees] = useState([]);
-  const [employeeSearch, setEmployeeSearch] = useState("");
+
+  // Sorting
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -83,18 +91,22 @@ const Attendance = () => {
 
 
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (employeeRef.current && !employeeRef.current.contains(e.target)) {
-        setEmployeeDDOpen(false);
-      }
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
+
 
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
+
+  const sortedRows = React.useMemo(() => {
+    if (!sortConfig.key) return rows;
+    const sorted = [...rows].sort((a, b) => {
+        const aVal = a[sortConfig.key] ? String(a[sortConfig.key]).toLowerCase() : "";
+        const bVal = b[sortConfig.key] ? String(b[sortConfig.key]).toLowerCase() : "";
+        if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+    });
+    return sorted;
+  }, [rows, sortConfig]);
 
   const calculateStayTime = (inDate, inTime, outDate, outTime) => {
     const start = new Date(`${inDate}T${inTime}`);
@@ -336,63 +348,25 @@ const Attendance = () => {
             onClick={() => setModalOpen(false)}
           />
 
-          <div className="relative w-[500px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white p-5 overflow-y-auto">
+          <div className="relative w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white p-5 overflow-y-auto">
             <h2 className="text-lg font-semibold mb-4">Add Attendance</h2>
 
-            <div className="mb-4" ref={employeeRef}>
-              <label className="text-sm opacity-80">Employee</label>
-              <input
-                readOnly
-                value={form.employee}
-                onClick={() => {
-                  setEmployeeSearch("");
-                  setEmployeeDDOpen(!employeeDDOpen);
+            <div className="mb-4">
+              <label className="text-sm opacity-80 mb-1 block">Employee</label>
+              <SearchableSelect
+                value={form.employeeId}
+                onChange={(val) => {
+                    const emp = employees.find(e => e.Id === val);
+                    setForm({ 
+                        ...form, 
+                        employeeId: val, 
+                        employee: emp ? `${emp.FirstName} ${emp.LastName}` : "" 
+                    });
                 }}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1 cursor-pointer"
+                options={employees.map(e => ({ id: e.Id, name: `${e.FirstName} ${e.LastName}` }))}
                 placeholder="Select employee"
+                className="w-full"
               />
-
-              {employeeDDOpen && (
-                <div className="bg-gray-800 border border-gray-700 rounded mt-1 max-h-40 overflow-auto">
-                  <input
-                    type="text"
-                    placeholder="Search employee..."
-                    value={employeeSearch}
-                    onChange={(e) => setEmployeeSearch(e.target.value)}
-                    className="w-full bg-gray-900 border-b border-gray-700 px-3 py-2 text-sm outline-none"
-                  />
-
-                  {employees
-                    .filter((emp) =>
-                      `${emp.FirstName} ${emp.LastName}`
-                        .toLowerCase()
-                        .includes(employeeSearch.toLowerCase())
-                    )
-                    .map((emp) => (
-                      <div
-                        key={emp.Id}
-                        onClick={() => {
-                          setForm((p) => ({
-                            ...p,
-                            employee: `${emp.FirstName} ${emp.LastName}`,
-                            employeeId: emp.Id,
-                          }));
-                          setEmployeeDDOpen(false);
-                          setEmployeeSearch("");
-                        }}
-                        className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                      >
-                        {emp.FirstName} {emp.LastName}
-                      </div>
-                    ))}
-
-                  {employees.length === 0 && (
-                    <div className="px-3 py-2 text-gray-400 text-sm">
-                      No employees found
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="mb-4 grid grid-cols-2 gap-3">
@@ -525,25 +499,25 @@ const Attendance = () => {
                   <thead className="sticky top-0 bg-gray-900 z-10">
                     <tr className="text-white text-center">
                       {visibleColumns.id && (
-                        <th className="pb-2 border-b">ID</th>
+                        <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
                       )}
                       {visibleColumns.employee && (
-                        <th className="pb-2 border-b">Employee</th>
+                         <SortableHeader label="Employee" sortKey="employee" currentSort={sortConfig} onSort={handleSort} />
                       )}
                       {visibleColumns.checkIn && (
-                        <th className="pb-2 border-b">Check In</th>
+                        <SortableHeader label="Check In" sortKey="checkIn" currentSort={sortConfig} onSort={handleSort} />
                       )}
                       {visibleColumns.checkOut && (
-                        <th className="pb-2 border-b">Check Out</th>
+                         <SortableHeader label="Check Out" sortKey="checkOut" currentSort={sortConfig} onSort={handleSort} />
                       )}
                       {visibleColumns.stayTime && (
-                        <th className="pb-2 border-b">Stay Time</th>
+                         <SortableHeader label="Stay Time" sortKey="stayTime" currentSort={sortConfig} onSort={handleSort} />
                       )}
                     </tr>
                   </thead>
 
                   <tbody className="text-center">
-                    {rows.map((r) => (
+                    {sortedRows.map((r) => (
                       <tr
                         key={r.id}
                         className="bg-gray-900 hover:bg-gray-700 cursor-default"

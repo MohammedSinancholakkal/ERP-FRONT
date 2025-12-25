@@ -29,6 +29,8 @@ import {
 } from "../../services/allAPI";
 import toast from "react-hot-toast";
 import Pagination from "../../components/Pagination";
+import FilterBar from "../../components/FilterBar";
+import SortableHeader from "../../components/SortableHeader";
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -105,11 +107,48 @@ const Employees = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
-  const totalRecords = filteredEmployees.length;
+  // -----------------------------------
+  // SORTING
+  // -----------------------------------
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const sortedEmployees = React.useMemo(() => {
+    let sortableItems = [...filteredEmployees];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+          let aVal = a[sortConfig.key] || "";
+          let bVal = b[sortConfig.key] || "";
+
+          // Safe check for strings
+          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+          
+          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+      });
+    } else {
+        // default sort by id
+        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
+    }
+    return sortableItems;
+  }, [filteredEmployees, sortConfig]);
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const totalRecords = sortedEmployees.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
   const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, totalRecords);
-  const paginatedEmployees = filteredEmployees.slice((page - 1) * limit, page * limit);
+  
+  // Apply pagination to SORTED list
+  const paginatedEmployees = sortedEmployees.slice((page - 1) * limit, page * limit);
 
 
 
@@ -614,87 +653,85 @@ const columnModalRef = useRef(null);
         </div>
 
         {/* FILTER BAR */}
-        <div className="flex flex-wrap gap-2 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-          <SearchableFilterDropdown
-            label="filterDesignations"
-            list={filterDesignations}
-            value={filterDesignation}
-            onSelect={setFilterDesignation}
-          />
-
-          <SearchableFilterDropdown
-            label="Department"
-            list={filterDepartments}
-            value={filterDepartment}
-            onSelect={setFilterDepartment}
-          />
-
-          <SearchableFilterDropdown
-            label="Rate Type"
-            list={[{ name: "Hourly" }, { name: "Salary" }]}
-            value={filterRateType}
-            onSelect={setFilterRateType}
-          />
-
-          <SearchableFilterDropdown
-            label="Blood Group"
-            list={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(g => ({ name: g }))}
-            value={filterBloodGroup}
-            onSelect={setFilterBloodGroup}
-          />
-
-          <SearchableFilterDropdown
-            label="Country"
-            list={filterCountries}
-            value={filterCountry}
-            onSelect={setFilterCountry}
-          />
-
-          <SearchableFilterDropdown
-            label="filterStates"
-            list={filterStates}
-            value={filterState}
-            onSelect={setFilterState}
-          />
-
-          <SearchableFilterDropdown
-            label="filterCities"
-            list={filterCities}
-            value={filterCity}
-            onSelect={setFilterCity}
-          />
-
-          <SearchableFilterDropdown
-            label="Region"
-            list={filterRegions}
-            value={filterRegion}
-            onSelect={setFilterRegion}
-          />
-
-          <SearchableFilterDropdown
-            label="filterTerritories"
-            list={filterTerritories}
-            value={filterTerritory}
-            onSelect={setFilterTerritory}
-          />
-
-          <button
-            onClick={() => {
-              setFilterDesignation("");
-              setFilterDepartment("");
-              setFilterRateType("");
-              setFilterBloodGroup("");
-              setFilterCountry("");
-              setFilterState("");
-              setFilterCity("");
-              setFilterRegion("");
-              setFilterTerritory("");
+        <FilterBar
+            className="mb-4 bg-gray-900 border-gray-700"
+            onClear={() => {
+                setFilterDesignation("");
+                setFilterDepartment("");
+                setFilterRateType("");
+                setFilterBloodGroup("");
+                setFilterCountry("");
+                setFilterState("");
+                setFilterCity("");
+                setFilterRegion("");
+                setFilterTerritory("");
             }}
-            className="px-3 py-1.5 bg-red-900/40 border border-red-700 rounded text-xs hover:bg-red-900/60"
-          >
-            Clear All
-          </button>
-        </div>
+            filters={[
+               {
+                   label: "Designation",
+                   value: filterDesignation,
+                   onChange: setFilterDesignation,
+                   options: filterDesignations.map(d => ({ id: d.name, name: d.name })), // ID IS NAME for filter
+                   placeholder: "All Designations"
+               },
+               {
+                   label: "Department",
+                   value: filterDepartment,
+                   onChange: setFilterDepartment,
+                   options: filterDepartments.map(d => ({ id: d.name, name: d.name })),
+                   placeholder: "All Departments"
+               },
+               {
+                   label: "Rate Type",
+                   value: filterRateType,
+                   onChange: setFilterRateType,
+                   options: [{id: "Hourly", name: "Hourly"}, {id: "Salary", name: "Salary"}],
+                   placeholder: "All Types"
+               },
+               {
+                   label: "Blood Group",
+                   value: filterBloodGroup,
+                   onChange: setFilterBloodGroup,
+                   options: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(g => ({ id: g, name: g })),
+                   placeholder: "All Groups"
+               },
+               {
+                   label: "Country",
+                   value: filterCountry,
+                   onChange: setFilterCountry,
+                   options: filterCountries.map(c => ({ id: c.name, name: c.name })),
+                   placeholder: "All Countries"
+               },
+               {
+                   label: "State",
+                   value: filterState,
+                   onChange: setFilterState,
+                   options: filterStates.map(s => ({ id: s.name, name: s.name })),
+                   placeholder: "All States"
+               },
+                {
+                   label: "City",
+                   value: filterCity,
+                   onChange: setFilterCity,
+                   options: filterCities.map(c => ({ id: c.name, name: c.name })),
+                   placeholder: "All Cities"
+               },
+                {
+                   label: "Region",
+                   value: filterRegion,
+                   onChange: setFilterRegion,
+                   options: filterRegions.map(r => ({ id: r.name, name: r.name })),
+                   placeholder: "All Regions"
+               },
+                {
+                   label: "Territory",
+                   value: filterTerritory,
+                   onChange: setFilterTerritory,
+                   options: filterTerritories.map(t => ({ id: t.name, name: t.name })),
+                   placeholder: "All Territories"
+               },
+            ]}
+        />
 
         {/* TABLE */}
         <div className="flex-grow overflow-auto w-full min-h-0">
@@ -702,57 +739,57 @@ const columnModalRef = useRef(null);
             <table className="min-w-[3500px] border-separate border-spacing-y-1 text-sm table-fixed">
               <thead className="sticky top-0 bg-gray-900 z-10 h-10">
                 <tr className="text-white text-center">
-                  {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
+                  {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
                   {visibleColumns.firstName && (
-                    <th className="pb-2 border-b">First Name</th>
+                    <SortableHeader label="First Name" sortKey="firstName" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.lastName && (
-                    <th className="pb-2 border-b">Last Name</th>
+                    <SortableHeader label="Last Name" sortKey="lastName" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.designation && (
-                    <th className="pb-2 border-b">Designation</th>
+                    <SortableHeader label="Designation" sortKey="designation" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.department && (
-                    <th className="pb-2 border-b">Department</th>
+                    <SortableHeader label="Department" sortKey="department" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.rateType && (
-                    <th className="pb-2 border-b">Rate Type</th>
+                    <SortableHeader label="Rate Type" sortKey="rateType" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.phone && (
-                    <th className="pb-2 border-b">Phone</th>
+                    <SortableHeader label="Phone" sortKey="phone" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.hourRateSalary && (
-                    <th className="pb-2 border-b">Hour Rate Salary</th>
+                     <SortableHeader label="Hour Rate Salary" sortKey="hourRateSalary" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.email && (
-                    <th className="pb-2 border-b">Email</th>
+                    <SortableHeader label="Email" sortKey="email" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.bloodGroup && (
-                    <th className="pb-2 border-b">Blood Group</th>
+                    <SortableHeader label="Blood Group" sortKey="bloodGroup" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.countryName && (
-                    <th className="pb-2 border-b">Country</th>
+                     <SortableHeader label="Country" sortKey="countryName" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.stateName && (
-                    <th className="pb-2 border-b">State</th>
+                     <SortableHeader label="State" sortKey="stateName" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.cityName && (
-                    <th className="pb-2 border-b">City</th>
+                     <SortableHeader label="City" sortKey="cityName" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.zipCode && (
-                    <th className="pb-2 border-b">Zip Code</th>
+                     <SortableHeader label="Zip Code" sortKey="zipCode" currentSort={sortConfig} onSort={handleSort} />
                   )} 
                   {visibleColumns.address && (
-                    <th className="pb-2 border-b">Address</th>
+                     <SortableHeader label="Address" sortKey="address" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.userId && (
-                    <th className="pb-2 border-b">User ID</th>
+                     <SortableHeader label="User ID" sortKey="userId" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.regionName && (
-                    <th className="pb-2 border-b">Region</th>
+                     <SortableHeader label="Region" sortKey="regionName" currentSort={sortConfig} onSort={handleSort} />
                   )}
                   {visibleColumns.territory && (
-                    <th className="pb-2 border-b">Territory Description</th>
+                     <SortableHeader label="Territory Description" sortKey="territory" currentSort={sortConfig} onSort={handleSort} />
                   )}
                 </tr>
               </thead>
@@ -879,85 +916,7 @@ const columnModalRef = useRef(null);
   );
 };
 
-const SearchableFilterDropdown = ({ label, list, value, onSelect, placeholder = "Search..." }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const filtered = list.filter((item) => {
-    const name = item.name || item.designationName || item.departmentName || item.countryName || item.stateName || item.cityName || item.regionName || item.territoryName || item.territoryDescription || "";
-    return name.toLowerCase().includes(search.toLowerCase());
-  });
-
-  return (
-    <div className="relative w-40" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs hover:bg-gray-700"
-      >
-        <span className="truncate">{value || label}</span>
-        <ChevronDown size={14} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute left-0 right-0 mt-1 z-50 bg-gray-800 border border-gray-700 rounded shadow max-h-[250px] flex flex-col">
-          <div className="p-2 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={placeholder}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
-              autoFocus
-            />
-          </div>
-          <div className="overflow-auto flex-grow">
-            <div
-              onClick={() => {
-                onSelect("");
-                setIsOpen(false);
-                setSearch("");
-              }}
-              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-400 italic"
-            >
-              Clear
-            </div>
-            {filtered.length > 0 ? (
-              filtered.map((item, idx) => {
-                const name = item.name || item.designationName || item.departmentName || item.countryName || item.stateName || item.cityName || item.regionName || item.territoryName || item.territoryDescription || "";
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      onSelect(name);
-                      setIsOpen(false);
-                      setSearch("");
-                    }}
-                    className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs"
-                  >
-                    {name}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="px-3 py-2 text-xs text-gray-500">No results</div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 export default Employees;
 
