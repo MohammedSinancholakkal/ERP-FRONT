@@ -843,6 +843,12 @@ export const deleteUnitApi = (id, data) =>
 export const searchUnitsApi = (q) =>
   commonAPI("GET", `${serverURL}/units/search?q=${q}`, "", "");
 
+export const getInactiveUnitsApi = () =>
+  commonAPI("GET", `${serverURL}/units/inactive`, "", "");
+
+export const restoreUnitApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/units/restore/${id}`, data, "");
+
 
 
 
@@ -863,6 +869,12 @@ export const deleteBrandApi = (id, data) =>
 
 export const searchBrandApi = (q) =>
   commonAPI("GET", `${serverURL}/brands/search?q=${q}`, "", "");
+
+export const getInactiveBrandsApi = () =>
+  commonAPI("GET", `${serverURL}/brands/inactive`, "", "");
+
+export const restoreBrandApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/brands/restore/${id}`, data, "");
 
 
 

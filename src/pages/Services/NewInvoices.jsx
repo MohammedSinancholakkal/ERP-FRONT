@@ -511,7 +511,7 @@ const [newItem, setNewItem] = useState({
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
 
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
@@ -919,10 +919,6 @@ const [newItem, setNewItem] = useState({
           </div>
         </div>
       )}
-
-      {/* --- ADD CUSTOMER MODAL --- */}
-      {/* --- ADD CUSTOMER MODAL REMOVED --- */}
-
     </PageLayout>
   );
 };

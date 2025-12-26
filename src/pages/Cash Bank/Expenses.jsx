@@ -29,6 +29,7 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import SearchableSelect from "../../components/SearchableSelect";
 
 const Expenses = () => {
   // ====================
@@ -315,10 +316,9 @@ const Expenses = () => {
     <>
       {/* ---------------- ADD EXPENSE MODAL ---------------- */}
 {/* ADD MODAL */}
-{/* ADD MODAL */}
 {modalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[9999]">
-    <div className="w-[650px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
+    <div className="w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
 
       {/* HEADER */}
       <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
@@ -433,20 +433,19 @@ const Expenses = () => {
         <div>
           <label className="block text-sm mb-1">Payment Account *</label>
 
-          <select
+          <SearchableSelect
+            options={[
+              { id: "Cash at Hand", name: "Cash at Hand" },
+              { id: "Cash at Bank", name: "Cash at Bank" },
+            ]}
             value={newExpense.paymentAccount}
-            onChange={(e) =>
-              setNewExpense((p) => ({
-                ...p,
-                paymentAccount: e.target.value,
-              }))
+            onChange={(val) =>
+              setNewExpense((p) => ({ ...p, paymentAccount: val }))
             }
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
-          >
-            <option value="">--select--</option>
-            <option value="Cash at Hand">Cash at Hand</option>
-            <option value="Cash at Bank">Cash at Bank</option>
-          </select>
+            placeholder="Select Account"
+            className="w-full"
+            direction="up"
+          />
         </div>
 
         {/* Voucher No removed */}
@@ -468,7 +467,7 @@ const Expenses = () => {
 {/* ---------------- QUICK-CREATE EXPENSE TYPE MODAL ---------------- */}
 {showExpenseTypeCreate && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[10000]">
-    <div className="w-[420px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
+    <div className="w-[500px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
       <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
         <h2 className="text-lg font-semibold">New Expense Type</h2>
         <button onClick={() => setShowExpenseTypeCreate(false)}>
@@ -505,7 +504,7 @@ const Expenses = () => {
 {/* EDIT MODAL */}
 {editModalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[9999]">
-    <div className="w-[650px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
+    <div className="w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
 
       {/* HEADER */}
       <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
@@ -591,18 +590,19 @@ const Expenses = () => {
         <div>
           <label className="block text-sm mb-1">Payment Account *</label>
 
-          <select
+          <SearchableSelect
+            options={[
+              { id: "Cash at Hand", name: "Cash at Hand" },
+              { id: "Cash at Bank", name: "Cash at Bank" },
+            ]}
             value={editExpense.paymentAccount}
-            onChange={(e) =>
-              setEditExpense((p) => ({ ...p, paymentAccount: e.target.value }))
+            onChange={(val) =>
+              setEditExpense((p) => ({ ...p, paymentAccount: val }))
             }
-            disabled={editExpense.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
-          >
-            <option value="">--select--</option>
-            <option value="Cash at Hand">Cash at Hand</option>
-            <option value="Cash at Bank">Cash at Bank</option>
-          </select>
+            placeholder="Select Account"
+            className="w-full"
+            direction="up"
+          />
         </div>
 
         {/* Voucher No removed */}

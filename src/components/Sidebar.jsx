@@ -21,8 +21,10 @@ import { NavLink, useLocation } from "react-router-dom";
 import "../styles/Dashboard.css";
 import { useSettings } from "../contexts/SettingsContext";
 import { serverURL } from "../services/serverURL";
+import { useTheme } from "../context/ThemeContext";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
+  const { theme } = useTheme();
   // Dropdown states
   const [openMasters, setOpenMasters] = useState(false);
   const [openMeeting, setOpenMeeting] = useState(false);
@@ -150,9 +152,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
               toggle(!isOpen);
             }
           }}
-          className={`w-full flex items-center px-3 py-2 rounded hover:bg-gray-700 transition 
+          className={`w-full flex items-center px-3 py-2 rounded transition 
             ${sidebarOpen ? "justify-between" : "justify-center"}
             ${location.pathname.startsWith(pathRoot) ? "bg-white/10" : ""}
+            ${theme === 'emerald' ? 'hover:bg-emerald-700' : 'hover:bg-gray-700'}
           `}
         >
           <div className={`flex items-center ${sidebarOpen ? "gap-3" : ""}`}>
@@ -183,7 +186,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     to={`${pathRoot}/${formatRoute(item)}`}
                     className={({ isActive }) =>
                       `flex items-center gap-3 py-1 px-2 rounded transition 
-                      ${isActive ? "bg-white/20 text-white" : "hover:bg-gray-700 text-gray-300"}`
+                      ${isActive ? "bg-white/20 text-white" : theme === 'emerald' ? "hover:bg-emerald-700 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
                     }
                   >
                     <TriangleIcon active={isActive} />
@@ -212,7 +215,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       )}
 
       <aside
-        className={`bg-gradient-to-b from-gray-900 to-gray-800 text-white h-screen flex flex-col transition-all duration-300 z-50 
+        className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-800' : 'bg-gradient-to-b from-gray-900 to-gray-800'} text-white h-screen flex flex-col transition-all duration-300 z-50 
         md:static md:flex 
         ${sidebarOpen ? "md:w-64" : "md:w-16"} 
         ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden md:flex"}`}
@@ -253,14 +256,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
             {/* SEARCH BAR */}
             {sidebarOpen && (
-              <div className="bg-gray-800 flex items-center gap-2 px-3 py-2 rounded-lg mb-5">
-                <Search className="text-gray-400" size={18} />
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-5 ${theme === 'emerald' ? 'bg-white' : 'bg-gray-800'}`}>
+                <Search className={`${theme === 'emerald' ? 'text-emerald-700' : 'text-gray-400'}`} size={18} />
                 <input
                   type="text"
                   placeholder="Search..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bg-transparent outline-none w-full text-gray-300 placeholder-gray-500"
+                  className={`bg-transparent outline-none w-full placeholder-gray-500 ${theme === 'emerald' ? 'text-emerald-900' : 'text-gray-300'}`}
                 />
               </div>
             )}
@@ -273,7 +276,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 className={({ isActive }) =>
                   `px-3 py-2 rounded flex items-center transition 
                   ${sidebarOpen ? "gap-3" : "justify-center"} 
-                  ${isActive ? "bg-white/20" : "hover:bg-gray-700 text-gray-300"}`
+                  ${isActive ? "bg-white/20" : theme === 'emerald' ? "hover:bg-emerald-700 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
                 }
               >
                 <LineChart className="w-5 h-5" />

@@ -7,10 +7,7 @@ import {
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
+
   ArchiveRestore
 } from "lucide-react";
 import SortableHeader from "../../components/SortableHeader";
@@ -103,24 +100,7 @@ const end = Math.min(page * limit, totalRecords);
     return 0;
   });
 
-  // =============================
-  // SEARCHABLE DROPDOWN STATES
-  // =============================
-  const [parentSearchEdit, setParentSearchEdit] = useState("");
-  const [parentDropdownEditOpen, setParentDropdownEditOpen] = useState(false);
 
-  const editDropdownRef = useRef(null);
-
-  // close dropdown if clicking outside
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (editDropdownRef.current && !editDropdownRef.current.contains(e.target)) {
-        setParentDropdownEditOpen(false);
-      }
-    };
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, []);
 
   // =============================
   // LOADERS
@@ -232,15 +212,7 @@ const end = Math.min(page * limit, totalRecords);
   // =============================
 
 
-  const filteredEditParents = categories.filter((c) =>
-    c.name.toLowerCase().includes(parentSearchEdit.toLowerCase())
-  );
 
-  // DROP-DOWN LABEL GETTER
-  const getParentName = (id) => {
-    const c = categories.find((x) => String(x.id) === String(id));
-    return c ? c.name : "";
-  };
 
   return (
     <>
@@ -318,7 +290,7 @@ const end = Math.min(page * limit, totalRecords);
 ============================= */}
 {editModalOpen && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
       
       {/* HEADER */}
       <div className="flex justify-between px-5 py-3 border-b border-gray-700">
@@ -357,49 +329,19 @@ const end = Math.min(page * limit, totalRecords);
         {/* PARENT CATEGORY */}
         <label>Parent Category</label>
 
-        <div className="relative mt-1" ref={editDropdownRef}>
-          <input
-            type="text"
-            placeholder="Search parent category..."
-            value={
-              parentSearchEdit ||
-              editCategory.parentName ||                    // <— FIX
-              getParentName(editCategory.parentCategoryId)
-            }
-            onChange={(e) => {
-              setParentSearchEdit(e.target.value);
-              setParentDropdownEditOpen(true);
+        <div className="mt-1">
+          <SearchableSelect
+            options={categories.map(c => ({ id: c.id, name: c.name }))}
+            value={editCategory.parentCategoryId}
+            onChange={(v) => {
+               const selected = categories.find(c => String(c.id) === String(v));
+               setEditCategory(p => ({ ...p, parentCategoryId: v, parentName: selected ? selected.name : "" }));
             }}
-            onFocus={() => setParentDropdownEditOpen(true)}
+            placeholder="Search parent category..."
+            className="w-full"
+            direction="up"
             disabled={editCategory.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
           />
-
-          {parentDropdownEditOpen && (
-            <div className="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded mt-1 max-h-56 overflow-auto z-50">
-              {filteredEditParents.length > 0 ? (
-                filteredEditParents.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setEditCategory((p) => ({
-                        ...p,
-                        parentCategoryId: c.id,
-                        parentName: c.name     // <— FIX
-                      }));
-                      setParentSearchEdit("");
-                      setParentDropdownEditOpen(false);
-                    }}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                  >
-                    {c.name}
-                  </div>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-400">No matches</div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 

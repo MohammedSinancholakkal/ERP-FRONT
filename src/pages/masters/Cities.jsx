@@ -620,7 +620,7 @@ return (
     {/* ---------------- ADD CITY MODAL ---------------- */}
     {modalOpen && (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-        <div className="w-[95%] sm:w-[650px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
+        <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
           <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-20">
             <h2 className="text-base sm:text-lg font-semibold">New City</h2>
             <button onClick={() => { setModalOpen(false); setStates([]); }}>
@@ -673,12 +673,13 @@ return (
                   placeholder="Select State"
                   disabled={!newCity.countryId}
                   className="w-full"
+                  direction="up"
                 />
 
                 {/* STAR BUTTON -> open add state modal */}
                 <button
                   type="button"
-                  className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                  className={`p-2 rounded-lg border border-gray-600 bg-gray-800 transition ${!newCity.countryId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
                   onClick={() => { setStateFormName(""); setStateModalCallback(null); setAddStateModalOpen(true); }}
                   disabled={!newCity.countryId}
                 >
@@ -846,7 +847,7 @@ return (
     {/* ---------------- ADD COUNTRY MODAL (star) ---------------- */}
     {addCountryModalOpen && (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-        <div className="w-[480px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg shadow-xl border border-gray-700">
+        <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg shadow-xl border border-gray-700">
           <div className="flex justify-between px-5 py-3 border-b border-gray-700">
             <h2 className="text-lg font-semibold">Create Country</h2>
             <button onClick={() => { setAddCountryModalOpen(false); setCountryModalCallback(null); }}>
@@ -861,7 +862,7 @@ return (
 
           <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
             <button onClick={handleAddCountryModalSave} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-sm text-blue-300">
-              Create
+              Add
             </button>
           </div>
         </div>
@@ -892,7 +893,7 @@ return (
     {/* ---------------- ADD STATE MODAL ---------------- */}
     {addStateModalOpen && (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-        <div className="w-[480px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg shadow-xl border border-gray-700">
+        <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg shadow-xl border border-gray-700">
           <div className="flex justify-between px-5 py-3 border-b border-gray-700">
             <h2 className="text-lg font-semibold">Create State</h2>
             <button onClick={() => { setAddStateModalOpen(false); setStateModalCallback(null); }}><X size={20} className="text-gray-300 hover:text-white" /></button>
@@ -905,7 +906,7 @@ return (
           </div>
 
           <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-            <button onClick={() => handleAddStateModalSave(newCity.countryId || editCity.countryId)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-sm text-blue-300">Create</button>
+            <button onClick={() => handleAddStateModalSave(newCity.countryId || editCity.countryId)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-sm text-blue-300">Add</button>
           </div>
         </div>
       </div>

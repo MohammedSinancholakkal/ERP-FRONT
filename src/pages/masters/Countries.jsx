@@ -21,11 +21,13 @@ import {
   updateCountryApi,
   deleteCountryApi,
   searchCountryApi,
-  getInactiveCountriesApi,
   restoreCountryApi,
+  getInactiveCountriesApi,
 } from "../../services/allAPI";
+import { useTheme } from "../../context/ThemeContext";
 
 const Countries = () => {
+  const { theme } = useTheme();
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -256,7 +258,7 @@ const Countries = () => {
         ============================== */}
         {editModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                 <h2 className="text-lg font-semibold">
                   {editCountry.isInactive
@@ -425,7 +427,7 @@ const Countries = () => {
         {/* =============================
               MAIN PAGE
         ============================== */}
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
 
 
@@ -433,20 +435,20 @@ const Countries = () => {
 
             {/* ACTION BAR */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-1.5 mb-4">
-              <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-                <Search size={16} className="text-gray-300" />
+              <div className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${theme === 'emerald' ? 'bg-gray-100 border-emerald-500' : 'bg-gray-700 border-gray-600'}`}>
+                <Search size={16} className={theme === 'emerald' ? 'text-gray-500' : 'text-gray-300'} />
                 <input
                   type="text"
                   placeholder="search..."
                   value={searchText}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
+                  className={`bg-transparent outline-none pl-2 w-full text-sm ${theme === 'emerald' ? 'text-gray-900 placeholder-gray-500' : 'text-gray-200 placeholder-gray-500'}`}
                 />
               </div>
 
               <button
                 onClick={() => setModalOpen(true)}
-                className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}
               >
                 <Plus size={16} /> New Country
               </button>
@@ -457,16 +459,16 @@ const Countries = () => {
                   setPage(1);
                   loadCountries();
                 }}
-                className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
+                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
               >
-                <RefreshCw size={16} className="text-blue-400" />
+                <RefreshCw size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-400'} />
               </button>
 
               <button
                 onClick={() => setColumnModal(true)}
-                className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
+                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
               >
-                <List size={16} className="text-blue-300" />
+                <List size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-300'} />
               </button>
 
               <button
@@ -474,10 +476,10 @@ const Countries = () => {
                   if (!showInactive) await loadInactive();
                   setShowInactive(!showInactive);
                 }}
-                className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1"
+                className={`p-1.5 rounded-md border flex items-center gap-1 ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
               >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
+                <ArchiveRestore size={16} className={theme === 'emerald' ? 'text-white' : 'text-yellow-300'} />
+                <span className={`text-xs opacity-80 ${theme === 'emerald' ? 'text-white' : ''}`}>Inactive</span>
               </button>
             </div>
 
@@ -485,8 +487,8 @@ const Countries = () => {
             <div className="flex-grow overflow-auto min-h-0 w-full">
               <div className="w-full overflow-auto">
                 <table className="w-[400px] text-left border-separate border-spacing-y-1 text-sm">
-                  <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white">
+                  <thead className={`sticky top-0 z-10 ${theme === 'emerald' ? 'bg-emerald-700 text-white' : 'bg-gray-900 text-white'}`}>
+                    <tr className="">
                       {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
                       {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
                     </tr>
@@ -496,7 +498,7 @@ const Countries = () => {
                     {sortedCountries.map((c) => (
                       <tr
                         key={c.id}
-                        className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm"
+                        className={`cursor-pointer rounded shadow-sm border-b ${theme === 'emerald' ? 'bg-gradient-to-r from-emerald-100 to-white hover:from-emerald-200 hover:to-white text-gray-900 border-emerald-300' : 'bg-gray-900 hover:bg-gray-700 text-white'}`}
                         onClick={() => {
                           setEditCountry({
                             id: c.id,
@@ -507,10 +509,10 @@ const Countries = () => {
                         }}
                       >
                         {visibleColumns.id && (
-                          <td className="px-2 py-1 text-center">{c.id}</td>
+                          <td className={`px-2 py-1 text-center ${theme === 'emerald' ? 'border-b border-emerald-200' : ''}`}>{c.id}</td>
                         )}
                         {visibleColumns.name && (
-                          <td className="px-2 py-1 text-center">{c.name}</td>
+                          <td className={`px-2 py-1 text-center ${theme === 'emerald' ? 'border-b border-emerald-200' : ''}`}>{c.name}</td>
                         )}
                       </tr>
                     ))}
@@ -519,7 +521,7 @@ const Countries = () => {
                       inactiveCountries.map((c) => (
                         <tr
                           key={`inactive-${c.id}`}
-                          className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
+                          className={`cursor-pointer opacity-40 line-through rounded shadow-sm ${theme === 'emerald' ? 'bg-gray-100 hover:bg-gray-200 text-gray-500' : 'bg-gray-900 hover:bg-gray-700 text-white'}`}
                           onClick={() => {
                             setEditCountry({
                               id: c.id,

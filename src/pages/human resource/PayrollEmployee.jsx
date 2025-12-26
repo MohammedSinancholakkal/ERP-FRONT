@@ -545,7 +545,16 @@ const handleSave = () => {
                     value={employee?.id}
                     onChange={(val) => {
                         const emp = employees.find(e => e.id === val);
-                        if(emp) handleEmployeeSelect(emp);
+                        if (emp) {
+                            handleEmployeeSelect(emp);
+                        } else {
+                            setEmployee(null);
+                            setBankName("");
+                            setBankAccount("");
+                            setBasicSalary("");
+                            setIncomes([]);
+                            setDeductions([]);
+                        }
                     }}
                     placeholder={employeesLoading ? "Loading..." : "Select Employee"}
                 />
@@ -556,14 +565,13 @@ const handleSave = () => {
                     <span className="text-red-400 mr-1">*</span>
                     Bank Name
                 </label>
-                <SearchableSelect
-                    options={banks}
-                    value={banks.find(b => b.name === bankName)?.id}
-                    onChange={(val) => {
-                        const bank = banks.find(b => b.id === val);
-                        if(bank) setBankName(bank.name);
-                    }}
-                    placeholder="Select Bank..."
+                <input
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder={employee ? "Enter Bank Name" : "Select Employee first..."}
+                    disabled={!employee}
                 />
             </div>
           </div>

@@ -416,7 +416,7 @@ const UserManagement = () => {
       {/* ADD MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[95%] sm:w-[600px] md:w-[650px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
+          <div className="w-[700px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
             {/* HEADER */}
             <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-b border-gray-700 bg-gray-900/50">
               <h2 className="text-lg text-white-500 font-normal">New User</h2>
@@ -577,7 +577,7 @@ const UserManagement = () => {
       {/* EDIT MODAL */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[95%] sm:w-[600px] md:w-[650px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
+          <div className="w-[700px] max-h-[90vh] overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl">
             {/* HEADER */}
             <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-b border-gray-700 bg-gray-900/50">
               <h2 className="text-lg text-white-500 font-normal">
@@ -861,7 +861,7 @@ const UserManagement = () => {
           </h2>
 
           {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
             <div className="flex items-center bg-gray-700 px-2 py-1.5 w-full sm:w-60 rounded border border-gray-600">
               <Search size={16} className="text-gray-300" />
               <input

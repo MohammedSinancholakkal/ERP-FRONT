@@ -125,7 +125,6 @@ const DamagedProducts = () => {
     code: true,
     name: true,
     category: true,
-    warehouse: true,
     purchasePrice: true,
     quantity: true,
     date: true,
@@ -431,9 +430,6 @@ const DamagedProducts = () => {
             .includes(q) ||
           String(r.CategoryName ?? r.categoryName ?? "")
             .toLowerCase()
-            .includes(q) ||
-          String(r.WarehouseName ?? r.warehouseName ?? "")
-            .toLowerCase()
             .includes(q)
       );
     }
@@ -520,7 +516,6 @@ const DamagedProducts = () => {
       Code: r.Code ?? r.code,
       Name: r.Name ?? r.name,
       Category: r.CategoryName ?? r.categoryName ?? "",
-      Warehouse: r.WarehouseName ?? r.warehouseName ?? "",
       PurchasePrice: r.PurchasePrice ?? r.purchasePrice,
       Quantity: r.Quantity ?? r.quantity,
       Date: r.Date ?? r.date ? String(r.Date ?? r.date).split("T")[0] : "",
@@ -545,7 +540,6 @@ const DamagedProducts = () => {
       r.Code,
       r.Name,
       r.Category,
-      r.Warehouse,
       r.PurchasePrice,
       r.Quantity,
       r.Date,
@@ -560,7 +554,6 @@ const DamagedProducts = () => {
           "Code",
           "Name",
           "Category",
-          "Warehouse",
           "Price",
           "Qty",
           "Date",
@@ -683,23 +676,7 @@ const DamagedProducts = () => {
           />
         </div>
 
-        <div>
-          <label className="font-semibold">Warehouse</label>
-          <div className="h-[50px]">
-            <SearchableSelect
-              options={warehouses.map((w) => ({
-                id: w.Id ?? w.id,
-                name: w.Name ?? w.name ?? String(w.Id ?? w.id),
-              }))}
-              value={newDP.WarehouseId}
-              onChange={(v) =>
-                setNewDP((prev) => ({ ...prev, WarehouseId: v }))
-              }
-              placeholder="Select warehouse (optional)"
-              className="w-full"
-            />
-          </div>
-        </div>
+
 
         <div className="col-span-2">
           <label>Note</label>
@@ -842,23 +819,7 @@ const DamagedProducts = () => {
           />
         </div>
 
-        <div>
-          <label className="font-semibold">Warehouse</label>
-          <div className="h-[50px]">
-            <SearchableSelect
-              options={warehouses.map((w) => ({
-                id: w.Id ?? w.id,
-                name: w.Name ?? w.name ?? String(w.Id ?? w.id),
-              }))}
-              value={editDP.WarehouseId}
-              onChange={(v) =>
-                setEditDP((prev) => ({ ...prev, WarehouseId: v }))
-              }
-              placeholder="Select warehouse (optional)"
-              className="w-full"
-            />
-          </div>
-        </div>
+
 
         <div className="col-span-2">
           <label>Note</label>
@@ -1030,7 +991,7 @@ const DamagedProducts = () => {
               onClick={openAdd}
               className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600"
             >
-              <Plus size={16} /> New
+              <Plus size={16} /> New Damaged Product
             </button>
 
             <button
@@ -1093,7 +1054,6 @@ const DamagedProducts = () => {
                   {visibleColumns.code && <SortableHeader label="Code" sortKey="Code" currentSort={sortConfig} onSort={handleSort} />}
                   {visibleColumns.name && <SortableHeader label="Name" sortKey="Name" currentSort={sortConfig} onSort={handleSort} />}
                   {visibleColumns.category && <SortableHeader label="Category" sortKey="CategoryName" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.warehouse && <SortableHeader label="Warehouse" sortKey="WarehouseName" currentSort={sortConfig} onSort={handleSort} />}
                   {visibleColumns.purchasePrice && <SortableHeader label="Purchase Price" sortKey="PurchasePrice" currentSort={sortConfig} onSort={handleSort} />}
                   {visibleColumns.quantity && <SortableHeader label="Qty" sortKey="Quantity" currentSort={sortConfig} onSort={handleSort} />}
                   {visibleColumns.date && <SortableHeader label="Date" sortKey="Date" currentSort={sortConfig} onSort={handleSort} />}
@@ -1120,7 +1080,6 @@ const DamagedProducts = () => {
                       {visibleColumns.code && (<td className="px-2 py-2 text-center">{r.Code ?? r.code}</td>)}
                       {visibleColumns.name && (<td className="px-2 py-2 text-center">{r.Name ?? r.name}</td>)}
                       {visibleColumns.category && (<td className="px-2 py-2 text-center">{(r.CategoryName ?? r.categoryName) || "-"}</td>)}
-                      {visibleColumns.warehouse && (<td className="px-2 py-2 text-center">{(r.WarehouseName ?? r.warehouseName) || "-"}</td>)}
                       {visibleColumns.purchasePrice && (<td className="px-2 py-2 text-center">{r.PurchasePrice ?? r.purchasePrice}</td>)}
                       {visibleColumns.quantity && (<td className="px-2 py-2 text-center">{r.Quantity ?? r.quantity}</td>)}
                       {visibleColumns.date && (<td className="px-2 py-2 text-center">{String((r.Date ?? r.date) || "").split("T")[0]}</td>)}

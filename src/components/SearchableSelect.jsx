@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 
 const SearchableSelect = ({ 
@@ -14,20 +15,55 @@ const SearchableSelect = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef(null);
 
   // Find selected option object
   const selectedOption = options.find(opt => opt.id == value);
 
+  const dropdownRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+      const isClickInWrapper = wrapperRef.current && wrapperRef.current.contains(event.target);
+      const isClickInDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
+      
+      if (!isClickInWrapper && !isClickInDropdown) {
         setIsOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      // Update coords on scroll/resize to keep attached - strictly optional but good
+      window.addEventListener("scroll", updateCoords, true);
+      window.addEventListener("resize", updateCoords);
+    }
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", updateCoords, true);
+      window.removeEventListener("resize", updateCoords);
+    };
+  }, [isOpen]);
+
+  const updateCoords = () => {
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+        bottom: rect.top + window.scrollY // for 'up' direction
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      updateCoords(); // Keep this for re-renders or updates if needed, primarily for resize/scroll
+    }
+  }, [isOpen]);
 
   // Filter options based on search
   const filteredOptions = options.filter(opt =>
@@ -46,31 +82,51 @@ const SearchableSelect = ({
     setSearchTerm("");
   };
 
+  const toggleOpen = () => {
+    if (!disabled) {
+      if (!isOpen) {
+         updateCoords(); // Sync calculation before render
+      }
+      setIsOpen(!isOpen);
+    }
+  };
+
   return (
-    <div className={`relative ${className}`} ref={wrapperRef}>
-      <div
-        className={`w-full bg-gray-800 border border-gray-600 rounded px-3 ${compact ? 'py-1.5' : 'py-2'} flex justify-between items-center cursor-pointer ${
-          disabled ? "opacity-50 cursor-not-allowed" : "hover:border-gray-500"
-        }`}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-      >
-        <span className={selectedOption ? "text-white" : "text-gray-400"}>
-          {selectedOption ? selectedOption.name : placeholder}
-        </span>
-        <div className="flex items-center gap-2">
-            {selectedOption && !disabled && (
-                <div onClick={clearSelection} className="text-gray-400 hover:text-white">
-                    <X size={16} />
-                </div>
-            )}
-            <ChevronDown size={16} className="text-gray-400" />
+    <>
+      <div className={`relative ${className}`} ref={wrapperRef}>
+        <div
+          className={`w-full bg-gray-800 border border-gray-600 rounded px-3 ${compact ? 'py-1.5' : 'py-2'} flex justify-between items-center cursor-pointer ${
+            disabled ? "opacity-50 cursor-not-allowed" : "hover:border-gray-500"
+          }`}
+          onClick={toggleOpen}
+        >
+          <span className={selectedOption ? "text-white" : "text-gray-400"}>
+            {selectedOption ? selectedOption.name : placeholder}
+          </span>
+          <div className="flex items-center gap-2">
+              {selectedOption && !disabled && (
+                  <div onClick={clearSelection} className="text-gray-400 hover:text-white">
+                      <X size={16} />
+                  </div>
+              )}
+              <ChevronDown size={16} className="text-gray-400" />
+          </div>
         </div>
       </div>
 
-      {isOpen && (
-        <div className={`absolute z-50 w-full bg-gray-800 border border-gray-600 rounded shadow-lg flex flex-col ${dropdownHeight} ${
-            direction === "up" ? "bottom-full mb-1" : "mt-1"
-        }`}>
+      {isOpen && createPortal(
+        <div 
+          ref={dropdownRef}
+          style={{
+            position: 'absolute',
+            left: coords.left + 'px',
+            width: coords.width + 'px',
+            top: direction === 'up' ? 'auto' : (coords.top + 4) + 'px',
+            bottom: direction === 'up' ? (window.innerHeight - coords.bottom + 4) + 'px' : 'auto',
+            zIndex: 99999
+          }}
+          className={`bg-gray-800 border border-gray-600 rounded shadow-xl flex flex-col ${dropdownHeight}`}
+        >
           {/* If UP: Options first, then Search */}
           {direction === "up" && (
              <div className={`overflow-y-auto flex-grow ${dropdownHeight}`}>
@@ -131,9 +187,10 @@ const SearchableSelect = ({
             )}
           </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 };
 

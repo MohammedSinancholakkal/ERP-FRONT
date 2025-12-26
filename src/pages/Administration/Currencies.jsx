@@ -214,7 +214,7 @@ const Currencies = () => {
       ============================== */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
 
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Currency</h2>
@@ -269,7 +269,7 @@ const Currencies = () => {
       ============================== */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">
@@ -358,7 +358,7 @@ const Currencies = () => {
           <h2 className="text-2xl font-semibold mb-4">Currencies</h2>
 
           {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
 
             {/* SEARCH */}
             <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">

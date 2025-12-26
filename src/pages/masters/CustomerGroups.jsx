@@ -302,7 +302,7 @@ const CustomerGroups = () => {
       {/* ADD MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Customer Group</h2>
               <button onClick={() => setModalOpen(false)}>
@@ -355,7 +355,7 @@ const CustomerGroups = () => {
       {/* EDIT / RESTORE MODAL */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[650px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
+          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">
                 {editData.isInactive ? "Restore Customer Group" : "Edit Customer Group"} (

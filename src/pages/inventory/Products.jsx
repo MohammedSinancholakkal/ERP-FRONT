@@ -872,8 +872,8 @@ const Products = () => {
 
             {/* Nested quick-add modals (rendered inside this add modal) */}
             {brandModalOpen && (
-              <div className="absolute inset-0 flex justify-center items-center z-40">
-                <div className="w-[420px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
+              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
+                <div className="w-[700px] bg-gray-900 text-white  rounded-lg border border-gray-700 p-5 shadow-lg">
                   <div className="flex justify-between items-center mb-3">
                     <h3>Add Brand</h3>
                     <button onClick={() => setBrandModalOpen(false)}><X /></button>
@@ -881,15 +881,15 @@ const Products = () => {
                   <input placeholder="Brand name" value={newBrandName} onChange={(e) => setNewBrandName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setBrandModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
-                    <button onClick={handleAddBrand} className="px-3 py-1.5 bg-green-600 rounded border border-green-900">Add</button>
+                    <button onClick={handleAddBrand} className="px-3 py-1.5 bg-gray-800 text-blue-300 rounded border border-gray-700">Add</button>
                   </div>
                 </div>
               </div>
             )}
 
             {unitModalOpen && (
-              <div className="absolute inset-0 flex justify-center items-center z-40">
-                <div className="w-[420px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
+              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
+                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
                   <div className="flex justify-between items-center mb-3">
                     <h3>Add Unit</h3>
                     <button onClick={() => setUnitModalOpen(false)}><X /></button>
@@ -897,7 +897,7 @@ const Products = () => {
                   <input placeholder="Unit name" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setUnitModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
-                    <button onClick={handleAddUnit} className="px-3 py-1.5 bg-green-600 rounded border border-green-900">Add</button>
+                    <button onClick={handleAddUnit} className="px-3 py-1.5 bg-gray-800 rounded border text-blue-300 border-gray-700">Add</button>
                   </div>
                 </div>
               </div>
@@ -966,7 +966,6 @@ const Products = () => {
 
                 <label className="mt-3">Image</label>
 
-                {/* HIDDEN INPUT */}
 {/* HIDDEN INPUT */}
 <input
   type="file"
@@ -1028,7 +1027,7 @@ const Products = () => {
 
             {/* Nested quick-add modals inside edit modal too */}
             {brandModalOpen && (
-              <div className="absolute inset-0 flex justify-center items-center z-40">
+              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
                 <div className="w-[420px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
                   <div className="flex justify-between items-center mb-3">
                     <h3>Add Brand</h3>
@@ -1044,7 +1043,7 @@ const Products = () => {
             )}
 
             {unitModalOpen && (
-              <div className="absolute inset-0 flex justify-center items-center z-40">
+              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
                 <div className="w-[420px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
                   <div className="flex justify-between items-center mb-3">
                     <h3>Add Unit</h3>

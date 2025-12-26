@@ -151,6 +151,27 @@ const NewCustomers = () => {
     loadLookups();
   }, []);
 
+  // Handle return from NewEmployee with new ID
+  useEffect(() => {
+    if (location.state?.newEmployeeId && location.state?.field) {
+        const { newEmployeeId, field } = location.state;
+        // Reload employees to ensure the new one is in the list
+        getEmployeesApi(1, 5000).then(res => {
+            const arr = parseArrayFromResponse(res).map((e) => ({
+                id: e.Id ?? e.id,
+                label: `${e.FirstName || e.firstName || ""} ${e.LastName || e.lastName || ""}`,
+            }));
+            setEmployees(arr);
+            
+            if (field === 'salesMan') {
+                update("salesManId", newEmployeeId);
+            } else if (field === 'orderBooker') {
+                update("orderBookerId", newEmployeeId);
+            }
+        });
+    }
+  }, [location.state]);
+
   useEffect(() => {
     if (isEditMode) loadCustomerForEdit();
   }, [id]); // eslint-disable-line
@@ -758,7 +779,7 @@ const NewCustomers = () => {
                 onSelect={(item) => update("salesManId", item?.id ?? null)}
                 showStar={!isEditMode}
                 showPencil={isEditMode}
-                onAddClick={() => openQuickAdd("salesMan", "Sales Man")}
+                onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "salesMan" } })}
                 direction="up"
               />
             </div>
@@ -771,7 +792,7 @@ const NewCustomers = () => {
                 onSelect={(item) => update("orderBookerId", item?.id ?? null)}
                 showStar={!isEditMode}
                 showPencil={isEditMode}
-                onAddClick={() => openQuickAdd("orderBooker", "Order Booker")}
+                onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker" } })}
                 direction="up"
               />
             </div>
@@ -788,7 +809,7 @@ const NewCustomers = () => {
       />
 
       {/* MODAL */}
-      <div className="relative w-full max-w-2xl mx-4 bg-gradient-to-b from-gray-900 to-gray-800 text-white border border-gray-700 rounded-lg shadow-xl">
+      <div className="relative  w-[700px] mx-4 bg-gradient-to-b from-gray-900 to-gray-800 text-white border border-gray-700 rounded-lg shadow-xl">
         {/* HEADER */}
         <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
           <h3 className="text-lg font-semibold">
@@ -886,8 +907,8 @@ const NewCustomers = () => {
           <button
             onClick={saveQuickAdd}
             disabled={quickAddLoading}
-            className="px-4 py-2 bg-blue-900/60 border border-blue-700 rounded
-                       text-blue-200 hover:bg-blue-900
+            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded
+                       text-blue-200 hover:bg-gray-700
                        disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {quickAddLoading ? "Saving..." : "Save"}

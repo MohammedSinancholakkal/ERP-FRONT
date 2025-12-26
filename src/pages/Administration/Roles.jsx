@@ -340,7 +340,7 @@ const Roles = () => {
       ============================== */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
 
             <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">New Role</h2>
@@ -391,7 +391,7 @@ const Roles = () => {
       ============================== */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
               <h2 className="text-lg font-semibold">
@@ -632,7 +632,7 @@ const Roles = () => {
           <h2 className="text-2xl font-semibold mb-4">Roles</h2>
 
           {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
 
             {/* SEARCH */}
             <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
@@ -692,7 +692,7 @@ const Roles = () => {
           =========================== */}
           <div className="flex-grow overflow-auto min-h-0 w-full">
             <div className="w-full overflow-auto">
-              <table className="w-[400px] text-left border-separate border-spacing-y-1 text-sm">
+              <table className="w-[500px] text-left border-separate border-spacing-y-1 text-sm">
                 <thead className="sticky top-0 bg-gray-900 z-10">
                   <tr className="text-white">
 

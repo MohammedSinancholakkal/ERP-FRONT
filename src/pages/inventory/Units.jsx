@@ -25,6 +25,8 @@ import {
   updateUnitApi,
   deleteUnitApi,
   searchUnitsApi,
+  getInactiveUnitsApi,
+  restoreUnitApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 
@@ -33,6 +35,8 @@ const Units = () => {
   const [columnModal, setColumnModal] = useState(false);
 
   const [units, setUnits] = useState([]);
+  const [inactiveUnits, setInactiveUnits] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
 
   const [newUnit, setNewUnit] = useState({ name: "", description: "" });
 
@@ -41,7 +45,8 @@ const Units = () => {
   const [editUnit, setEditUnit] = useState({
     id: null,
     name: "",
-    description: ""
+    description: "",
+    isInactive: false
   });
 
   // pagination
@@ -106,6 +111,13 @@ const Units = () => {
       setTotalRecords(res.data.total);
     } else {
       toast.error("Failed to load units");
+    }
+  };
+
+  const loadInactive = async () => {
+    const res = await getInactiveUnitsApi();
+    if (res?.status === 200) {
+      setInactiveUnits(res.data.records || res.data || []);
     }
   };
 
@@ -176,8 +188,22 @@ const Units = () => {
       toast.success("Unit deleted");
       setEditModalOpen(false);
       loadUnits();
+      if (showInactive) loadInactive();
     } else {
       toast.error("Delete failed");
+    }
+  };
+
+  // RESTORE UNIT
+  const handleRestoreUnit = async () => {
+    const res = await restoreUnitApi(editUnit.id, { userId: user?.userId || 1 });
+    if (res?.status === 200) {
+      toast.success("Unit restored");
+      setEditModalOpen(false);
+      loadUnits();
+      loadInactive();
+    } else {
+      toast.error("Restore failed");
     }
   };
 
@@ -240,10 +266,10 @@ const Units = () => {
       ======================================================= */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Unit ({editUnit.name})</h2>
+              <h2 className="text-lg font-semibold">{editUnit.isInactive ? "Restore Unit" : "Edit Unit"} ({editUnit.name})</h2>
               <button onClick={() => setEditModalOpen(false)} className="text-gray-300 hover:text-white">
                 <X size={20} />
               </button>
@@ -274,21 +300,33 @@ const Units = () => {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               
-              {/* DELETE */}
-              <button
-                onClick={handleDeleteUnit}
-                className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
+              
+              {/* DELETE / RESTORE */}
+              {editUnit.isInactive ? (
+                <button
+                  onClick={handleRestoreUnit}
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              ) : (
+                <button
+                  onClick={handleDeleteUnit}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
 
-              {/* UPDATE */}
-              <button
-                onClick={handleUpdateUnit}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-              >
-                <Save size={16} /> Save
-              </button>
+              {/* UPDATE (only if active) */}
+              {!editUnit.isInactive && (
+                <button
+                  onClick={handleUpdateUnit}
+                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
+                >
+                  <Save size={16} /> Save
+                </button>
+              )}
 
             </div>
           </div>
@@ -393,7 +431,7 @@ const Units = () => {
           <h2 className="text-2xl font-semibold mb-4">Units</h2>
 
           {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2 mb-4">
 
             {/* SEARCH */}
             <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
@@ -435,6 +473,12 @@ const Units = () => {
               <List size={16} className="text-blue-300" />
             </button>
 
+            {/* INACTIVE TOGGLE */}
+            <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive(!showInactive); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1">
+              <ArchiveRestore size={16} className="text-yellow-300" />
+              <span className="text-xs opacity-80">Inactive</span>
+            </button>
+
           </div>
 
           {/* TABLE */}
@@ -469,11 +513,39 @@ const Units = () => {
                           id: u.id,
                           name: u.name,
                           description: u.description,
+                          isInactive: false
                         });
                         setEditModalOpen(true);
                       }}
                     >
                       {visibleColumns.id && (
+                        <td className="px-2 py-1 text-center">{u.id}</td>
+                      )}
+                      {visibleColumns.name && (
+                        <td className="px-2 py-1 text-center">{u.name}</td>
+                      )}
+                      {visibleColumns.description && (
+                        <td className="px-2 py-1 text-center">{u.description}</td>
+                      )}
+                    </tr>
+                  ))}
+
+                  {/* INACTIVE UNITS */}
+                  {showInactive && inactiveUnits.map((u) => (
+                    <tr
+                      key={`inactive-${u.id}`}
+                      className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
+                      onClick={() => {
+                        setEditUnit({
+                          id: u.id,
+                          name: u.name,
+                          description: u.description,
+                          isInactive: true
+                        });
+                        setEditModalOpen(true);
+                      }}
+                    >
+                       {visibleColumns.id && (
                         <td className="px-2 py-1 text-center">{u.id}</td>
                       )}
                       {visibleColumns.name && (

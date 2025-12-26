@@ -12,6 +12,7 @@ import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 
 import toast from "react-hot-toast";
+import { ArchiveRestore } from "lucide-react";
 
 // API
 import {
@@ -20,6 +21,8 @@ import {
   updateBrandApi,
   deleteBrandApi,
   searchBrandApi,
+  getInactiveBrandsApi,
+  restoreBrandApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 
@@ -36,8 +39,12 @@ const Brands = () => {
   const [editBrand, setEditBrand] = useState({
     id: null,
     name: "",
-    description: ""
+    description: "",
+    isInactive: false
   });
+
+  const [inactiveBrands, setInactiveBrands] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
 
   // pagination
   const [page, setPage] = useState(1);
@@ -100,6 +107,13 @@ const Brands = () => {
       setTotalRecords(res.data.total);
     } else {
       toast.error("Failed to load brands");
+    }
+  };
+
+  const loadInactive = async () => {
+    const res = await getInactiveBrandsApi();
+    if (res?.status === 200) {
+      setInactiveBrands(res.data.records || res.data || []);
     }
   };
 
@@ -170,8 +184,22 @@ const Brands = () => {
       toast.success("Brand deleted");
       setEditModalOpen(false);
       loadBrands();
+      if (showInactive) loadInactive();
     } else {
       toast.error("Delete failed");
+    }
+  };
+
+  // RESTORE BRAND
+  const handleRestoreBrand = async () => {
+    const res = await restoreBrandApi(editBrand.id, { userId: user?.userId || 1 });
+    if (res?.status === 200) {
+      toast.success("Brand restored");
+      setEditModalOpen(false);
+      loadBrands();
+      loadInactive();
+    } else {
+      toast.error("Restore failed");
     }
   };
 
@@ -234,10 +262,10 @@ const Brands = () => {
       ======================================================= */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
 
             <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Edit Brand ({editBrand.name})</h2>
+              <h2 className="text-lg font-semibold">{editBrand.isInactive ? "Restore Brand" : "Edit Brand"} ({editBrand.name})</h2>
               <button onClick={() => setEditModalOpen(false)} className="text-gray-300 hover:text-white">
                 <X size={20} />
               </button>
@@ -268,21 +296,32 @@ const Brands = () => {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               
-              {/* DELETE */}
-              <button
-                onClick={handleDeleteBrand}
-                className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
+              {/* DELETE / RESTORE */}
+              {editBrand.isInactive ? (
+                <button
+                  onClick={handleRestoreBrand}
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              ) : (
+                <button
+                  onClick={handleDeleteBrand}
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
 
-              {/* UPDATE */}
-              <button
-                onClick={handleUpdateBrand}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-              >
-                <Save size={16} /> Save
-              </button>
+              {/* UPDATE (only if active) */}
+              {!editBrand.isInactive && (
+                <button
+                  onClick={handleUpdateBrand}
+                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
+                >
+                  <Save size={16} /> Save
+                </button>
+              )}
 
             </div>
           </div>
@@ -386,7 +425,7 @@ const Brands = () => {
           <h2 className="text-2xl font-semibold mb-4">Brands</h2>
 
           {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2 mb-4">
 
             {/* SEARCH */}
             <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
@@ -428,6 +467,12 @@ const Brands = () => {
               <List size={16} className="text-blue-300" />
             </button>
 
+            {/* INACTIVE TOGGLE */}
+            <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive(!showInactive); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1">
+              <ArchiveRestore size={16} className="text-yellow-300" />
+              <span className="text-xs opacity-80">Inactive</span>
+            </button>
+
           </div>
 
           {/* TABLE */}
@@ -462,11 +507,39 @@ const Brands = () => {
                           id: b.id,
                           name: b.name,
                           description: b.description,
+                          isInactive: false
                         });
                         setEditModalOpen(true);
                       }}
                     >
                       {visibleColumns.id && (
+                        <td className="px-2 py-1 text-center">{b.id}</td>
+                      )}
+                      {visibleColumns.name && (
+                        <td className="px-2 py-1 text-center">{b.name}</td>
+                      )}
+                      {visibleColumns.description && (
+                        <td className="px-2 py-1 text-center">{b.description}</td>
+                      )}
+                    </tr>
+                  ))}
+
+                  {/* INACTIVE BRANDS */}
+                  {showInactive && inactiveBrands.map((b) => (
+                    <tr
+                      key={`inactive-${b.id}`}
+                      className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
+                      onClick={() => {
+                        setEditBrand({
+                          id: b.id,
+                          name: b.name,
+                          description: b.description,
+                          isInactive: true
+                        });
+                        setEditModalOpen(true);
+                      }}
+                    >
+                       {visibleColumns.id && (
                         <td className="px-2 py-1 text-center">{b.id}</td>
                       )}
                       {visibleColumns.name && (

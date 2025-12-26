@@ -1225,7 +1225,7 @@ const EditMeeting = () => {
         {/* NEW AGENDA ITEM MODAL */}
         {showAgendaModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[950px] max-h-[90vh] overflow-hidden flex flex-col">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900">
                         <h3 className="text-lg font-semibold text-white">{newAgendaItem.id ? "Edit Agenda Item" : "New Agenda Item"}</h3>
@@ -1378,6 +1378,15 @@ const EditMeeting = () => {
                                                         <Pencil size={14} />
                                                         <input type="file" className="hidden" accept="image/*" onChange={e => setNewAgendaItem({...newAgendaItem, imageFile: e.target.files[0]})} />
                                                      </label>
+                                                     <button 
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setNewAgendaItem({...newAgendaItem, images: null});
+                                                        }}
+                                                        className="p-1.5 bg-red-900/80 rounded hover:bg-red-800 text-white"
+                                                     >
+                                                        <Trash2 size={14} />
+                                                     </button>
                                                 </div>
                                                 <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 px-2 truncate">
                                                     {newAgendaItem.images}
@@ -1448,7 +1457,7 @@ const EditMeeting = () => {
         {/* NEW DECISION MODAL */}
         {showDecisionModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[800px] max-h-[90vh] overflow-hidden flex flex-col">
                     <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900">
                         <h3 className="text-lg font-semibold text-white">New Agenda Decision</h3>
                         <button onClick={() => setShowDecisionModal(false)} className="text-gray-400 hover:text-white">✕</button>
@@ -1575,6 +1584,15 @@ const EditMeeting = () => {
                                                         <Pencil size={14} />
                                                         <input type="file" className="hidden" accept="image/*" onChange={e => setNewDecision({...newDecision, imageFile: e.target.files[0]})} />
                                                      </label>
+                                                     <button 
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setNewDecision({...newDecision, images: null});
+                                                        }}
+                                                        className="p-1.5 bg-red-900/80 rounded hover:bg-red-800 text-white"
+                                                     >
+                                                        <Trash2 size={14} />
+                                                     </button>
                                                 </div>
                                                 <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 px-2 truncate">
                                                     {newDecision.images}

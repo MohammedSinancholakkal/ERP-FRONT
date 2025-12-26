@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import PageLayout from "../../layout/PageLayout";
 import {
   getDesignationsApi,
   getDepartmentsApi,
@@ -48,13 +49,12 @@ const EmpSearchableSelect = ({
   onChange,
   required = false,
   onAdd,
-  onEdit,
   placeholder = "Select...",
   disabled = false
 }) => {
   return (
     <div className="w-full">
-      <label className="text-sm text-white block mb-1">
+      <label className="text-sm text-gray-300 block mb-1">
         {label} 
         {required && <span className="text-red-400"> *</span>}
       </label>
@@ -69,31 +69,17 @@ const EmpSearchableSelect = ({
           />
         </div>
         
-        <div className="flex flex-col gap-1 mt-0.5">
-          {onAdd && (
-            <button
-              type="button"
-              onClick={onAdd}
-              disabled={disabled}
-              className={`p-1 rounded bg-gray-800 border border-gray-600 transition ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
-              title="Add"
-            >
-              <Star size={16} className="text-yellow-400" />
-            </button>
-          )}
-
-          {onEdit && value && (
-            <button
-              type="button"
-              onClick={onEdit}
-              disabled={disabled}
-              className={`p-1 rounded bg-gray-800 border border-gray-600 transition ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
-              title="Edit"
-            >
-              <Pencil size={14} className="text-blue-300" />
-            </button>
-          )}
-        </div>
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={disabled}
+            className={`flex-shrink-0 h-[38px] w-[38px] flex items-center justify-center rounded bg-gray-800 border border-gray-600 transition ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+            title="Add"
+          >
+            <Star size={20} className="text-yellow-400" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -533,14 +519,23 @@ const submitEmployee = async () => {
 
     let res;
     if (isEditMode) {
-      res = await updateEmployeeApi(id, fd);   // âœ… UPDATE
+      res = await updateEmployeeApi(id, fd);
     } else {
-      res = await addEmployeeApi(fd);          // âœ… CREATE
+      res = await addEmployeeApi(fd);
     }
 
     if (res?.status === 201 || res?.status === 200) {
       toast.success(isEditMode ? "Employee updated" : "Employee created");
-      navigate("/app/hr/employees");          // âœ… REDIRECT
+      if (location.state?.returnTo) {
+        navigate(location.state.returnTo, { 
+          state: { 
+            newEmployeeId: res.data?.record?.id || res.data?.id || res.data?.Id,
+            field: location.state.field 
+          } 
+        });
+      } else {
+        navigate("/app/hr/employees");          // ✅ REDIRECT
+      }
     } else {
       toast.error(res?.data?.message || "Save failed");
     }
@@ -591,19 +586,13 @@ const handleDelete = async () => {
 
   // PART 3 â€” Final JSX UI (main page)
   return (
-    <>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700">
- <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
+    <PageLayout>
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
+        <div className="flex flex-col h-full">
           <div className="flex items-center justify-between mb-3">
            <div className="flex items-center gap-3">
               <button 
-                onClick={() => {
-                  if (location.state?.from) {
-                    navigate(location.state.from);
-                  } else {
-                    navigate(-1);
-                  }
-                }} 
+                onClick={() => navigate("/app/hr/employees")} 
                 className="text-white hover:text-white-400"
               >
             <ArrowLeft size={24} />
@@ -648,39 +637,39 @@ const handleDelete = async () => {
                     
                     {/* Row 1: Names */}
                     <div>
-                      <label className="text-sm text-white block mb-1">First Name <span className="text-red-400">*</span></label>
+      <label className="text-sm text-gray-300 block mb-1">First Name <span className="text-red-400">*</span></label>
                       <input 
                         value={form.firstName} 
                         onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors"
                         placeholder="John" 
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-white block mb-1">Last Name <span className="text-red-400">*</span></label>
+      <label className="text-sm text-gray-300 block mb-1">Last Name <span className="text-red-400">*</span></label>
                       <input 
                         value={form.lastName} 
                         onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors"
                         placeholder="Doe" 
                       />
                     </div>
 
                     {/* Row 2: Contact */}
                     <div>
-                      <label className="text-sm text-white block mb-1">Phone</label>
+      <label className="text-sm text-gray-300 block mb-1">Phone</label>
                       <input 
                         value={form.phone} 
                         onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-white block mb-1">Email</label>
+      <label className="text-sm text-gray-300 block mb-1">Email</label>
                       <input 
                         value={form.email} 
                         onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
                       />
                     </div>
 
@@ -724,7 +713,7 @@ const handleDelete = async () => {
 
                     {/* Row 4: Compensation */}
                     <div>
-                      <label className="text-sm text-white block mb-1">Rate Type</label>
+      <label className="text-sm text-gray-300 block mb-1">Rate Type</label>
                       <SearchableSelect
                          options={[{id: 'hourly', name: 'Hourly'}, {id: 'salary', name: 'Salary'}]}
                          value={form.rateType}
@@ -733,18 +722,18 @@ const handleDelete = async () => {
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-white block mb-1">Hour Rate / Salary</label>
+      <label className="text-sm text-gray-300 block mb-1">Hour Rate / Salary</label>
                       <input 
                         value={form.hourlyRate} 
                         onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none" 
                       />
                     </div>
 
                     {/* Row 5: Details & Picture */}
                     {/* Details: Blood Group & Zip Code */ }
                     <div>
-                      <label className="text-sm text-white block mb-1">Blood Group</label>
+      <label className="text-sm text-gray-300 block mb-1">Blood Group</label>
                       <SearchableSelect
                          options={BLOOD_GROUPS.map(b => ({ id: b, name: b }))}
                          value={form.bloodGroup}
@@ -755,11 +744,11 @@ const handleDelete = async () => {
                     </div>
                     
                     <div>
-                      <label className="text-sm text-white block mb-1">Zip Code</label>
+      <label className="text-sm text-gray-300 block mb-1">Zip Code</label>
                       <input 
                         value={form.zipCode} 
                         onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" 
+                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none" 
                       />
                     </div>
 
@@ -896,12 +885,12 @@ const handleDelete = async () => {
                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                         {/* Address */}
                         <div className="flex flex-col h-full">
-                          <label className="text-sm text-white block mb-1">Address</label>
+          <label className="text-sm text-gray-300 block mb-1">Address</label>
                            <div className="flex-grow">
                             <textarea 
                               value={form.address} 
                               onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} 
-                              className="w-full h-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none"
+                              className="w-full h-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none resize-none"
                               style={{ minHeight: '120px' }}
                             />
                            </div>
@@ -909,7 +898,7 @@ const handleDelete = async () => {
 
                         {/* Picture */}
                         <div className="flex flex-col h-full">
-                           <label className="text-sm text-white block mb-1">Picture</label>
+           <label className="text-sm text-gray-300 block mb-1">Picture</label>
                            <div className="flex-grow flex items-center justify-center bg-gray-800 border border-gray-600 rounded p-4 h-full" style={{ minHeight: '120px' }}>
                               <div className="flex flex-col items-center gap-2">
                                 <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-700 flex-shrink-0 border border-gray-600">
@@ -940,7 +929,7 @@ const handleDelete = async () => {
                 <div>
                   <div className="grid grid-cols-3 gap-3 items-end mb-3 ms-3 me-3">
                     <div>
-                      <label className="text-sm text-white">Basic Salary *</label>
+                      <label className="text-sm text-gray-300">Basic Salary *</label>
                       <input value={form.salary} onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm  h-[38px]" />
                     </div>
 
@@ -960,7 +949,7 @@ const handleDelete = async () => {
                     </div>
 
                     <div>
-                      <label className="text-sm text-white">Bank Account *</label>
+                      <label className="text-sm text-gray-300">Bank Account *</label>
                       <input value={form.payrollBankAccount} onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm h-[38px]" />
                     </div>
                   </div>
@@ -1084,7 +1073,7 @@ const handleDelete = async () => {
       {showIncomeModal && <Portal><IncomeModal onClose={() => setShowIncomeModal(false)} initialForm={incomeForm} editingId={editingIncomeId} setEditingId={setEditingIncomeId} setIncomes={setIncomes} types={incomeTypes} /></Portal>}
       {showDeductionModal && <Portal><DeductionModal onClose={() => setShowDeductionModal(false)} initialForm={deductionForm} editingId={editingDeductionId} setEditingId={setEditingDeductionId} setDeductions={setDeductions} types={deductionTypes} /></Portal>}
       {showLookupCreateModal && <Portal><LookupCreateModal context={lookupCreateContext} onClose={() => setShowLookupCreateModal(false)} setters={lookupSetters} form={form} /></Portal>}
-    </>
+    </PageLayout>
   );
 };
 
@@ -1176,8 +1165,8 @@ const LookupCreateModal = ({ context, onClose, setters, form }) => {
           <button onClick={onClose} className="p-1"><X size={18} /></button>
         </div>
         <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
-           <label className="text-sm text-white">Name *</label>
-           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" />
+           <label className="text-sm text-gray-300">Name *</label>
+           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" />
         </div>
         <div className="px-4 py-2 border-t border-gray-700 flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Cancel</button>
@@ -1208,7 +1197,7 @@ const IncomeModal = ({
         </div>
         <div className="p-4 space-y-3">
           <div>
-            <label className="text-sm block mb-1 text-white">Income *</label>
+            <label className="text-sm block mb-1 text-gray-300">Income *</label>
             <SearchableSelect
               options={types}
               value={localForm.typeId}
@@ -1218,22 +1207,22 @@ const IncomeModal = ({
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-sm text-white">Amount *</label>
+              <label className="text-sm text-gray-300">Amount *</label>
               <input 
                 type="number" 
                 value={localForm.amount} 
                 onChange={(e) => setLocalForm(p => ({ ...p, amount: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
                 autoFocus 
               />
             </div>
             <div className="col-span-2">
-              <label className="text-sm text-white">Description</label>
+              <label className="text-sm text-gray-300">Description</label>
               <input 
                 type="text" 
                 value={localForm.description} 
                 onChange={(e) => setLocalForm(p => ({ ...p, description: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
               />
             </div>
           </div>
@@ -1262,7 +1251,7 @@ const IncomeModal = ({
 
 const DeductionModal = ({ 
   onClose, 
-  initialForm, // Receive initial data instead of shared state
+  initialForm, 
   editingId, 
   setEditingId, 
   setDeductions,
@@ -1280,7 +1269,7 @@ const DeductionModal = ({
         </div>
         <div className="p-4 space-y-3">
           <div>
-            <label className="text-sm block mb-1 text-white">Deduction *</label>
+            <label className="text-sm block mb-1 text-gray-300">Deduction *</label>
             <SearchableSelect
               options={types}
               value={localForm.typeId}
@@ -1290,22 +1279,22 @@ const DeductionModal = ({
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-sm text-white">Amount *</label>
+              <label className="text-sm text-gray-300">Amount *</label>
               <input 
                 type="number" 
                 value={localForm.amount} 
                 onChange={(e) => setLocalForm(p => ({ ...p, amount: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
                 autoFocus
               />
             </div>
             <div className="col-span-2">
-              <label className="text-sm text-white">Description</label>
+              <label className="text-sm text-gray-300">Description</label>
               <input 
                 type="text" 
                 value={localForm.description} 
                 onChange={(e) => setLocalForm(p => ({ ...p, description: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm" 
+                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
               />
             </div>
           </div>

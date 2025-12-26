@@ -807,7 +807,7 @@ const Locations = () => {
         {/* --- QUICK ADD MODALS --- */}
         {addCountryModalOpen && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[400px] bg-gray-900 text-white rounded-lg border border-gray-700">
+                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                     <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                         <h2 className="font-semibold">Add Country</h2>
                         <button onClick={() => setAddCountryModalOpen(false)}><X size={20}/></button>
@@ -817,7 +817,7 @@ const Locations = () => {
                        <input value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
                     </div>
                     <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddCountry} className="bg-blue-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-blue-500"><Save size={16}/> Save</button>
+                        <button onClick={handleAddCountry} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
                     </div>
                 </div>
             </div>
@@ -825,7 +825,7 @@ const Locations = () => {
 
         {addStateModalOpen && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[400px] bg-gray-900 text-white rounded-lg border border-gray-700">
+                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                     <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                         <h2 className="font-semibold">Add State</h2>
                         <button onClick={() => setAddStateModalOpen(false)}><X size={20}/></button>
@@ -835,7 +835,7 @@ const Locations = () => {
                        <input value={newStateName} onChange={e => setNewStateName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
                     </div>
                     <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddState} className="bg-blue-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-blue-500"><Save size={16}/> Save</button>
+                        <button onClick={handleAddState} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
                     </div>
                 </div>
             </div>
@@ -853,7 +853,7 @@ const Locations = () => {
                        <input value={newCityName} onChange={e => setNewCityName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
                     </div>
                     <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddCity} className="bg-blue-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-blue-500"><Save size={16}/> Save</button>
+                        <button onClick={handleAddCity} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
                     </div>
                 </div>
             </div>

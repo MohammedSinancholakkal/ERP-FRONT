@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from "react";
 import { Menu, User, Lock, LogOut, List, X, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { changePasswordApi } from "../services/allAPI";
+import { useTheme } from "../context/ThemeContext";
 
 const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
+  const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -82,12 +84,12 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
     <>
       {/* ================= TOPBAR ================= */}
       <div
-        className="
+        className={`
           relative flex justify-between items-center px-6 py-5 shadow 
           sticky top-0 z-30 
-          bg-gradient-to-b from-gray-900 to-gray-900 text-white
+          ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-800' : 'bg-gradient-to-b from-gray-900 to-gray-900'} text-white
           border-b border-white/20
-        "
+        `}
       >
         {/* Sidebar Toggle */}
         <button
@@ -145,14 +147,14 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
 
               <button
                 onClick={() => setPasswordModal(true)}
-                className="flex items-center gap-2 px-3 py-1.5 w-full hover:bg-gray-800 text-gray-200 text-sm"
+                className={`flex items-center gap-2 px-3 py-1.5 w-full text-sm hover:text-white ${theme === 'emerald' ? 'hover:bg-emerald-700 text-gray-100' : 'hover:bg-gray-800 text-gray-200'}`}
               >
                 <Lock size={16} /> Change Password
               </button>
 
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-1.5 w-full hover:bg-gray-800 text-red-400 text-sm"
+                className={`flex items-center gap-2 px-3 py-1.5 w-full text-sm hover:text-red-300 ${theme === 'emerald' ? 'hover:bg-emerald-700 text-red-100' : 'hover:bg-gray-800 text-red-400'}`}
               >
                 <LogOut size={16} /> Logout
               </button>
@@ -249,13 +251,13 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
 
           {/* SLIDE PANEL */}
           <div
-            className="
+            className={`
               w-80 h-full 
-              bg-gradient-to-b from-gray-900 to-gray-700 
-              border-l border-gray-700 
+              ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-800 border-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700 border-gray-700'}
+              border-l
               shadow-2xl p-5 
               animate-slideLeft
-            "
+            `}
           >
             {/* Header */}
             <div className="flex justify-between items-center mb-5">
@@ -276,15 +278,14 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
               </label>
 
               <select
-                className="
-                  w-full bg-gray-900 border border-gray-700 
-                  rounded px-3 py-2 text-sm text-white 
-                  focus:border-white outline-none
-                "
+                className={`
+                  w-full border rounded px-3 py-2 text-sm text-white outline-none
+                  ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600 focus:border-white' : 'bg-gray-900 border-gray-700 focus:border-white'}
+                `}
               >
-                <option>English</option>
-                <option>Hindi</option>
-                <option>Tamil</option>
+                <option className="bg-gray-900">English</option>
+                <option className="bg-gray-900">Hindi</option>
+                <option className="bg-gray-900">Tamil</option>
               </select>
             </div>
 
@@ -293,15 +294,17 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
               <label className="block text-gray-300 text-sm mb-2">Theme</label>
 
               <select
-                className="
-                  w-full bg-gray-900 border border-gray-700 
-                  rounded px-3 py-2 text-sm text-white 
-                  focus:border-white outline-none
-                "
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                className={`
+                  w-full border rounded px-3 py-2 text-sm text-white outline-none
+                  ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600 focus:border-white' : 'bg-gray-900 border-gray-700 focus:border-white'}
+                `}
               >
-                <option>Dark Theme</option>
-                <option>Light Theme</option>
-                <option>Blue Theme</option>
+                <option value="dark" className="bg-gray-900">Dark Theme</option>
+                <option value="light" className="bg-gray-900">Light Theme</option>
+                <option value="emerald" className="bg-gray-900">Emerald Green</option>
+                <option value="blue" className="bg-gray-900">Blue Theme</option>
               </select>
             </div>
           </div>

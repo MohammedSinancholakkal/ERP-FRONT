@@ -303,7 +303,7 @@ const Services = () => {
           </div>
 
           <div className="flex-grow overflow-auto min-h-0">
-            <table className="w-[600px] border-separate border-spacing-y-1 text-sm">
+            <table className="w-[700px] border-separate border-spacing-y-1 text-sm">
                 <thead className="sticky top-0 bg-gray-900 z-10">
                     <tr className="text-white text-center">
                         {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
@@ -363,7 +363,7 @@ const Services = () => {
        {/* MODALS */}
        {modalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">New Service</h2>
                   <button onClick={() => setModalOpen(false)}><X size={20}/></button>
@@ -395,7 +395,7 @@ const Services = () => {
 
        {editModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[500px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">{editData.isInactive ? "Restore Service" : "Edit Service"}</h2>
                   <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>

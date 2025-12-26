@@ -53,6 +53,20 @@
   scrollbar-color: #6b7280 #0f1724; /* thumb, track */
 }
 
+/* EMERALD THEME SCROLLBARS */
+body.theme-emerald ::-webkit-scrollbar-track {
+  background: #ecfdf5; /* emerald-50 */
+}
+body.theme-emerald ::-webkit-scrollbar-thumb {
+  background: #047857; /* emerald-700 */
+}
+body.theme-emerald ::-webkit-scrollbar-thumb:hover {
+  background: #065f46; /* emerald-800 */
+}
+body.theme-emerald * {
+  scrollbar-color: #047857 #ecfdf5;
+}
+
 
 
 

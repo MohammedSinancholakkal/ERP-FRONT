@@ -933,7 +933,7 @@ const NewMeeting = () => {
       </div>
 
       {showAttendeeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center overflow-y-auto py-10 z-50">
+<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] max-h-[80vh] overflow-y-auto shadow-xl">
 
             {/* HEADER */}
@@ -1107,6 +1107,7 @@ const NewMeeting = () => {
                   onChange={(val) => setNewDepartment({ ...newDepartment, parentDepartmentId: val })}
                   placeholder="--select--"
                   className="w-full"
+                  direction="up"
                 />
               </div>
             </div>
@@ -1284,6 +1285,7 @@ const NewMeeting = () => {
                   onChange={(val) => setNewState({ ...newState, countryId: val })}
                   placeholder="--select--"
                   className="w-full"
+                  direction="up"
                 />
               </div>
             </div>
@@ -1333,6 +1335,7 @@ const NewMeeting = () => {
                   onChange={(val) => setNewCity({ ...newCity, stateId: val })}
                   placeholder="--select--"
                   className="w-full"
+                  direction="up"
                 />
               </div>
             </div>

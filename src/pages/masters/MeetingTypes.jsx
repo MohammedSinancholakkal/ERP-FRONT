@@ -277,7 +277,7 @@ const MeetingTypes = () => {
           </div>
 
           <div className="flex-grow overflow-auto min-h-0">
-            <table className="w-[600px] border-separate border-spacing-y-1 text-sm">
+            <table className="w-[500px] border-separate border-spacing-y-1 text-sm">
                 <thead className="sticky top-0 bg-gray-900 z-10">
                     <tr className="text-white text-center">
                         {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}

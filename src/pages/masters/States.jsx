@@ -403,7 +403,7 @@ const States = () => {
        {/* MODALS */}
        {modalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">New State</h2>
                   <button onClick={() => setModalOpen(false)}><X size={20}/></button>
@@ -422,6 +422,7 @@ const States = () => {
                             onChange={(val) => setNewData({...newData, countryId: val})}
                             placeholder="Select Country"
                             className="w-full"
+                            direction="up"
                           />
                           <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                <Star size={18} className="text-yellow-400" />
@@ -458,6 +459,7 @@ const States = () => {
                             placeholder="Select Country"
                             disabled={editData.isInactive}
                             className="w-full"
+                            direction="up"
                           />
                           {!editData.isInactive && (
                               <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
@@ -484,7 +486,7 @@ const States = () => {
        {/* QUICK ADD COUNTRY MODAL */}
        {addCountryModalOpen && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[400px] bg-gray-900 text-white rounded-lg border border-gray-700">
+                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                     <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                         <h2 className="font-semibold">Add Country</h2>
                         <button onClick={() => setAddCountryModalOpen(false)}><X size={20}/></button>

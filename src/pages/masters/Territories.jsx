@@ -411,7 +411,7 @@ const Territories = () => {
        {/* MODALS */}
        {modalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">New Territory</h2>
                   <button onClick={() => setModalOpen(false)}><X size={20}/></button>
@@ -430,6 +430,7 @@ const Territories = () => {
                             onChange={(val) => setNewData({...newData, regionId: val})}
                             placeholder="Select Region"
                             className="w-full"
+                            direction="up"
                           />
                           <button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                <Star size={18} className="text-yellow-400" />
@@ -446,7 +447,7 @@ const Territories = () => {
 
        {editModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">{editData.isInactive ? "Restore Territory" : "Edit Territory"}</h2>
                   <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
@@ -466,6 +467,7 @@ const Territories = () => {
                             placeholder="Select Region"
                             disabled={editData.isInactive}
                             className="w-full"
+                            direction="up"
                           />
                           {!editData.isInactive && (
                               <button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
@@ -492,7 +494,7 @@ const Territories = () => {
        {/* QUICK ADD REGION MODAL */}
        {addRegionModalOpen && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[400px] bg-gray-900 text-white rounded-lg border border-gray-700">
+                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                     <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                         <h2 className="font-semibold">Add Region</h2>
                         <button onClick={() => setAddRegionModalOpen(false)}><X size={20}/></button>

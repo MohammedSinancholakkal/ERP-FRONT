@@ -88,9 +88,11 @@ import EditMeeting from "./pages/Meeting/EditMeeting";
 
 
 
+import { ThemeProvider } from "./context/ThemeContext";
+
 function App() {
   return (
-    <>
+    <ThemeProvider>
       <Routes>
         {/* Public pages */}
         <Route path="/" element={<Login />} />
@@ -153,7 +155,7 @@ function App() {
           <Route path="hr/attendance" element={<Attendance />} />
           <Route path="hr/payroll" element={<Payroll />} />
           <Route path="hr/newpayroll" element={<NewPayroll />} />
-          <Route path="/app/payroll/employee" element={<PayrollEmployee />} />
+          <Route path="hr/employee" element={<PayrollEmployee />} />
           <Route path="hr/editpayroll/:id" element={<NewPayroll />} />
 
 
@@ -248,7 +250,7 @@ function App() {
 
           </Route>
         </Routes>
-    </>
+    </ThemeProvider>
   );
 }
 

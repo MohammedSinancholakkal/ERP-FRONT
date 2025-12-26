@@ -342,7 +342,7 @@ const ExpenseTypes = () => {
        {/* MODALS */}
        {modalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">New Expense Type</h2>
                   <button onClick={() => setModalOpen(false)}><X size={20}/></button>
@@ -363,7 +363,7 @@ const ExpenseTypes = () => {
 
        {editModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
+            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
                <div className="flex justify-between px-5 py-3 border-b border-gray-700">
                   <h2 className="font-semibold">{editData.isInactive ? "Restore Expense Type" : "Edit Expense Type"}</h2>
                   <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
