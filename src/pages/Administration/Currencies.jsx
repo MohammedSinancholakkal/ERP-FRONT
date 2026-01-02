@@ -3,18 +3,17 @@ import {
   Search,
   Plus,
   RefreshCw,
-  List,
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
 } from "lucide-react";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+
 
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 // API
 import {
@@ -30,6 +29,16 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 
 const Currencies = () => {
+  if (!hasPermission(PERMISSIONS.CURRENCIES.VIEW)) {
+    return (
+      <div className="flex items-center justify-center h-full text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-400">You do not have permission to view this page.</p>
+        </div>
+      </div>
+    );
+  }
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -176,34 +185,90 @@ const Currencies = () => {
   };
 
   // DELETE
+  // DELETE
   const handleDeleteCurrency = async () => {
-    const res = await deleteCurrencyApi(editCurrency.id, {
-      userId: user?.userId || 1,
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This currency will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Currency deleted");
-      setEditModalOpen(false);
-      loadCurrencies();
-      if (showInactive) loadInactive();
-    } else {
-      toast.error("Delete failed");
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await deleteCurrencyApi(editCurrency.id, {
+        userId: user?.userId || 1,
+      });
+
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: "Currency deleted successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadCurrencies();
+        if (showInactive) loadInactive();
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Delete failed",
+        text: "Failed to delete currency. Please try again.",
+      });
     }
   };
 
   // RESTORE
+  // RESTORE
   const handleRestoreCurrency = async () => {
-    const res = await restoreCurrencyApi(editCurrency.id, {
-      userId: user?.userId || 1,
+    const result = await Swal.fire({
+      title: "Restore currency?",
+      text: "This currency will be restored and made active again.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#16a34a",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Currency restored");
-      setEditModalOpen(false);
-      loadCurrencies();
-      loadInactive();
-    } else {
-      toast.error("Restore failed");
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await restoreCurrencyApi(editCurrency.id, {
+        userId: user?.userId || 1,
+      });
+
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Restored!",
+          text: "Currency restored successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadCurrencies();
+        loadInactive();
+      } else {
+        throw new Error("Restore failed");
+      }
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Restore failed",
+        text: "Failed to restore currency. Please try again.",
+      });
     }
   };
 
@@ -253,12 +318,14 @@ const Currencies = () => {
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+              {hasPermission(PERMISSIONS.CURRENCIES.CREATE) && (
               <button
                 onClick={handleAddCurrency}
                 className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -318,28 +385,34 @@ const Currencies = () => {
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
 
               {editCurrency.isInactive ? (
+                hasPermission(PERMISSIONS.CURRENCIES.DELETE) && (
                 <button
                   onClick={handleRestoreCurrency}
                   className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>
+                )
               ) : (
+                hasPermission(PERMISSIONS.CURRENCIES.DELETE) && (
                 <button
                   onClick={handleDeleteCurrency}
                   className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
+                )
               )}
 
               {!editCurrency.isInactive && (
+                hasPermission(PERMISSIONS.CURRENCIES.EDIT) && (
                 <button
                   onClick={handleUpdateCurrency}
                   className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
                 >
                   <Save size={16} /> Save
                 </button>
+                )
               )}
             </div>
 
@@ -373,12 +446,14 @@ const Currencies = () => {
             </div>
 
             {/* ADD */}
+            {hasPermission(PERMISSIONS.CURRENCIES.CREATE) && (
             <button
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
             >
               <Plus size={16} /> New Currency
             </button>
+            )}
 
             {/* REFRESH */}
             <button

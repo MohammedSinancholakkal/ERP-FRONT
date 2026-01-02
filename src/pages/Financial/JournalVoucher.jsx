@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const JournalVoucher = () => {
   // -----------------------------------
@@ -304,11 +306,13 @@ const JournalVoucher = () => {
                 Cancel
               </button>
 
+                {hasPermission(PERMISSIONS.FINANCIAL.CREATE) && (
                 <button
                   className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
                 >
                   <Save size={16} /> Save
-                </button>     
+                </button>
+                )}     
                  </div>
           </div>
         </div>
@@ -333,12 +337,14 @@ const JournalVoucher = () => {
             />
           </div>
 
+          {hasPermission(PERMISSIONS.FINANCIAL.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Voucher
           </button>
+          )}
 
           <button className="p-2 bg-gray-700 border border-gray-600 rounded">
             <RefreshCw size={16} className="text-blue-400" />

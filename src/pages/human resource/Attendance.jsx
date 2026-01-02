@@ -5,11 +5,10 @@ import {
   Plus,
   RefreshCw,
   List,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   Save,
+  Trash2,
+  ArchiveRestore,
+  X,
 } from "lucide-react";
 
 import {
@@ -17,7 +16,15 @@ import {
   getAttendanceApi,
   addAttendanceApi,
   searchAttendanceApi,
+  getInactiveAttendanceApi,
+  updateAttendanceApi,
+  deleteAttendanceApi,
+  restoreAttendanceApi,
 } from "../../services/allAPI";
+import Swal from "sweetalert2";
+import toast from "react-hot-toast";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
@@ -39,6 +46,21 @@ const Attendance = () => {
   const [columnSearch, setColumnSearch] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveRows, setInactiveRows] = useState([]);
+
+  // Edit/Restore Modal State
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    id: null,
+    employeeId: null,
+    employee: "",
+    checkInDate: "",
+    checkInTime: "",
+    checkOutDate: "",
+    checkOutTime: "",
+    isInactive: false, // track if we are editing an inactive record
+  });
 
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
@@ -135,6 +157,7 @@ const Attendance = () => {
 
         return {
           id: item.id,
+          employeeId: item.employeeId, // Store raw ID for editing
           employee: emp ? `${emp.FirstName} ${emp.LastName}` : "Unknown",
           checkIn: `${inDate} ${inTime}`,
           checkOut: item.checkOut ? `${outDate} ${outTime}` : "-",
@@ -161,6 +184,7 @@ const Attendance = () => {
 
         return {
           id: item.id,
+          employeeId: item.employeeId, // Store raw ID for editing
           employee: emp ? `${emp.FirstName} ${emp.LastName}` : "Unknown",
           checkIn: `${inDate} ${inTime}`,
           checkOut: item.checkOut ? `${outDate} ${outTime}` : "-",
@@ -175,6 +199,147 @@ const Attendance = () => {
       setTotal(res?.data?.total || 0);
     } catch (err) {
       console.error("Failed to load attendance:", err);
+    }
+  };
+
+  const loadInactiveAttendance = async () => {
+    try {
+      const res = await getInactiveAttendanceApi();
+      const records = res?.data?.records || [];
+      const formatted = records.map((item) => {
+        const emp = employees.find((e) => e.Id === item.employeeId);
+        const { date: inDate, time: inTime } = splitDateTime(item.checkIn);
+        const { date: outDate, time: outTime } = splitDateTime(item.checkOut);
+        return {
+          id: item.id,
+          employeeId: item.employeeId,
+          employee: emp ? `${emp.FirstName} ${emp.LastName}` : "Unknown",
+          checkIn: `${inDate} ${inTime}`,
+          checkOut: item.checkOut ? `${outDate} ${outTime}` : "-",
+          stayTime: item.checkOut
+            ? calculateStayTime(inDate, inTime, outDate, outTime)
+            : "-",
+          isInactive: true,
+        };
+      });
+      setInactiveRows(formatted);
+    } catch (err) {
+      console.error("Failed to load inactive attendance", err);
+      toast.error("Failed to load inactive records");
+    }
+  };
+
+  const handleRowClick = (row) => {
+    // Prepare form for edit
+    const { date: inDate, time: inTime } = splitDateTime(row.checkIn);
+    const { date: outDate, time: outTime } = splitDateTime(row.checkOut !== "-" ? row.checkOut : null);
+    
+    setEditForm({
+      id: row.id,
+      employeeId: row.employeeId, 
+      employee: row.employee,
+      checkInDate: inDate || "",
+      checkInTime: inTime || "",
+      checkOutDate: outDate || "",
+      checkOutTime: outTime || "",
+      isInactive: row.isInactive || false,
+    });
+    setActionModalOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editForm.employeeId) return toast.error("Employee required");
+    
+    const checkIn = `${editForm.checkInDate} ${editForm.checkInTime}`;
+    const checkOut = `${editForm.checkOutDate} ${editForm.checkOutTime}`;
+
+    try {
+      await updateAttendanceApi(editForm.id, {
+        employeeId: editForm.employeeId,
+        checkIn,
+        checkOut,
+        userId: 1
+      });
+      toast.success("Attendance updated");
+      setActionModalOpen(false);
+      loadAttendance();
+    } catch(err) {
+      console.error("Update failed", err);
+      toast.error("Update failed");
+    }
+  };
+
+  const handleDelete = async () => {
+    const result = await Swal.fire({
+      title: "Delete Attendance?",
+      text: "This record will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await deleteAttendanceApi(editForm.id, { userId: 1 });
+      Swal.fire({
+        title: "Deleted!",
+        text: "Record has been deleted.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      setActionModalOpen(false);
+      loadAttendance();
+      if (showInactive) loadInactiveAttendance();
+    } catch (err) {
+      console.error("Delete failed", err);
+      Swal.fire({
+        title: "Error!",
+        text: "Failed to delete record.",
+        icon: "error",
+      });
+    }
+  };
+
+  const handleRestore = async () => {
+    const result = await Swal.fire({
+        title: "Restore Attendance?",
+        text: "This record will be restored!",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#10b981",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Yes, restore",
+        cancelButtonText: "Cancel",
+        reverseButtons: true,
+      });
+  
+      if (!result.isConfirmed) return;
+
+    try {
+      await restoreAttendanceApi(editForm.id, { userId: 1 });
+      Swal.fire({
+        title: "Restored!",
+        text: "Record has been restored.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      setActionModalOpen(false);
+      loadAttendance();
+      loadInactiveAttendance();
+    } catch (err) {
+      console.error("Restore failed", err);
+      Swal.fire({
+        title: "Error!",
+        text: "Failed to restore record.",
+        icon: "error",
+      });
     }
   };
 
@@ -452,6 +617,119 @@ const Attendance = () => {
         </div>
       )}
 
+      {/* EDIT / RESTORE MODAL */}
+      {actionModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setActionModalOpen(false)} />
+            
+            <div className="relative w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white p-5 overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">
+                        {editForm.isInactive ? "Restore Attendance" : "Edit Attendance"}
+                    </h2>
+                    <button onClick={() => setActionModalOpen(false)}>
+                        <X size={20} className="text-gray-400 hover:text-white" />
+                    </button>
+                </div>
+
+                {/* EMPLOYEE */}
+                <div className="mb-4">
+                    <label className="text-sm opacity-80 mb-1 block">Employee</label>
+                    <SearchableSelect
+                        value={editForm.employeeId}
+                        onChange={(val) => {
+                             const emp = employees.find(e => e.Id === val);
+                             setEditForm({ ...editForm, employeeId: val, employee: emp ? `${emp.FirstName} ${emp.LastName}` : "" });
+                        }}
+                        options={employees.map(e => ({ id: e.Id, name: `${e.FirstName} ${e.LastName}` }))}
+                        placeholder="Select employee"
+                        className="w-full"
+                        disabled={editForm.isInactive}
+                    />
+                </div>
+
+                 <div className="mb-4 grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-sm opacity-80">Check In Date</label>
+                        <input
+                            type="date"
+                            value={editForm.checkInDate}
+                            onChange={(e) => setEditForm({ ...editForm, checkInDate: e.target.value })}
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
+                            disabled={editForm.isInactive}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm opacity-80">Check In Time</label>
+                        <input
+                            type="time"
+                            value={editForm.checkInTime}
+                            onChange={(e) => setEditForm({ ...editForm, checkInTime: e.target.value })}
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
+                            disabled={editForm.isInactive}
+                        />
+                    </div>
+                </div>
+
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-sm opacity-80">Check Out Date</label>
+                        <input
+                            type="date"
+                            value={editForm.checkOutDate}
+                            onChange={(e) => setEditForm({ ...editForm, checkOutDate: e.target.value })}
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
+                            disabled={editForm.isInactive}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm opacity-80">Check Out Time</label>
+                        <input
+                            type="time"
+                            value={editForm.checkOutTime}
+                            onChange={(e) => setEditForm({ ...editForm, checkOutTime: e.target.value })}
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
+                            disabled={editForm.isInactive}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex justify-between mt-6 border-t border-gray-700 pt-4">
+                    {editForm.isInactive ? (
+                        hasPermission(PERMISSIONS.HR.ATTENDANCE.DELETE) && (
+                        <button 
+                            onClick={handleRestore}
+                            className="flex items-center gap-2 bg-green-600/20 border border-green-600 text-green-400 px-4 py-2 rounded hover:bg-green-600/30"
+                        >
+                            <ArchiveRestore size={16} /> Restore
+                        </button>
+                        )
+                    ) : (
+                         hasPermission(PERMISSIONS.HR.ATTENDANCE.DELETE) && (
+                         <button 
+                            onClick={handleDelete}
+                            className="flex items-center gap-2 bg-red-600/20 border border-red-600 text-red-400 px-4 py-2 rounded hover:bg-red-600/30"
+                        >
+                            <Trash2 size={16} /> Delete
+                        </button>
+                        )
+                    )}
+
+                    <div className="flex gap-3">
+                        <button onClick={() => setActionModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
+                            Cancel
+                        </button>
+                        {!editForm.isInactive && hasPermission(PERMISSIONS.HR.ATTENDANCE.EDIT) && (
+                            <button onClick={handleUpdate} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300">
+                                <Save size={16} /> Save
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
       <PageLayout>
         <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
           <div className="flex flex-col h-full overflow-hidden">
@@ -468,12 +746,14 @@ const Attendance = () => {
                 />
               </div>
 
+              {hasPermission(PERMISSIONS.HR.ATTENDANCE.CREATE) && (
               <button
                 onClick={() => setModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
               >
                 <Plus size={16} /> Add Attendance
               </button>
+              )}
 
               <button
                 onClick={() => loadAttendance()}
@@ -490,6 +770,19 @@ const Attendance = () => {
                 className="p-2 bg-gray-700 border border-gray-600 rounded"
               >
                 <List size={16} className="text-blue-300" />
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!showInactive) await loadInactiveAttendance();
+                  setShowInactive(!showInactive);
+                }}
+                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
+              >
+                <ArchiveRestore size={16} className="text-yellow-400" />
+                <span className="text-xs text-gray-300">
+                  {showInactive ? "Mask" : "Show"} Inactive
+                </span>
               </button>
             </div>
 
@@ -520,7 +813,33 @@ const Attendance = () => {
                     {sortedRows.map((r) => (
                       <tr
                         key={r.id}
-                        className="bg-gray-900 hover:bg-gray-700 cursor-default"
+                        onClick={() => handleRowClick(r)}
+                        className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                      >
+                        {visibleColumns.id && (
+                          <td className="py-2">{r.id}</td>
+                        )}
+                        {visibleColumns.employee && (
+                          <td className="py-2">{r.employee}</td>
+                        )}
+                        {visibleColumns.checkIn && (
+                          <td className="py-2">{r.checkIn}</td>
+                        )}
+                        {visibleColumns.checkOut && (
+                          <td className="py-2">{r.checkOut}</td>
+                        )}
+                        {visibleColumns.stayTime && (
+                          <td className="py-2">{r.stayTime}</td>
+                        )}
+                      </tr>
+                    ))}
+
+                    {/* INACTIVE ROWS */}
+                    {showInactive && inactiveRows.map((r) => (
+                      <tr
+                        key={`inactive-${r.id}`}
+                        onClick={() => handleRowClick(r)}
+                        className="bg-gray-900 opacity-50 line-through cursor-pointer hover:bg-gray-800"
                       >
                         {visibleColumns.id && (
                           <td className="py-2">{r.id}</td>

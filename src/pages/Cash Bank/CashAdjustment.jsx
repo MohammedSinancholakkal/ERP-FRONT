@@ -8,13 +8,11 @@ import {
   ArchiveRestore,
   X,
   Save,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const CashAdjustment = () => {
   /* --------------------------- Column Picker --------------------------- */
@@ -224,12 +222,14 @@ const CashAdjustment = () => {
             </div>
 
             <div className="flex justify-end px-5 py-3 border-t border-gray-700">
+              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
               <button
                 onClick={handleAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -254,12 +254,14 @@ const CashAdjustment = () => {
             />
           </div>
 
+          {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Adjustment
           </button>
+          )}
 
           <button className="p-2 bg-gray-700 border border-gray-600 rounded">
             <RefreshCw size={16} className="text-blue-400" />

@@ -1,5 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { hasPermission } from "../utils/permissionUtils";
+import { PERMISSIONS } from "../constants/permissions";
 import {
   YearlySalesChart,
   ExpenseChart,
@@ -89,6 +91,17 @@ const RecentlyAddedProducts = () => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+
+  if (!hasPermission(PERMISSIONS.DASHBOARD.VIEW)) {
+    return (
+      <div className="flex items-center justify-center h-full text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-400">You do not have permission to view the dashboard.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-700 p-6 text-white text-sm">

@@ -23,8 +23,11 @@ import {
   deleteAgendaDecisionApi,
   getResolutionStatusesApi,
   addResolutionStatusApi,
+
 } from "../../services/allAPI";
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 import toast from "react-hot-toast";
 
 
@@ -819,27 +822,33 @@ const EditMeeting = () => {
             
              <div className="flex items-center gap-3">
                {isInactive ? (
+                 hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
                  <button
                   onClick={handleRestore}
                   className="flex items-center gap-2 bg-green-700 border border-green-600 px-4 py-2 rounded text-sm text-white hover:bg-green-600"
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>
+                 )
                ) : (
                  <>
+                    {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                     <button
                       onClick={handleSave}
                       className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
                     >
                       <Save size={16} /> Save
                     </button>
+                    )}
     
+                    {hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
                     <button
                       onClick={handleDelete}
                       className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200 hover:bg-red-700"
                     >
                       <Trash2 size={16} /> Delete
                     </button>
+                    )}
                  </>
                )}
             </div>
@@ -922,7 +931,7 @@ const EditMeeting = () => {
                         placeholder="--select--"
                         className="w-full"
                       />
-                      {!isInactive && (
+                      {!isInactive && hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
                           <button
                             onClick={() => handleCreateNew("Department")}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -945,7 +954,7 @@ const EditMeeting = () => {
                         placeholder="--select--"
                         className="w-full"
                       />
-                      {!isInactive && (
+                      {!isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                           <button
                             onClick={() => handleCreateNew("Organizer")}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -971,7 +980,7 @@ const EditMeeting = () => {
                         placeholder="--select--"
                         className="w-full"
                       />
-                      {!isInactive && (
+                      {!isInactive && hasPermission(PERMISSIONS.MEETING_TYPES.CREATE) && (
                           <button
                             onClick={() => handleCreateNew("Meeting Type")}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1008,7 +1017,7 @@ const EditMeeting = () => {
                         placeholder="--select--"
                         className="w-full"
                       />
-                      {!isInactive && (
+                      {!isInactive && hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
                           <button
                             onClick={() => handleCreateNew("Location")}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1031,7 +1040,7 @@ const EditMeeting = () => {
                         placeholder="--select--"
                         className="w-full"
                       />
-                      {!isInactive && (
+                      {!isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                           <button
                             onClick={() => handleCreateNew("Reporter")}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1049,7 +1058,7 @@ const EditMeeting = () => {
             <div className="mt-8">
               <div className="flex justify-between mb-2">
                 <label className="text-sm text-white">Attendees</label>
-                {!isInactive && (
+                {!isInactive && hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                   <button
                     onClick={() => setShowAttendeeModal(true)}
                     className="flex items-center gap-1 bg-[#5d8f65] px-3 py-1.5 rounded text-sm"
@@ -1096,12 +1105,14 @@ const EditMeeting = () => {
 
             <div className="flex justify-between mb-4 items-center">
               <h3 className="text-lg font-semibold text-white">Agenda Items</h3>
+              {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
               <button 
                 onClick={() => setShowAgendaModal(true)}
                 className="flex items-center gap-1 bg-gray-800 border border-gray-600 px-3 py-1.5 rounded text-sm text-blue-300 hover:bg-gray-700"
               >
                 <Plus size={14} /> Add
               </button>
+              )}
             </div>
 
             <table className="w-full text-sm text-left text-gray-300">
@@ -1126,6 +1137,8 @@ const EditMeeting = () => {
                     <td className="px-4 py-3">{a.requestedByName}</td>
                     <td className="px-4 py-3">{a.sequenceNo}</td>
                     <td className="px-4 py-3 flex items-center gap-2">
+                        {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
+                        <>
                         <button 
                             onClick={() => handleEditAgendaItem(a)}
                             className="p-1.5 bg-gray-700/50 text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
@@ -1140,6 +1153,8 @@ const EditMeeting = () => {
                         >
                             <Trash2 size={15} />
                         </button>
+                        </>
+                        )}
                     </td>
                   </tr>
                 ))}
@@ -1166,12 +1181,14 @@ const EditMeeting = () => {
           >
             <div className="flex justify-between mb-4 items-center">
               <h3 className="text-lg font-semibold text-white">Agenda Decisions</h3>
+              {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
               <button 
                 onClick={() => setShowDecisionModal(true)}
                 className="flex items-center gap-1 bg-gray-800 border border-gray-600 px-3 py-1.5 rounded text-sm text-blue-300 hover:bg-gray-700"
               >
                 <Plus size={14} /> Add
               </button>
+              )}
             </div>
 
             <table className="w-full text-sm text-left text-gray-300">
@@ -1194,6 +1211,8 @@ const EditMeeting = () => {
                      <td className="px-4 py-3">{d.resolutionStatusName}</td>
                      <td className="px-4 py-3">{d.assignedToName}</td>
                      <td className="px-4 py-3 flex items-center gap-2">
+                        {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
+                        <>
                         <button 
                             onClick={() => handleEditDecision(d)}
                             className="p-1.5 bg-gray-700/50 text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
@@ -1208,6 +1227,8 @@ const EditMeeting = () => {
                         >
                             <Trash2 size={15} />
                         </button>
+                        </>
+                        )}
                     </td>
                    </tr>
                 ))}
@@ -1271,6 +1292,7 @@ const EditMeeting = () => {
                                                 value={newAgendaItem.itemType}
                                                 onChange={(val) => setNewAgendaItem({...newAgendaItem, itemType: val})}
                                             />
+                                            {hasPermission(PERMISSIONS.AGENDA_ITEM_TYPES.CREATE) && (
                                             <button 
                                                 onClick={() => setShowAgendaTypeModal(true)}
                                                 className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
@@ -1278,6 +1300,7 @@ const EditMeeting = () => {
                                             >
                                                 <Star size={16}/>
                                             </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -1290,6 +1313,7 @@ const EditMeeting = () => {
                                                 value={newAgendaItem.requestedBy}
                                                 onChange={(val) => setNewAgendaItem({...newAgendaItem, requestedBy: val})}
                                             />
+                                            {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                                             <button 
                                                 onClick={() => navigate("/app/hr/newemployee", { state: { from: location.pathname } })}
                                                 className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
@@ -1297,6 +1321,7 @@ const EditMeeting = () => {
                                             >
                                                 <Star size={16}/>
                                             </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1531,6 +1556,7 @@ const EditMeeting = () => {
                                             className="w-full"
                                         />
                                     </div>
+                                    {hasPermission(PERMISSIONS.RESOLUTION_STATUS.CREATE) && (
                                     <button 
                                         onClick={() => setShowResolutionStatusModal(true)}
                                         className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 h-[42px] hover:scale-105 transition-transform" // Align with input
@@ -1538,6 +1564,7 @@ const EditMeeting = () => {
                                     >
                                         <Star size={16}/>
                                     </button>
+                                    )}
                                 </div>
                             </div>
                             
@@ -1778,6 +1805,7 @@ const EditMeeting = () => {
                           placeholder="--select--"
                           className="w-full"
                         />
+                         {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                          <button
                             onClick={() => setAddCountryModalOpen(true)}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1785,6 +1813,7 @@ const EditMeeting = () => {
                         >
                             <Star size={16} />
                         </button>
+                         )}
                     </div>
                 </div>
               </div>
@@ -1800,6 +1829,7 @@ const EditMeeting = () => {
                           placeholder="--select--"
                           className="w-full"
                         />
+                         {hasPermission(PERMISSIONS.STATES.CREATE) && (
                          <button
                             onClick={() => setAddStateModalOpen(true)}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1807,6 +1837,7 @@ const EditMeeting = () => {
                         >
                             <Star size={16} />
                         </button>
+                         )}
                     </div>
                 </div>
               </div>
@@ -1822,6 +1853,7 @@ const EditMeeting = () => {
                           placeholder="--select--"
                           className="w-full"
                         />
+                         {hasPermission(PERMISSIONS.CITIES.CREATE) && (
                          <button
                             onClick={() => setAddCityModalOpen(true)}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1829,6 +1861,7 @@ const EditMeeting = () => {
                         >
                             <Star size={16} />
                         </button>
+                         )}
                     </div>
                 </div>
               </div>

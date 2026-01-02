@@ -19,6 +19,8 @@ import {
 } from '../../services/allAPI'
 
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 function NewGoodsReceipt() {
   const navigate = useNavigate()
@@ -553,29 +555,36 @@ useEffect(() => {
             <>
               {!isReadonly ? (
                 <>
+                  {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.EDIT) && (
                   <button
                     onClick={handleUpdateReceipt}
                     className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded hover:bg-gray-600"
                   >
                     <Save size={18} /> Update
                   </button>
+                  )}
+                  {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.DELETE) && (
                   <button
                     onClick={handleDeleteReceipt}
                     className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500"
                   >
                     <Trash2 size={18} /> Delete
                   </button>
+                  )}
                 </>
               ) : (
+                hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.DELETE) && (
                 <button
                   onClick={handleRestoreReceipt}
                   className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500"
                 >
                   <ArchiveRestore size={18} /> Restore
                 </button>
+                )
               )}
             </>
           ) : (
+            hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.CREATE) && (
             <button
               onClick={handleSaveReceipt}
               disabled={isReadonly}
@@ -583,6 +592,7 @@ useEffect(() => {
             >
               <Save size={18} /> Save
             </button>
+            )
           )}
         </div>
 

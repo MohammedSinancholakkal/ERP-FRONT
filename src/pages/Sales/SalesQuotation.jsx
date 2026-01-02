@@ -11,10 +11,11 @@ import {
   ChevronsRight,
   FileSpreadsheet,
   FileText,
-  Eye
+  Eye,
+  ArchiveRestore
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
-import { getCustomersApi, getEmployeesApi, getQuotationsApi, searchQuotationApi, getQuotationByIdApi } from "../../services/allAPI";
+import { getCustomersApi, getEmployeesApi, getQuotationsApi, searchQuotationApi, getQuotationByIdApi, getInactiveQuotationsApi } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
@@ -23,6 +24,8 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 
 
@@ -57,6 +60,10 @@ const SalesQuotation = () => {
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [filterExpiry, setFilterExpiry] = useState("");
+
+  // --- INACTIVE STATE ---
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveRows, setInactiveRows] = useState([]);
 
   // --- SORTING STATE ---
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -221,6 +228,32 @@ const SalesQuotation = () => {
     }
   };
 
+  const loadInactiveQuotations = async () => {
+    try {
+      const res = await getInactiveQuotationsApi();
+      if (res.status === 200) {
+        let rows = Array.isArray(res.data) ? res.data : (res.data.records || []);
+        const normalized = rows.map(q => {
+             const norm = normalizeQuotation(q, customers, employees); // Use current c/e lists
+             norm.isInactive = true;
+             return norm;
+        });
+        setInactiveRows(normalized);
+      }
+    } catch (error) {
+      console.error("Error loading inactive quotations", error);
+      toast.error("Failed to load inactive quotations");
+    }
+  };
+
+  const toggleInactive = () => {
+    const newState = !showInactive;
+    setShowInactive(newState);
+    if (newState && inactiveRows.length === 0) {
+      loadInactiveQuotations();
+    }
+  };
+
   const handleExportExcel = () => {
     const ws = XLSX.utils.json_to_sheet(quotationsList);
     const wb = XLSX.utils.book_new();
@@ -278,7 +311,11 @@ const SalesQuotation = () => {
     setFilterExpiry("");
     setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
+    setPage(1);
     await fetchAllData();
+    if (showInactive) {
+      loadInactiveQuotations();
+    }
     toast.success("Refreshed");
   };
 
@@ -291,9 +328,12 @@ const SalesQuotation = () => {
     return match;
   });
 
+  // Combine lists if showing inactive
+  const displayList = showInactive ? [...filteredList, ...inactiveRows] : filteredList;
+
    // --- SORTING LOGIC ---
    const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredList];
+    let sortableItems = [...displayList];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         let aValue = a[sortConfig.key];
@@ -319,7 +359,7 @@ const SalesQuotation = () => {
       });
     }
     return sortableItems;
-  }, [filteredList, sortConfig]);
+  }, [displayList, sortConfig]);
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -437,12 +477,14 @@ const SalesQuotation = () => {
               />
             </div>
 
+            {hasPermission(PERMISSIONS.SALES.CREATE) && (
             <button
               onClick={() => navigate('/app/sales/newsalequotation')}
               className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600"
             >
               <Plus size={16} /> New Quotation
             </button>
+            )}
 
             <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
               <RefreshCw size={16} className="text-blue-300" />
@@ -456,6 +498,20 @@ const SalesQuotation = () => {
             </button>
 
             <ExportButtons onExcel={handleExportExcel} onPdf={handleExportPDF} />
+
+            {/* Inactive Toggle */}
+             <button
+                onClick={toggleInactive}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                  showInactive
+                    ? "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                    : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                }`}
+                title={showInactive ? " Inactive" : " Inactive"}
+              >
+                <ArchiveRestore size={16} />
+                {showInactive ? " Inactive" : "Inactive"}
+              </button>
           </div>
 
             {/* FILTER BAR */}
@@ -488,8 +544,12 @@ const SalesQuotation = () => {
                   {sortedList.map((q) => (
                     <tr
                       key={q.id}
-                      onClick={() => navigate(`/app/sales/newsalequotation/${q.id}`)}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                      onClick={() => navigate(`/app/sales/newsalequotation/${q.id}`, { state: { isInactive: q.isInactive } })}
+                      className={`hover:bg-gray-700 cursor-pointer ${
+                          q.isInactive 
+                            ? "bg-gray-800/50 opacity-60 line-through grayscale text-gray-500" 
+                            : "bg-gray-900"
+                        }`}
                     >
                       {visibleColumns.id && <td className="px-2 py-2">{q.id}</td>}
 
@@ -497,8 +557,9 @@ const SalesQuotation = () => {
                         <td className="px-2 py-2 flex items-center justify-center gap-2">
                           {/* PDF icon */}
                           <button
-                            className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700"
+                            className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${q.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
                             title="Download PDF"
+                            disabled={q.isInactive}
                             onClick={(e) => { e.stopPropagation(); handleDownloadPdf(q.id); }}
                           >
                             <FileText size={14} className="text-red-300" />
@@ -506,8 +567,9 @@ const SalesQuotation = () => {
 
                           {/* Preview */}
                           <button
-                            className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700"
+                            className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${q.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
                             title="Preview"
+                            disabled={q.isInactive}
                             onClick={(e) => { e.stopPropagation(); window.open(`${window.location.origin}/app/sales/preview/${q.id}`, '_blank'); }}
                           >
                             <Eye size={14} className="text-blue-300" />

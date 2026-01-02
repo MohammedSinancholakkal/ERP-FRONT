@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import SearchableSelect from "../../components/SearchableSelect";
+import Swal from "sweetalert2";
 import {
   getCountriesApi,
   getStatesApi,
@@ -20,6 +21,8 @@ import {
   getCustomerByIdApi,
   deleteCustomerApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
@@ -101,6 +104,19 @@ const NewCustomers = () => {
   const location = useLocation();
   const isEditMode = Boolean(id);
 
+  // PRE-LOAD DATA FROM NAVIGATION STATE
+  const initialCustomer = location.state?.customer;
+  
+  // Helper to extract initial lists for dropdowns (so they don't show empty ID)
+  const initialCountries = initialCustomer?.CountryId ? [{ Id: initialCustomer.CountryId, CountryName: initialCustomer.CountryName || initialCustomer.countryName }] : [];
+  const initialStates = initialCustomer?.StateId ? [{ Id: initialCustomer.StateId, StateName: initialCustomer.StateName || initialCustomer.stateName, CountryId: initialCustomer.CountryId }] : [];
+  const initialCities = initialCustomer?.CityId ? [{ Id: initialCustomer.CityId, CityName: initialCustomer.CityName || initialCustomer.cityName, StateId: initialCustomer.StateId }] : [];
+  const initialRegions = initialCustomer?.RegionId ? [{ regionId: initialCustomer.RegionId, regionName: initialCustomer.RegionName || initialCustomer.regionName }] : [];
+  const initialGroups = initialCustomer?.CustomerGroupId ? [{ Id: initialCustomer.CustomerGroupId, GroupName: initialCustomer.CustomerGroupName || initialCustomer.customerGroupName }] : [];
+  // For employees (Sales/OrderBooker), we might simulate if we had names, but usually we just have IDs in the main object?
+  // Customer object usually has "SalesMan" name? Check normalizeRow/Back-end.
+  // Assuming s.SalesMan is name.
+  
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -111,38 +127,68 @@ const NewCustomers = () => {
   const [quickAddCountryId, setQuickAddCountryId] = useState("");
   const [quickAddStateId, setQuickAddStateId] = useState("");
 
-  const [countries, setCountries] = useState([]);
-  const [states, setStates] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [statesMaster, setStatesMaster] = useState([]);
-  const [citiesMaster, setCitiesMaster] = useState([]);
+  // Initialize with placeholders if available
+  const [countries, setCountries] = useState(initialCountries);
+  const [states, setStates] = useState(initialStates);
+  const [cities, setCities] = useState(initialCities);
+  const [statesMaster, setStatesMaster] = useState(initialStates); // Crucial for useEffect filter
+  const [citiesMaster, setCitiesMaster] = useState(initialCities); // Crucial for useEffect filter
   const [employees, setEmployees] = useState([]);
-  const [regions, setRegions] = useState([]);
-  const [customerGroups, setCustomerGroups] = useState([]);
+  const [regions, setRegions] = useState(initialRegions);
+  const [customerGroups, setCustomerGroups] = useState(initialGroups);
 
-  const [form, setForm] = useState({
-    companyName: "",
-    countryId: null,
-    stateId: null,
-    cityId: null,
-    contactName: "",
-    contactTitle: "",
-    customerGroupId: null,
-    regionId: null,
-    address: "",
-    postalCode: "",
-    phone: "",
-    website: "",
-    fax: "",
-    email: "",
-    emailAddress: "",
-    previousCredit: "",
-    cnic: "",
-    ntn: "",
-    strn: "",
-    vat: "",
-    salesManId: null,
-    orderBookerId: null,
+  const [form, setForm] = useState(() => {
+    if (isEditMode && initialCustomer) {
+       const s = initialCustomer;
+       return {
+          companyName: s.Name || s.name || s.CompanyName || s.companyName || "",
+          countryId: s.CountryId ?? s.countryId ?? null,
+          stateId: s.StateId ?? s.stateId ?? null,
+          cityId: s.CityId ?? s.cityId ?? null,
+          contactName: s.ContactName || s.contactName || "",
+          contactTitle: s.ContactTitle || s.contactTitle || "",
+          customerGroupId: s.CustomerGroupId ?? s.customerGroupId ?? null,
+          regionId: s.RegionId ?? s.regionId ?? null,
+          address: s.Address || s.address || "",
+          postalCode: s.PostalCode || s.postalCode || "",
+          phone: s.Phone || s.phone || "",
+          website: s.Website || s.website || "",
+          fax: s.Fax || s.fax || "",
+          email: s.Email || s.email || "",
+          emailAddress: s.EmailAddress || s.emailAddress || "",
+          previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
+          cnic: s.CNIC || s.cnic || "",
+          ntn: s.NTN || s.ntn || "",
+          strn: s.STRN || s.strn || "",
+          vat: s.VAT ?? s.vat ?? "",
+          salesManId: s.SalesManId ?? s.salesManId ?? null,
+          orderBookerId: s.OrderBooker ?? s.OrderBookerId ?? s.orderBooker ?? s.orderBookerId ?? null,
+       };
+    }
+    return {
+      companyName: "",
+      countryId: null,
+      stateId: null,
+      cityId: null,
+      contactName: "",
+      contactTitle: "",
+      customerGroupId: null,
+      regionId: null,
+      address: "",
+      postalCode: "",
+      phone: "",
+      website: "",
+      fax: "",
+      email: "",
+      emailAddress: "",
+      previousCredit: "",
+      cnic: "",
+      ntn: "",
+      strn: "",
+      vat: "",
+      salesManId: null,
+      orderBookerId: null,
+    };
   });
 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -216,35 +262,32 @@ const NewCustomers = () => {
     }
   };
 
-  const loadStatesForCountry = (countryId, { preserve = false } = {}) => {
-    const filteredStates = (statesMaster || []).filter(
-      (s) => String(s.CountryId ?? s.countryId ?? s.countryId) === String(countryId)
-    );
-    setStates(filteredStates);
-
-    const filteredCities = (citiesMaster || []).filter(
-      (c) => String(c.CountryId ?? c.countryId) === String(countryId)
-    );
-    setCities(filteredCities);
-
-    if (!preserve) {
-      setForm((p) => ({ ...p, stateId: null, cityId: null }));
+  // REACTIVE LIST FILTERING
+  useEffect(() => {
+    if (!form.countryId) {
+       setStates([]);
+       return;
     }
-  };
-
-  const loadCitiesForState = (stateId, { preserve = false } = {}) => {
-    const filteredCities = (citiesMaster || []).filter(
-      (c) => String(c.StateId ?? c.stateId) === String(stateId)
+    const filtered = (statesMaster || []).filter(
+      (s) => String(s.CountryId ?? s.countryId ?? s.countryId) === String(form.countryId)
     );
-    setCities(filteredCities);
-    if (!preserve) {
-      setForm((p) => ({ ...p, cityId: null }));
+    setStates(filtered);
+  }, [form.countryId, statesMaster]);
+
+  useEffect(() => {
+    if (!form.stateId) {
+        setCities([]);
+        return;
     }
-  };
+    const filtered = (citiesMaster || []).filter(
+      (c) => String(c.StateId ?? c.stateId) === String(form.stateId)
+    );
+    setCities(filtered);
+  }, [form.stateId, citiesMaster]);
 
   const loadCustomerForEdit = async () => {
     try {
-      setIsLoading(true);
+      // setIsLoading(true);
 
       const stateCustomer = location.state?.customer;
       const populate = (s) => {
@@ -278,8 +321,7 @@ const NewCustomers = () => {
           orderBookerId: s.OrderBooker ?? s.OrderBookerId ?? s.orderBooker ?? s.orderBookerId ?? null,
         }));
 
-        if (s.CountryId) loadStatesForCountry(s.CountryId, { preserve: true });
-        if (s.StateId) loadCitiesForState(s.StateId, { preserve: true });
+
       };
 
       // Prefer data passed from the list to avoid 404s on missing endpoints
@@ -336,7 +378,8 @@ const NewCustomers = () => {
         const newCountryId = created.Id ?? created.id;
         update("countryId", newCountryId);
         setQuickAddCountryId(newCountryId);
-        loadStatesForCountry(newCountryId);
+        update("countryId", newCountryId);
+        setQuickAddCountryId(newCountryId);
       } else if (quickAddKey === "state") {
         const countryId = quickAddCountryId || form.countryId;
         if (!countryId) {
@@ -495,24 +538,47 @@ const NewCustomers = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!isEditMode) return;
-    if (!window.confirm("Are you sure you want to delete this customer?")) return;
-    try {
-      if (typeof deleteCustomerApi === "function") {
-        await deleteCustomerApi(id, { userId: 1 });
-        toast.success("Customer deleted");
-        navigate("/app/businesspartners/customers");
-        return;
-      }
-      // fallback
-      toast.success("Customer (pretend) deleted");
-      navigate("/app/businesspartners/customers");
-    } catch (err) {
-      console.error("delete customer failed", err);
-      toast.error("Delete failed");
-    }
-  };
+const handleDelete = async () => {
+  if (!isEditMode) return;
+
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "This customer will be permanently deleted!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete",
+  });
+
+  if (!result.isConfirmed) return;
+
+  Swal.fire({
+    title: "Deleting...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  try {
+    await deleteCustomerApi(id, { userId: 1 });
+    Swal.close();
+
+    Swal.fire({
+      icon: "success",
+      title: "Deleted!",
+      timer: 1500,
+      showConfirmButton: false,
+    });
+
+    navigate("/app/businesspartners/customers");
+  } catch (err) {
+    Swal.close();
+    Swal.fire({
+      icon: "error",
+      title: "Delete failed",
+      text: "Please try again.",
+    });
+  }
+};
+
 
   if (isEditMode && isLoading) {
     return (
@@ -546,6 +612,7 @@ const NewCustomers = () => {
             </div>
 
             <div className="flex gap-3">
+              {(isEditMode ? hasPermission(PERMISSIONS.CUSTOMERS.EDIT) : hasPermission(PERMISSIONS.CUSTOMERS.CREATE)) && (
               <button
                 onClick={submit}
                 disabled={isSaving}
@@ -553,7 +620,8 @@ const NewCustomers = () => {
               >
                 <Save size={16} /> {isSaving ? "Saving..." : "Save"}
               </button>
-              {isEditMode && (
+              )}
+              {isEditMode && hasPermission(PERMISSIONS.CUSTOMERS.DELETE) && (
                 <button
                   onClick={handleDelete}
                   className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-red-200"
@@ -585,11 +653,12 @@ const NewCustomers = () => {
                 required
                 onSelect={(item) => {
                   update("countryId", item?.id ?? null);
+                  update("countryId", item?.id ?? null);
+                  // Reset dependent fields only on manual change
                   update("stateId", null);
                   update("cityId", null);
-                  loadStatesForCountry(item?.id ?? null);
                 }}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.COUNTRIES.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => openQuickAdd("country", "Country")}
               />
@@ -602,10 +671,11 @@ const NewCustomers = () => {
                 valueId={form.stateId}
                 onSelect={(item) => {
                   update("stateId", item?.id ?? null);
+                  update("stateId", item?.id ?? null);
+                  // Reset dependent fields only on manual change
                   update("cityId", null);
-                  loadCitiesForState(item?.id ?? null);
                 }}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => openQuickAdd("state", "State")}
               />
@@ -617,7 +687,7 @@ const NewCustomers = () => {
                 list={cities.map((c) => ({ id: c.Id ?? c.id, label: c.CityName ?? c.name }))}
                 valueId={form.cityId}
                 onSelect={(item) => update("cityId", item?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => openQuickAdd("city", "City")}
               />
@@ -648,7 +718,7 @@ const NewCustomers = () => {
                 }))}
                 valueId={form.customerGroupId}
                 onSelect={(it) => update("customerGroupId", it?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => openQuickAdd("customerGroup", "Customer Group")}
               />
@@ -672,7 +742,7 @@ const NewCustomers = () => {
                 }))}
                 valueId={form.regionId}
                 onSelect={(it) => update("regionId", it?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.REGIONS.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => openQuickAdd("region", "Region")}
               />
@@ -777,7 +847,7 @@ const NewCustomers = () => {
                 list={employees}
                 valueId={form.salesManId}
                 onSelect={(item) => update("salesManId", item?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "salesMan" } })}
                 direction="up"
@@ -790,7 +860,7 @@ const NewCustomers = () => {
                 list={employees}
                 valueId={form.orderBookerId}
                 onSelect={(item) => update("orderBookerId", item?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker" } })}
                 direction="up"

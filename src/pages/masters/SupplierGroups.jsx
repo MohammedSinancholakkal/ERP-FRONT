@@ -23,6 +23,8 @@ import {
   getInactiveSupplierGroupsApi,
   restoreSupplierGroupApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const SupplierGroups = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -254,9 +256,11 @@ const SupplierGroups = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+              {hasPermission(PERMISSIONS.SUPPLIER_GROUPS.CREATE) && (
               <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
                 <Plus size={16} /> New Supplier Group
               </button>
+              )}
               <button
                 onClick={() => {
                   setSearchText("");
@@ -353,7 +357,9 @@ const SupplierGroups = () => {
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+                   {hasPermission(PERMISSIONS.SUPPLIER_GROUPS.CREATE) && (
                    <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                   )}
                </div>
             </div>
           </div>
@@ -380,9 +386,11 @@ const SupplierGroups = () => {
                    {editData.isInactive ? (
                        <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
                    ) : (
+                       hasPermission(PERMISSIONS.SUPPLIER_GROUPS.DELETE) && (
                        <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
+                       )
                    )}
-                   {!editData.isInactive && (
+                   {!editData.isInactive && hasPermission(PERMISSIONS.SUPPLIER_GROUPS.EDIT) && (
                        <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
                    )}
                </div>

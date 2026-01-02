@@ -22,7 +22,11 @@ import {
   getCustomersApi,
   searchCustomerApi,
   getInactiveCustomersApi,
+  restoreCustomerApi,
 } from "../../services/allAPI";
+import Swal from "sweetalert2";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -62,14 +66,23 @@ const Customers = () => {
   // -------------------------------
   // Filters
   // -------------------------------
+  // --------------------------------------
+  // Filters
+  // --------------------------------------
   const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterCity, setFilterCity] = useState("");
   const [filterRegion, setFilterRegion] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
 
-  const [rows, setRows] = useState([]);
+  /* Data State */
+  const [allCustomers, setAllCustomers] = useState([]); // Stores all active customers
+  const [filteredCustomers, setFilteredCustomers] = useState([]); // Stores filtered active customers
+  
+  const [inactiveRows, setInactiveRows] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
+  
   const [lookupMaps, setLookupMaps] = useState({
     countries: {},
     states: {},
@@ -85,59 +98,6 @@ const Customers = () => {
     groups: [],
   });
 
-  // Search
-  const [searchText, setSearchText] = useState("");
-
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-
-  // Filtering helper
-  const applyFilters = (data = []) => {
-    return data.filter((r) => {
-      if (filterCountry && String(r.countryId) !== String(filterCountry)) return false;
-      if (filterState && String(r.stateId) !== String(filterState)) return false;
-      if (filterCity && String(r.cityId) !== String(filterCity)) return false;
-      if (filterRegion && String(r.regionId) !== String(filterRegion)) return false;
-      if (filterGroup && String(r.customerGroupId) !== String(filterGroup)) return false;
-      return true;
-    });
-  };
-
-
-  const [showInactive, setShowInactive] = useState(false);
-const [inactiveRows, setInactiveRows] = useState([]);
-
-
-const loadInactive = async () => {
-  try {
-    setLoading(true);
-    const res = await getInactiveCustomersApi();
-    const records = Array.isArray(res?.data?.records)
-      ? res.data.records
-      : [];
-
-    const normalized = records.map((r) => ({
-      ...normalizeRow(r),
-      isInactive: true, // <<< IMPORTANT
-    }));
-
-    setInactiveRows(normalized);
-  } catch (err) {
-    console.error("load inactive customers error", err);
-    toast.error("Failed to load inactive customers");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
-
-
-const dataSource = showInactive ? inactiveRows : rows;
-const filteredRows = applyFilters(dataSource);
-
   // Sorting
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
@@ -145,34 +105,134 @@ const filteredRows = applyFilters(dataSource);
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
-    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
-      direction = null; 
     }
-    setSortConfig({ key: direction ? key : null, direction });
+    setSortConfig({ key, direction });
   };
 
-  const sortedRows = [...filteredRows].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    
-    // Helper to get comparable value 
-    const getValue = (item, key) => {
-        // Special handlings if needed, but usually the normalized data is flat
-        return String(item[key] || "").toLowerCase();
-    };
+  // --------------------------------------
+  // Search
+  // --------------------------------------
+  const [searchText, setSearchText] = useState("");
 
-    const valA = getValue(a, sortConfig.key);
-    const valB = getValue(b, sortConfig.key);
+  // --------------------------------------
+  // Pagination
+  // --------------------------------------
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
 
-    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
+  /* ================================
+     CLIENT-SIDE FILTERING LOGIC
+  =================================*/
+  useEffect(() => {
+    let result = Array.isArray(allCustomers) ? allCustomers : [];
 
-  const totalRecords = sortedRows.length;
+    // 1. Text Search
+    if (searchText.trim()) {
+       const q = searchText.toLowerCase();
+       result = result.filter(r => 
+         Object.values(r).some(val => String(val).toLowerCase().includes(q))
+       );
+    }
+
+    // 2. Dropdown Filters
+    if (filterCountry) result = result.filter(r => String(r.countryId) === String(filterCountry));
+    if (filterState) result = result.filter(r => String(r.stateId) === String(filterState));
+    if (filterCity) result = result.filter(r => String(r.cityId) === String(filterCity));
+    if (filterRegion) result = result.filter(r => String(r.regionId) === String(filterRegion));
+    if (filterGroup) result = result.filter(r => String(r.customerGroupId) === String(filterGroup));
+
+    // 3. Sorting
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        const valA = String(a[sortConfig.key] || "").toLowerCase();
+        const valB = String(b[sortConfig.key] || "").toLowerCase();
+        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    setFilteredCustomers(result);
+    setPage(1); // Reset to page 1 on filter change
+  }, [
+    allCustomers,
+    searchText,
+    filterCountry,
+    filterState,
+    filterCity,
+    filterRegion,
+    filterGroup,
+    sortConfig
+  ]);
+
+  /* Pagination Calculations */
+  const totalRecords = filteredCustomers.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
+  const startIdx = (page - 1) * limit;
+  const paginatedData = filteredCustomers.slice(startIdx, startIdx + limit);
+  const start = totalRecords === 0 ? 0 : startIdx + 1;
+  const end = Math.min(startIdx + limit, totalRecords);
 
-  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
+  const loadInactiveCustomers = async () => {
+    try {
+      // Intentionally NOT setting global loading to true to avoid hiding active table
+      const res = await getInactiveCustomersApi();
+      const records = parseArrayFromResponse(res);
+      setInactiveRows(records.map(r => ({ ...normalizeRow(r), isInactive: true })));
+    } catch (err) {
+      console.error("load inactive customers error", err);
+      toast.error("Failed to load inactive customers");
+    }
+  };
+
+  const handleRestore = async (customer) => {
+    const result = await Swal.fire({
+      title: "Restore Customer?",
+      text: `Are you sure you want to restore ${customer.companyName}?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      // Show loading (optional, but good UX if api is slow)
+      // Swal.showLoading(); 
+      // User requested "avoid unusual loadings", so maybe just subtle or no global loader.
+      // But we need to know it finished.
+      
+      await restoreCustomerApi(customer.id, { userId: 1 }); // Assuming userId: 1 as per delete implementation
+      
+      Swal.fire({
+        icon: "success",
+        title: "Restored!",
+        text: "Customer has been restored successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      setInactiveRows(prev => prev.filter(r => r.id !== customer.id));
+      loadCustomers(); 
+
+    } catch (err) {
+      console.error("restore customer error", err);
+      Swal.fire({
+        icon: "error",
+        title: "Restore Failed",
+        text: "Could not restore customer. Please try again.",
+      });
+    }
+  };
+
+  const toggleInactive = async () => {
+    const newVal = !showInactive;
+    setShowInactive(newVal);
+    if (newVal && inactiveRows.length === 0) {
+      await loadInactiveCustomers();
+    }
+  };
+
 
   // --------------------------------------
   // Helpers
@@ -185,13 +245,17 @@ const filteredRows = applyFilters(dataSource);
     countryName:
       r.countryName ??
       r.CountryName ??
-      r.country ??
+      r.country_name ??  
+      r.country?.name ?? 
+      r.country ??       
       r.Country ??
       r.country_label ??
       "",
     stateName:
       r.stateName ??
       r.StateName ??
+      r.state_name ??
+      r.state?.name ??
       r.state ??
       r.State ??
       r.state_label ??
@@ -199,6 +263,8 @@ const filteredRows = applyFilters(dataSource);
     cityName:
       r.cityName ??
       r.CityName ??
+      r.city_name ??
+      r.city?.name ??
       r.city ??
       r.City ??
       r.city_label ??
@@ -206,6 +272,8 @@ const filteredRows = applyFilters(dataSource);
     regionName:
       r.regionName ??
       r.RegionName ??
+      r.region_name ??
+      r.region?.name ??
       r.region ??
       r.Region ??
       r.region_label ??
@@ -215,15 +283,17 @@ const filteredRows = applyFilters(dataSource);
       r.CustomerGroupName ??
       r.groupName ??
       r.GroupName ??
+      r.group_name ??
+      r.group?.name ??
       r.group ??
       r.Group ??
       "",
-    countryId: r.countryId ?? r.CountryId ?? r.country ?? "",
-    stateId: r.stateId ?? r.StateId ?? r.state ?? "",
-    cityId: r.cityId ?? r.CityId ?? r.city ?? "",
-    regionId: r.regionId ?? r.RegionId ?? r.region ?? "",
+    countryId: r.countryId ?? r.CountryId ?? r.country_id ?? (typeof r.country === 'object' ? r.country?.id : r.country) ?? "",
+    stateId: r.stateId ?? r.StateId ?? r.state_id ?? (typeof r.state === 'object' ? r.state?.id : r.state) ?? "",
+    cityId: r.cityId ?? r.CityId ?? r.city_id ?? (typeof r.city === 'object' ? r.city?.id : r.city) ?? "",
+    regionId: r.regionId ?? r.RegionId ?? r.region_id ?? (typeof r.region === 'object' ? r.region?.id : r.region) ?? "",
     customerGroupId:
-      r.customerGroupId ?? r.CustomerGroupId ?? r.group ?? "",
+      r.customerGroupId ?? r.CustomerGroupId ?? r.customer_group_id ?? r.groupId ?? r.GroupId ?? r.group_id ?? (typeof r.group === 'object' ? r.group?.id : r.group) ?? "",
     address: r.address ?? r.Address ?? "",
     postalCode: r.postalCode ?? r.PostalCode ?? "",
     phone: r.phone ?? r.Phone ?? "",
@@ -234,6 +304,7 @@ const filteredRows = applyFilters(dataSource);
     previousCreditBalance:
       r.previousCreditBalance ??
       r.PreviousCreditBalance ??
+      r.previous_credit_balance ??
       r.previousCredit ??
       r.PreviousCredit ??
       "",
@@ -322,24 +393,12 @@ const filteredRows = applyFilters(dataSource);
     }
   };
 
-  const loadCustomers = async (pageNo = page, pageSize = limit) => {
+  const loadCustomers = async () => {
     try {
       setLoading(true);
-      const res = await getCustomersApi(pageNo, pageSize);
-      console.log('Customers API Response:', res);
-      
-      let records = [];
-      if (res?.data?.records) {
-        records = res.data.records;
-      } else if (Array.isArray(res?.data)) {
-        records = res.data;
-      } else if (Array.isArray(res)) {
-        records = res;
-      }
-      
-      // This line displays the data in the table
-setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
-      setPage(pageNo);
+      const res = await getCustomersApi(1, 5000); // Fetch all for client-side
+      const records = parseArrayFromResponse(res);
+      setAllCustomers(records.map(normalizeRow));
     } catch (err) {
       console.error("load customers error", err);
       toast.error("Failed to load customers");
@@ -348,26 +407,8 @@ setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchText.trim()) return loadCustomers(1, limit);
-    try {
-      setLoading(true);
-      const res = await searchCustomerApi(searchText.trim());
-      const records = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      setRows(records.map(normalizeRow));
-      setPage(1);
-    } catch (err) {
-      console.error("search customers error", err);
-      toast.error("Search failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Deprecated handleSearch - search is now effect-based
 
-  // reset pagination when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [filterCountry, filterState, filterCity, filterRegion, filterGroup]);
 
   useEffect(() => {
     loadCustomers();
@@ -564,22 +605,25 @@ setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
               placeholder="Search customers..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSearch();
-              }}
               className="bg-transparent pl-2 text-sm w-full outline-none"
             />
           </div>
 
+          {hasPermission(PERMISSIONS.CUSTOMERS.CREATE) && (
           <button
             onClick={() => navigate("/app/businesspartners/newcustomer")}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Customer
           </button>
+          )}
 
           <button
-            onClick={() => loadCustomers(page, limit)}
+            onClick={() => {
+              setSearchText("");
+              setPage(1);
+              loadCustomers();
+            }}
             className="p-2 bg-gray-700 border border-gray-600 rounded"
           >
             <RefreshCw size={16} className="text-blue-400" />
@@ -595,146 +639,205 @@ setRows(records.map(r => ({ ...normalizeRow(r), isInactive: false })));
             <List size={16} className="text-blue-300" />
           </button>
 
-          {/* NEW — INACTIVE BUTTON */}
-<button
-  onClick={async () => {
-    if (!showInactive) await loadInactive();
-    setShowInactive(!showInactive);
-  }}
-  className={`p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1`}
->
-  <ArchiveRestore size={16} className="text-yellow-300" />
-  <span className="text-xs opacity-80">
-    {showInactive ? "Active" : "Inactive"}
-  </span>
-</button>
-
+          <button 
+             onClick={toggleInactive}
+             className={`p-2 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? 'bg-gray-700' : 'bg-gray-700'}`}
+           >
+             <ArchiveRestore size={16} className={showInactive ? "text-yellow-400" : "text-yellow-300"} />
+             <span className={`text-xs ${showInactive ? "opacity-100 font-bold text-yellow-100" : "opacity-80"}`}>
+               {showInactive ? " Inactive" : " Inactive"}
+             </span>
+           </button>
         </div>
 
         {/* FILTER BAR */}
         <div className="mb-4">
           <FilterBar filters={filterFilters} onClear={handleResetFilters} />
         </div>
-{/* TABLE */}
-<div className="flex-grow overflow-auto w-full min-h-0">
-  <div className="w-full overflow-x-auto">
-    <table className="min-w-[3300px] border-separate border-spacing-y-1 text-sm table-fixed">
-      <thead className="sticky top-0 bg-gray-900 z-10 h-10">
-        <tr className="text-white text-center">
-          {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-          {visibleColumns.companyName && <SortableHeader label="Company Name" sortOrder={sortConfig.key === "companyName" ? sortConfig.direction : null} onClick={() => handleSort("companyName")} />}
-          {visibleColumns.contactName && <SortableHeader label="Contact Name" sortOrder={sortConfig.key === "contactName" ? sortConfig.direction : null} onClick={() => handleSort("contactName")} />}
-          {visibleColumns.contactTitle && <SortableHeader label="Contact Title" sortOrder={sortConfig.key === "contactTitle" ? sortConfig.direction : null} onClick={() => handleSort("contactTitle")} />}
-          {visibleColumns.countryName && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
-          {visibleColumns.stateName && <SortableHeader label="State" sortOrder={sortConfig.key === "stateName" ? sortConfig.direction : null} onClick={() => handleSort("stateName")} />}
-          {visibleColumns.cityName && <SortableHeader label="City" sortOrder={sortConfig.key === "cityName" ? sortConfig.direction : null} onClick={() => handleSort("cityName")} />}
-          {visibleColumns.regionName && <SortableHeader label="Region" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
-          {visibleColumns.customerGroupName && <SortableHeader label="Group" sortOrder={sortConfig.key === "customerGroupName" ? sortConfig.direction : null} onClick={() => handleSort("customerGroupName")} />}
-          {visibleColumns.postalCode && <SortableHeader label="Postal Code" sortOrder={sortConfig.key === "postalCode" ? sortConfig.direction : null} onClick={() => handleSort("postalCode")} />}
-          {visibleColumns.phone && <SortableHeader label="Phone" sortOrder={sortConfig.key === "phone" ? sortConfig.direction : null} onClick={() => handleSort("phone")} />}
-          {visibleColumns.fax && <SortableHeader label="Fax" sortOrder={sortConfig.key === "fax" ? sortConfig.direction : null} onClick={() => handleSort("fax")} />}
-          {visibleColumns.website && <SortableHeader label="Website" sortOrder={sortConfig.key === "website" ? sortConfig.direction : null} onClick={() => handleSort("website")} />}
-          {visibleColumns.email && <SortableHeader label="Email" sortOrder={sortConfig.key === "email" ? sortConfig.direction : null} onClick={() => handleSort("email")} />}
-          {visibleColumns.emailAddress && <SortableHeader label="Email Address" sortOrder={sortConfig.key === "emailAddress" ? sortConfig.direction : null} onClick={() => handleSort("emailAddress")} />}
-          {visibleColumns.previousCreditBalance && <SortableHeader label="Prev. Credit" sortOrder={sortConfig.key === "previousCreditBalance" ? sortConfig.direction : null} onClick={() => handleSort("previousCreditBalance")} />}
-          {visibleColumns.cnic && <SortableHeader label="CNIC" sortOrder={sortConfig.key === "cnic" ? sortConfig.direction : null} onClick={() => handleSort("cnic")} />}
-          {visibleColumns.ntn && <SortableHeader label="NTN" sortOrder={sortConfig.key === "ntn" ? sortConfig.direction : null} onClick={() => handleSort("ntn")} />}
-          {visibleColumns.strn && <SortableHeader label="STRN" sortOrder={sortConfig.key === "strn" ? sortConfig.direction : null} onClick={() => handleSort("strn")} />}
-          {visibleColumns.salesMan && <SortableHeader label="Sales Man" sortOrder={sortConfig.key === "salesMan" ? sortConfig.direction : null} onClick={() => handleSort("salesMan")} />}
-          {visibleColumns.orderBooker && <SortableHeader label="Order Booker" sortOrder={sortConfig.key === "orderBooker" ? sortConfig.direction : null} onClick={() => handleSort("orderBooker")} />}
-        </tr>
-      </thead>
 
-      <tbody className="text-center h-14">
-        {loading ? (
-          <tr>
-            <td colSpan={20} className="py-6 text-center text-gray-300">
-              Loading...
-            </td>
-          </tr>
-        ) : filteredRows.length === 0 ? (
-          <tr>
-            <td colSpan={20} className="py-6 text-center text-gray-400">
-              No customers found
-            </td>
-          </tr>
-        ) : (
-          sortedRows.slice(start - 1, end).map((r) => (
-            <tr
-              key={r.id}
-              className={`cursor-pointer ${
-                r.isInactive
-                  ? "bg-gray-800 opacity-50 hover:opacity-80"
-                  : "bg-gray-900 hover:bg-gray-700"
-              }`}
-              onClick={() =>
-                navigate(
-                  r.isInactive
-                    ? `/app/businesspartners/restorecustomer/${r.id}`
-                    : `/app/businesspartners/newcustomer/${r.id}`,
-                  { state: { customer: r } }
-                )
-              }
-            >
-              {visibleColumns.id && <td className="py-2">{r.id}</td>}
-              {visibleColumns.companyName && <td className="py-2">{r.companyName}</td>}
-              {visibleColumns.contactName && <td className="py-2">{r.contactName}</td>}
-              {visibleColumns.contactTitle && <td className="py-2">{r.contactTitle}</td>}
-              {visibleColumns.countryName && (
-                <td className="py-2">
-                  {lookupMaps.countries[String(r.countryId)] || r.countryName || ""}
-                </td>
-              )}
-              {visibleColumns.stateName && (
-                <td className="py-2">
-                  {lookupMaps.states[String(r.stateId)] || r.stateName || ""}
-                </td>
-              )}
-              {visibleColumns.cityName && (
-                <td className="py-2">
-                  {lookupMaps.cities[String(r.cityId)] || r.cityName || ""}
-                </td>
-              )}
-              {visibleColumns.regionName && (
-                <td className="py-2">
-                  {lookupMaps.regions[String(r.regionId)] || r.regionName || ""}
-                </td>
-              )}
-              {visibleColumns.customerGroupName && (
-                <td className="py-2">
-                  {lookupMaps.groups[String(r.customerGroupId)] ||
-                    r.customerGroupName ||
-                    ""}
-                </td>
-              )}
-              {visibleColumns.postalCode && <td className="py-2">{r.postalCode}</td>}
-              {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
-              {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
-              {visibleColumns.website && (
-                <td className="py-2 truncate max-w-[150px]">{r.website}</td>
-              )}
-              {visibleColumns.email && (
-                <td className="py-2 truncate max-w-[150px]">{r.email}</td>
-              )}
-              {visibleColumns.emailAddress && (
-                <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
-              )}
-              {visibleColumns.previousCreditBalance && (
-                <td className="py-2">{r.previousCreditBalance}</td>
-              )}
-              {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
-              {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
-              {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
-              {visibleColumns.salesMan && <td className="py-2">{r.salesMan}</td>}
-              {visibleColumns.orderBooker && <td className="py-2">{r.orderBooker}</td>}
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-</div>
+      {/* TABLE */}
+        <div className="flex-grow overflow-auto w-full min-h-0">
+          <div className="w-full overflow-x-auto">
+            <table className="min-w-[3300px] border-separate border-spacing-y-1 text-sm table-fixed">
+              <thead className="sticky top-0 bg-gray-900 z-10 h-10">
+                <tr className="text-white text-center">
+                  {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
+                  {visibleColumns.companyName && <SortableHeader label="Company Name" sortOrder={sortConfig.key === "companyName" ? sortConfig.direction : null} onClick={() => handleSort("companyName")} />}
+                  {visibleColumns.contactName && <SortableHeader label="Contact Name" sortOrder={sortConfig.key === "contactName" ? sortConfig.direction : null} onClick={() => handleSort("contactName")} />}
+                  {visibleColumns.contactTitle && <SortableHeader label="Contact Title" sortOrder={sortConfig.key === "contactTitle" ? sortConfig.direction : null} onClick={() => handleSort("contactTitle")} />}
+                  {visibleColumns.countryName && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
+                  {visibleColumns.stateName && <SortableHeader label="State" sortOrder={sortConfig.key === "stateName" ? sortConfig.direction : null} onClick={() => handleSort("stateName")} />}
+                  {visibleColumns.cityName && <SortableHeader label="City" sortOrder={sortConfig.key === "cityName" ? sortConfig.direction : null} onClick={() => handleSort("cityName")} />}
+                  {visibleColumns.regionName && <SortableHeader label="Region" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
+                  {visibleColumns.customerGroupName && <SortableHeader label="Group" sortOrder={sortConfig.key === "customerGroupName" ? sortConfig.direction : null} onClick={() => handleSort("customerGroupName")} />}
+                  {visibleColumns.postalCode && <SortableHeader label="Postal Code" sortOrder={sortConfig.key === "postalCode" ? sortConfig.direction : null} onClick={() => handleSort("postalCode")} />}
+                  {visibleColumns.phone && <SortableHeader label="Phone" sortOrder={sortConfig.key === "phone" ? sortConfig.direction : null} onClick={() => handleSort("phone")} />}
+                  {visibleColumns.fax && <SortableHeader label="Fax" sortOrder={sortConfig.key === "fax" ? sortConfig.direction : null} onClick={() => handleSort("fax")} />}
+                  {visibleColumns.website && <SortableHeader label="Website" sortOrder={sortConfig.key === "website" ? sortConfig.direction : null} onClick={() => handleSort("website")} />}
+                  {visibleColumns.email && <SortableHeader label="Email" sortOrder={sortConfig.key === "email" ? sortConfig.direction : null} onClick={() => handleSort("email")} />}
+                  {visibleColumns.emailAddress && <SortableHeader label="Email Address" sortOrder={sortConfig.key === "emailAddress" ? sortConfig.direction : null} onClick={() => handleSort("emailAddress")} />}
+                  {visibleColumns.previousCreditBalance && <SortableHeader label="Prev. Credit" sortOrder={sortConfig.key === "previousCreditBalance" ? sortConfig.direction : null} onClick={() => handleSort("previousCreditBalance")} />}
+                  {visibleColumns.cnic && <SortableHeader label="CNIC" sortOrder={sortConfig.key === "cnic" ? sortConfig.direction : null} onClick={() => handleSort("cnic")} />}
+                  {visibleColumns.ntn && <SortableHeader label="NTN" sortOrder={sortConfig.key === "ntn" ? sortConfig.direction : null} onClick={() => handleSort("ntn")} />}
+                  {visibleColumns.strn && <SortableHeader label="STRN" sortOrder={sortConfig.key === "strn" ? sortConfig.direction : null} onClick={() => handleSort("strn")} />}
+                  {visibleColumns.salesMan && <SortableHeader label="Sales Man" sortOrder={sortConfig.key === "salesMan" ? sortConfig.direction : null} onClick={() => handleSort("salesMan")} />}
+                  {visibleColumns.orderBooker && <SortableHeader label="Order Booker" sortOrder={sortConfig.key === "orderBooker" ? sortConfig.direction : null} onClick={() => handleSort("orderBooker")} />}
+                </tr>
+              </thead>
 
+              <tbody className="text-center h-14">
+                {loading ? (
+                  <tr>
+                    <td colSpan={20} className="py-6 text-center text-gray-300">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                  {/* ACTIVE DATA */}
+                  {paginatedData.length === 0 ? (
+                     (!showInactive || inactiveRows.length === 0) && (
+                        <tr>
+                          <td colSpan={20} className="py-6 text-center text-gray-400">
+                            No customers found
+                          </td>
+                        </tr>
+                     )
+                  ) : (
+                    paginatedData.map((r) => (
+                    <tr
+                      key={r.id ?? Math.random()}
+                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                      onClick={() =>
+                        navigate(
+                          r.id
+                            ? `/app/businesspartners/newcustomer/${r.id}`
+                            : "/app/businesspartners/newcustomer",
+                          { state: { customer: r, isInactive: false } }
+                        )
+                      }
+                    >
+                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
+                      {visibleColumns.companyName && <td className="py-2">{r.companyName}</td>}
+                      {visibleColumns.contactName && <td className="py-2">{r.contactName}</td>}
+                      {visibleColumns.contactTitle && <td className="py-2">{r.contactTitle}</td>}
+                      {visibleColumns.countryName && (
+                        <td className="py-2">
+                          {lookupMaps.countries[String(r.countryId)] || r.countryName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.stateName && (
+                        <td className="py-2">
+                          {lookupMaps.states[String(r.stateId)] || r.stateName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.cityName && (
+                        <td className="py-2">
+                          {lookupMaps.cities[String(r.cityId)] || r.cityName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.regionName && (
+                        <td className="py-2">
+                          {lookupMaps.regions[String(r.regionId)] || r.regionName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.customerGroupName && (
+                        <td className="py-2">
+                          {lookupMaps.groups[String(r.customerGroupId)] ||
+                            r.customerGroupName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.postalCode && <td className="py-2">{r.postalCode}</td>}
+                      {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
+                      {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
+                      {visibleColumns.website && (
+                        <td className="py-2 truncate max-w-[150px]">{r.website}</td>
+                      )}
+                      {visibleColumns.email && (
+                        <td className="py-2 truncate max-w-[150px]">{r.email}</td>
+                      )}
+                      {visibleColumns.emailAddress && (
+                        <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
+                      )}
+                      {visibleColumns.previousCreditBalance && (
+                        <td className="py-2">{r.previousCreditBalance}</td>
+                      )}
+                      {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
+                      {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
+                      {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
+                      {visibleColumns.salesMan && <td className="py-2">{r.salesMan}</td>}
+                      {visibleColumns.orderBooker && <td className="py-2">{r.orderBooker}</td>}
+                    </tr>
+                  ))
+                  )}
+
+                  {/* INACTIVE DATA (APPENDED) */}
+                  {showInactive && inactiveRows.map((r) => (
+                    <tr
+                      key={`inactive-${r.id}`}
+                      className="bg-gray-700/50 opacity-60 line-through grayscale cursor-pointer"
+                      onClick={() => handleRestore(r)}
+                    >
+                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
+                      {visibleColumns.companyName && <td className="py-2">{r.companyName}</td>}
+                      {visibleColumns.contactName && <td className="py-2">{r.contactName}</td>}
+                      {visibleColumns.contactTitle && <td className="py-2">{r.contactTitle}</td>}
+                      {visibleColumns.countryName && (
+                        <td className="py-2">
+                          {lookupMaps.countries[String(r.countryId)] || r.countryName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.stateName && (
+                        <td className="py-2">
+                          {lookupMaps.states[String(r.stateId)] || r.stateName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.cityName && (
+                        <td className="py-2">
+                          {lookupMaps.cities[String(r.cityId)] || r.cityName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.regionName && (
+                        <td className="py-2">
+                          {lookupMaps.regions[String(r.regionId)] || r.regionName || ""}
+                        </td>
+                      )}
+                      {visibleColumns.customerGroupName && (
+                        <td className="py-2">
+                          {lookupMaps.groups[String(r.customerGroupId)] ||
+                            r.customerGroupName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.postalCode && <td className="py-2">{r.postalCode}</td>}
+                      {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
+                      {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
+                      {visibleColumns.website && (
+                        <td className="py-2 truncate max-w-[150px]">{r.website}</td>
+                      )}
+                      {visibleColumns.email && (
+                        <td className="py-2 truncate max-w-[150px]">{r.email}</td>
+                      )}
+                      {visibleColumns.emailAddress && (
+                        <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
+                      )}
+                      {visibleColumns.previousCreditBalance && (
+                        <td className="py-2">{r.previousCreditBalance}</td>
+                      )}
+                      {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
+                      {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
+                      {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
+                      {visibleColumns.salesMan && <td className="py-2">{r.salesMan}</td>}
+                      {visibleColumns.orderBooker && <td className="py-2">{r.orderBooker}</td>}
+                    </tr>
+                  ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
         {/* PAGINATION */}
           <Pagination
             page={page}

@@ -37,10 +37,15 @@ import {
 updateEmployeeApi,
 getEmployeeByIdApi,
 deleteEmployeeApi,
+searchEmployeeApi,
 
 } from "../../services/allAPI";
 import { serverURL } from "../../services/serverURL";
 import SearchableSelect from "../../components/SearchableSelect";
+import Swal from "sweetalert2";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
 
 const EmpSearchableSelect = ({
   label,
@@ -511,10 +516,66 @@ const submitEmployee = async () => {
   if (!form.payrollBankId) return toast.error("Payroll Bank required");
   if (!form.payrollBankAccount.trim()) return toast.error("Bank Account required");
 
+  // DUPLICATE VALIDATION
+  try {
+      // 1. Phone Check
+      if (form.phone.trim()) {
+        const phoneRes = await searchEmployeeApi(form.phone.trim());
+        if (phoneRes?.status === 200) {
+            const rows = Array.isArray(phoneRes.data) ? phoneRes.data : [];
+            const existing = rows.find(e => 
+                e.Phone === form.phone.trim() && 
+                (!isEditMode || String(e.Id) !== String(id))
+            );
+            if (existing) return toast.error("Phone number already exists");
+        }
+      }
+
+      // 2. Name Check (First + Last)
+      const nameRes = await searchEmployeeApi(form.firstName.trim());
+      if (nameRes?.status === 200) {
+          const rows = Array.isArray(nameRes.data) ? nameRes.data : [];
+          const existing = rows.find(e => 
+              e.FirstName.toLowerCase() === form.firstName.trim().toLowerCase() &&
+              e.LastName.toLowerCase() === form.lastName.trim().toLowerCase() &&
+              (!isEditMode || String(e.Id) !== String(id))
+          );
+          if (existing) return toast.error("Employee with this Name already exists");
+      }
+
+      // 3. Account Number Check
+      if (form.payrollBankAccount.trim()) {
+        const accRes = await searchEmployeeApi(form.payrollBankAccount.trim());
+        if (accRes?.status === 200) {
+            const rows = Array.isArray(accRes.data) ? accRes.data : [];
+            const existing = rows.find(e => 
+                e.BankAccountForPayroll === form.payrollBankAccount.trim() &&
+                (!isEditMode || String(e.Id) !== String(id))
+            );
+            if (existing) return toast.error("Account number already exists");
+        }
+      }
+
+      // 4. Email Check
+      if (form.email.trim()) {
+        const emailRes = await searchEmployeeApi(form.email.trim());
+        if (emailRes?.status === 200) {
+            const rows = Array.isArray(emailRes.data) ? emailRes.data : [];
+            const existing = rows.find(e => 
+                e.Email?.toLowerCase() === form.email.trim().toLowerCase() &&
+                (!isEditMode || String(e.Id) !== String(id))
+            );
+            if (existing) return toast.error("Email already exists");
+        }
+      }
+
+  } catch(err) {
+      console.error("Duplicate Check Error:", err);
+  }
+
   try {
     const fd = new FormData();
     fd.append("data", JSON.stringify({ ...form, incomes, deductions }));
-
     if (form.pictureFile) fd.append("pictureFile", form.pictureFile);
 
     let res;
@@ -548,17 +609,42 @@ const submitEmployee = async () => {
 
 
 const handleDelete = async () => {
-  if (!window.confirm("Are you sure you want to delete this employee?")) return;
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "This employee will be deleted!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#6b7280",
+    confirmButtonText: "Yes, delete",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!result.isConfirmed) return;
 
   try {
     await deleteEmployeeApi(id, { userId: form.userId });
-    toast.success("Employee deleted");
+
+    await Swal.fire({
+      icon: "success",
+      title: "Deleted!",
+      text: "Employee deleted successfully.",
+      timer: 1500,
+      showConfirmButton: false,
+    });
+
     navigate("/app/hr/employees");
   } catch (err) {
     console.error("Delete failed", err);
-    toast.error("Delete failed");
+
+    Swal.fire({
+      icon: "error",
+      title: "Delete failed",
+      text: "Something went wrong while deleting the employee.",
+    });
   }
 };
+
 
 
 
@@ -585,9 +671,11 @@ const handleDelete = async () => {
 }
 
   // PART 3 â€” Final JSX UI (main page)
+  const { theme } = useTheme();
+
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
+      <div className={`p-4 text-white h-full overflow-y-auto ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between mb-3">
            <div className="flex items-center gap-3">
@@ -603,11 +691,13 @@ const handleDelete = async () => {
            </div>
 
             <div className="flex gap-3">
+            {(isEditMode ? hasPermission(PERMISSIONS.HR.EMPLOYEES.EDIT) : hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)) && (
             <button onClick={submitEmployee} className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded text-blue-300">
               <Save size={16} /> {isEditMode ? "Update" : "Save"}
             </button>
+            )}
 
-            {isEditMode && (
+            {isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.DELETE) && (
               <button
                 onClick={handleDelete}
                 className="flex items-center gap-2 bg-red-800 border border-red-600 px-3 py-2 rounded text-red-200"
@@ -681,11 +771,11 @@ const handleDelete = async () => {
                         value={form.designationId}
                         onChange={(val) => setForm({ ...form, designationId: val })}
                         required
-                        onAdd={isEditMode ? null : () => {
+                        onAdd={isEditMode || !hasPermission(PERMISSIONS.HR.DESIGNATIONS.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'designation', callback: (c) => setForm(p=>({...p, designationId: c.id})) });
                            setShowLookupCreateModal(true);
                         }}
-                        onEdit={isEditMode ? () => {
+                        onEdit={isEditMode && hasPermission(PERMISSIONS.HR.DESIGNATIONS.EDIT) ? () => {
                            const item = designations.find(x => String(x.id??x.Id) === String(form.designationId));
                            setLookupCreateContext({ key: 'designation', item, mode: 'edit', callback: (c) => setForm(p=>({...p, designationId: c.id})) });
                            setShowLookupCreateModal(true);
@@ -699,15 +789,15 @@ const handleDelete = async () => {
                         value={form.departmentId}
                         onChange={(val) => setForm({ ...form, departmentId: val })}
                         required
-                        onAdd={isEditMode ? null : () => {
+                        onAdd={isEditMode || !hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'department', callback: (c) => setForm(p=>({...p, departmentId: c.id})) });
                            setShowLookupCreateModal(true);
                         }}
-                        onEdit={() => {
+                        onEdit={isEditMode && hasPermission(PERMISSIONS.HR.DEPARTMENTS.EDIT) ? () => {
                            const item = departments.find(x => String(x.id??x.Id) === String(form.departmentId));
                            setLookupCreateContext({ key: 'department', item, mode: 'edit', callback: (c) => setForm(p=>({...p, departmentId: c.id})) });
                            setShowLookupCreateModal(true);
-                        }}
+                        } : null}
                       />
                     </div>
 
@@ -766,7 +856,7 @@ const handleDelete = async () => {
                           if(val) awaitLoadStatesForCountry(val);
                         }}
                         required
-                        onAdd={isEditMode ? null : () => {
+                        onAdd={isEditMode || !hasPermission(PERMISSIONS.COUNTRIES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'country', callback: (c) => {
                              setForm(p=>({...p, countryId: c.id}));
                              awaitLoadStatesForCountry(c.id);
@@ -791,7 +881,7 @@ const handleDelete = async () => {
                         }}
                         required
                         disabled={!form.countryId}
-                        onAdd={isEditMode ? null : () => {
+                        onAdd={isEditMode || !hasPermission(PERMISSIONS.STATES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'state', callback: (c) => {
                              setForm(p=>({...p, stateId: c.id}));
                              awaitLoadCitiesForState(c.id);
@@ -814,7 +904,7 @@ const handleDelete = async () => {
                         onChange={(val) => setForm({ ...form, cityId: val })}
                         required
                         disabled={!form.stateId}
-                        onAdd={isEditMode ? null : () => {
+                        onAdd={isEditMode || !hasPermission(PERMISSIONS.CITIES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'city', callback: (c) => setForm(p=>({...p, cityId: c.id})) });
                            setShowLookupCreateModal(true);
                         }}
@@ -834,7 +924,7 @@ const handleDelete = async () => {
                           setForm({ ...form, regionId: val });
                           if(val) awaitLoadTerritoriesForRegion(val);
                         }}
-                        onAdd={isEditMode ? null : () => {
+                        onAdd={isEditMode || !hasPermission(PERMISSIONS.REGIONS.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'region', callback: (c) => {
                               setForm(p=>({...p, regionId: c.id}));
                               awaitLoadTerritoriesForRegion(c.id);

@@ -6,11 +6,12 @@ import {
   List,
   Eye,
   FileSpreadsheet,
-  FileText
+  FileText,
+  ArchiveRestore
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
-import { getPurchasesApi, getSuppliersApi, searchPurchaseApi } from "../../services/allAPI";
+import { getPurchasesApi, getSuppliersApi, searchPurchaseApi, getInactivePurchasesApi } from "../../services/allAPI";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -18,6 +19,8 @@ import "jspdf-autotable";
 import toast from "react-hot-toast";
 import FilterBar from "../../components/FilterBar";
 import SortableHeader from "../../components/SortableHeader";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Purchase = () => {
   const navigate = useNavigate();
@@ -55,6 +58,10 @@ const Purchase = () => {
   const [limit, setLimit] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [inactiveRows, setInactiveRows] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
 
   const [suppliers, setSuppliers] = useState([]);
   
@@ -101,6 +108,7 @@ const Purchase = () => {
   }, [searchText, page, limit, suppliers]);
 
   const fetchPurchases = async () => {
+    setIsLoading(true);
     try {
       const res = await getPurchasesApi(page, limit);
       if (res.status === 200) {
@@ -115,6 +123,46 @@ const Purchase = () => {
       }
     } catch (error) {
       console.error("Error fetching purchases", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadInactivePurchases = async () => {
+    try {
+      const res = await getInactivePurchasesApi();
+      if (res.status === 200) {
+        let rows = Array.isArray(res.data) ? res.data : (res.data.records || []);
+        rows = rows.map((r) => ({
+          ...r,
+          id: r.id || r.Id,
+          invoiceNo: r.invoiceNo || r.InvoiceNo,
+          date: r.date || r.Date,
+          paymentAccount: r.paymentAccount || r.PaymentAccount,
+          totalDiscount: r.totalDiscount || r.TotalDiscount,
+          shippingCost: r.shippingCost || r.ShippingCost,
+          grandTotal: r.grandTotal || r.GrandTotal,
+          netTotal: r.netTotal || r.NetTotal,
+          paidAmount: r.paidAmount || r.PaidAmount,
+          due: r.due || r.Due,
+          change: r.change || r.Change,
+          details: r.details || r.Details,
+          supplierName: r.supplierName || suppliers.find((s) => String(s.id) === String(r.supplierId || r.SupplierId))?.name || "-",
+          isInactive: true
+        }));
+        setInactiveRows(rows);
+      }
+    } catch (error) {
+      console.error("Error loading inactive purchases", error);
+      toast.error("Failed to load inactive purchases");
+    }
+  };
+
+  const toggleInactive = async () => {
+    const newVal = !showInactive;
+    setShowInactive(newVal);
+    if (newVal && inactiveRows.length === 0) {
+      await loadInactivePurchases();
     }
   };
 
@@ -133,13 +181,14 @@ const Purchase = () => {
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setSearchText("");
     setFilterSupplier("");
     setFilterDate("");
     setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
-    fetchPurchases();
+    await fetchPurchases();
+    if (showInactive) await loadInactivePurchases();
     toast.success("Refreshed");
   };
 
@@ -309,12 +358,14 @@ const Purchase = () => {
                 />
               </div>
 
+              {hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
               <button
                 onClick={() => navigate("/app/purchasing/newpurchase")}
                 className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600"
               >
                 <Plus size={16} /> New Purchase
               </button>
+              )}
 
               <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <RefreshCw size={16} className="text-blue-300" />
@@ -322,6 +373,16 @@ const Purchase = () => {
 
               <button onClick={() => { setTempVisibleColumns(visibleColumns); setColumnModalOpen(true); }} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <List size={16} className="text-blue-300" />
+              </button>
+              
+               <button 
+                onClick={toggleInactive}
+                className={`p-2 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? 'bg-gray-700' : 'bg-gray-700'}`}
+              >
+                <ArchiveRestore size={16} className={showInactive ? "text-yellow-400" : "text-yellow-300"} />
+                <span className={`text-xs ${showInactive ? "opacity-100 font-bold text-yellow-100" : "opacity-80"}`}>
+                  {showInactive ? " Inactive" : " Inactive"}
+                </span>
               </button>
 
               <div className="flex items-center gap-2">
@@ -363,10 +424,18 @@ const Purchase = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedList.map((p) => (
+                    {/* ACTIVE ROWS */}
+                    {sortedList.length === 0 ? (
+                      <tr>
+                        <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-center text-gray-400">
+                          {isLoading ? "Loading..." : "No active purchases found"}
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedList.map((p) => (
                       <tr
                         key={p.id}
-                        onClick={() => navigate(`/app/purchasing/edit/${p.id}`)}
+                        onClick={() => navigate(`/app/purchasing/edit/${p.id}`, { state: { isInactive: false } })}
                         className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
                       >
                         {visibleColumns.id && <td className="px-2 py-2">{p.id}</td>}
@@ -377,6 +446,47 @@ const Purchase = () => {
                             </button>
                             <button 
                               className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700" 
+                              title="Preview Invoice" 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                window.open(`/app/purchasing/preview/${p.id}`, '_blank'); 
+                              }}
+                            >
+                              <Eye size={14} className="text-blue-300" />
+                            </button>
+                            {p.supplierName}
+                          </td>
+                        )}
+                        {visibleColumns.invoiceNo && <td className="px-2 py-2">{p.invoiceNo}</td>}
+                        {visibleColumns.date && <td className="px-2 py-2">{p.date ? p.date.split('T')[0] : ''}</td>}
+                        {visibleColumns.paymentAccount && <td className="px-2 py-2">{p.paymentAccount}</td>}
+                        {visibleColumns.totalDiscount && <td className="px-2 py-2">{p.totalDiscount}</td>}
+                        {visibleColumns.shippingCost && <td className="px-2 py-2">{p.shippingCost}</td>}
+                        {visibleColumns.grandTotal && <td className="px-2 py-2">{p.grandTotal}</td>}
+                        {visibleColumns.netTotal && <td className="px-2 py-2">{p.netTotal}</td>}
+                        {visibleColumns.paidAmount && <td className="px-2 py-2">{p.paidAmount}</td>}
+                        {visibleColumns.due && <td className="px-2 py-2">{p.due}</td>}
+                        {visibleColumns.change && <td className="px-2 py-2">{p.change}</td>}
+                        {visibleColumns.details && <td className="px-2 py-2">{p.details}</td>}
+                      </tr>
+                    ))
+                    )}
+                    
+                    {/* INACTIVE ROWS (APPENDED) */}
+                     {showInactive && inactiveRows.map((p) => (
+                      <tr
+                        key={`inactive-${p.id}`}
+                        onClick={() => navigate(`/app/purchasing/edit/${p.id}`, { state: { isInactive: true } })}
+                        className="hover:bg-gray-700 cursor-pointer bg-gray-700/50 opacity-60 line-through grayscale"
+                      >
+                         {visibleColumns.id && <td className="px-2 py-2">{p.id}</td>}
+                        {visibleColumns.supplierName && (
+                          <td className="px-2 py-2 flex items-center justify-center gap-2">
+                             <button className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 opacity-50" title="Download PDF" onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}>
+                              <FileText size={14} className="text-red-300" />
+                            </button>
+                            <button 
+                              className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 opacity-50" 
                               title="Preview Invoice" 
                               onClick={(e) => { 
                                 e.stopPropagation(); 

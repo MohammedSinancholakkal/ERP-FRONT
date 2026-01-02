@@ -1,5 +1,4 @@
-// src/pages/administration/Users.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   Plus,
@@ -8,17 +7,17 @@ import {
   X,
   Save,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   ArchiveRestore,
-  CheckCircle2,
   Users,
   Lock,
   Paperclip,
+  ChevronDown,
+  ChevronRight,
+  Check,
+  Ban
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 import {
   getUsersApi,
@@ -29,7 +28,68 @@ import {
   getInactiveUsersApi,
   restoreUserApi,
   getRolesApi,
+  getUserRolesApi,
+  getUserPermissionsApi,
+  setUserPermissionsApi,
+  getAllPermissionsApi, // Added 
+  setUserRolesApi
 } from "../../services/allAPI"; 
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions"; 
+
+// buildPermissionTree moved to backend to satisfy "logic in backend" requirement
+
+
+const PermissionItem = ({ item, level = 0, onToggle }) => {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = item.children && item.children.length > 0;
+
+  return (
+    <div className="select-none">
+      <div 
+        className={`flex items-center gap-2 py-1 hover:bg-white/5 rounded px-2 ${level > 0 ? "ml-6" : ""}`}
+      >
+        {/* Expand/Collapse */}
+        <div 
+          className="w-4 h-4 flex items-center justify-center cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {hasChildren && (
+            expanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />
+          )}
+        </div>
+
+        {/* Icon */}
+        {item.granted ? (
+           <Check size={16} className="text-green-500" />
+        ) : (
+           <Ban size={16} className="text-red-500" />
+        )}
+
+        {/* Name */}
+        <span className="text-sm text-gray-200 flex-1">{item.name}</span>
+
+        {/* Checkbox */}
+        <div 
+          onClick={() => onToggle(item.id)}
+          className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${item.granted ? "bg-blue-600 border-blue-600" : "border-gray-500 hover:border-gray-400"}`}
+        >
+             {item.granted && <Check size={12} className="text-white" />}
+        </div>
+      </div>
+
+      {/* Children */}
+      {hasChildren && expanded && (
+        <div>
+          {item.children.map(child => (
+            <PermissionItem key={child.id} item={child} level={level + 1} onToggle={onToggle} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+ 
 
 import SortableHeader from "../../components/SortableHeader";
 import { serverURL } from "../../services/serverURL";
@@ -114,20 +174,190 @@ const UserManagement = () => {
     }
   };
 
-  const handleEditRoles = () => {
-    setRolesModalOpen(true);
-    fetchRoles();
-    // TODO: Load existing roles for the user if available
-    setSelectedRoles([]); 
-  };
 
-  const toggleRole = (roleName) => {
-    setSelectedRoles((prev) =>
-      prev.includes(roleName)
-        ? prev.filter((r) => r !== roleName)
-        : [...prev, roleName]
+
+const handleEditRoles = async () => {
+  try {
+    setRolesModalOpen(true);
+    await fetchRoles(); // loads all roles
+
+    const res = await getUserRolesApi(editData.userId);
+
+    if (res.status === 200) {
+      const roleIds = res.data.records.map(r => r.RoleId);
+      setSelectedRoles(roleIds);
+    } else {
+      setSelectedRoles([]);
+    }
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to load user roles");
+    setSelectedRoles([]);
+  }
+};
+
+
+  const toggleRole = (roleId) => {
+    setSelectedRoles(prev =>
+      prev.includes(roleId)
+        ? prev.filter(id => id !== roleId)
+        : [...prev, roleId]
     );
   };
+
+
+  // --- PERMISSIONS MODAL STATE ---
+  const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
+  const [permissions, setPermissions] = useState([]); // Master Tree (with granted status)
+  const [displayedPermissions, setDisplayedPermissions] = useState([]); // Filtered Tree for Display
+  const [permissionSearch, setPermissionSearch] = useState("");
+
+  // Fetch Logic
+  const handleEditPermissions = async () => {
+    setPermissionsModalOpen(true);
+    setPermissionSearch("");
+
+    try {
+      // 1. Get All System Permissions (Backend now returns Tree)
+      const allRes = await getAllPermissionsApi();
+      if (allRes.status !== 200) throw new Error("Failed to load system permissions");
+      
+      const tree = Array.isArray(allRes.data) ? allRes.data : (allRes.data.records || []);
+
+      // 2. Get User's Existing Overrides
+      const userRes = await getUserPermissionsApi(editData.userId);
+      const userOverrides = userRes.data?.permissions || []; 
+
+      // 3. Apply Overrides
+      const grantedKeys = userOverrides.filter(u => u.granted).map(u => u.key);
+      
+      const mapPermissions = (items) =>
+        items.map(p => ({
+          ...p,
+          granted: grantedKeys.includes(p.key),
+          children: p.children ? mapPermissions(p.children) : []
+        }));
+
+      const finalTree = mapPermissions(tree);
+      setPermissions(finalTree);
+      setDisplayedPermissions(finalTree);
+
+    } catch (error) {
+       console.error("Permission Load Error:", error);
+       toast.error("Failed to load permissions");
+    }
+  };
+
+  // Search Effect
+  useEffect(() => {
+    if (!permissions.length) return;
+
+    if (!permissionSearch.trim()) {
+      setDisplayedPermissions(permissions);
+      return;
+    }
+
+    const lowerSearch = permissionSearch.toLowerCase();
+
+    // Recursive Filter
+    const filterTree = (nodes) => {
+      return nodes.reduce((acc, node) => {
+        const matchesSelf = node.name.toLowerCase().includes(lowerSearch);
+        const filteredChildren = node.children ? filterTree(node.children) : [];
+        
+        if (matchesSelf || filteredChildren.length > 0) {
+          acc.push({
+            ...node,
+            children: filteredChildren
+          });
+        }
+        return acc;
+      }, []);
+    };
+
+    setDisplayedPermissions(filterTree(permissions));
+  }, [permissionSearch, permissions]);
+
+
+  // Toggle Logic
+  const togglePermission = (id) => {
+    // Recursive update on Master Tree
+    const updateNodes = (nodes) => {
+      return nodes.map(node => {
+        if (node.id === id) {
+          const newStatus = !node.granted;
+          return {
+            ...node,
+            granted: newStatus,
+            children: node.children ? setAllChildren(node.children, newStatus) : node.children
+          };
+        }
+        return { ...node, children: updateNodes(node.children) };
+      });
+    };
+
+    const setAllChildren = (items, status) => {
+      return items.map(item => ({
+        ...item,
+        granted: status,
+        children: item.children ? setAllChildren(item.children, status) : item.children
+      }));
+    };
+
+    // Update parents based on children
+    const evaluateParents = (items) => {
+      return items.map(item => {
+        if (item.children && item.children.length > 0) {
+          const updatedChildren = evaluateParents(item.children); 
+          const allChildrenGranted = updatedChildren.every(c => c.granted);
+          return {
+            ...item,
+            children: updatedChildren,
+            granted: allChildrenGranted 
+          };
+        }
+        return item;
+      });
+    };
+
+    setPermissions(prev => {
+      const step1 = updateNodes(prev);
+      const step2 = evaluateParents(step1);
+      return step2;
+    });
+  };
+
+
+  // Collect Granted Keys
+  const collectGranted = (items) => {
+    let keys = [];
+    for (const i of items) {
+      if (i.granted && i.key) keys.push({ key: i.key, granted: true });
+      if (i.children) keys = keys.concat(collectGranted(i.children));
+    }
+    return keys;
+  };
+
+  // Save Permissions
+  const savePermissions = async () => {
+    try {
+      const payload = collectGranted(permissions);
+      
+      const res = await setUserPermissionsApi(editData.userId, {
+        permissions: payload, 
+        updateUserId: currentUserId
+      });
+
+      if (res.status === 200) {
+        toast.success("User permissions updated");
+        setPermissionsModalOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save permissions");
+    }
+  };
+
 
   // Column Picker
   const defaultColumns = {
@@ -262,6 +492,28 @@ const UserManagement = () => {
         return toast.error("Passwords do not match");
       }
 
+      // Check duplicates (Username)
+      try {
+        const searchRes = await searchUserApi(newUser.username.trim());
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+        const existing = rows.find(u => u.username?.toLowerCase() === newUser.username.trim().toLowerCase());
+        if (existing) return toast.error("Username already exists");
+      } catch (err) {
+        console.error(err);
+      }
+
+      // Check duplicates (Email) - only if provided
+      if (newUser.email.trim()) {
+        try {
+            const searchRes = await searchUserApi(newUser.email.trim());
+            const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+            const existing = rows.find(u => u.email?.toLowerCase() === newUser.email.trim().toLowerCase());
+            if (existing) return toast.error("Email already exists");
+        } catch (err) {
+            console.error(err);
+        }
+      }
+
       const payload = new FormData();
       payload.append("username", newUser.username.trim());
       payload.append("displayName", newUser.displayName.trim());
@@ -325,6 +577,34 @@ const UserManagement = () => {
         return toast.error("Missing required fields");
       }
 
+      // Check duplicates (Username)
+      try {
+        const searchRes = await searchUserApi(editData.username.trim());
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+        const existing = rows.find(u => 
+            u.username?.toLowerCase() === editData.username.trim().toLowerCase() && 
+            (u.userId || u.UserId) !== editData.userId
+        );
+        if (existing) return toast.error("Username already exists");
+      } catch (err) {
+        console.error(err);
+      }
+
+      // Check duplicates (Email)
+      if (editData.email?.trim()) {
+        try {
+            const searchRes = await searchUserApi(editData.email.trim());
+            const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+            const existing = rows.find(u => 
+                u.email?.toLowerCase() === editData.email.trim().toLowerCase() && 
+                (u.userId || u.UserId) !== editData.userId
+            );
+            if (existing) return toast.error("Email already exists");
+        } catch (err) {
+            console.error(err);
+        }
+      }
+
       // Build payload as FormData to support file upload
       const payload = new FormData();
       payload.append("username", editData.username.trim());
@@ -353,37 +633,96 @@ const UserManagement = () => {
 
   // Delete user (soft)
   const handleDelete = async () => {
+    if (!editData.userId) {
+      return toast.error("Invalid User ID");
+    }
+
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This user will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await deleteUserApi(editData.userId, {
         userId: currentUserId,
       });
-      console.log(res);
-      
-      if (res.status === 200) {
-        toast.success("Deleted");
+
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: "User deleted successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
         setEditModalOpen(false);
         loadUsers();
         if (showInactive) loadInactiveUsers();
+      } else {
+        throw new Error("Delete failed");
       }
-    } catch {
-      toast.error("Delete failed");
+    } catch (error) {
+      console.error("Delete user error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Delete failed",
+        text: "Failed to delete user. Please try again.",
+      });
     }
   };
 
   // Restore user
   const handleRestore = async () => {
+    if (!editData.userId) {
+       return toast.error("Invalid User ID");
+    }
+
+    const result = await Swal.fire({
+      title: "Restore user?",
+      text: "This user will be restored and made active again.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#16a34a",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await restoreUserApi(editData.userId, {
         userId: currentUserId,
       });
-      if (res.status === 200) {
-        toast.success("Restored");
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Restored!",
+          text: "User restored successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
         setEditModalOpen(false);
         loadUsers();
         loadInactiveUsers();
+      } else {
+        throw new Error("Restore failed");
       }
-    } catch {
-      toast.error("Restore failed");
+    } catch (error) {
+      console.error("Restore user error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Restore failed",
+        text: "Failed to restore user. Please try again.",
+      });
     }
   };
 
@@ -410,7 +749,6 @@ const UserManagement = () => {
     setEditData((p) => ({ ...p, userImage: file, userImagePreview: preview }));
   };
 
-  // JSX render (structure + style same as Banks.jsx)
   return (
     <>
       {/* ADD MODAL */}
@@ -427,12 +765,15 @@ const UserManagement = () => {
 
             {/* TOOLBAR */}
             <div className="px-4 sm:px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
+              {hasPermission(PERMISSIONS.USER.CREATE) && (
               <button
                 onClick={handleAdd}
                 className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
+                disabled={!hasPermission(PERMISSIONS.USER.CREATE)}
               >
                 <Save size={16} className="text-blue-400" /> Save
               </button>
+              )}
               {/* <button className="p-1.5 border border-gray-500 rounded text-gray-400 hover:text-white hover:bg-gray-700">
                 <CheckCircle2 size={18} className="text-purple-400" />
               </button> */}
@@ -592,7 +933,7 @@ const UserManagement = () => {
 
             {/* TOOLBAR */}
             <div className="px-4 sm:px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
-              {!editData.isInactive && (
+              {hasPermission(PERMISSIONS.USER.EDIT) && !editData.isInactive && (
                 <button
                   onClick={handleUpdate}
                   className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
@@ -626,6 +967,7 @@ const UserManagement = () => {
               </button>
               
               <button 
+                onClick={handleEditPermissions}
                 disabled={editData.isInactive}
                 className={`flex items-center gap-2 border border-gray-600 px-3 py-1.5 rounded transition-colors ${
                   editData.isInactive 
@@ -636,7 +978,7 @@ const UserManagement = () => {
                 <Lock size={16} /> Edit Permissions
               </button>
 
-              {!editData.isInactive && (
+              {hasPermission(PERMISSIONS.USER.DELETE) && !editData.isInactive && (
                 <button
                   onClick={handleDelete}
                   className="ml-auto p-1.5 border border-red-900/50 bg-red-900/20 text-red-400 rounded hover:bg-red-900/40"
@@ -1052,8 +1394,6 @@ const UserManagement = () => {
           </div>
         </div>
 
-
- {/* PAGINATION */}
            
               <Pagination
                 page={page}
@@ -1094,31 +1434,37 @@ const UserManagement = () => {
             {/* List */}
             <div className="max-h-[400px] overflow-y-auto p-4 sm:px-5 space-y-1">
               {rolesList
-                .filter((r) => r.roleName.toLowerCase().includes(roleSearch.toLowerCase()))
-                .map((role) => (
-                  <div
-                    key={role.roleId}
-                    onClick={() => toggleRole(role.roleName)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded cursor-pointer transition-colors ${
-                      selectedRoles.includes(role.roleName) 
-                        ? "bg-white/30 border border-white/30" 
-                        : "hover:bg-gray-800 border border-transparent"
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                        selectedRoles.includes(role.roleName)
-                          ? "bg-white-500 border-white-500"
-                          : "border-gray-500"
-                      }`}
-                    >
-                      {selectedRoles.includes(role.roleName) && (
-                        <CheckCircle2 size={12} className="text-white" />
-                      )}
-                    </div>
-                    <span className="text-sm text-gray-200">{role.roleName}</span>
-                  </div>
-                ))}
+                .filter(r =>
+                  r.roleName.toLowerCase().includes(roleSearch.toLowerCase())
+                )
+                .map(role => (
+           <div
+  key={role.id}
+  className="flex items-center gap-3 px-3 py-2.5 rounded hover:bg-gray-800"
+>
+<input
+  type="checkbox"
+  checked={selectedRoles.includes(role.id)}
+  onChange={() => toggleRole(role.id)}
+  className="
+    w-4 h-4
+    accent-emerald-500
+    bg-gray-800
+    border-gray-500
+    rounded
+    cursor-pointer
+  "
+/>
+
+
+  <span className="text-sm cursor-pointer"
+        onClick={() => toggleRole(role.id)}>
+    {role.roleName}
+  </span>
+</div>
+
+              ))}
+
             </div>
 
             {/* Footer */}
@@ -1129,17 +1475,104 @@ const UserManagement = () => {
               >
                 Cancel
               </button>
-              <button
-                onClick={() => setRolesModalOpen(false)}
-                className="px-4 py-2 bg-transparent border border-gray-600 text-gray-300 rounded hover:bg-gray-800 hover:text-white text-sm transition-colors"
+             <button
+                onClick={async () => {
+                  try {
+                    await setUserRolesApi(editData.userId, {
+                      roleIds: selectedRoles,
+                      updateUserId: currentUserId
+                    });
+                    toast.success("Roles saved");
+                    setRolesModalOpen(false);
+                  } catch {
+                    toast.error("Failed to save roles");
+                  }
+                }}
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 Save Roles
               </button>
+
             </div>
           </div>
         </div>
       )}
     </PageLayout>
+      {/* PERMISSIONS MODAL (MATCHING ROLES STYLE) */}
+      {permissionsModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[70]">
+          <div className="w-[600px] max-h-[85vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b border-gray-700 bg-gray-900/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <Lock size={20} className="text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg text-white font-normal">Edit User Permissions</h3>
+                  <p className="text-sm text-gray-400">Override permissions for {editData.displayName}</p>
+                </div>
+              </div>
+              <button onClick={() => setPermissionsModalOpen(false)}>
+                <X size={20} className="text-gray-300 hover:text-white" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="p-4 border-b border-gray-700 bg-gray-800/30">
+              <div className="flex items-center bg-gray-800/50 rounded px-3 border border-gray-600 focus-within:border-blue-500 transition-colors">
+                <Search size={16} className="text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="search..."
+                  value={permissionSearch}
+                  onChange={(e) => setPermissionSearch(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm p-2 w-full text-white placeholder-gray-500"
+                />
+              </div>
+            </div>
+
+            {/* Header for List */}
+            <div className="flex justify-between px-4 py-2 bg-gray-800/50 border-b border-gray-700 text-sm font-semibold text-gray-300">
+                <span>Permission</span>
+                <span>Grant</span>
+            </div>
+
+            {/* List */}
+             <div className="flex-1 overflow-y-auto p-4 space-y-1">
+               {displayedPermissions.length === 0 ? (
+                 <div className="text-center py-10 text-gray-500">
+                    {permissions.length === 0 ? "Loading permissions..." : "No matches found"}
+                 </div>
+               ) : (
+                  displayedPermissions.map(p => (
+                    <PermissionItem 
+                      key={p.id || p.key} 
+                      item={p} 
+                      onToggle={togglePermission} 
+                    />
+                  ))
+               )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-700 bg-gray-900/50">
+              <button
+                onClick={() => setPermissionsModalOpen(false)}
+                className="px-4 py-2 bg-transparent border border-gray-600 text-gray-300 rounded hover:bg-gray-800 hover:text-white text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={savePermissions}
+                className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 text-sm shadow-lg shadow-gray-900/20 transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

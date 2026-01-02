@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
+import { ArrowLeft, Save, Calendar, DollarSign, Calculator } from "lucide-react";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const DayClosing = () => {
+  if (!hasPermission(PERMISSIONS.REPORTS.VIEW)) {
+    return (
+      <div className="flex items-center justify-center h-full text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-400">You do not have permission to view this report.</p>
+        </div>
+      </div>
+    );
+  }
   const [lastDayClosing, setLastDayClosing] = useState(0);
   const [receive, setReceive] = useState(0);
   const [payment, setPayment] = useState(0);

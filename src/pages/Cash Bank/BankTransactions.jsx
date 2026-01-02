@@ -8,13 +8,11 @@ import {
   ArchiveRestore,
   X,
   Save,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const BankTransactions = () => {
   // ------------------------- Columns -------------------------
@@ -276,12 +274,14 @@ const [newTx, setNewTx] = useState({
             </div>
 
             <div className="flex justify-end px-5 py-3 border-t border-gray-700">
+              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
               <button
                 onClick={handleAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -307,6 +307,7 @@ const [newTx, setNewTx] = useState({
           </div>
 
           {/* New Transaction */}
+          {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
@@ -314,6 +315,7 @@ const [newTx, setNewTx] = useState({
             <Plus size={16} />
             New Transaction
           </button>
+          )}
 
           {/* Refresh */}
           <button  onClick={handleRefresh} className="p-2 bg-gray-700 border border-gray-600 rounded">

@@ -4,6 +4,12 @@ import { serverURL } from "../services/serverURL";
 // Login API
 export const LoginApi = async (reqBody) => {
   return await commonAPI("POST", `${serverURL}/auth/login`, reqBody, "");
+  return await commonAPI("POST", `${serverURL}/auth/login`, reqBody, "");
+};
+
+// Logout API
+export const LogoutApi = async (data) => {
+  return await commonAPI("POST", `${serverURL}/auth/logout`, data);
 };
 
 
@@ -48,6 +54,44 @@ export const restoreUserApi = (id, body) =>
 // SEARCH USERS
 export const searchUserApi = (q) =>
   commonAPI("GET", `${serverURL}/users/search?q=${encodeURIComponent(q)}`);
+
+
+
+// USER ROLES
+export const getUserRolesApi = (userId) =>
+  commonAPI("GET", `${serverURL}/users/${userId}/roles`, "", "");
+
+
+export const setUserRolesApi = (userId, data) =>
+  commonAPI("POST",`${serverURL}/users/${userId}/roles`,data,"");
+
+
+
+// ===============================
+// ROLE PERMISSIONS
+// ===============================
+
+// GET permissions for a role
+export const getRolePermissionsApi = (roleId) =>
+  commonAPI("GET",`${serverURL}/roles/${roleId}/permissions`);
+
+// SET permissions for a role 
+export const setRolePermissionsApi = (roleId, data) =>
+  commonAPI("POST",`${serverURL}/roles/${roleId}/permissions`,data);
+
+// GET ALL PERMISSIONS (System Definition)
+export const getAllPermissionsApi = () =>
+  commonAPI("GET", `${serverURL}/permissions`);
+
+
+// ===============================
+// USER PERMISSIONS (OVERRIDES)
+// ===============================
+export const getUserPermissionsApi = (userId) => 
+  commonAPI("GET", `${serverURL}/users/${userId}/permissions`);
+
+export const setUserPermissionsApi = (userId, data) => 
+  commonAPI("POST", `${serverURL}/users/${userId}/permissions`, data);
 
 
 
@@ -1116,6 +1160,10 @@ export const getInactiveEmployeesApi = () =>
 export const restoreEmployeeApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/employees/restore/${id}`, data, "");
 
+// SEARCH EMPLOYEES
+export const searchEmployeeApi = (q) =>
+  commonAPI("GET", `${serverURL}/employees/search?q=${encodeURIComponent(q)}`, "", "");
+
 
 
 // ROLES
@@ -1634,9 +1682,3 @@ export const getInactivePayrollsApi = () =>
 // RESTORE
 export const restorePayrollApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/payrolls/restore/${id}`, data);
-
-
-
-
-
-

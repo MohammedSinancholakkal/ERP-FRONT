@@ -1,17 +1,11 @@
 import React, { useState } from "react";
 import {
   Search,
-  RefreshCw,
-  ArchiveRestore,
-  List,
-  X,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 /* Searchable Dropdown */
 const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
@@ -110,7 +104,19 @@ const ColumnPickerModal = ({ open, onClose, visibleColumns, setVisibleColumns })
   );
 };
 
+
+
 const StockReport = () => {
+  if (!hasPermission(PERMISSIONS.REPORTS.VIEW)) {
+    return (
+      <div className="flex items-center justify-center h-full text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-400">You do not have permission to view this report.</p>
+        </div>
+      </div>
+    );
+  }
   /* UI State */
   const [searchText, setSearchText] = useState("");
   const [showInactive, setShowInactive] = useState(false);

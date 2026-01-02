@@ -21,6 +21,7 @@ import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 import {
   getGoodsIssuesApi,
   getInactiveGoodsIssuesApi,
@@ -30,6 +31,8 @@ import {
   getSalesApi,
   getEmployeesApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const GoodsIssue = () => {
   const navigate = useNavigate();
@@ -290,7 +293,7 @@ const readOnly = isRestoreMode;
 
 const fetchInactiveGoodsIssues = async () => {
   try {
-    setLoading(true)
+    // setLoading(true) // Clean loading - no spinner for inactive append
 
     const res = await getInactiveGoodsIssuesApi()
 
@@ -332,26 +335,39 @@ const fetchInactiveGoodsIssues = async () => {
 
 
     setInactiveRows(normalized)
-    setRows(normalized)
+    // setRows(normalized) // DO NOT REPLACE ACTIVE ROWS
   } catch (error) {
     console.error("Inactive goods issue fetch failed:", error)
     toast.error("Inactive goods issues not available")
     setInactiveRows([])
-    setRows([])
   } finally {
-    setLoading(false)
+    // setLoading(false)
   }
 }
 
 
 
-const handleRestoreIssue = async () => {
+const handleRestoreIssue = async (id) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This goods issue will be restored!",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
   try {
     const res = await restoreGoodsIssueApi(id, { userId });
 
     if (res.status === 200) {
-      toast.success("Goods issue restored successfully");
-      navigate("/app/inventory/goodsissue");
+      toast.success("Restored successfully");
+      await fetchGoodsIssues();
+      if(showInactive) await fetchInactiveGoodsIssues();
     } else {
       toast.error("Restore failed");
     }
@@ -364,13 +380,15 @@ const handleRestoreIssue = async () => {
 
 
   useEffect(() => {
+    fetchGoodsIssues();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit]);
+
+  useEffect(() => {
     if (showInactive) {
       fetchInactiveGoodsIssues();
-    } else {
-      fetchGoodsIssues();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, showInactive]);
+  }, [showInactive]);
 
   /* ------------------------------ Add Modal ------------------------------ */
   const [modalOpen, setModalOpen] = useState(false);
@@ -411,14 +429,15 @@ const handleRestoreIssue = async () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
-
-              {/* New Goods Issue */}
+              
+              {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE) && (
               <button
                 onClick={() => navigate("/app/inventory/goodsissue/newgoodsissue")}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
               >
                 <Plus size={16} /> New Issue
               </button>
+              )}
 
               {/* Refresh */}
               <button
@@ -450,13 +469,15 @@ const handleRestoreIssue = async () => {
               {/* Show Inactive */}
               <button
                 onClick={async () => {
-                  if (!showInactive) await fetchInactiveGoodsIssues();
+                  // if (!showInactive) await fetchInactiveGoodsIssues(); // Handled by useEffect
                   setShowInactive((s) => !s);
                 }}
-                className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
+                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
               >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
+                <ArchiveRestore size={16} className="text-yellow-400" />
+                <span className="text-xs text-gray-300">
+                Inactive
+                </span>
               </button>
             </div>
 
@@ -500,12 +521,31 @@ const handleRestoreIssue = async () => {
                           </tr>
                         ))
                     ) : (
+                      !showInactive && (
                         <tr>
                           <td colSpan={10} className="px-4 py-6 text-center text-gray-400">
                             No records found
                           </td>
                         </tr>
+                      )
                     )}
+                    {/* INACTIVE ROWS APPENDED */}
+                    {showInactive && inactiveRows.map((r) => (
+                      <tr
+                        key={`inactive-${r.id}`}
+                        className="bg-gray-900 cursor-pointer opacity-50 line-through hover:bg-gray-800"
+                        onClick={() => handleRestoreIssue(r.id)}
+                      >
+                           {visibleColumns.id && <td className="px-2 py-3">{r.id}</td>}
+                           {visibleColumns.customer && <td>{r.customer}</td>}
+                           {visibleColumns.saleInvoice && <td>{r.saleInvoice}</td>}
+                           {visibleColumns.date && <td>{r.date}</td>}
+                           {visibleColumns.time && <td>{r.time}</td>}
+                           {visibleColumns.totalQuantity && <td>{String(r.totalQuantity)}</td>}
+                           {visibleColumns.employee && <td>{r.employee}</td>}
+                           {visibleColumns.remarks && <td>{r.remarks}</td>}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

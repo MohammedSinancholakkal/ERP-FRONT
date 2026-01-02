@@ -17,6 +17,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const SupplierPayment = () => {
   const navigate = useNavigate();
@@ -170,12 +172,14 @@ const SupplierPayment = () => {
                   />
 
                   {/* New Supplier Button */}
+                  {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && (
                   <button
                     onClick={() => navigate("/masters/new-supplier")}
                     className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700"
                   >
                     <Star size={16} className="text-yellow-300" />
                   </button>
+                  )}
                 </div>
 
                 {newPay.supplierDropdown && (
@@ -249,12 +253,14 @@ const SupplierPayment = () => {
             </div>
 
             <div className="flex justify-end px-5 py-3 border-t border-gray-700">
+              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
               <button
                 onClick={handleAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -279,12 +285,14 @@ const SupplierPayment = () => {
             />
           </div>
 
+          {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Payment
           </button>
+          )}
 
           <button
             onClick={() => {

@@ -21,6 +21,8 @@ import {
   getInactiveBanksApi,
   restoreBankApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 import PageLayout from "../../layout/PageLayout";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
@@ -205,6 +207,34 @@ const Banks = () => {
     if (!newData.BankName || !newData.ACNumber) {
       return toast.error("Bank Name and Account Number are required");
     }
+    // Check Bank Name Duplicates
+    try {
+        const searchRes = await searchBankApi(newData.BankName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.BankName || r.bankName).toLowerCase() === newData.BankName.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Bank with this name already exists");
+        }
+    } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+    
+    // Check AC Number Duplicates
+    try {
+        const searchResAc = await searchBankApi(newData.ACNumber.trim());
+        if (searchResAc?.status === 200) {
+            const rows = searchResAc.data || [];
+            const existingAc = rows.find(r => 
+                String(r.ACNumber || r.acNumber).trim() === String(newData.ACNumber).trim()
+            );
+            if (existingAc) return toast.error("Bank with this Account Number already exists");
+        }
+    } catch (err) {
+        console.error(err);
+    }
 
     const reqData = {
       ...newData,
@@ -239,6 +269,37 @@ const Banks = () => {
   const handleUpdate = async () => {
     if (!editData.BankName || !editData.ACNumber) {
       return toast.error("Bank Name and Account Number are required");
+    }
+
+    // Check Bank Name Duplicates
+    try {
+        const searchRes = await searchBankApi(editData.BankName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.BankName || r.bankName).toLowerCase() === editData.BankName.trim().toLowerCase() &&
+                (r.Id || r.id) !== editData.id
+            );
+            if (existing) return toast.error("Bank with this name already exists");
+        }
+    } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
+    // Check AC Number Duplicates
+    try {
+        const searchResAc = await searchBankApi(editData.ACNumber.trim());
+        if (searchResAc?.status === 200) {
+            const rows = searchResAc.data || [];
+            const existingAc = rows.find(r => 
+                String(r.ACNumber || r.acNumber).trim() === String(editData.ACNumber).trim() &&
+                (r.Id || r.id) !== editData.id
+            );
+            if (existingAc) return toast.error("Bank with this Account Number already exists");
+        }
+    } catch (err) {
+        console.error(err);
     }
 
     const reqData = {
@@ -388,12 +449,14 @@ const Banks = () => {
               </div>
             </div>
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
+              {hasPermission(PERMISSIONS.BANKS.CREATE) && (
+                <button
+                  onClick={handleAdd}
+                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
+                >
+                  <Save size={16} /> Save
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -472,15 +535,17 @@ const Banks = () => {
                   <ArchiveRestore size={16} /> Restore
                 </button>
               ) : (
+                hasPermission(PERMISSIONS.BANKS.DELETE) && (
                 <button
                   onClick={handleDelete}
                   className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
+                )
               )}
 
-              {!editData.isInactive && (
+              {!editData.isInactive && hasPermission(PERMISSIONS.BANKS.EDIT) && (
                 <button
                   onClick={handleUpdate}
                   className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
@@ -604,12 +669,14 @@ const Banks = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+              {hasPermission(PERMISSIONS.BANKS.CREATE) && (
               <button
                 onClick={() => setModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded"
               >
                 <Plus size={16} /> New Bank
               </button>
+              )}
               <button
                 onClick={() => {
                   setSearchText("");

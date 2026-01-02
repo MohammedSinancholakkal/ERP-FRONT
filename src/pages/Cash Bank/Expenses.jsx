@@ -7,14 +7,13 @@ import {
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
   Star,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 import {
   addExpenseApi,
@@ -281,15 +280,37 @@ const Expenses = () => {
   // ==========================
   // DELETE
   // ==========================
+  // ==========================
+  // DELETE
+  // ==========================
   const handleDelete = async () => {
-    const res = await deleteExpenseApi(editExpense.id, {
-      userId: currentUserId,
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This record will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Deleted");
-      setEditModalOpen(false);
-      loadExpenses();
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await deleteExpenseApi(editExpense.id, {
+        userId: currentUserId,
+      });
+
+      if (res?.status === 200) {
+        toast.success("Deleted");
+        setEditModalOpen(false);
+        loadExpenses();
+        if (showInactive) loadInactive();
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
+      toast.error("Delete failed");
     }
   };
 
@@ -297,15 +318,33 @@ const Expenses = () => {
   // RESTORE
   // ==========================
   const handleRestore = async () => {
-    const res = await restoreExpenseApi(editExpense.id, {
-      userId: currentUserId,
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This record will be restored!",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Restored");
-      setEditModalOpen(false);
-      loadExpenses();
-      loadInactive();
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await restoreExpenseApi(editExpense.id, {
+        userId: currentUserId,
+      });
+
+      if (res?.status === 200) {
+        toast.success("Restored");
+        setEditModalOpen(false);
+        loadExpenses();
+        loadInactive();
+      }
+    } catch (err) {
+      console.error("Restore failed", err);
+      toast.error("Restore failed");
     }
   };
 
@@ -317,7 +356,7 @@ const Expenses = () => {
       {/* ---------------- ADD EXPENSE MODAL ---------------- */}
 {/* ADD MODAL */}
 {modalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[9999]">
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
     <div className="w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
 
       {/* HEADER */}
@@ -386,6 +425,7 @@ const Expenses = () => {
               )}
             </div>
 
+            {hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE) && (
             <button
               type="button"
               onClick={() => setShowExpenseTypeCreate(true)}
@@ -394,6 +434,7 @@ const Expenses = () => {
             >
               <Star size={16} className="text-yellow-300" />
             </button>
+            )}
           </div>
         </div>
 
@@ -453,12 +494,14 @@ const Expenses = () => {
 
       {/* FOOTER */}
       <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+        {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
         <button
           onClick={handleAdd}
           className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm"
         >
           <Save size={16} /> Save
         </button>
+        )}
       </div>
     </div>
   </div>
@@ -466,7 +509,7 @@ const Expenses = () => {
 
 {/* ---------------- QUICK-CREATE EXPENSE TYPE MODAL ---------------- */}
 {showExpenseTypeCreate && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[10000]">
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[70]">
     <div className="w-[500px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
       <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
         <h2 className="text-lg font-semibold">New Expense Type</h2>
@@ -487,12 +530,14 @@ const Expenses = () => {
       </div>
 
       <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+        {hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE) && (
         <button
           onClick={handleCreateExpenseType}
           className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm"
         >
           <Save size={16} /> Save
         </button>
+        )}
       </div>
     </div>
   </div>
@@ -503,7 +548,7 @@ const Expenses = () => {
       {/* ---------------- EDIT EXPENSE MODAL ---------------- */}
 {/* EDIT MODAL */}
 {editModalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[9999]">
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
     <div className="w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
 
       {/* HEADER */}
@@ -611,22 +656,26 @@ const Expenses = () => {
       {/* FOOTER */}
       <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
         {editExpense.isInactive ? (
+          hasPermission(PERMISSIONS.CASH_BANK.DELETE) && (
           <button
             onClick={handleRestore}
             className="flex items-center gap-2 bg-green-700 px-4 py-2 border border-green-900 rounded"
           >
             <ArchiveRestore size={16} /> Restore
           </button>
+          )
         ) : (
+          hasPermission(PERMISSIONS.CASH_BANK.DELETE) && (
           <button
             onClick={handleDelete}
             className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
           >
             <Trash2 size={16} /> Delete
           </button>
+          )
         )}
 
-        {!editExpense.isInactive && (
+        {!editExpense.isInactive && hasPermission(PERMISSIONS.CASH_BANK.EDIT) && (
           <button
             onClick={handleUpdate}
             className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
@@ -737,12 +786,14 @@ const Expenses = () => {
             </div>
 
             {/* ADD */}
+            {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
             <button
               onClick={() => { setNewExpense((p) => ({ ...p, date: todayStr })); setModalOpen(true); }}
               className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
             >
               <Plus size={16} /> New Expense
             </button>
+            )}
 
             {/* REFRESH */}
             <button
@@ -773,10 +824,12 @@ const Expenses = () => {
                 if (!showInactive) await loadInactive();
                 setShowInactive(!showInactive);
               }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1"
+              className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
             >
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
+              <ArchiveRestore size={16} className="text-yellow-400" />
+              <span className="text-xs text-gray-300">
+                {showInactive ? "Mask" : "Show"} Inactive
+              </span>
             </button>
           </div>
 
@@ -804,8 +857,7 @@ const Expenses = () => {
               </thead>
 
               <tbody>
-                {!showInactive &&
-                  expenses.map((e) => (
+                {expenses.map((e) => (
                     <tr
                       key={e.id}
                       onClick={() => openEditModal(e, false)}
@@ -843,7 +895,7 @@ const Expenses = () => {
                     <tr
                       key={`inactive-${e.id}`}
                       onClick={() => openEditModal(e, true)}
-                      className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
+                      className="bg-gray-900 opacity-50 line-through hover:bg-gray-800 cursor-pointer"
                     >
                       {visibleColumns.id && (
                         <td className="px-2 py-1 text-center">{e.id}</td>

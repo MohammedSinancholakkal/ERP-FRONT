@@ -19,6 +19,8 @@ import {
   getInactiveMeetingsApi, 
   restoreMeetingApi 
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 import toast from "react-hot-toast";
 
 
@@ -338,12 +340,14 @@ const Meetings = () => {
                 />
               </div>
 
+              {hasPermission(PERMISSIONS.MEETINGS.CREATE) && (
               <button
                 className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600 text-white"
                 onClick={() => navigate("/app/meeting/meetings/new")}
               >
                 <Plus size={16} /> New Meeting
               </button>
+              )}
 
               <button
                 className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"

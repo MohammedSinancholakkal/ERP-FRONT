@@ -8,10 +8,6 @@ import {
   X,
   Save,
   Star,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +17,7 @@ import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
 import toast from 'react-hot-toast';
+import Swal from "sweetalert2";
 import {
   getGoodsReceiptsApi,
   getInactiveGoodsReceiptsApi,
@@ -30,6 +27,8 @@ import {
   getEmployeesApi,
   getPurchasesApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const GoodsReceipt = () => {
   const navigate = useNavigate();
@@ -339,7 +338,7 @@ const GoodsReceipt = () => {
         const records = Array.isArray(res?.data?.records) ? res.data.records : (res?.data ?? [])
         const normalized = records.map(rec => ({ ...normalize(rec), isActive: false }))
         setInactiveRows(normalized)
-        setRows(normalized)
+        // setRows(normalized) // DO NOT REPLACE ACTIVE ROWS
       }
     } catch (err) {
       console.error('Error fetching inactive goods receipts', err)
@@ -365,15 +364,29 @@ const GoodsReceipt = () => {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this record?')) return
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This receipt will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await deleteGoodsReceiptApi(id, { userId })
       if (res.status === 200) {
         toast.success('Deleted')
         // refresh
         if (showAll) await fetchAll()
-        else if (showInactive) await fetchInactive()
-        else await fetchActive()
+        else {
+          await fetchActive()
+          if(showInactive) await fetchInactive()
+        }
       }
     } catch (err) {
       console.error('Delete error', err)
@@ -382,13 +395,28 @@ const GoodsReceipt = () => {
   }
 
   const handleRestore = async (id) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This receipt will be restored!",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await restoreGoodsReceiptApi(id, { userId })
       if (res.status === 200) {
         toast.success('Restored')
         if (showAll) await fetchAll()
-        else if (showInactive) await fetchInactive()
-        else await fetchActive()
+        else {
+          await fetchActive()
+          if(showInactive) await fetchInactive()
+        }
       }
     } catch (err) {
       console.error('Restore error', err)
@@ -400,10 +428,11 @@ const GoodsReceipt = () => {
   useEffect(() => {
     if (showAll) {
       fetchAll()
-    } else if (showInactive) {
-      fetchInactive()
     } else {
-      fetchActive()
+      fetchActive();
+      if (showInactive) {
+        fetchInactive();
+      }
     }
   }, [page, limit, showInactive, showAll])
 
@@ -694,13 +723,15 @@ const GoodsReceipt = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
-
+              
+              {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.CREATE) && (
               <button
                 onClick={() => navigate('/app/inventory/goodsreceipts/newgoodsreceipts')}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
               >
                 <Plus size={16} /> New Receipt
               </button>
+              )}
 
               <button
                 onClick={() => {
@@ -727,10 +758,12 @@ const GoodsReceipt = () => {
                   if (!showInactive) await fetchInactive();
                   setShowInactive((s) => !s);
                 }}
-                className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
+                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
               >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
+                <ArchiveRestore size={16} className="text-yellow-400" />
+                <span className="text-xs text-gray-300">
+                 Inactive
+                </span>
               </button>
             </div>
             {/* filters */}
@@ -773,12 +806,31 @@ const GoodsReceipt = () => {
                           </tr>
                         ))
                     ) : (
+                      !showInactive && (
                         <tr>
                           <td colSpan={10} className="px-4 py-6 text-center text-gray-400">
                             No records found
                           </td>
                         </tr>
+                      )
                     )}
+                    {/* INACTIVE ROWS APPENDED */}
+                    {showInactive && inactiveRows.map((r) => (
+                      <tr
+                        key={`inactive-${r.id}`}
+                        className="bg-gray-900 cursor-pointer opacity-50 line-through hover:bg-gray-800"
+                        onClick={() => handleRestore(r.id)}
+                      >
+                           {visibleColumns.id && <td className="px-2 py-3 text-center">{r.id}</td>}
+                           {visibleColumns.supplier && <td className="px-2 py-3 text-center">{r.supplierName}</td>}
+                           {visibleColumns.purchaseBill && <td className="px-2 py-3 text-center">{r.purchaseBill}</td>}
+                           {visibleColumns.date && <td className="px-2 py-3 text-center">{r.date || "-"}</td>}
+                           {visibleColumns.totalQuantity && <td className="px-2 py-3 text-center">{r.totalQuantity}</td>}
+                           {visibleColumns.employee && <td className="px-2 py-3 text-center">{r.employeeName || "-"}</td>}
+                           {visibleColumns.remarks && <td className="px-2 py-3 text-center">{r.remarks || "-"}</td>}
+                           {visibleColumns.reference && <td className="px-2 py-3 text-center">{r.reference || "-"}</td>}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

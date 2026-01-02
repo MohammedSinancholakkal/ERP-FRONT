@@ -22,10 +22,13 @@ import {
   updateCategoryApi,
   deleteCategoryApi,
   searchCategoryApi,
-  getInactiveCategoriesApi,
-  restoreCategoryApi
+  restoreCategoryApi,
+  getInactiveCategoriesApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+import Swal from "sweetalert2";
 
 const Categories = () => {
   // =============================
@@ -182,30 +185,96 @@ const end = Math.min(page * limit, totalRecords);
   // =============================
   // DELETE
   // =============================
-  const handleDelete = async () => {
-    const res = await deleteCategoryApi(editCategory.id, { userId: currentUserId });
+const handleDelete = async () => {
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "This category will be deleted!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#6b7280",
+    confirmButtonText: "Yes, delete",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const res = await deleteCategoryApi(editCategory.id, {
+      userId: currentUserId,
+    });
 
     if (res.status === 200) {
-      toast.success("Deleted");
+      await Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        text: "Category deleted successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
       setEditModalOpen(false);
       loadCategories();
       if (showInactive) loadInactive();
     }
-  };
+  } catch (error) {
+    console.error("Delete category failed:", error);
+
+    Swal.fire({
+      icon: "error",
+      title: "Delete failed",
+      text: "Failed to delete category. Please try again.",
+    });
+  }
+};
+
 
   // =============================
   // RESTORE
   // =============================
-  const handleRestore = async () => {
-    const res = await restoreCategoryApi(editCategory.id, { userId: currentUserId });
+const handleRestore = async () => {
+  const result = await Swal.fire({
+    title: "Restore category?",
+    text: "This category will be restored and made active again.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#16a34a", // green
+    cancelButtonColor: "#6b7280",
+    confirmButtonText: "Yes, restore",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const res = await restoreCategoryApi(editCategory.id, {
+      userId: currentUserId,
+    });
 
     if (res.status === 200) {
-      toast.success("Restored");
+      await Swal.fire({
+        icon: "success",
+        title: "Restored!",
+        text: "Category restored successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
       setEditModalOpen(false);
       loadCategories();
       loadInactive();
     }
-  };
+  } catch (error) {
+    console.error("Restore category failed:", error);
+
+    Swal.fire({
+      icon: "error",
+      title: "Restore failed",
+      text: "Failed to restore category. Please try again.",
+    });
+  }
+};
+
 
   // =============================
   // FILTER FOR DROPDOWN
@@ -274,12 +343,14 @@ const end = Math.min(page * limit, totalRecords);
 
       {/* FOOTER */}
       <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+        {hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.CREATE) && (
         <button
           onClick={handleAdd}
           className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
         >
           <Save size={16} /> Save
         </button>
+        )}
       </div>
     </div>
   </div>
@@ -348,22 +419,26 @@ const end = Math.min(page * limit, totalRecords);
       {/* FOOTER */}
       <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
         {editCategory.isInactive ? (
+          hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.DELETE) && (
           <button
             onClick={handleRestore}
             className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
           >
             <ArchiveRestore size={16} /> Restore
           </button>
+          )
         ) : (
+          hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.DELETE) && (
           <button
             onClick={handleDelete}
             className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
           >
             <Trash2 size={16} /> Delete
           </button>
+          )
         )}
 
-        {!editCategory.isInactive && (
+        {!editCategory.isInactive && hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.EDIT) && (
           <button
             onClick={handleUpdate}
             className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
@@ -501,9 +576,11 @@ const end = Math.min(page * limit, totalRecords);
             </div>
 
             {/* ADD */}
+            {hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.CREATE) && (
             <button onClick={() => setModalOpen(true)} className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600">
               <Plus size={16} /> New Category
             </button>
+            )}
 
             {/* REFRESH */}
             <button onClick={() => { setSearchText(""); setPage(1); loadCategories(); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600">

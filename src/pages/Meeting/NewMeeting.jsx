@@ -30,6 +30,8 @@ import {
   getMeetingByIdApi,
   updateMeetingApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -691,14 +693,16 @@ const NewMeeting = () => {
           </div>
 
           <div className="flex gap-3">
+            {(!isEdit && hasPermission(PERMISSIONS.MEETINGS.CREATE)) || (isEdit && hasPermission(PERMISSIONS.MEETINGS.EDIT)) ? (
             <button
               onClick={handleSave}
               className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
             >
               <Save size={18} /> {isEdit ? "Update" : "Save"}
             </button>
+            ) : null}
 
-            {isEdit && (
+            {isEdit && hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
               <button
                 onClick={handleDelete}
                 className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200"
@@ -763,6 +767,7 @@ const NewMeeting = () => {
                       placeholder="--select--"
                       className="w-full"
                     />
+                    {hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
                     <button
                         onClick={() => handleCreateNew("Department")}
                         className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -770,6 +775,7 @@ const NewMeeting = () => {
                     >
                         <Star size={16} />
                     </button>
+                    )}
                 </div>
               </div>
 
@@ -783,6 +789,7 @@ const NewMeeting = () => {
                       placeholder="--select--"
                       className="w-full"
                     />
+                    {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                     <button
                         onClick={() => handleCreateNew("Organizer")}
                         className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -790,6 +797,7 @@ const NewMeeting = () => {
                     >
                         <Star size={16} />
                     </button>
+                    )}
                 </div>
               </div>
             </div>
@@ -805,6 +813,7 @@ const NewMeeting = () => {
                       placeholder="--select--"
                       className="w-full"
                     />
+                    {hasPermission(PERMISSIONS.MEETING_TYPES.CREATE) && (
                     <button
                         onClick={() => handleCreateNew("Meeting Type")}
                         className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -812,6 +821,7 @@ const NewMeeting = () => {
                     >
                         <Star size={16} />
                     </button>
+                    )}
                 </div>
               </div>
 
@@ -835,6 +845,7 @@ const NewMeeting = () => {
                       placeholder="--select--"
                       className="w-full"
                     />
+                    {hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
                     <button
                         onClick={() => handleCreateNew("Location")}
                         className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -842,6 +853,7 @@ const NewMeeting = () => {
                     >
                         <Star size={16} />
                     </button>
+                    )}
                 </div>
               </div>
 
@@ -855,6 +867,7 @@ const NewMeeting = () => {
                       placeholder="--select--"
                       className="w-full"
                     />
+                     {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                      <button
                         onClick={() => handleCreateNew("Reporter")}
                         className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -862,6 +875,7 @@ const NewMeeting = () => {
                     >
                         <Star size={16} />
                     </button>
+                     )}
                 </div>
               </div>
             </div>
@@ -961,6 +975,7 @@ const NewMeeting = () => {
                     placeholder="--select--"
                     className="w-full"
                   />
+                  {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                   <button
                       onClick={() => handleCreateNew("Organizer")}
                       className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -968,6 +983,7 @@ const NewMeeting = () => {
                   >
                       <Star size={16} />
                   </button>
+                  )}
               </div>
             </div>
 
@@ -982,6 +998,7 @@ const NewMeeting = () => {
                     placeholder="--select--"
                     className="w-full"
                   />
+                   {hasPermission(PERMISSIONS.ATTENDEE_TYPES.CREATE) && (
                    <button
                       onClick={() => handleCreateNew("Attendee Type")}
                       className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -989,6 +1006,7 @@ const NewMeeting = () => {
                   >
                       <Star size={16} />
                   </button>
+                   )}
               </div>
             </div>
 
@@ -1003,6 +1021,7 @@ const NewMeeting = () => {
                     placeholder="--select--"
                     className="w-full"
                   />
+                   {hasPermission(PERMISSIONS.ATTENDANCE_STATUS.CREATE) && (
                    <button
                       onClick={() => handleCreateNew("Attendance Status")}
                       className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1010,6 +1029,7 @@ const NewMeeting = () => {
                   >
                       <Star size={16} />
                   </button>
+                   )}
               </div>
             </div>
 
@@ -1151,6 +1171,7 @@ const NewMeeting = () => {
                           placeholder="--select--"
                           className="w-full"
                         />
+                         {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                          <button
                             onClick={() => setAddCountryModalOpen(true)}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1158,6 +1179,7 @@ const NewMeeting = () => {
                         >
                             <Star size={16} />
                         </button>
+                         )}
                     </div>
                 </div>
               </div>
@@ -1173,6 +1195,7 @@ const NewMeeting = () => {
                           placeholder="--select--"
                           className="w-full"
                         />
+                         {hasPermission(PERMISSIONS.STATES.CREATE) && (
                          <button
                             onClick={() => setAddStateModalOpen(true)}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1180,6 +1203,7 @@ const NewMeeting = () => {
                         >
                             <Star size={16} />
                         </button>
+                         )}
                     </div>
                 </div>
               </div>
@@ -1195,6 +1219,7 @@ const NewMeeting = () => {
                           placeholder="--select--"
                           className="w-full"
                         />
+                         {hasPermission(PERMISSIONS.CITIES.CREATE) && (
                          <button
                             onClick={() => setAddCityModalOpen(true)}
                             className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
@@ -1202,6 +1227,7 @@ const NewMeeting = () => {
                         >
                             <Star size={16} />
                         </button>
+                         )}
                     </div>
                 </div>
               </div>

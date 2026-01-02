@@ -11,9 +11,16 @@ import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/Pagination";
 import SortableHeader from "../../components/SortableHeader";
 import PageLayout from "../../layout/PageLayout";
-import { getPayrollsApi } from "../../services/allAPI";
+import {
+  getPayrollsApi,
+  getInactivePayrollsApi,
+  restorePayrollApi
+} from "../../services/allAPI";
+import Swal from "sweetalert2";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 
 const Payroll = () => {
@@ -49,8 +56,8 @@ const Payroll = () => {
 // FETCH PAYROLLS
 // -------------------------------
 
+
 const fetchPayrolls = async () => {
-  
   try {
     setLoading(true);
     const resp = await getPayrollsApi(1, 10000); // Fetch ALL for client-side sorting
@@ -60,20 +67,20 @@ const fetchPayrolls = async () => {
 
       const normalized = records.map((p) => ({
         id: p.id,
+        // normalize names - handle potential casing issues
+        number: p.Number || p.number,
+        description: p.Description || p.description || "",
+        paymentDate: p.PaymentDate || p.paymentDate,
 
-        // normalize names
-        number: p.Number,
-        description: p.Description || "",
-        paymentDate: p.PaymentDate,
+        cashBank: p.BankName || p.bankName || "Cash",
+        currencyName: p.CurrencyName || p.currencyName,
 
-        cashBank: p.BankName || "Cash",
-        currencyName: p.CurrencyName,
-
-        totalBasicSalary: p.TotalBasicSalary,
-        totalIncome: p.TotalIncome,
-        totalDeduction: p.TotalDeduction,
-        totalTakeHomePay: p.TotalTakeHomePay,
-        totalPaymentAmount: p.TotalPaymentAmount,
+        totalBasicSalary: p.TotalBasicSalary || p.totalBasicSalary,
+        totalIncome: p.TotalIncome || p.totalIncome,
+        totalDeduction: p.TotalDeduction || p.totalDeduction,
+        totalTakeHomePay: p.TotalTakeHomePay || p.totalTakeHomePay,
+        totalPaymentAmount: p.TotalPaymentAmount || p.totalPaymentAmount,
+        isInactive: false,
       }));
 
       setRows(normalized);
@@ -98,13 +105,73 @@ const fetchPayrolls = async () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
+  // -------------------------------
+  // INACTIVE LOGIC
+  // -------------------------------
+  const [inactiveRows, setInactiveRows] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
+
+  const loadInactivePayrolls = async () => {
+    try {
+      setLoading(true);
+      const res = await getInactivePayrollsApi();
+      if (res.status === 200) {
+        const records = res.data?.records || res.data || [];
+        const normalized = records.map((p) => ({
+          id: p.id,
+          number: p.Number || p.number,
+          description: p.Description || p.description || "",
+          paymentDate: p.PaymentDate || p.paymentDate,
+          cashBank: p.BankName || p.bankName || "Cash",
+          currencyName: p.CurrencyName || p.currencyName,
+          totalBasicSalary: p.TotalBasicSalary || p.totalBasicSalary,
+          totalIncome: p.TotalIncome || p.totalIncome,
+          totalDeduction: p.TotalDeduction || p.totalDeduction,
+          totalTakeHomePay: p.TotalTakeHomePay || p.totalTakeHomePay,
+          totalPaymentAmount: p.TotalPaymentAmount || p.totalPaymentAmount,
+          isInactive: true,
+        }));
+        setInactiveRows(normalized);
+      }
+    } catch (err) {
+      console.error("Failed to load inactive payrolls", err);
+      toast.error("Failed to load inactive records");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleInactive = async () => {
+    if (!showInactive) {
+      await loadInactivePayrolls();
+    }
+    setShowInactive(!showInactive);
+  };
+
   // -----------------------------------
-  // SORTING
+  // SORTING & MERGING
   // -----------------------------------
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const sortedRows = React.useMemo(() => {
-    let sortableItems = [...rows];
+    // Merge active and inactive if showing inactive
+    let allData = [...rows];
+    if (showInactive) {
+        allData = [...allData, ...inactiveRows];
+    }
+
+    // Filter by search text
+    if (searchText) {
+        const lowerSearch = searchText.toLowerCase();
+        allData = allData.filter(r => 
+            (r.number?.toLowerCase().includes(lowerSearch)) ||
+            (r.description?.toLowerCase().includes(lowerSearch)) ||
+            (r.cashBank?.toLowerCase().includes(lowerSearch)) ||
+            (r.currencyName?.toLowerCase().includes(lowerSearch))
+        );
+    }
+
+    let sortableItems = [...allData];
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
           let aVal = a[sortConfig.key] || "";
@@ -112,13 +179,13 @@ const fetchPayrolls = async () => {
 
           // Date check
           if (sortConfig.key === 'paymentDate') {
-              aVal = new Date(aVal).getTime();
-              bVal = new Date(bVal).getTime();
+              aVal = new Date(aVal).getTime() || 0;
+              bVal = new Date(bVal).getTime() || 0;
           }
           // Number check
           else if (['id', 'totalBasicSalary', 'totalIncome', 'totalDeduction', 'totalTakeHomePay', 'totalPaymentAmount'].includes(sortConfig.key)) {
-              aVal = Number(aVal);
-              bVal = Number(bVal);
+              aVal = Number(aVal) || 0;
+              bVal = Number(bVal) || 0;
           }
           
           // String check
@@ -134,7 +201,7 @@ const fetchPayrolls = async () => {
         sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
     }
     return sortableItems;
-  }, [rows, sortConfig]);
+  }, [rows, inactiveRows, showInactive, sortConfig, searchText]);
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -158,6 +225,10 @@ const fetchPayrolls = async () => {
   }, []); // Fetch ONLY ONCE on mount
 
 
+  // -------------------------------
+  // RESTORE (Triggered from Edit Page primarily, but we can add restore capability logic here if needed)
+  // -------------------------------
+  
   // -------------------------------
   // UI
   // -------------------------------
@@ -305,6 +376,7 @@ const fetchPayrolls = async () => {
             />
           </div>
 
+          {hasPermission(PERMISSIONS.HR.PAYROLL.CREATE) && (
           <button
             onClick={() => navigate("/app/hr/newpayroll")}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 
@@ -312,6 +384,7 @@ const fetchPayrolls = async () => {
           >
             <Plus size={16} /> New Payroll
           </button>
+          )}
 
           <button 
             onClick={fetchPayrolls}
@@ -331,10 +404,11 @@ const fetchPayrolls = async () => {
           </button>
 
            <button
+                onClick={handleToggleInactive}
                 className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
               >
                 <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
+                <span className="text-xs opacity-80">{showInactive ? "Hide Inactive" : "Show Inactive"}</span>
               </button>
         </div>
 
@@ -357,17 +431,18 @@ const fetchPayrolls = async () => {
                     {visibleColumns.totalDeduction && <SortableHeader label="Total Deduction" sortKey="totalDeduction" currentSort={sortConfig} onSort={handleSort} />}
                     {visibleColumns.totalTakeHomePay && <SortableHeader label="Take Home Pay" sortKey="totalTakeHomePay" currentSort={sortConfig} onSort={handleSort} />}
                     {visibleColumns.totalPaymentAmount && <SortableHeader label="Total Payment" sortKey="totalPaymentAmount" currentSort={sortConfig} onSort={handleSort} />}
+                    
                 </tr>
               </thead>
 
               <tbody className="text-center">
-                {loading ? (
+                {loading && rows.length === 0 ? (
                   <tr>
                     <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
                       Loading payrolls...
                     </td>
                   </tr>
-                ) : rows.length === 0 ? (
+                ) : paginatedRows.length === 0 ? (
                   <tr>
                     <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
                       No payroll records found
@@ -377,8 +452,14 @@ const fetchPayrolls = async () => {
                   paginatedRows.map((r) => (
                     <tr
                       key={r.id}
-                      onClick={() => navigate(`/app/hr/editpayroll/${r.id}`)}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                      onClick={() => navigate(`/app/hr/editpayroll/${r.id}`, { state: r.isInactive ? { isInactive: true } : {} })}
+                      className={`
+                        cursor-pointer
+                        ${r.isInactive 
+                            ? "bg-gray-900 opacity-50 line-through hover:bg-gray-800" 
+                            : "bg-gray-900 hover:bg-gray-700" 
+                        }
+                      `}
                     >
                       {visibleColumns.id && <td className="py-2">{r.id}</td>}
                       {visibleColumns.number && <td className="py-2">{r.number}</td>}
@@ -389,7 +470,7 @@ const fetchPayrolls = async () => {
                         <td className="py-2">{r.paymentDate ? format(new Date(r.paymentDate), "yyyy-MM-dd") : ""}</td>
                       )}
                       {visibleColumns.cashBank && (
-                        <td className="py-2">{r.BankName || "Cash"}</td>
+                        <td className="py-2">{r.cashBank}</td>
                       )}
                       {visibleColumns.currency && (
                         <td className="py-2">{r.currencyName}</td>

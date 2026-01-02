@@ -17,6 +17,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const CustomerReceive = () => {
   const navigate = useNavigate();
@@ -189,12 +191,14 @@ const CustomerReceive = () => {
                   />
 
                   {/* Star icon */}
+                  {hasPermission(PERMISSIONS.CUSTOMERS.CREATE) && (
                   <button
                     onClick={() => navigate("/new-customers")}
                     className="p-2 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600"
                   >
                     <Star size={18} className="text-yellow-400" />
                   </button>
+                  )}
                 </div>
 
                 {/* DROPDOWN */}
@@ -257,12 +261,14 @@ const CustomerReceive = () => {
 
             {/* Save */}
             <div className="flex justify-end px-5 py-3 border-t border-gray-700">
+              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
               <button
                 onClick={handleSave}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -288,12 +294,14 @@ const CustomerReceive = () => {
           </div>
 
           {/* New Receive */}
+          {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Receive
           </button>
+          )}
 
           {/* Refresh */}
           <button

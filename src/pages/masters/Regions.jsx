@@ -23,6 +23,8 @@ import {
   getInactiveRegionsApi,
   restoreRegionApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Regions = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -248,9 +250,11 @@ const Regions = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+              {hasPermission(PERMISSIONS.REGIONS.CREATE) && (
               <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
                 <Plus size={16} /> New Region
               </button>
+              )}
               <button
                 onClick={() => {
                   setSearchText("");
@@ -340,7 +344,9 @@ const Regions = () => {
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+                   {hasPermission(PERMISSIONS.REGIONS.CREATE) && (
                    <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                   )}
                </div>
             </div>
           </div>
@@ -363,9 +369,11 @@ const Regions = () => {
                    {editData.isInactive ? (
                        <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
                    ) : (
+                       hasPermission(PERMISSIONS.REGIONS.DELETE) && (
                        <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
+                       )
                    )}
-                   {!editData.isInactive && (
+                   {!editData.isInactive && hasPermission(PERMISSIONS.REGIONS.EDIT) && (
                        <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
                    )}
                </div>

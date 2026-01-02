@@ -8,12 +8,16 @@ import {
   Star,
   X,
   Edit,
-  Check
+  Check,
+  ArchiveRestore
 } from "lucide-react";
+import Swal from "sweetalert2";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 // APIs
 import {
@@ -28,13 +32,22 @@ import {
   getCategoriesApi,
   getSaleByIdApi,
   updateSaleApi,
-  deleteSaleApi
+  deleteSaleApi,
+  restoreSaleApi
 } from "../../services/allAPI";
 
 const NewSale = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  
+  const [inactiveView, setInactiveView] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.isInactive) {
+      setInactiveView(true);
+    }
+  }, [location.state]);
 
   const userData = JSON.parse(localStorage.getItem("user"));
   const userId = userData?.userId || userData?.id || userData?.Id;
@@ -228,6 +241,13 @@ useEffect(() => {
       if (res.status === 200) {
         const { sale, details } = res.data;
         
+        // Check inactive status (handling DB bit/boolean/number types)
+        const isInactiveDB = sale.IsActive == 0 || sale.isActive == 0 || sale.IsActive === false || sale.isActive === false;
+        
+        if (isInactiveDB || location.state?.isInactive) {
+          setInactiveView(true);
+        }
+
         setCustomer(sale.CustomerId);
         setPaymentAccount(sale.PaymentAccount);
         setInvoiceNo(sale.VNo || "");
@@ -667,18 +687,95 @@ const openProductModal = () => {
   };
 
   const handleDeleteSale = async () => {
-    if (!window.confirm("Are you sure you want to delete this sale?")) return;
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "Do you really want to delete this sale?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+      title: "Deleting...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
     try {
       const res = await deleteSaleApi(id, { userId });
+      Swal.close();
+
       if (res.status === 200) {
-        toast.success("Sale deleted successfully");
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: "Sale deleted successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
         navigate("/app/sales/sales");
       } else {
-        toast.error("Failed to delete sale");
+        Swal.fire("Failed", "Failed to delete sale", "error");
       }
     } catch (error) {
-      console.error("DELETE ERROR", error);
-      toast.error("Error deleting sale");
+      Swal.close();
+      console.error("DELETE SALE ERROR", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error deleting sale",
+      });
+    }
+  };
+
+  const handleRestoreSale = async () => {
+    const result = await Swal.fire({
+      title: "Restore Sale?",
+      text: "Do you want to restore this sale?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981", // green-500
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+      title: "Restoring...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const res = await restoreSaleApi(id, { userId });
+      Swal.close();
+      if (res.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Restored!",
+          text: "Sale restored successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        navigate("/app/sales/sales");
+      } else {
+        Swal.fire("Failed", "Failed to restore sale", "error");
+      }
+    } catch (error) {
+      Swal.close();
+      console.error("RESTORE ERROR", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error restoring sale",
+      });
     }
   };
 
@@ -710,24 +807,39 @@ const openProductModal = () => {
           <button onClick={() => navigate("/app/sales/sales")} className="text-white hover:text-white-400">
             <ArrowLeft size={24} />
           </button>
-          <h2 className="text-xl text-white font-medium">{id ? "Edit Sale" : "New Sale"}</h2>
+
+          <h2 className="text-xl text-white font-medium">
+            {inactiveView ? "View Inactive Sale" : (id ? "Edit Sale" : "New Sale")}
+          </h2>
         </div>
 
         {/* ACTIONS BAR */}
         <div className="flex gap-2 mb-6">
+
           {id ? (
             <>
+              {!inactiveView && hasPermission(PERMISSIONS.SALES.EDIT) && (
               <button onClick={handleUpdateSale} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
                 <Save size={18} /> Update
               </button>
+              )}
+              {!inactiveView && hasPermission(PERMISSIONS.SALES.DELETE) && (
               <button onClick={handleDeleteSale} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
                 <Trash2 size={18} /> Delete
               </button>
+              )}
+              {inactiveView && (
+                  <button onClick={handleRestoreSale} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
+                      <ArchiveRestore size={18} /> Restore
+                  </button>
+              )}
             </>
           ) : (
+            hasPermission(PERMISSIONS.SALES.CREATE) && (
             <button onClick={handleSaveSale} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
               <Save size={18} /> Save
             </button>
+            )
           )}
         </div>
 
@@ -746,12 +858,15 @@ const openProductModal = () => {
                   onChange={setCustomer}
                   placeholder="Select customer..."
                   className="w-full"
+                  disabled={inactiveView}
                 />
+                {!inactiveView && (
                 <Star
                   size={20}
                   className="text-white cursor-pointer hover:text-yellow-400"
                   onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
                 />
+                )}
               </div>
             </div>
 
@@ -763,7 +878,8 @@ const openProductModal = () => {
                 <select
                   value={paymentAccount}
                   onChange={(e) => setPaymentAccount(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                  disabled={inactiveView}
                 >
                   <option value="">--select--</option>
                   <option value="Cash at Hand">Cash at Hand</option>
@@ -781,7 +897,8 @@ const openProductModal = () => {
                 type="text"
                 value={invoiceNo}
                 onChange={(e) => setInvoiceNo(e.target.value)}
-                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
           </div>
@@ -796,7 +913,8 @@ const openProductModal = () => {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
           </div>
@@ -806,12 +924,14 @@ const openProductModal = () => {
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
             <label className="text-sm text-gray-300">Line Items</label>
+            {!inactiveView && (
             <button
               onClick={openItemModal}
               className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
             >
               <Plus size={16} /> Add
             </button>
+            )}
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[900px]">
@@ -839,6 +959,8 @@ const openProductModal = () => {
                     <td className="p-3">{row.discount}</td>
                     <td className="p-3 text-gray-300">{parseFloat(row.total).toFixed(2)}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
+                     {!inactiveView && (
+                       <>
                       <Edit 
                         size={18} 
                         className="text-blue-400 cursor-pointer hover:text-blue-300"
@@ -849,6 +971,8 @@ const openProductModal = () => {
                         className="text-red-400 cursor-pointer hover:text-red-300"
                         onClick={() => deleteRow(i)}
                       />
+                      </>
+                     )}
                     </td>
                   </tr>
                 ))}
@@ -884,7 +1008,8 @@ const openProductModal = () => {
                 type="number"
                 value={paidAmount}
                 onChange={(e) => setPaidAmount(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
             <div className="pt-2">
@@ -892,7 +1017,8 @@ const openProductModal = () => {
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none"
+                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none disabled:opacity-50"
+                disabled={inactiveView}
               ></textarea>
             </div>
           </div>
@@ -905,7 +1031,8 @@ const openProductModal = () => {
                 type="number"
                 value={globalDiscount}
                 onChange={(e) => setGlobalDiscount(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -936,7 +1063,8 @@ const openProductModal = () => {
                 type="number"
                 value={shippingCost}
                 onChange={(e) => setShippingCost(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -951,7 +1079,8 @@ const openProductModal = () => {
                 type="checkbox"
                 checked={noTax}
                 onChange={(e) => setNoTax(e.target.checked)}
-                className="w-5 h-5 rounded border-gray-600 bg-gray-800"
+                className="w-5 h-5 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
             <div className="flex items-center justify-between pt-2">

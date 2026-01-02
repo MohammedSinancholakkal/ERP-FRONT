@@ -35,6 +35,8 @@ import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const UpdateStocks = () => {
   // UI states
@@ -659,12 +661,14 @@ const UpdateStocks = () => {
               >
                 Cancel
               </button>
+              {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
               <button
                 onClick={handleAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -804,19 +808,23 @@ const UpdateStocks = () => {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               {editItem.isInactive ? (
+                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
                 <button
                   onClick={handleRestore}
                   className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>
+                )
               ) : (
+                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
                 <button
                   onClick={handleDelete}
                   className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
+                )
               )}
 
               <div className="flex gap-2">
@@ -826,7 +834,7 @@ const UpdateStocks = () => {
                 >
                   Cancel
                 </button>
-                {!editItem.isInactive && (
+                {!editItem.isInactive && hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT) && (
                   <button
                     onClick={handleUpdate}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
@@ -973,6 +981,7 @@ const UpdateStocks = () => {
             />
           </div>
 
+          {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
           <button
             onClick={() => {
               setModalOpen(true);
@@ -982,6 +991,7 @@ const UpdateStocks = () => {
           >
             <Plus size={16} /> New Stock
           </button>
+          )}
 
           <button
             onClick={() => {

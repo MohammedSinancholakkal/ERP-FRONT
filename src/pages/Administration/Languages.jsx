@@ -3,18 +3,17 @@ import {
   Search,
   Plus,
   RefreshCw,
-  List,
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
 } from "lucide-react";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+
 
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 // API
 import {
@@ -30,6 +29,16 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 
 const Languages = () => {
+  if (!hasPermission(PERMISSIONS.LANGUAGES.VIEW)) {
+    return (
+      <div className="flex items-center justify-center h-full text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-400">You do not have permission to view this page.</p>
+        </div>
+      </div>
+    );
+  }
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -134,6 +143,35 @@ const Languages = () => {
       return toast.error("Both fields required");
     }
 
+    // Check duplicates (Name)
+    try {
+        const searchRes = await searchLanguageApi(languageName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.LanguageName || r.languageName).toLowerCase() === languageName.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Language name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
+    // Check duplicates (ID)
+    try {
+        const searchRes = await searchLanguageApi(languageId.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.LanguageId || r.languageId).toLowerCase() === languageId.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Language ID already exists");
+        }
+    } catch(err) {
+        console.error(err);
+    }
+
     const res = await addLanguageApi({
       languageId,
       languageName,
@@ -158,6 +196,37 @@ const Languages = () => {
       return toast.error("Both fields required");
     }
 
+    // Check duplicates (Name)
+    try {
+        const searchRes = await searchLanguageApi(languageName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.LanguageName || r.languageName).toLowerCase() === languageName.trim().toLowerCase() &&
+                (r.Id || r.id) !== editLanguage.id
+            );
+            if (existing) return toast.error("Language name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
+    // Check duplicates (ID)
+    try {
+        const searchRes = await searchLanguageApi(languageId.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.LanguageId || r.languageId).toLowerCase() === languageId.trim().toLowerCase() &&
+                (r.Id || r.id) !== editLanguage.id
+            );
+            if (existing) return toast.error("Language ID already exists");
+        }
+    } catch(err) {
+        console.error(err);
+    }
+
     const res = await updateLanguageApi(editLanguage.id, {
       languageId,
       languageName,
@@ -175,34 +244,90 @@ const Languages = () => {
   };
 
   // DELETE
+  // DELETE
   const handleDeleteLanguage = async () => {
-    const res = await deleteLanguageApi(editLanguage.id, {
-      userId: user?.userId || 1,
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This language will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Language deleted");
-      setEditModalOpen(false);
-      loadLanguages();
-      if (showInactive) loadInactive();
-    } else {
-      toast.error("Delete failed");
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await deleteLanguageApi(editLanguage.id, {
+        userId: user?.userId || 1,
+      });
+
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: "Language deleted successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadLanguages();
+        if (showInactive) loadInactive();
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Delete failed",
+        text: "Failed to delete language. Please try again.",
+      });
     }
   };
 
   // RESTORE
+  // RESTORE
   const handleRestoreLanguage = async () => {
-    const res = await restoreLanguageApi(editLanguage.id, {
-      userId: user?.userId || 1,
+    const result = await Swal.fire({
+      title: "Restore language?",
+      text: "This language will be restored and made active again.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#16a34a",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Language restored");
-      setEditModalOpen(false);
-      loadLanguages();
-      loadInactive();
-    } else {
-      toast.error("Failed to restore");
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await restoreLanguageApi(editLanguage.id, {
+        userId: user?.userId || 1,
+      });
+
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Restored!",
+          text: "Language restored successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadLanguages();
+        loadInactive();
+      } else {
+        throw new Error("Restore failed");
+      }
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Restore failed",
+        text: "Failed to restore language. Please try again.",
+      });
     }
   };
 
@@ -257,12 +382,14 @@ const Languages = () => {
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+              {hasPermission(PERMISSIONS.LANGUAGES.CREATE) && (
               <button
                 onClick={handleAddLanguage}
                 className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-sm text-blue-300"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
 
           </div>
@@ -325,28 +452,34 @@ const Languages = () => {
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
 
               {editLanguage.isInactive ? (
+                hasPermission(PERMISSIONS.LANGUAGES.DELETE) && (
                 <button
                   onClick={handleRestoreLanguage}
                   className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>
+                )
               ) : (
+                hasPermission(PERMISSIONS.LANGUAGES.DELETE) && (
                 <button
                   onClick={handleDeleteLanguage}
                   className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
+                )
               )}
 
               {!editLanguage.isInactive && (
+                hasPermission(PERMISSIONS.LANGUAGES.EDIT) && (
                 <button
                   onClick={handleUpdateLanguage}
                   className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
                 >
                   <Save size={16} /> Save
                 </button>
+                )
               )}
 
             </div>
@@ -380,12 +513,14 @@ const Languages = () => {
             </div>
 
             {/* ADD */}
+            {hasPermission(PERMISSIONS.LANGUAGES.CREATE) && (
             <button
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
             >
               <Plus size={16} /> New Language
             </button>
+            )}
 
             {/* REFRESH */}
             <button

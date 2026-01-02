@@ -25,6 +25,9 @@ import {
   getInactiveCountriesApi,
 } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+// import FireflyEffect from "../../components/FireflyEffect";
 
 const Countries = () => {
   const { theme } = useTheme();
@@ -143,6 +146,24 @@ const Countries = () => {
   const handleAddCountry = async () => {
     if (!newCountry.trim()) return toast.error("Country name required");
 
+    // Check for duplicates
+    try {
+      const searchRes = await searchCountryApi(newCountry);
+      if (searchRes?.status === 200) {
+        const existing = (searchRes.data.records || searchRes.data || []).find(
+          c => c.name.toLowerCase() === newCountry.trim().toLowerCase()
+        );
+        if (existing) {
+          return toast.error("Country with this name already exists");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      // verify connection? proceed? safest to stop or warn. 
+      // Proceeding might cause server error if unique constraint exists, preventing is better.
+      return toast.error("Error checking for duplicates");
+    }
+
     const res = await addCountryApi({
       name: newCountry,
       userId: user?.userId || 1,
@@ -161,6 +182,21 @@ const Countries = () => {
   // UPDATE
   const handleUpdateCountry = async () => {
     if (!editCountry.name.trim()) return toast.error("Name cannot be empty");
+
+    // Check for duplicates
+    try {
+      const searchRes = await searchCountryApi(editCountry.name);
+      if (searchRes?.status === 200) {
+         const existing = (searchRes.data.records || searchRes.data || []).find(
+          c => c.name.toLowerCase() === editCountry.name.trim().toLowerCase() && c.id !== editCountry.id
+        );
+        if (existing) {
+          return toast.error("Country with this name already exists");
+        }
+      }
+    } catch (err) {
+       return toast.error("Error checking for duplicates");
+    }
 
     const res = await updateCountryApi(editCountry.id, {
       name: editCountry.name,
@@ -305,15 +341,17 @@ const Countries = () => {
                     <ArchiveRestore size={16} /> Restore
                   </button>
                 ) : (
+                  hasPermission(PERMISSIONS.COUNTRIES.DELETE) && (
                   <button
                     onClick={handleDeleteCountry}
                     className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
                   >
                     <Trash2 size={16} /> Delete
                   </button>
+                  )
                 )}
 
-                {!editCountry.isInactive && (
+                {hasPermission(PERMISSIONS.COUNTRIES.EDIT) && !editCountry.isInactive && (
                   <button
                     onClick={handleUpdateCountry}
                     className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
@@ -429,12 +467,10 @@ const Countries = () => {
         ============================== */}
         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
-
-
             <h2 className="text-2xl font-semibold mb-4">Countries</h2>
 
             {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-1.5 mb-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
               <div className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${theme === 'emerald' ? 'bg-gray-100 border-emerald-500' : 'bg-gray-700 border-gray-600'}`}>
                 <Search size={16} className={theme === 'emerald' ? 'text-gray-500' : 'text-gray-300'} />
                 <input
@@ -446,12 +482,14 @@ const Countries = () => {
                 />
               </div>
 
+              {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
               <button
                 onClick={() => setModalOpen(true)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}
               >
                 <Plus size={16} /> New Country
               </button>
+              )}
 
               <button
                 onClick={() => {
@@ -527,7 +565,7 @@ const Countries = () => {
                               id: c.id,
                               name: c.name,
                               isInactive: true,
-                            });
+                              });
                             setEditModalOpen(true);
                           }}
                         >

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -7,19 +7,16 @@ import {
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
   ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
   Lock,
-  CheckCircle2,
   ChevronDown,
   Check,
   Ban,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 // API
 import {
@@ -30,51 +27,20 @@ import {
   searchRoleApi,
   getInactiveRolesApi,
   restoreRoleApi,
+  getRolePermissionsApi,
+
+  setRolePermissionsApi,
+  getAllPermissionsApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
-const mockPermissions = [
-  {
-    id: 1,
-    name: "Administration",
-    granted: false,
-    children: [
-      { id: 11, name: "Administration:General", granted: true },
-      {
-        id: 12,
-        name: "Currencies",
-        granted: false,
-        children: [
-          { id: 121, name: "Create", granted: false },
-          { id: 122, name: "Delete", granted: false },
-          { id: 123, name: "Update", granted: false },
-          { id: 124, name: "View", granted: false },
-        ]
-      },
-       {
-        id: 13,
-        name: "Languages and Translations",
-        granted: false,
-      },
-       {
-        id: 14,
-        name: "Payroll Group",
-        granted: false,
-      },
-       {
-        id: 15,
-        name: "Settings",
-        granted: false,
-      },
-       {
-        id: 16,
-        name: "User, Role Management and Permissions",
-        granted: false,
-      },
-    ]
-  }
-];
+
+
+// buildPermissionTree moved to backend
+
 
 const PermissionItem = ({ item, level = 0, onToggle }) => {
   const [expanded, setExpanded] = useState(true);
@@ -126,6 +92,11 @@ const PermissionItem = ({ item, level = 0, onToggle }) => {
   );
 };
 
+
+
+// Functions moved inside component
+
+
 const Roles = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
@@ -147,9 +118,23 @@ const Roles = () => {
   // PERMISSIONS MODAL
   const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
   const [permissionSearch, setPermissionSearch] = useState("");
-  const [permissions, setPermissions] = useState(mockPermissions);
+  const [permissions, setPermissions] = useState([]);
+  const [availablePermissions, setAvailablePermissions] = useState([]);
+
+  // Load System Permissions
+  useEffect(() => {
+    const fetchPerms = async () => {
+      const res = await getAllPermissionsApi();
+      if (res?.status === 200) {
+        // Backend returns tree now
+        setAvailablePermissions(res.data);
+      }
+    };
+    fetchPerms();
+  }, []);
 
   const togglePermission = (id) => {
+    // 1. Update the target item and its children (downwards)
     const updateRecursive = (items) => {
       return items.map(item => {
         if (item.id === id) {
@@ -178,7 +163,29 @@ const Roles = () => {
       }));
     };
 
-    setPermissions(prev => updateRecursive(prev));
+    // 2. Update parents based on children (upwards)
+    // We re-evaluate the entire tree after the downward update
+    const evaluateParents = (items) => {
+      return items.map(item => {
+        if (item.children && item.children.length > 0) {
+          const updatedChildren = evaluateParents(item.children); // Depth-first
+          const allChildrenGranted = updatedChildren.every(c => c.granted);
+          
+          return {
+            ...item,
+            children: updatedChildren,
+            granted: allChildrenGranted // Parent is true ONLY if ALL children are true
+          };
+        }
+        return item;
+      });
+    };
+
+    setPermissions(prev => {
+      const step1 = updateRecursive(prev);
+      const step2 = evaluateParents(step1);
+      return step2;
+    });
   };
 
   //pagination
@@ -225,8 +232,11 @@ const Roles = () => {
     setSearchText("");
     const res = await getRolesApi(page, limit);
     if (res?.status === 200) {
-      setRoles(res.data.records);
-      setTotalRecords(res.data.total);
+      // Filter out SuperAdmin (ID 1)
+      const visibleRoles = (res.data.records || []).filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+      
+      setRoles(visibleRoles);
+      setTotalRecords(res.data.total); // Note: Total might be off by 1 in pagination but acceptable for now
     } else {
       toast.error("Failed to load roles");
     }
@@ -253,13 +263,30 @@ const Roles = () => {
 
     const res = await searchRoleApi(text);
     if (res?.status === 200) {
-      setRoles(res.data);
+       // Filter out SuperAdmin
+       const visibleRoles = (res.data || []).filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+      setRoles(visibleRoles);
     }
   };
 
   // ADD
   const handleAddRole = async () => {
     if (!newRole.trim()) return toast.error("Role name required");
+
+    // Check duplicates
+    try {
+        const searchRes = await searchRoleApi(newRole.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.Name || r.name || r.RoleName)?.toLowerCase() === newRole.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Role name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
 
     const res = await addRoleApi({
       name: newRole,
@@ -271,6 +298,8 @@ const Roles = () => {
       setNewRole("");
       setModalOpen(false);
       loadRoles();
+    } else if (res?.status === 409) {
+      toast.error("Role already exists");
     } else {
       toast.error("Failed to add");
     }
@@ -280,6 +309,22 @@ const Roles = () => {
   const handleUpdateRole = async () => {
     if (!editRole.roleName.trim())
       return toast.error("Name cannot be empty");
+
+    // Check duplicates
+    try {
+        const searchRes = await searchRoleApi(editRole.roleName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.Name || r.name || r.RoleName)?.toLowerCase() === editRole.roleName.trim().toLowerCase() &&
+                (r.Id || r.id) !== editRole.id
+            );
+            if (existing) return toast.error("Role name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
 
     const res = await updateRoleApi(editRole.id, {
       name: editRole.roleName,
@@ -291,47 +336,187 @@ const Roles = () => {
       setEditModalOpen(false);
       loadRoles();
       if (showInactive) loadInactive();
+    } else if (res?.status === 409) {
+       toast.error("Role already exists");
     } else {
       toast.error("Update failed");
     }
   };
 
   // DELETE
+  // DELETE
   const handleDeleteRole = async () => {
-    const res = await deleteRoleApi(editRole.id, {
-      userId: user?.userId || 1,
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This role will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Role deleted");
-      setEditModalOpen(false);
-      loadRoles();
-      if (showInactive) loadInactive();
-    } else {
-      toast.error("Delete failed");
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await deleteRoleApi(editRole.id, {
+        userId: user?.userId || 1,
+      });
+
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: "Role deleted successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadRoles();
+        if (showInactive) loadInactive();
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (error) {
+      console.error("Delete role error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Delete failed",
+        text: "Failed to delete role. Please try again.",
+      });
     }
   };
 
   // RESTORE
+  // RESTORE
   const handleRestoreRole = async () => {
-    const res = await restoreRoleApi(editRole.id, {
-      userId: user?.userId || 1,
+    const result = await Swal.fire({
+      title: "Restore role?",
+      text: "This role will be restored and made active again.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#16a34a",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Role restored");
-      setEditModalOpen(false);
-      loadRoles();
-      loadInactive();
-    } else {
-      toast.error("Failed to restore");
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await restoreRoleApi(editRole.id, {
+        userId: user?.userId || 1,
+      });
+
+      if (res?.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Restored!",
+          text: "Role restored successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadRoles();
+        loadInactive();
+      } else {
+        throw new Error("Restore failed");
+      }
+    } catch (error) {
+      console.error("Restore role error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Restore failed",
+        text: "Failed to restore role. Please try again.",
+      });
     }
   };
 
-  // PERMISSIONS
-  const handleEditPermissions = () => {
-    setPermissionsModalOpen(true);
+
+
+  const collectGranted = (items) => {
+    let keys = [];
+    for (const i of items) {
+      if (i.granted && i.key) keys.push(i.key);
+      if (i.children) keys = keys.concat(collectGranted(i.children));
+    }
+    return keys;
   };
+
+  const savePermissions = async () => {
+    try {
+      const permissionKeys = collectGranted(permissions);
+
+      const res = await setRolePermissionsApi(editRole.id, {
+        permissionKeys,
+        updateUserId: user?.userId || 1
+      });
+
+      if (res?.status === 200) {
+        toast.success("Permissions saved successfully");
+        setPermissionsModalOpen(false);
+      } else {
+         toast.error("Failed to save permissions");
+      }
+    } catch (error) {
+       console.error(error);
+       toast.error("Error saving permissions");
+    }
+  };
+
+  const handleEditPermissions = async () => {
+    setPermissionsModalOpen(true);
+  
+    const res = await getRolePermissionsApi(editRole.id);
+    
+    if (res?.status !== 200) {
+      toast.error("Failed to fetch existing permissions");
+      // Keep modal open but maybe empty? Or close?
+      // Better to let them try again.
+      return; 
+    }
+
+    const grantedKeys = res.data.permissionKeys || [];
+  
+    const mapPermissions = (items) =>
+      items.map(p => ({
+        ...p,
+        granted: grantedKeys.includes(p.key),
+        children: p.children ? mapPermissions(p.children) : []
+      }));
+  
+    setPermissions(mapPermissions(availablePermissions));
+  };
+
+  // Filter Permissions Recursive
+  const filteredPermissions = useMemo(() => {
+    if (!permissionSearch.trim()) return permissions;
+
+    const filterRecursive = (items) => {
+      return items.reduce((acc, item) => {
+        // Check if current item matches
+        const matchesSelf = item.name.toLowerCase().includes(permissionSearch.toLowerCase());
+
+        // Check children
+        let matchesChildren = [];
+        if (item.children && item.children.length > 0) {
+          matchesChildren = filterRecursive(item.children);
+        }
+
+        if (matchesSelf || matchesChildren.length > 0) {
+          acc.push({
+            ...item,
+            children: matchesChildren.length > 0 ? matchesChildren : item.children, // Keep structure if parent matches, or show refined children
+          });
+        }
+
+        return acc;
+      }, []);
+    };
+
+    return filterRecursive(permissions);
+  }, [permissions, permissionSearch]);
 
   return (
     <>
@@ -405,7 +590,7 @@ const Roles = () => {
 
             {/* TOOLBAR */}
             <div className="px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
-              {!editRole.isInactive && (
+              {hasPermission(PERMISSIONS.ROLE.EDIT) && !editRole.isInactive && (
                 <button
                   onClick={handleUpdateRole}
                   className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
@@ -439,7 +624,7 @@ const Roles = () => {
                 <Lock size={16} /> Edit Permissions
               </button>
 
-              {!editRole.isInactive && (
+              {hasPermission(PERMISSIONS.ROLE.DELETE) && !editRole.isInactive && (
                 <button
                   onClick={handleDeleteRole}
                   className="ml-auto p-1.5 border border-red-900/50 bg-red-900/20 text-red-400 rounded hover:bg-red-900/40"
@@ -598,9 +783,13 @@ const Roles = () => {
 
             {/* List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-1">
-              {permissions.map(item => (
+              {filteredPermissions.length > 0 ? (
+                filteredPermissions.map(item => (
                   <PermissionItem key={item.id} item={item} onToggle={togglePermission} />
-              ))}
+                ))
+              ) : (
+                <div className="text-gray-500 text-center py-4">No matching permissions found</div>
+              )}
             </div>
 
             {/* Footer */}
@@ -612,7 +801,7 @@ const Roles = () => {
                 Cancel
               </button>
               <button
-                onClick={() => setPermissionsModalOpen(false)}
+                onClick={savePermissions}
                 className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 text-sm shadow-lg shadow-gray-900/20 transition-colors"
               >
                 Save Changes
@@ -647,12 +836,14 @@ const Roles = () => {
             </div>
 
             {/* ADD */}
+            {hasPermission(PERMISSIONS.ROLE.CREATE) && (
             <button
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
             >
               <Plus size={16} /> New Role
             </button>
+            )}
 
             {/* REFRESH */}
             <button

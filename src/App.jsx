@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import "./App.css";
 import Login from "./pages/Login";
 import Layout from "./layout/Layout";
@@ -83,26 +83,36 @@ import ServiceInvoicePreview from "./pages/Services/ServiceInvoicePreview";
 import NewPayroll from "./pages/human resource/NewPayroll";
 import PayrollEmployee from "./pages/human resource/PayrollEmployee";
 import EditMeeting from "./pages/Meeting/EditMeeting";
+import { hasPermission, getEntryRoute } from "./utils/permissionUtils";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 
-
-
-
-import { ThemeProvider } from "./context/ThemeContext";
+import { ThemeProvider } from "./context/ThemeContext";  
 
 function App() {
   return (
     <ThemeProvider>
-      <Routes>
+      <Routes>  
         {/* Public pages */}
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<Login />} />  
 
         {/* Reset Password Page */}
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* Protected pages */}
-        <Route path="/app" element={<Layout />}>
-          <Route path="dashboard" element={<Dashboard />} />
+        {/* Protected pages (Require Login) */}
+        <Route path="/app" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+          {/* Dynamic Entry: Redirect to Dashboard if allowed, or first allowed route */}
+          <Route index element={<Navigate to={getEntryRoute()} replace />} />
+          
+          <Route path="dashboard" element={
+            <ProtectedRoute permission="dashboard_view">
+              <Dashboard />
+            </ProtectedRoute>
+          } />
           <Route path="masters/countries" element={<Countries />} />
           <Route path="masters/cities" element={<Cities />} />
           <Route path="masters/states" element={<States />} />
@@ -160,12 +170,36 @@ function App() {
 
 
           {/* administration */}
-          <Route path="administration/usermanagement" element={<UserManagement />} />
-          <Route path="administration/roles" element={<Roles />} />
-          <Route path="administration/currencies" element={<Currencies />} />
-          <Route path="administration/language" element={<Languages />} />
-          <Route path="administration/settings" element={<Settings />} />
-          <Route path="administration/translations" element={<Translations />} />
+          <Route path="administration/usermanagement" element={
+            <ProtectedRoute permission="user_view">
+              <UserManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="administration/roles" element={
+            <ProtectedRoute permission="role_view">
+              <Roles />
+            </ProtectedRoute>
+          } />
+          <Route path="administration/currencies" element={
+            <ProtectedRoute permission="currencies">
+              <Currencies />
+            </ProtectedRoute>
+          } />
+          <Route path="administration/language" element={
+            <ProtectedRoute permission="languages">
+              <Languages />
+            </ProtectedRoute>
+          } />
+          <Route path="administration/settings" element={
+            <ProtectedRoute permission="settings">
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="administration/translations" element={
+            <ProtectedRoute permission="languages">
+              <Translations />
+            </ProtectedRoute>
+          } />
 
 
 

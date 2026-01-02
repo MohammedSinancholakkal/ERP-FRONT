@@ -4,17 +4,12 @@ import {
   Plus,
   RefreshCw,
   List,
-  X,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
+  Eye,
   FileSpreadsheet,
   FileText,
-  Eye
+  ArchiveRestore
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
-import { getCustomersApi, getEmployeesApi, getServiceInvoicesApi, searchServiceInvoiceApi } from "../../services/allAPI";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -23,8 +18,17 @@ import toast from "react-hot-toast";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SortableHeader from "../../components/SortableHeader";
-
-// SearchableDropdown removed (replaced by FilterBar)
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+import Swal from "sweetalert2";
+import { 
+  getCustomersApi, 
+  getEmployeesApi, 
+  getServiceInvoicesApi, 
+  searchServiceInvoiceApi, 
+  getInactiveServiceInvoicesApi,
+  restoreServiceInvoiceApi
+} from "../../services/allAPI";
 
 const defaultColumns = {
   id: true,
@@ -47,13 +51,20 @@ const defaultColumns = {
 
 const Invoices = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [columnSearch, setColumnSearch] = useState("");
 
-  const [invoicesList, setInvoicesList] = useState([]);
+  // Data State
+  const [invoicesList, setInvoicesList] = useState([]); // Active invoices
+  const [inactiveRows, setInactiveRows] = useState([]); // Inactive invoices (separate list)
+  const [showInactive, setShowInactive] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Search & Filter
   const [searchText, setSearchText] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterEmployee, setFilterEmployee] = useState("");
@@ -61,36 +72,37 @@ const Invoices = () => {
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
+  // Pagination
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Lookups
   const [customers, setCustomers] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  const location = useLocation();
-const isPreview = location.pathname.includes("/preview/");
+  const userData = JSON.parse(localStorage.getItem("user"));
+  const userId = userData?.userId || userData?.id || userData?.Id;
 
+  /* ================= FETCH DATA ================= */
   useEffect(() => {
     fetchAllData();
-  }, [limit]); // Initial load (and limit change if we want)
+  }, [limit, page]); 
 
+  // Search Effect
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (searchText.trim()) {
         searchServiceInvoiceApi(searchText)
           .then((res) => {
             if (res.status === 200) {
-              // Server search may return different shapes (records array or direct array)
               const rows = Array.isArray(res.data.records)
                 ? res.data.records
                 : Array.isArray(res.data)
                 ? res.data
                 : (res.data.records || []);
 
-              // Normalize rows and attach customer/employee names using loaded lists
               const normalized = rows.map((inv) => ({
                 ...inv,
                 customerName:
@@ -109,13 +121,12 @@ const isPreview = location.pathname.includes("/preview/");
             toast.error("Search failed");
           });
       } else {
-        // Only fetch if NOT initial load (isLoading check)
-        if (!isLoading) fetchInvoices();
+        if (!isLoading) fetchAllData();
       }
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText, page, limit]); // Removed customers/employees dependencies
+  }, [searchText]); 
 
   const fetchAllData = async () => {
     try {
@@ -148,26 +159,34 @@ const isPreview = location.pathname.includes("/preview/");
         setEmployees(eList);
       }
 
-      // Process Invoices
+      // Process Active Invoices
+      let activeInvoices = [];
       if (iRes.status === 200) {
-        let invoices = iRes.data.records || [];
-        // Add customer names and employee names
-        invoices = invoices.map(inv => ({
-          ...inv,
-          customerName:
-            inv.customerName ||
-            cList.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name ||
-            "-",
-          employeeName:
-            inv.employeeName ||
-            eList.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name ||
-            "-"
-        }));
-        
-        setInvoicesList(invoices);
+        activeInvoices = iRes.data.records || [];
         setTotalRecords(iRes.data.totalRecords || 0);
         setTotalPages(iRes.data.totalPages || 1);
       }
+
+      // Normalize Active
+      const normalized = activeInvoices.map(inv => ({
+        ...inv,
+        customerName:
+          inv.customerName ||
+          cList.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name ||
+          "-",
+        employeeName:
+          inv.employeeName ||
+          eList.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name ||
+          "-"
+      }));
+      
+      setInvoicesList(normalized);
+
+      // If showing inactive, reload them too
+      if (showInactive) {
+          loadInactiveInvoices(cList, eList);
+      }
+
     } catch (e) {
       console.error("Error loading data", e);
     } finally {
@@ -175,32 +194,69 @@ const isPreview = location.pathname.includes("/preview/");
     }
   };
 
-  const fetchInvoices = async () => {
-    try {
-      const res = await getServiceInvoicesApi(page, limit);
-      if (res.status === 200) {
-        let invoices = res.data.records || [];
-        
-        // Add customer names and employee names using STATE
-        invoices = invoices.map(inv => ({
-          ...inv,
-          customerName:
-            inv.customerName ||
-            customers.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name ||
-            "-",
-          employeeName:
-            inv.employeeName ||
-            employees.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name ||
-            "-"
-        }));
-        
-        setInvoicesList(invoices);
-        setTotalRecords(res.data.totalRecords || 0);
-        setTotalPages(res.data.totalPages || 1);
+  const loadInactiveInvoices = async (cList = customers, eList = employees) => {
+      try {
+          const res = await getInactiveServiceInvoicesApi();
+          if (res.status === 200) {
+              const rows = Array.isArray(res.data) ? res.data : (res.data.records || []);
+              const normalized = rows.map(inv => ({
+                ...inv,
+                customerName:
+                   inv.customerName ||
+                   cList.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name || "-",
+                employeeName:
+                   inv.employeeName ||
+                   eList.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name || "-",
+                isInactive: true
+              }));
+              setInactiveRows(normalized);
+          }
+      } catch (error) {
+          console.error("Error loading inactive invoices", error);
       }
-    } catch (error) {
-      console.error("Error fetching invoices", error);
+  };
+
+  const toggleInactive = async () => {
+    const newVal = !showInactive;
+    setShowInactive(newVal);
+    if (newVal && inactiveRows.length === 0) {
+      await loadInactiveInvoices();
     }
+  };
+
+  const handleRestore = async (invoice) => {
+    Swal.fire({
+      title: "Restore Invoice?",
+      text: `Are you sure you want to restore invoice #${invoice.id}?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#10b981",
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await restoreServiceInvoiceApi(invoice.id, { userId });
+                if (res.status === 200) {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Restored!",
+                        text: "Invoice has been restored.",
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+                    // Refresh lists
+                    setInactiveRows(prev => prev.filter(r => r.id !== invoice.id));
+                    fetchAllData();
+                } else {
+                    Swal.fire("Error!", "Failed to restore invoice.", "error");
+                }
+            } catch (error) {
+                console.error("Restore error", error);
+                Swal.fire("Error!", "Error restoring invoice.", "error");
+            }
+        }
+    });
   };
 
   const handleRefresh = async () => {
@@ -212,6 +268,51 @@ const isPreview = location.pathname.includes("/preview/");
     setPage(1);
     await fetchAllData();
     toast.success("Refreshed");
+  };
+
+  /* ================= FILTER & SORT (Client-side) ================= */
+  // Filter only applies to active list usually, but let's see requirements.
+  // Customers.jsx applies filter to `allCustomers` (active) only. Inactive are just appended.
+  // We will follow the same pattern.
+
+  const filteredList = invoicesList.filter((p) => {
+    let match = true;
+    const pCustomerId = p.customerId ?? p.CustomerId ?? "";
+    const pEmployeeId = p.employeeId ?? p.EmployeeId ?? "";
+    if (filterCustomer && String(pCustomerId) !== String(filterCustomer)) match = false;
+    if (filterEmployee && String(pEmployeeId) !== String(filterEmployee)) match = false;
+    if (filterDate && !String(p.date ?? "").includes(filterDate)) match = false;
+    return match;
+  });
+
+  const sortedList = React.useMemo(() => {
+    let sortableItems = [...filteredList];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        const numericKeys = ['grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'shippingCost', 'discount', 'totalDiscount', 'vat', 'totalTax', 'id'];
+        if (numericKeys.includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             aValue = aValue ? String(aValue).toLowerCase() : '';
+             bValue = bValue ? String(bValue).toLowerCase() : '';
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredList, sortConfig]);
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
   };
 
   const handleExportExcel = () => {
@@ -237,54 +338,6 @@ const isPreview = location.pathname.includes("/preview/");
       ]),
     });
     doc.save("invoices.pdf");
-  };
-
-  const filteredList = invoicesList.filter((p) => {
-    let match = true;
-    const pCustomerId = p.customerId ?? p.CustomerId ?? "";
-    const pEmployeeId = p.employeeId ?? p.EmployeeId ?? "";
-    if (filterCustomer && String(pCustomerId) !== String(filterCustomer)) match = false;
-    if (filterEmployee && String(pEmployeeId) !== String(filterEmployee)) match = false;
-    if (filterDate && !String(p.date ?? "").includes(filterDate)) match = false;
-    return match;
-  });
-
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredList];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        // Handle numeric values
-        const numericKeys = ['grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'shippingCost', 'discount', 'totalDiscount', 'vat', 'totalTax', 'id'];
-        if (numericKeys.includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             // String comparison
-             aValue = aValue ? String(aValue).toLowerCase() : '';
-             bValue = bValue ? String(bValue).toLowerCase() : '';
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [filteredList, sortConfig]);
-
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
   };
 
   const filters = [
@@ -396,12 +449,14 @@ const isPreview = location.pathname.includes("/preview/");
                 />
               </div>
 
+              {hasPermission(PERMISSIONS.SERVICES.CREATE) && (
               <button
                 onClick={() => navigate("/app/services/newinvoice")}
                 className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600"
               >
                 <Plus size={16} /> New Invoice
               </button>
+              )}
 
               <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <RefreshCw size={16} className="text-blue-300" />
@@ -409,6 +464,16 @@ const isPreview = location.pathname.includes("/preview/");
 
               <button onClick={() => { setTempVisibleColumns(visibleColumns); setColumnModalOpen(true); }} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <List size={16} className="text-blue-300" />
+              </button>
+
+              <button 
+                 onClick={toggleInactive}
+                 className={`p-2 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? 'bg-gray-700' : 'bg-gray-700'}`}
+               >
+                 <ArchiveRestore size={16} className={showInactive ? "text-yellow-400" : "text-yellow-300"} />
+                 <span className={`text-xs ${showInactive ? "opacity-100 font-bold text-yellow-100" : "opacity-80"}`}>
+                   {showInactive ? " Inactive" : " Inactive"}
+                 </span>
               </button>
 
               <div className="flex items-center gap-2">
@@ -451,11 +516,19 @@ const isPreview = location.pathname.includes("/preview/");
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedList.map((p) => (
+                    {/* ACTIVE ROWS */}
+                    {sortedList.length === 0 ? (
+                      <tr>
+                        <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-center text-gray-400">
+                          {isLoading ? "Loading..." : "No active invoices found"}
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedList.map((p) => (
                       <tr
                         key={p.id}
-                        onClick={() => navigate(`/app/services/edit/${p.id}`)}
-                        className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                        onClick={() => navigate(`/app/services/edit/${p.id}`, { state: { isInactive: false } })}
+                        className="hover:bg-gray-700 cursor-pointer bg-gray-900"
                       >
                         {visibleColumns.id && <td className="px-2 py-2">{p.id}</td>}
                         {visibleColumns.customerName && (
@@ -476,10 +549,54 @@ const isPreview = location.pathname.includes("/preview/");
                             >
                               <Eye size={14} className="text-blue-300" />
                             </button>
-
-
-
                             {p.customerName || p.customer || "-"}
+                          </td>
+                        )}
+                        {visibleColumns.date && <td className="px-2 py-2">{p.date ? new Date(p.date).toLocaleDateString() : "-"}</td>}
+                        {visibleColumns.employee && <td className="px-2 py-2">{p.employeeName || p.employee || "-"}</td>}
+                        {visibleColumns.paymentAccount && <td className="px-2 py-2">{p.paymentAccount || "-"}</td>}
+                        {visibleColumns.discount && <td className="px-2 py-2">{parseFloat(p.discount || 0).toFixed(2)}</td>}
+                        {visibleColumns.totalDiscount && <td className="px-2 py-2">{parseFloat(p.totalDiscount || 0).toFixed(2)}</td>}
+                        {visibleColumns.vat && <td className="px-2 py-2">{parseFloat(p.vat || 0).toFixed(2)}</td>}
+                        {visibleColumns.totalTax && <td className="px-2 py-2">{parseFloat(p.totalTax || 0).toFixed(2)}</td>}
+                        {visibleColumns.shippingCost && <td className="px-2 py-2">{parseFloat(p.shippingCost || 0).toFixed(2)}</td>}
+                        {visibleColumns.grandTotal && <td className="px-2 py-2">{parseFloat(p.grandTotal || 0).toFixed(2)}</td>}
+                        {visibleColumns.netTotal && <td className="px-2 py-2 font-semibold">{parseFloat(p.netTotal || 0).toFixed(2)}</td>}
+                        {visibleColumns.paidAmount && <td className="px-2 py-2">{parseFloat(p.paidAmount || 0).toFixed(2)}</td>}
+                        {visibleColumns.due && <td className="px-2 py-2">{parseFloat(p.due || 0).toFixed(2)}</td>}
+                        {visibleColumns.change && <td className="px-2 py-2">{parseFloat(p.change || 0).toFixed(2)}</td>}
+                        {visibleColumns.details && <td className="px-2 py-2 max-w-xs truncate">{p.details || "-"}</td>}
+                      </tr>
+                    ))
+                    )}
+
+                    {/* INACTIVE ROWS (APPENDED AT BOTTOM) */}
+                    {showInactive && inactiveRows.map((p) => (
+                      <tr
+                        key={`inactive-${p.id}`}
+                        onClick={() => handleRestore(p)}
+                        className="hover:bg-gray-700 cursor-pointer bg-gray-700/50 opacity-60 line-through grayscale"
+                      >
+                         {visibleColumns.id && <td className="px-2 py-2">{p.id}</td>}
+                        {visibleColumns.customerName && (
+                          <td className="px-2 py-2 flex items-center justify-center gap-2">
+                             <button className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 opacity-50" title="Download PDF" onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}>
+                               <FileText size={14} className="text-red-300" />
+                             </button>
+                             <button
+                               className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 opacity-50"
+                               title="Preview Invoice"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 window.open(
+                                   `${window.location.origin}/app/services/preview/${p.id}`,
+                                   "_blank"
+                                 );
+                               }}
+                             >
+                               <Eye size={14} className="text-blue-300" />
+                             </button>
+                             {p.customerName || p.customer || "-"}
                           </td>
                         )}
                         {visibleColumns.date && <td className="px-2 py-2">{p.date ? new Date(p.date).toLocaleDateString() : "-"}</td>}
@@ -502,9 +619,8 @@ const isPreview = location.pathname.includes("/preview/");
                 </table>
               </div>
             </div>
-                {/* PAGINATION */}
-           
-              <Pagination
+            
+             <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
@@ -520,6 +636,3 @@ const isPreview = location.pathname.includes("/preview/");
 };
 
 export default Invoices;
-
-
-

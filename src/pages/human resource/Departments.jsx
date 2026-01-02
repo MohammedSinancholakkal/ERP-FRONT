@@ -7,14 +7,11 @@ import {
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore
 } from "lucide-react";
 
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 import {
   addDepartmentApi,
@@ -29,6 +26,9 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import SearchableSelect from "../../components/SearchableSelect";
 import SortableHeader from "../../components/SortableHeader";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
 
 const Departments = () => {
   // =============================
@@ -155,6 +155,20 @@ const Departments = () => {
   const handleAdd = async () => {
     if (!newDepartment.department.trim()) return toast.error("Department required");
 
+    // Check duplicates
+    try {
+        const searchRes = await searchDepartmentApi(newDepartment.department.trim());
+        if (searchRes?.status === 200) {
+            const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+            const existing = rows.find(d => 
+                d.department?.toLowerCase() === newDepartment.department.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Department already exists");
+        }
+    } catch(err) {
+        console.error(err);
+    }
+
     const res = await addDepartmentApi({
       ...newDepartment,
       userId: currentUserId
@@ -173,6 +187,21 @@ const Departments = () => {
   // =============================
   const handleUpdate = async () => {
     if (!editDepartment.department.trim()) return toast.error("Department required");
+
+    // Check duplicates
+    try {
+        const searchRes = await searchDepartmentApi(editDepartment.department.trim());
+        if (searchRes?.status === 200) {
+            const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+            const existing = rows.find(d => 
+                d.department?.toLowerCase() === editDepartment.department.trim().toLowerCase() &&
+                d.id !== editDepartment.id
+            );
+            if (existing) return toast.error("Department already exists");
+        }
+    } catch(err) {
+        console.error(err);
+    }
 
     const payload = {
       department: editDepartment.department,
@@ -193,14 +222,52 @@ const Departments = () => {
   // =============================
   // DELETE
   // =============================
+  // =============================
+  // DELETE
+  // =============================
   const handleDelete = async () => {
-    const res = await deleteDepartmentApi(editDepartment.id, { userId: currentUserId });
+    const result = await Swal.fire({
+      title: "Delete Department?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      reverseButtons: true
+    });
 
-    if (res.status === 200) {
-      toast.success("Deleted");
-      setEditModalOpen(false);
-      loadDepartments();
-      if (showInactive) loadInactive();
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await deleteDepartmentApi(editDepartment.id, { userId: currentUserId });
+
+      if (res.status === 200) {
+        Swal.fire({
+          title: "Deleted!",
+          text: "Department has been deleted.",
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadDepartments();
+        if (showInactive) loadInactive();
+      } else {
+         Swal.fire({
+            title: "Error!",
+            text: res.data?.message || "Failed to delete department",
+            icon: "error",
+         });
+      }
+    } catch(err) {
+        console.error("Delete failed", err);
+        Swal.fire({
+            title: "Error!",
+            text: "An error occurred while deleting.",
+            icon: "error",
+         });
     }
   };
 
@@ -208,17 +275,54 @@ const Departments = () => {
   // RESTORE
   // =============================
   const handleRestore = async () => {
-    const res = await restoreDepartmentApi(editDepartment.id, { userId: currentUserId });
+     const result = await Swal.fire({
+      title: "Restore Department?",
+      text: "This department will be restored",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+      reverseButtons: true
+    });
 
-    if (res.status === 200) {
-      toast.success("Restored");
-      setEditModalOpen(false);
-      loadDepartments();
-      loadInactive();
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await restoreDepartmentApi(editDepartment.id, { userId: currentUserId });
+
+      if (res.status === 200) {
+        Swal.fire({
+          title: "Restored!",
+          text: "Department has been restored.",
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        setEditModalOpen(false);
+        loadDepartments();
+        loadInactive();
+      } else {
+        Swal.fire({
+            title: "Error!",
+            text: "Failed to restore department",
+            icon: "error",
+         });
+      }
+    } catch(err) {
+        console.error("Restore failed", err);
+        Swal.fire({
+            title: "Error!",
+            text: "An error occurred while restoring.",
+            icon: "error",
+         });
     }
   };
 
 
+
+  const { theme } = useTheme();
 
   return (
     <>
@@ -247,7 +351,7 @@ const Departments = () => {
           onChange={(e) =>
             setNewDepartment((p) => ({ ...p, department: e.target.value }))
           }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4 focus:border-blue-500 focus:outline-none"
         />
 
         {/* DESCRIPTION */}
@@ -257,7 +361,7 @@ const Departments = () => {
           onChange={(e) =>
             setNewDepartment((p) => ({ ...p, description: e.target.value }))
           }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4 focus:border-blue-500 focus:outline-none"
         />
 
         {/* PARENT DEPARTMENT */}
@@ -274,12 +378,14 @@ const Departments = () => {
 
       {/* FOOTER */}
       <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+        {hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
         <button
           onClick={handleAdd}
-          className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
+          className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-700"
         >
           <Save size={16} /> Save
         </button>
+        )}
       </div>
     </div>
   </div>
@@ -312,7 +418,7 @@ const Departments = () => {
             setEditDepartment((p) => ({ ...p, department: e.target.value }))
           }
           disabled={editDepartment.isInactive}
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4 focus:border-blue-500 focus:outline-none"
         />
 
         {/* DESCRIPTION */}
@@ -323,7 +429,7 @@ const Departments = () => {
             setEditDepartment((p) => ({ ...p, description: e.target.value }))
           }
           disabled={editDepartment.isInactive}
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4 focus:border-blue-500 focus:outline-none"
         />
 
         {/* PARENT DEPARTMENT */}
@@ -342,25 +448,29 @@ const Departments = () => {
       {/* FOOTER */}
       <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
         {editDepartment.isInactive ? (
+          hasPermission(PERMISSIONS.HR.DEPARTMENTS.DELETE) && (
           <button
             onClick={handleRestore}
-            className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+            className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded hover:bg-green-700"
           >
             <ArchiveRestore size={16} /> Restore
           </button>
+          )
         ) : (
+          hasPermission(PERMISSIONS.HR.DEPARTMENTS.DELETE) && (
           <button
             onClick={handleDelete}
-            className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
+            className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded hover:bg-red-700"
           >
             <Trash2 size={16} /> Delete
           </button>
+          )
         )}
 
-        {!editDepartment.isInactive && (
+        {!editDepartment.isInactive && hasPermission(PERMISSIONS.HR.DEPARTMENTS.EDIT) && (
           <button
             onClick={handleUpdate}
-            className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
+            className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
           >
             <Save size={16} /> Save
           </button>
@@ -391,7 +501,7 @@ const Departments = () => {
                 placeholder="search columns..."
                 value={searchColumn}
                 onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
+                className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
 
@@ -456,14 +566,14 @@ const Departments = () => {
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               <button
                 onClick={() => setVisibleColumns(defaultColumns)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
               >
                 Restore Defaults
               </button>
 
               <button
                 onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
               >
                 OK
               </button>
@@ -476,45 +586,47 @@ const Departments = () => {
               MAIN PAGE
       =================================== */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
-          <h2 className="text-2xl font-semibold mb-4">Departments</h2>
+        <div className={`p-4 text-white h-full ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <h2 className="text-2xl font-semibold mb-4">Departments</h2>
 
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            {/* SEARCH */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-              <Search size={16} className="text-gray-300" />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-              />
+            {/* ACTION BAR */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {/* SEARCH */}
+              <div className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600' : 'bg-gray-700 border-gray-600'}`}>
+                <Search size={16} className="text-gray-300" />
+                <input
+                  type="text"
+                  placeholder="search..."
+                  value={searchText}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
+                />
+              </div>
+
+              {/* ADD */}
+              {hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
+              <button onClick={() => setModalOpen(true)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
+                <Plus size={16} /> New Department
+              </button>
+              )}
+
+              {/* REFRESH */}
+              <button onClick={() => { setSearchText(""); setPage(1); loadDepartments(); }} className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
+                <RefreshCw size={16} className="text-blue-400" />
+              </button>
+
+              {/* COLUMN PICKER */}
+              <button onClick={() => setColumnModal(true)} className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
+                <List size={16} className="text-blue-300" />
+              </button>
+
+              {/* INACTIVE TOGGLE */}
+              <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive(!showInactive); }} className={`p-1.5 rounded-md border flex items-center gap-1 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
+                <ArchiveRestore size={16} className="text-yellow-300" />
+                <span className="text-xs opacity-80">Inactive</span>
+              </button>
             </div>
-
-            {/* ADD */}
-            <button onClick={() => setModalOpen(true)} className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600">
-              <Plus size={16} /> New Department
-            </button>
-
-            {/* REFRESH */}
-            <button onClick={() => { setSearchText(""); setPage(1); loadDepartments(); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600">
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            {/* COLUMN PICKER */}
-            <button onClick={() => setColumnModal(true)} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600">
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            {/* INACTIVE TOGGLE */}
-            <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive(!showInactive); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1">
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
-            </button>
-          </div>
 
           {/* ==========================
                 TABLE
@@ -542,7 +654,7 @@ const Departments = () => {
                 <tbody>
                   {/* ACTIVE */}
                   {sortedDepartments.map((c) => (
-                    <tr key={c.id} className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm" onClick={() => { setEditDepartment({ id: c.id, department: c.department, description: c.description, parentDepartmentId: c.parentDepartmentId, parentName: c.parentName, isInactive: false }); setEditModalOpen(true); }}>
+                    <tr key={c.id} className={`${theme === 'emerald' ? 'bg-emerald-800 hover:bg-emerald-700' : 'bg-gray-900 hover:bg-gray-700'} cursor-pointer rounded shadow-sm`} onClick={() => { setEditDepartment({ id: c.id, department: c.department, description: c.description, parentDepartmentId: c.parentDepartmentId, parentName: c.parentName, isInactive: false }); setEditModalOpen(true); }}>
                       {visibleColumns.id && <td className="px-2 py-1 text-center">{c.id}</td>}
                       {visibleColumns.department && <td className="px-2 py-1 text-center">{c.department}</td>}
                       {visibleColumns.description && <td className="px-2 py-1 text-center">{c.description}</td>}
@@ -552,7 +664,7 @@ const Departments = () => {
 
                   {/* INACTIVE */}
                   {showInactive && inactiveDepartments.map((c) => (
-                    <tr key={`inactive-${c.id}`} className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm" onClick={() => { setEditDepartment({ id: c.id, department: c.department, description: c.description, parentDepartmentId: c.parentDepartmentId, parentName: c.parentName, isInactive: true }); setEditModalOpen(true); }}>
+                    <tr key={`inactive-${c.id}`} className={`${theme === 'emerald' ? 'bg-emerald-900 hover:bg-emerald-800' : 'bg-gray-900 hover:bg-gray-800'} cursor-pointer opacity-40 line-through rounded shadow-sm`} onClick={() => { setEditDepartment({ id: c.id, department: c.department, description: c.description, parentDepartmentId: c.parentDepartmentId, parentName: c.parentName, isInactive: true }); setEditModalOpen(true); }}>
                       {visibleColumns.id && <td className="px-2 py-1 text-center">{c.id}</td>}
                       {visibleColumns.department && <td className="px-2 py-1 text-center">{c.department}</td>}
                       {visibleColumns.description && <td className="px-2 py-1 text-center">{c.description}</td>}

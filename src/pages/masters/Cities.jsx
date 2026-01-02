@@ -1,4 +1,3 @@
-// Part 1/3 — imports + state + logic
 import React, { useEffect, useState, useRef } from "react";
 import {
   Search,
@@ -31,13 +30,14 @@ import {
   addStateApi,
   updateStateApi,
   searchStateApi,
-  // inactive / restore endpoints for cities
   getInactiveCitiesApi,
   restoreCityApi,
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Cities = () => {
   // ---------- modals ----------
@@ -296,6 +296,23 @@ const Cities = () => {
     if (!newCity.name?.trim() || !newCity.countryId || !newCity.stateId) {
       return toast.error("All fields are required");
     }
+
+    // Check Duplicates
+    try {
+        const searchRes = await searchCityApi(newCity.name.trim());
+        if (searchRes?.status === 200) {
+            const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+            const existing = rows.find(r => 
+                (r.Name || r.name).toLowerCase() === newCity.name.trim().toLowerCase() && 
+                String(r.StateId || r.stateId) === String(newCity.stateId)
+            );
+            if (existing) return toast.error("City with this name already exists in selected state");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
     try {
       const payload = {
         ...newCity,
@@ -354,6 +371,23 @@ const Cities = () => {
     const { id, name, countryId, stateId } = editCity;
     if (!name?.trim() || !countryId || !stateId)
       return toast.error("All fields are required");
+
+     // Check Duplicates
+     try {
+        const searchRes = await searchCityApi(name.trim());
+        if (searchRes?.status === 200) {
+            const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+            const existing = rows.find(r => 
+                (r.Name || r.name).toLowerCase() === name.trim().toLowerCase() && 
+                String(r.StateId || r.stateId) === String(stateId) &&
+                (r.Id || r.id) !== id
+            );
+            if (existing) return toast.error("City with this name already exists in selected state");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
 
     try {
       const payload = {
@@ -422,6 +456,24 @@ const Cities = () => {
   // create country and return created object (uses search fallback)
   const createCountryAndReload = async (name) => {
     if (!name?.trim()) return null;
+
+    // Check Duplicate
+    try {
+        const searchRes = await searchCountryApi(name.trim());
+        if (searchRes?.status === 200) {
+            const existing = (searchRes.data.records || searchRes.data || []).find(
+            c => c.name.toLowerCase() === name.trim().toLowerCase()
+            );
+            if (existing) {
+              toast.error("Country with this name already exists");
+              return existing; // Return existing instead of null to allow selection? Or null to prevent "creation"? returning existing is friendly.
+            }
+        }
+    } catch (err) {
+         toast.error("Error checking duplicates");
+         return null;
+    }
+
     try {
       const res = await addCountryApi({ name: name.trim(), userId: currentUserId });
       if (res?.status === 200) {
@@ -444,6 +496,26 @@ const Cities = () => {
   // create state and return created object (uses search fallback)
   const createStateAndReload = async (name, countryId) => {
     if (!name?.trim() || !countryId) return null;
+    
+    // Check Duplicate
+    try {
+       const searchRes = await searchStateApi(name.trim());
+       if (searchRes?.status === 200) {
+          const rows = searchRes.data || [];
+          const existing = rows.find(r => 
+              (r.Name || r.name).toLowerCase() === name.trim().toLowerCase() && 
+              String(r.CountryId || r.countryId) === String(countryId)
+          );
+          if (existing) {
+             toast.error("State with this name already exists in selected country");
+             return existing; // Return existing to allow selection
+          }
+       }
+    } catch(err) {
+        toast.error("Error checking duplicates");
+        return null;
+    }
+
     try {
       const res = await addStateApi({ name: name.trim(), countryId: Number(countryId), userId: currentUserId });
       if (res?.status === 200) {
@@ -656,9 +728,11 @@ return (
                 />
 
                 {/* STAR BUTTON -> opens add country modal */}
+                {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                 <button type="button" className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition" onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}>
                   <Star size={18} className="text-yellow-400" />
                 </button>
+                )}
               </div>
             </div>
 
@@ -677,6 +751,7 @@ return (
                 />
 
                 {/* STAR BUTTON -> open add state modal */}
+                {hasPermission(PERMISSIONS.STATES.CREATE) && (
                 <button
                   type="button"
                   className={`p-2 rounded-lg border border-gray-600 bg-gray-800 transition ${!newCity.countryId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
@@ -685,14 +760,17 @@ return (
                 >
                   <Star size={18} className="text-yellow-400" />
                 </button>
+                )}
               </div>
             </div>
           </div>
 
           <div className="px-4 sm:px-5 py-3 border-t border-gray-700">
+            {hasPermission(PERMISSIONS.CITIES.CREATE) && (
             <button onClick={handleAddCity} className="flex items-center gap-2 bg-gray-800 px-3 sm:px-4 py-2 rounded border border-gray-600 text-sm sm:text-base">
               <Save size={16} /> Save
             </button>
+            )}
           </div>
         </div>
       </div>
@@ -732,6 +810,7 @@ return (
                 />
 
                 {/* STAR BUTTON */}
+                {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                 <button
                     type="button"
                     className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
@@ -739,6 +818,7 @@ return (
                 >
                     <Star size={18} className="text-yellow-400" />
                 </button>
+                )}
               </div>
             </div>
 
@@ -754,18 +834,22 @@ return (
           <div className="px-4 sm:px-5 py-3 border-t border-gray-700 flex justify-between">
             {/* DELETE OR RESTORE */}
             {!editCity.isInactive ? (
+              hasPermission(PERMISSIONS.CITIES.DELETE) && (
               <button onClick={handleDeleteCity} className="flex items-center gap-2 bg-red-600 px-3 sm:px-4 py-2 rounded border border-red-900 text-sm sm:text-base">
                 <Trash2 size={16} /> Delete
               </button>
+              )
             ) : (
               <button onClick={handleRestoreCity} className="flex items-center gap-2 bg-green-700 px-3 sm:px-4 py-2 rounded border border-green-900 text-sm sm:text-base">
                 <ArchiveRestore size={16} /> Restore
               </button>
             )}
 
+            {hasPermission(PERMISSIONS.CITIES.EDIT) && (
             <button onClick={handleUpdateCity} className="flex items-center gap-2 bg-gray-800 px-3 sm:px-4 py-2 rounded border border-gray-600 text-blue-300 text-sm sm:text-base">
               <Save size={16} /> Save
             </button>
+            )}
           </div>
         </div>
       </div>
@@ -940,7 +1024,7 @@ return (
         <h2 className="text-xl sm:text-2xl font-semibold mb-4">Cities</h2>
 
         {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
           <div className="flex items-center bg-gray-700 px-2 py-1.5 w-full sm:w-60 rounded border border-gray-600">
             <Search size={16} className="text-gray-300" />
             <input className="bg-transparent pl-2 w-full text-sm text-gray-200 outline-none" placeholder="search..." value={searchText} onChange={(e) => handleSearch(e.target.value)} />

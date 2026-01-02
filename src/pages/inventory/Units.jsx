@@ -8,15 +8,11 @@ import {
   Save,
   Trash2,
   ArchiveRestore,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight
 } from "lucide-react";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
-
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 // API
 import {
@@ -25,10 +21,12 @@ import {
   updateUnitApi,
   deleteUnitApi,
   searchUnitsApi,
-  getInactiveUnitsApi,
-  restoreUnitApi
+  restoreUnitApi,
+  getInactiveUnitsApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Units = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -142,6 +140,17 @@ const Units = () => {
     if (!newUnit.name.trim())
       return toast.error("Unit name required");
 
+    // DUPLICATE CHECK
+    try {
+      const searchRes = await searchUnitsApi(newUnit.name.trim());
+      if (searchRes?.status === 200) {
+         const existing = searchRes.data.find(u => u.name.toLowerCase() === newUnit.name.trim().toLowerCase());
+         if (existing) return toast.error("Unit Name already exists");
+      }
+    } catch(err) {
+      console.error("Duplicate check error", err);
+    }
+
     const res = await addUnitApi({
       name: newUnit.name,
       description: newUnit.description,
@@ -163,6 +172,20 @@ const Units = () => {
     if (!editUnit.name.trim())
       return toast.error("Unit name required");
 
+    // DUPLICATE CHECK
+    try {
+      const searchRes = await searchUnitsApi(editUnit.name.trim());
+      if (searchRes?.status === 200) {
+         const existing = searchRes.data.find(u => 
+           u.name.toLowerCase() === editUnit.name.trim().toLowerCase() && 
+           String(u.id) !== String(editUnit.id)
+         );
+         if (existing) return toast.error("Unit Name already exists");
+      }
+    } catch(err) {
+      console.error("Duplicate check error", err);
+    }
+
     const res = await updateUnitApi(editUnit.id, {
       name: editUnit.name,
       description: editUnit.description,
@@ -180,32 +203,69 @@ const Units = () => {
 
   // DELETE UNIT
   const handleDeleteUnit = async () => {
-    const res = await deleteUnitApi(editUnit.id, {
-      userId: user?.userId || 1
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This unit will be deleted!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
     });
 
-    if (res?.status === 200) {
-      toast.success("Unit deleted");
-      setEditModalOpen(false);
-      loadUnits();
-      if (showInactive) loadInactive();
-    } else {
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await deleteUnitApi(editUnit.id, {
+        userId: user?.userId || 1
+      });
+
+      if (res?.status === 200) {
+        toast.success("Unit deleted");
+        setEditModalOpen(false);
+        loadUnits();
+        if (showInactive) loadInactive();
+      } else {
+        toast.error("Delete failed");
+      }
+    } catch(err) {
+      console.error("Delete failed", err);
       toast.error("Delete failed");
     }
   };
 
   // RESTORE UNIT
   const handleRestoreUnit = async () => {
-    const res = await restoreUnitApi(editUnit.id, { userId: user?.userId || 1 });
-    if (res?.status === 200) {
-      toast.success("Unit restored");
-      setEditModalOpen(false);
-      loadUnits();
-      loadInactive();
-    } else {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This unit will be restored!",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await restoreUnitApi(editUnit.id, { userId: user?.userId || 1 });
+      if (res?.status === 200) {
+        toast.success("Unit restored");
+        setEditModalOpen(false);
+        loadUnits();
+        loadInactive();
+      } else {
+        toast.error("Restore failed");
+      }
+    } catch(err) {
+      console.error("Restore failed", err);
       toast.error("Restore failed");
     }
   };
+
 
   return (
     <>
@@ -233,7 +293,7 @@ const Units = () => {
                   setNewUnit((prev) => ({ ...prev, name: e.target.value }))
                 }
                 placeholder="Enter unit name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
               />
 
               {/* DESCRIPTION */}
@@ -244,17 +304,19 @@ const Units = () => {
                   setNewUnit((prev) => ({ ...prev, description: e.target.value }))
                 }
                 placeholder="Enter description"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+              {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
               <button
                 onClick={handleAddUnit}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
 
           </div>
@@ -284,7 +346,7 @@ const Units = () => {
                 onChange={(e) =>
                   setEditUnit((prev) => ({ ...prev, name: e.target.value }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
               />
 
               {/* DESCRIPTION */}
@@ -303,23 +365,27 @@ const Units = () => {
               
               {/* DELETE / RESTORE */}
               {editUnit.isInactive ? (
+                hasPermission(PERMISSIONS.INVENTORY.UNITS.DELETE) && (
                 <button
                   onClick={handleRestoreUnit}
                   className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>
+                )
               ) : (
+                hasPermission(PERMISSIONS.INVENTORY.UNITS.DELETE) && (
                 <button
                   onClick={handleDeleteUnit}
                   className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
+                )
               )}
 
               {/* UPDATE (only if active) */}
-              {!editUnit.isInactive && (
+              {!editUnit.isInactive && hasPermission(PERMISSIONS.INVENTORY.UNITS.EDIT) && (
                 <button
                   onClick={handleUpdateUnit}
                   className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
@@ -431,7 +497,7 @@ const Units = () => {
           <h2 className="text-2xl font-semibold mb-4">Units</h2>
 
           {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
 
             {/* SEARCH */}
             <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
@@ -446,12 +512,14 @@ const Units = () => {
             </div>
 
             {/* ADD */}
+            {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
             <button
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
             >
               <Plus size={16} /> New Unit
             </button>
+            )}
 
             {/* REFRESH */}
             <button
@@ -474,9 +542,17 @@ const Units = () => {
             </button>
 
             {/* INACTIVE TOGGLE */}
-            <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive(!showInactive); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1">
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
+            <button
+              onClick={async () => {
+                if (!showInactive) await loadInactive();
+                setShowInactive(!showInactive);
+              }}
+              className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
+            >
+              <ArchiveRestore size={16} className="text-yellow-400" />
+              <span className="text-xs text-gray-300">
+                 Inactive
+              </span>
             </button>
 
           </div>
@@ -534,7 +610,7 @@ const Units = () => {
                   {showInactive && inactiveUnits.map((u) => (
                     <tr
                       key={`inactive-${u.id}`}
-                      className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
+                      className="bg-gray-900 cursor-pointer opacity-50 line-through hover:bg-gray-800 rounded shadow-sm"
                       onClick={() => {
                         setEditUnit({
                           id: u.id,
@@ -583,7 +659,6 @@ const Units = () => {
     </>
   );
 };
-
 export default Units;
 
 

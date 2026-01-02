@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { Save, Star, X, ArrowLeft, Trash2, Pencil } from "lucide-react";
+import { Save, Star, X, ArrowLeft, Trash2, Pencil, ArchiveRestore } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import SearchableSelect from "../../components/SearchableSelect";
+import Swal from "sweetalert2";
 import {
   getCountriesApi,
   getStatesApi,
@@ -19,7 +20,11 @@ import {
   updateSupplierApi,
   getSupplierByIdApi,
   deleteSupplierApi,
+  restoreSupplierApi,
+ 
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 // ----------------- Utilities -----------------
 const parseArrayFromResponse = (res) => {
@@ -43,6 +48,7 @@ const CustomDropdown = ({
   showPencil = true,
   onAddClick,
   direction = "down", // "down" | "up"
+  disabled = false,
 }) => {
   // Map list items to { id, name } for SearchableSelect
   const options = list.map(item => ({
@@ -79,6 +85,7 @@ const CustomDropdown = ({
             placeholder="--select--"
             direction={direction}
             className="w-full"
+            disabled={disabled}
           />
         </div>
 
@@ -86,7 +93,8 @@ const CustomDropdown = ({
           <button
             type="button"
             onClick={onAddClick}
-            className="p-2 bg-gray-800 border border-gray-600 rounded flex items-center justify-center"
+            disabled={disabled}
+            className={`p-2 bg-gray-800 border border-gray-600 rounded flex items-center justify-center ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Star size={14} className="text-yellow-400" />
           </button>
@@ -232,6 +240,7 @@ const NewSupplier = () => {
   const [lookupMode, setLookupMode] = useState("country");
   const [lookupDefaults, setLookupDefaults] = useState({ countryId: "", stateId: "" });
   const [lookupContexts, setLookupContexts] = useState({});
+  const [isInactive, setIsInactive] = useState(false);
 
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddKey, setQuickAddKey] = useState("");
@@ -376,8 +385,11 @@ const NewSupplier = () => {
       setIsLoading(true);
 
       const stateSupplier = location.state?.supplier;
+      const stateIsInactive = location.state?.isInactive;
+
       const populate = (s) => {
         if (!s) return;
+        setIsInactive(s.IsActive === 0 || s.DeleteDate != null || stateIsInactive === true);
         const presetStateId = s.StateId ?? s.stateId ?? null;
         const presetCityId = s.CityId ?? s.cityId ?? null;
 
@@ -687,25 +699,87 @@ const NewSupplier = () => {
       setIsSaving(false);
     }
   };
+const handleDelete = async () => {
+  if (!isEditMode) return;
 
-  const handleDelete = async () => {
-    if (!isEditMode) return;
-    if (!window.confirm("Are you sure you want to delete this supplier?")) return;
-    try {
-      if (typeof deleteSupplierApi === "function") {
-        await deleteSupplierApi(id, { userId: 1 });
-        toast.success("Supplier deleted");
-        navigate("/app/businesspartners/suppliers");
-        return;
-      }
-      // fallback
-      toast.success("Supplier (pretend) deleted");
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "This supplier will be permanently deleted!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#6b7280",
+    confirmButtonText: "Yes, delete it",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    if (typeof deleteSupplierApi === "function") {
+      await deleteSupplierApi(id, { userId: 1 });
+
+      await Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        text: "Supplier deleted successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
       navigate("/app/businesspartners/suppliers");
-    } catch (err) {
-      console.error("delete supplier failed", err);
-      toast.error("Delete failed");
+      return;
     }
-  };
+
+    // fallback
+    await Swal.fire({
+      icon: "success",
+      title: "Deleted!",
+      text: "Supplier (pretend) deleted.",
+      timer: 1500,
+      showConfirmButton: false,
+    });
+
+    navigate("/app/businesspartners/suppliers");
+
+  } catch (err) {
+    console.error("delete supplier failed", err);
+
+    Swal.fire({
+      icon: "error",
+      title: "Delete failed",
+      text: "Something went wrong while deleting the supplier.",
+    });
+  }
+};
+
+const handleRestore = async () => {
+  const result = await Swal.fire({
+    title: "Restore this supplier?",
+    text: "The supplier will be active again.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Yes, restore",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: "#10b981", // green
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    if (typeof restoreSupplierApi === "function") {
+      await restoreSupplierApi(id, { userId: 1 });
+      toast.success("Supplier restored successfully");
+      navigate("/app/businesspartners/suppliers");
+    } else {
+      toast.error("Restore API not available");
+    }
+  } catch (err) {
+    console.error("restore supplier failed", err);
+    toast.error("Restore failed");
+  }
+};
+
 
   if (isEditMode && isLoading) {
     return (
@@ -731,18 +805,32 @@ const NewSupplier = () => {
                       navigate("/app/businesspartners/suppliers");
                   }
               }} className="p-1"><ArrowLeft /></button>
-              <h2 className="text-2xl font-semibold">{isEditMode ? "Edit Supplier" : "New Supplier"}</h2>
+              <h2 className="text-2xl font-semibold">
+                {isEditMode ? (isInactive ? "Restore Supplier" : "Edit Supplier") : "New Supplier"}
+              </h2>
             </div>
 
             <div className="flex gap-3">
-              <button
-                onClick={submit}
-                disabled={isSaving}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <Save size={16} /> {isSaving ? "Saving..." : "Save"}
-              </button>
-              {isEditMode && (
+              {!isInactive && (isEditMode ? hasPermission(PERMISSIONS.SUPPLIERS.EDIT) : hasPermission(PERMISSIONS.SUPPLIERS.CREATE)) && (
+                <button
+                  onClick={submit}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Save size={16} /> {isSaving ? "Saving..." : "Save"}
+                </button>
+              )}
+              
+              {isEditMode && isInactive && hasPermission(PERMISSIONS.SUPPLIERS.DELETE) && (
+                <button 
+                  onClick={handleRestore} 
+                  className="flex items-center gap-2 bg-emerald-900 border border-emerald-600 px-4 py-2 rounded text-emerald-200 hover:bg-emerald-800"
+                >
+                  <ArchiveRestore size={16} /> Restore
+                </button>
+              )}
+
+              {isEditMode && !isInactive && hasPermission(PERMISSIONS.SUPPLIERS.DELETE) && (
                 <button onClick={handleDelete} className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-red-200"><Trash2 size={16} /> Delete</button>
               )}
             </div>
@@ -751,7 +839,12 @@ const NewSupplier = () => {
           <div className="grid grid-cols-12 gap-4 mx-2">
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">* Company Name</label>
-              <input value={form.companyName} onChange={(e) => update("companyName", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                value={form.companyName} 
+                onChange={(e) => update("companyName", e.target.value)} 
+                disabled={isInactive}
+                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`} 
+              />
             </div>
             <div className="col-span-12 md:col-span-6">
               <CustomDropdown
@@ -765,7 +858,7 @@ const NewSupplier = () => {
                   update("cityId", null);
                   loadStatesForCountry(item?.id ?? null);
                 }}
-              showStar={!isEditMode}
+              showStar={!isEditMode && hasPermission(PERMISSIONS.COUNTRIES.CREATE)}
               showPencil={isEditMode}
               onAddClick={() => openQuickAdd("country", "Country")}
               />
@@ -781,7 +874,7 @@ const NewSupplier = () => {
                   update("cityId", null);
                   loadCitiesForState(item?.id ?? null);
                 }}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)}
                 showPencil={isEditMode}
               onAddClick={() => openQuickAdd("state", "State")}
               />
@@ -792,7 +885,7 @@ const NewSupplier = () => {
                 list={cities.map((c) => ({ id: c.Id ?? c.id, label: c.CityName ?? c.name }))}
                 valueId={form.cityId}
                 onSelect={(item) => update("cityId", item?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)}
                 showPencil={isEditMode}
               onAddClick={() => openQuickAdd("city", "City")}
               />
@@ -806,21 +899,28 @@ const NewSupplier = () => {
               <label className="text-sm">Contact Title</label>
               <input value={form.contactTitle} onChange={(e) => update("contactTitle", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
             </div>
+
             <div className="col-span-12 md:col-span-4">
               <CustomDropdown
                 label="Supplier Group"
                 list={supplierGroups.map((g) => ({ id: g.Id ?? g.id, label: g.GroupName ?? g.groupName ?? g.SupplierGroupName ?? g.name ?? "" }))}
                 valueId={form.supplierGroupId}
                 onSelect={(it) => update("supplierGroupId", it?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.SUPPLIER_GROUPS.CREATE)}
                 showPencil={isEditMode}
-              onAddClick={() => openQuickAdd("supplierGroup", "Supplier Group")}
+                onAddClick={() => openQuickAdd("supplierGroup", "Supplier Group")}
+                disabled={isInactive}
               />
             </div>
 
             <div className="col-span-12">
               <label className="text-sm">Address</label>
-              <textarea value={form.address} onChange={(e) => update("address", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 min-h-[70px]" />
+              <textarea 
+                 value={form.address} 
+                 onChange={(e) => update("address", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 min-h-[70px] ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
 
             <div className="col-span-12 md:col-span-6">
@@ -829,57 +929,113 @@ const NewSupplier = () => {
                 list={regions.map((r) => ({ id: r.regionId ?? r.Id ?? r.id, label: r.regionName ?? r.RegionName ?? r.name ?? "" }))}
                 valueId={form.regionId}
                 onSelect={(it) => update("regionId", it?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.REGIONS.CREATE)}
                 showPencil={isEditMode}
-              onAddClick={() => openQuickAdd("region", "Region")}
+                onAddClick={() => openQuickAdd("region", "Region")}
+                disabled={isInactive}
               />
             </div>
             <div className="col-span-12 md:col-span-3">
               <label className="text-sm">Postal Code</label>
-              <input value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.postalCode} 
+                 onChange={(e) => update("postalCode", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div className="col-span-12 md:col-span-3">
               <label className="text-sm">Phone</label>
-              <input value={form.phone} onChange={(e) => update("phone", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.phone} 
+                 onChange={(e) => update("phone", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
 
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">Website</label>
-              <input value={form.website} onChange={(e) => update("website", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.website} 
+                 onChange={(e) => update("website", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">Fax</label>
-              <input value={form.fax} onChange={(e) => update("fax", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.fax} 
+                 onChange={(e) => update("fax", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">Email Address</label>
-              <input value={form.emailAddress} onChange={(e) => update("emailAddress", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.emailAddress} 
+                 onChange={(e) => update("emailAddress", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
 
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">Email</label>
-              <input value={form.email} onChange={(e) => update("email", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.email} 
+                 onChange={(e) => update("email", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">* Previous Credit Balance</label>
-              <input value={form.previousCredit} onChange={(e) => update("previousCredit", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.previousCredit} 
+                 onChange={(e) => update("previousCredit", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">CNIC</label>
-              <input value={form.cnic} onChange={(e) => update("cnic", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.cnic} 
+                 onChange={(e) => update("cnic", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
 
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">NTN</label>
-              <input value={form.ntn} onChange={(e) => update("ntn", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.ntn} 
+                 onChange={(e) => update("ntn", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">STRN</label>
-              <input value={form.strn} onChange={(e) => update("strn", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.strn} 
+                 onChange={(e) => update("strn", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">Vat</label>
-              <input value={form.vat} onChange={(e) => update("vat", e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
+              <input 
+                 value={form.vat} 
+                 onChange={(e) => update("vat", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
             </div>
 
             <div className="col-span-12 mb-5 md:col-span-6">
@@ -888,10 +1044,11 @@ const NewSupplier = () => {
                 list={employees}
                 valueId={form.orderBookerId}
                 onSelect={(item) => update("orderBookerId", item?.id ?? null)}
-                showStar={!isEditMode}
+                showStar={!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
                 showPencil={isEditMode}
                 onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker" } })}
                 direction="up"
+                disabled={isInactive}
               />
             </div>
           </div>
@@ -1035,7 +1192,7 @@ const NewSupplier = () => {
     </div>,
     document.body
   )}
-
+  
 
       </div>
     </PageLayout>

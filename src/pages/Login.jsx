@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { LoginApi, requestResetApi } from "../services/allAPI";
+import { getEntryRoute } from "../utils/permissionUtils";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -34,9 +35,13 @@ const Login = () => {
 
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("role", response.data.role);
+        localStorage.setItem("permissions", JSON.stringify(response.data.permissions || []));
         localStorage.setItem("user", JSON.stringify(response.data.user));
+        localStorage.setItem("refreshToken", response.data.refreshToken); // <--- Store Refresh Token
 
-        navigate("/app/dashboard");
+        localStorage.setItem("refreshToken", response.data.refreshToken); // <--- Store Refresh Token
+
+        navigate(getEntryRoute());
       } else {
         toast.error(response?.response?.data?.message || "Invalid credentials");
       }

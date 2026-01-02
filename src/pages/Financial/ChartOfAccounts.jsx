@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const ChartOfAccounts = () => {
   // -----------------------------------
@@ -588,9 +590,11 @@ const ChartOfAccounts = () => {
                 Cancel
               </button>
 
+              {hasPermission(PERMISSIONS.FINANCIAL.CREATE) && (
               <button className="flex items-center gap-2 bg-blue-600 px-4 py-2 border border-blue-500 rounded text-white hover:bg-blue-500 transition-colors">
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
 
           </div>
@@ -618,6 +622,7 @@ const ChartOfAccounts = () => {
                 />
               </div>
 
+              {hasPermission(PERMISSIONS.FINANCIAL.CREATE) && (
               <button
                 onClick={() => {
                   setForm({
@@ -638,6 +643,7 @@ const ChartOfAccounts = () => {
               >
                 <Plus size={16} /> New Head
               </button>
+              )}
 
               <button className="p-2 bg-gray-700 border border-gray-600 rounded">
                 <RefreshCw size={16} className="text-blue-400" />

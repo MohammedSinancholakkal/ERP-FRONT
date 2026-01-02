@@ -12,10 +12,11 @@ import {
   FileSpreadsheet,
   FileText,
   Eye,
-  Download
+  Download,
+  ArchiveRestore
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
-import { getSalesApi, getCustomersApi, searchSaleApi } from "../../services/allAPI";
+import { getSalesApi, getCustomersApi, searchSaleApi, getInactiveSalesApi } from "../../services/allAPI";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
@@ -24,6 +25,8 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Sales = () => {
   const [open, setOpen] = useState(false);
@@ -54,6 +57,10 @@ const Sales = () => {
   const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [columnSearch, setColumnSearch] = useState("");
+
+  // --- INACTIVE STATE ---
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveRows, setInactiveRows] = useState([]);
 
   // --- DATA STATE ---
   const [salesList, setSalesList] = useState([]);
@@ -161,6 +168,34 @@ const Sales = () => {
     }
   };
 
+  const loadInactiveSales = async () => {
+    try {
+      const res = await getInactiveSalesApi();
+      if (res.status === 200) {
+        let rows = Array.isArray(res.data) ? res.data : (res.data.records || []);
+        const normalized = rows.map(r => {
+             const norm = normalizeSale(r);
+             norm.isInactive = true;
+             // Customer matching logic if needed, but we joined in backend
+             // If backend join returned CustomerName, normalizeSale picks it up
+             return norm;
+        });
+        setInactiveRows(normalized);
+      }
+    } catch (error) {
+      console.error("Error loading inactive sales", error);
+      toast.error("Failed to load inactive sales");
+    }
+  };
+
+  const toggleInactive = () => {
+    const newState = !showInactive;
+    setShowInactive(newState);
+    if (newState && inactiveRows.length === 0) {
+      loadInactiveSales();
+    }
+  };
+
   const handleRefresh = async () => {
     setSearchText("");
     setFilterCustomer("");
@@ -168,7 +203,11 @@ const Sales = () => {
     setFilterPayment("");
     setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
+    setPage(1);
     await fetchAllData();
+    if (showInactive) {
+      loadInactiveSales();
+    }
     toast.success("Refreshed");
   };
 
@@ -263,9 +302,12 @@ const Sales = () => {
     return match;
   });
 
+  // Combine lists if showing inactive
+  const displayList = showInactive ? [...filteredList, ...inactiveRows] : filteredList;
+
   // --- SORTING LOGIC ---
   const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredList];
+    let sortableItems = [...displayList];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
         let aValue = a[sortConfig.key];
@@ -291,7 +333,7 @@ const Sales = () => {
       });
     }
     return sortableItems;
-  }, [filteredList, sortConfig]);
+  }, [displayList, sortConfig]);
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -403,12 +445,14 @@ const Sales = () => {
                 />
               </div>
 
+              {hasPermission(PERMISSIONS.SALES.CREATE) && (
               <button
                 onClick={() => navigate("/app/sales/newsale")}
                 className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600"
               >
                 <Plus size={16} /> New Sale
               </button>
+              )}
 
               <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <RefreshCw size={16} className="text-blue-300" />
@@ -426,6 +470,20 @@ const Sales = () => {
                   <FileText size={18} className="text-red-300" />
                 </button>
               </div>
+
+              {/* Inactive Toggle */}
+               <button
+                  onClick={toggleInactive}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                    showInactive
+                      ? "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                      : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                  }`}
+                  title={showInactive ? "Inactive" : "Inactive"}
+                >
+                  <ArchiveRestore size={16} />
+                  {showInactive ? "Inactive" : "Inactive"}
+                </button>
             </div>
 
             {/* FILTER BAR */}
@@ -461,22 +519,28 @@ const Sales = () => {
                     {sortedList.map((s) => (
                       <tr
                         key={s.id}
-                        onClick={() => navigate(`/app/sales/edit/${s.id}`)}
-                        className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                        onClick={() => navigate(`/app/sales/edit/${s.id}`, { state: { isInactive: s.isInactive } })}
+                        className={`hover:bg-gray-700 cursor-pointer ${
+                          s.isInactive 
+                            ? "bg-gray-800/50 opacity-60 line-through grayscale text-gray-500" 
+                            : "bg-gray-900"
+                        }`}
                       >
                         {visibleColumns.id && <td className="px-2 py-2 text-gray-300">{s.id}</td>}
                         {visibleColumns.customerName && (
                           <td className="px-2 py-2 flex items-center justify-center gap-2">
                             <button 
-                              className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700" 
+                              className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
                               title="Download PDF" 
+                              disabled={s.isInactive}
                               onClick={(e) => { e.stopPropagation(); handleExportRowPDF(s); }}
                             >
                               <FileText size={14} className="text-red-300" />
                             </button>
                             <button 
-                              className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700" 
+                              className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
                               title="View Sale" 
+                              disabled={s.isInactive}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
                                 navigate(`/app/sales/invoice/preview/${s.id}`); 

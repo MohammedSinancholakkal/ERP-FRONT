@@ -32,7 +32,9 @@ import {
   addCityApi,
 } from "../../services/allAPI"; 
 import SearchableSelect from "../../components/SearchableSelect"; 
-import FilterBar from "../../components/FilterBar"; 
+import FilterBar from "../../components/FilterBar";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions"; 
 
 
 const Warehouses = () => {
@@ -504,9 +506,11 @@ const Warehouses = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+              {hasPermission(PERMISSIONS.WAREHOUSES.CREATE) && (
               <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
                 <Plus size={16} /> New Warehouse
               </button>
+              )}
               <button
                 onClick={() => {
                   setSearchText("");
@@ -646,9 +650,9 @@ const Warehouses = () => {
                                    onChange={(val) => setNewData({...newData, countryId: val, stateId: "", cityId: ""})}
                                    className="w-full"
                                />
-                               <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                               {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                    <Star size={18} className="text-yellow-400" />
-                               </button>
+                               </button>)}
                            </div>
                        </div>
                        <div>
@@ -661,9 +665,9 @@ const Warehouses = () => {
                                    disabled={!newData.countryId}
                                    className="w-full"
                                />
-                               <button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
                                    <Star size={18} className="text-yellow-400" />
-                               </button>
+                               </button>)}
                            </div>
                        </div>
                    </div>
@@ -678,9 +682,9 @@ const Warehouses = () => {
                                    disabled={!newData.stateId}
                                    className="w-full"
                                />
-                               <button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
                                    <Star size={18} className="text-yellow-400" />
-                               </button>
+                               </button>)}
                            </div>
                        </div>
                        <div>
@@ -694,7 +698,7 @@ const Warehouses = () => {
                    </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                   <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                   {hasPermission(PERMISSIONS.WAREHOUSES.CREATE) && (<button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>)}
                </div>
             </div>
           </div>
@@ -727,7 +731,7 @@ const Warehouses = () => {
                                    disabled={editData.isInactive}
                                    className="w-full"
                                />
-                               {!editData.isInactive && (
+                               {!editData.isInactive && hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                                    <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                        <Star size={18} className="text-yellow-400" />
                                    </button>
@@ -744,7 +748,7 @@ const Warehouses = () => {
                                    disabled={!editData.countryId || editData.isInactive}
                                    className="w-full"
                                />
-                               {!editData.isInactive && (
+                               {!editData.isInactive && hasPermission(PERMISSIONS.STATES.CREATE) && (
                                    <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
                                        <Star size={18} className="text-yellow-400" />
                                    </button>
@@ -763,7 +767,7 @@ const Warehouses = () => {
                                    disabled={!editData.stateId || editData.isInactive}
                                    className="w-full"
                                />
-                               {!editData.isInactive && (
+                               {!editData.isInactive && hasPermission(PERMISSIONS.CITIES.CREATE) && (
                                    <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
                                        <Star size={18} className="text-yellow-400" />
                                    </button>
@@ -784,9 +788,9 @@ const Warehouses = () => {
                    {editData.isInactive ? (
                        <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
                    ) : (
-                       <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
+                       hasPermission(PERMISSIONS.WAREHOUSES.DELETE) && (<button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>)
                    )}
-                   {!editData.isInactive && (
+                   {!editData.isInactive && hasPermission(PERMISSIONS.WAREHOUSES.EDIT) && (
                        <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
                    )}
                </div>
@@ -807,7 +811,7 @@ const Warehouses = () => {
                        <input value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
                     </div>
                     <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddCountry} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
+                        {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={handleAddCountry} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>)}
                     </div>
                 </div>
             </div>
@@ -825,7 +829,7 @@ const Warehouses = () => {
                        <input value={newStateName} onChange={e => setNewStateName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
                     </div>
                     <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddState} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
+                        {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={handleAddState} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>)}
                     </div>
                 </div>
             </div>
@@ -843,7 +847,7 @@ const Warehouses = () => {
                        <input value={newCityName} onChange={e => setNewCityName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
                     </div>
                     <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddCity} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
+                        {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={handleAddCity} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>)}
                     </div>
                 </div>
             </div>

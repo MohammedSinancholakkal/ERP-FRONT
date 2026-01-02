@@ -6,20 +6,24 @@ import {
   ArrowLeft,
   X,
   ChevronDown,
-  Pencil
+  Pencil,
+  ArchiveRestore
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
-import { getBanksApi, addPayrollApi, getPayrollByIdApi, updatePayrollApi, deletePayrollApi } from "../../services/allAPI"; // adjust import path if needed
+import { getBanksApi, addPayrollApi, getPayrollByIdApi, updatePayrollApi, deletePayrollApi, restorePayrollApi } from "../../services/allAPI"; // adjust import path if needed
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const NewPayroll = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
   const isEdit = !!id;
+  const inactiveView = location.state?.isInactive;
 
   /* ===============================
      TOP SECTION STATE
@@ -249,38 +253,80 @@ const NewPayroll = () => {
     }
   };
 
-const handleDeletePayroll = async () => {
-  if (!id) {
-    toast.error("Payroll not found");
-    return;
-  }
+  const handleDeletePayroll = async () => {
+    if (!id) {
+      toast.error("Payroll not found");
+      return;
+    }
+  
+    const result = await Swal.fire({
+      title: "Delete Payroll?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    });
+  
+    if (!result.isConfirmed) return;
+  
+    try {
+      setLoading(true);
+      await deletePayrollApi(id, { userId: 1 });
+      toast.success("Payroll deleted successfully");
+      navigate("/app/hr/payroll");
+    } catch (error) {
+      console.error("Delete payroll failed:", error);
+      toast.error("Failed to delete payroll");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const result = await Swal.fire({
-    title: "Delete Payroll?",
-    text: "This action cannot be undone.",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: "Yes, delete",
-    cancelButtonText: "Cancel",
-    reverseButtons: true,
-  });
+  const handleRestorePayroll = async () => {
+     if (!id) return;
 
-  if (!result.isConfirmed) return;
+     const result = await Swal.fire({
+      title: "Restore Payroll?",
+      text: "This payroll record will be restored.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+      reverseButtons: true
+    });
 
-  try {
-    setLoading(true);
-    await deletePayrollApi(id, { userId: 1 });
-    toast.success("Payroll deleted successfully");
-    navigate("/app/hr/payroll");
-  } catch (error) {
-    console.error("Delete payroll failed:", error);
-    toast.error("Failed to delete payroll");
-  } finally {
-    setLoading(false);
-  }
-};
+    if (!result.isConfirmed) return;
+
+    try {
+        setLoading(true);
+        const res = await restorePayrollApi(id, { userId: 1 });
+        if (res.status === 200) {
+            Swal.fire({
+                title: "Restored!",
+                text: "Payroll restored successfully.",
+                icon: "success",
+                timer: 1500,
+                showConfirmButton: false,
+            });
+            navigate("/app/hr/payroll");
+        }
+    } catch (err) {
+        console.error("Restore failed", err);
+        Swal.fire({
+            title: "Error!",
+            text: "Failed to restore payroll.",
+            icon: "error",
+        });
+    } finally {
+        setLoading(false);
+    }
+  };
 
 
 
@@ -289,14 +335,15 @@ const handleDeletePayroll = async () => {
   return (
     <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate("/app/hr/payroll")} className="text-gray-400 hover:text-white">
               <ArrowLeft size={24} />
             </button>
             <h1 className="text-2xl font-bold">{isEdit ? "Edit Payroll" : "New Payroll"}</h1>
           </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          {(isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && !location.state?.isInactive && (
           <button
             onClick={handleSavePayroll}
             disabled={loading}
@@ -305,8 +352,21 @@ const handleDeletePayroll = async () => {
             <Save size={20} />
             {loading ? "Saving..." : isEdit ? "Update" : "Save"}
           </button>
+          )}
 
-          {isEdit && (
+          {isEdit && location.state?.isInactive && hasPermission(PERMISSIONS.HR.PAYROLL.DELETE) && (
+            <button
+               type="button"
+               onClick={handleRestorePayroll} // Define this function below
+               disabled={loading}
+               className="flex items-center gap-2 bg-green-600 border border-green-800 px-3 py-2 rounded text-white hover:bg-green-500"
+            >
+               <ArchiveRestore size={16} /> Restore
+            </button>
+          )}
+
+
+          {isEdit && !location.state?.isInactive && hasPermission(PERMISSIONS.HR.PAYROLL.DELETE) && (
             <button
               type="button"
               onClick={handleDeletePayroll}
@@ -320,21 +380,21 @@ const handleDeletePayroll = async () => {
 
           </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 mb-8">
           <div className="lg:col-span-5 space-y-4">
-            <div className="flex items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
               <label className="w-32 text-sm text-gray-300">Number</label>
               <input
                 disabled
                 value={number}
-                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-300"
+                className="w-full sm:flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-300"
               />
             </div>
-            <div className="flex items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                <label className="w-32 text-sm text-gray-300">
                   <span className="text-red-400 mr-1">*</span> Cash / Bank
                </label>
-               <div className="flex-1">
+               <div className="w-full sm:flex-1">
                 <SearchableSelect
                     options={banks}
                     value={cashBank?.id}
@@ -343,30 +403,33 @@ const handleDeletePayroll = async () => {
                          if (b) setCashBank(b);
                     }}
                     placeholder="Select Bank..."
+                    disabled={inactiveView}
                 />
                </div>
             </div>
           </div>
           <div className="lg:col-span-4">
-            <div className="flex items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
               <label className="w-24 text-sm text-gray-300">Description</label>
               <input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200"
+                disabled={inactiveView}
+                className={`w-full sm:flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 ${inactiveView ? "opacity-50 cursor-not-allowed" : ""}`}
               />
             </div>
           </div>
           <div className="lg:col-span-3">
-            <div className="flex items-center justify-end">
-              <label className="mr-3 text-sm text-gray-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-start lg:justify-end gap-2 sm:gap-0">
+              <label className="w-32 sm:w-auto sm:mr-3 text-sm text-gray-300">
                 <span className="text-red-400">*</span> Payment Date
               </label>
               <input
                 type="date"
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200"
+                disabled={inactiveView}
+                className={`w-full sm:w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 ${inactiveView ? "opacity-50 cursor-not-allowed" : ""}`}
               />
             </div>
           </div>
@@ -375,16 +438,18 @@ const handleDeletePayroll = async () => {
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
             <label className="text-sm text-gray-300">Employee List</label>
+            {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
             <button
-              onClick={() => navigate("/app/payroll/employee", {
+              onClick={() => navigate("/app/hr/employee", {
                 state: {
                   payrollState: { number, paymentDate, cashBank, description, rows }
                 }
               })}
-              className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
+              className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
             >
               <Plus size={16} /> Add
             </button>
+            )}
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[900px]">
@@ -412,6 +477,8 @@ const handleDeletePayroll = async () => {
                     <td className="p-3">{Number(r.totalDeduction).toFixed(2)}</td>
                     <td className="p-3 font-semibold">{Number(r.takeHome).toFixed(2)}</td>
                     <td className="p-3 flex gap-2">
+                       {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
+                       <>
                       <button 
                         onClick={() => navigate("/app/payroll/employee", {
                           state: {
@@ -424,6 +491,8 @@ const handleDeletePayroll = async () => {
                         <Pencil size={16} />
                       </button>
                       <button onClick={() => deleteRow(i)} className="text-red-400 hover:text-red-300"><Trash2 size={16} /></button>
+                       </>
+                       )}
                     </td>
                   </tr>
                 ))}
@@ -435,7 +504,7 @@ const handleDeletePayroll = async () => {
 
         <div className="mt-10 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-lg p-6">
           <h3 className="text-lg font-medium mb-6 text-gray-200">Summary</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-3">
               <label className="text-sm text-gray-300 block mb-1">Currency</label>
               <input value={currency} disabled className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400 cursor-not-allowed" />

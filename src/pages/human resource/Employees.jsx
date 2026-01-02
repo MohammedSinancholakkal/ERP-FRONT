@@ -1,16 +1,13 @@
 // src/pages/employees/Employees.jsx
 import React, { useEffect, useState, useRef } from "react";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 import {
   Search,
   Plus,
   RefreshCw,
   List,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
-  ChevronDown,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
@@ -31,6 +28,7 @@ import toast from "react-hot-toast";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SortableHeader from "../../components/SortableHeader";
+import Swal from "sweetalert2";
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -394,20 +392,48 @@ useEffect(() => {
     }
   };
 
-  const handleRestore = async (id) => {
-    if (!window.confirm("Are you sure you want to restore this employee?")) return;
-    try {
-      const res = await restoreEmployeeApi(id, { userId: 1 });
-      if (res.status === 200) {
-        toast.success("Employee restored");
-        fetchAllData();
-        loadInactiveEmployees();
-      }
-    } catch (error) {
-      console.error("Restore failed:", error);
-      toast.error("Failed to restore employee");
+const handleRestore = async (id) => {
+  const result = await Swal.fire({
+    title: "Restore employee?",
+    text: "This employee will be restored and made active again.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Yes, restore",
+  });
+
+  if (!result.isConfirmed) return;
+
+  Swal.fire({
+    title: "Restoring...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  try {
+    const res = await restoreEmployeeApi(id, { userId: 1 });
+    Swal.close();
+
+    if (res.status === 200) {
+      Swal.fire({
+        icon: "success",
+        title: "Restored!",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      fetchAllData();
+      loadInactiveEmployees();
     }
-  };
+  } catch (error) {
+    Swal.close();
+    Swal.fire({
+      icon: "error",
+      title: "Restore failed",
+      text: "Failed to restore employee.",
+    });
+  }
+};
+
 
   // Apply search and filter
   useEffect(() => {
@@ -613,6 +639,7 @@ const columnModalRef = useRef(null);
             />
           </div>
 
+          {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
           <button
             type="button"
             onClick={() => navigate("/app/hr/newemployee")}
@@ -620,6 +647,7 @@ const columnModalRef = useRef(null);
           >
             <Plus size={16} /> New Employee
           </button>
+          )}
 
 
 

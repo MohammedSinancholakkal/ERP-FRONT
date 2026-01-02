@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Menu, User, Lock, LogOut, List, X, Save } from "lucide-react";
 import toast from "react-hot-toast";
-import { changePasswordApi } from "../services/allAPI";
+import { changePasswordApi, LogoutApi } from "../services/allAPI";
 import { useTheme } from "../context/ThemeContext";
 
 const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
@@ -35,7 +35,20 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   // ==========================
   // LOGOUT
   // ==========================
-  const handleLogout = () => {
+  // ==========================
+  // LOGOUT
+  // ==========================
+  const handleLogout = async () => {
+    try {
+        const refreshToken = localStorage.getItem("refreshToken");
+        // We need to modify keys in allAPI for checking body?
+        // LogoutApi definition: return await commonAPI("POST", `${serverURL}/auth/logout`);
+        // We should pass body to LogoutApi.
+        // Let's just update the call here first, then update allAPI definition.
+        await LogoutApi({ refreshToken }); 
+    } catch(err) {
+        console.error("Logout API failed", err);
+    }
     localStorage.clear();
     toast.success("Logged out");
     window.location.href = "/"; // redirect to login

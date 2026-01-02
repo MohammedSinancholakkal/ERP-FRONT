@@ -9,11 +9,15 @@ import {
   Star,
   Check,
   X,
-  Edit
+  Edit,
+  ArchiveRestore
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 // APIs
 import {
@@ -29,7 +33,8 @@ import {
   getCategoriesApi,
   getPurchaseByIdApi,
   updatePurchaseApi,
-  deletePurchaseApi
+  deletePurchaseApi,
+  restorePurchaseApi
 } from "../../services/allAPI";
 import { useParams, useLocation } from "react-router-dom";
 
@@ -39,6 +44,15 @@ const NewPurchase = () => {
   const { id } = useParams(); // Get ID from URL
   const userData = JSON.parse(localStorage.getItem("user"));
   const userId = userData?.userId || userData?.id || userData?.Id;
+
+  // Inactive View State
+  const [inactiveView, setInactiveView] = useState(false);
+
+  useEffect(() => {
+    if (location.state && location.state.isInactive) {
+      setInactiveView(true);
+    }
+  }, [location.state]);
 
   // --- TOP SECTION STATE ---
   const [supplier, setSupplier] = useState("");
@@ -199,6 +213,7 @@ const NewPurchase = () => {
 
   // --- MODAL HANDLERS ---
   const openItemModal = () => {
+    if (inactiveView) return; // Prevent open in inactive
     setEditingIndex(null);
     setNewItem({
       brandId: "",
@@ -671,19 +686,98 @@ const NewPurchase = () => {
   };
 
   // --- DELETE PURCHASE ---
+  // --- DELETE PURCHASE ---
   const handleDeletePurchase = async () => {
-    if (!window.confirm("Are you sure you want to delete this purchase?")) return;
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "Do you really want to delete this purchase?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+    });
+  
+    if (!result.isConfirmed) return;
+  
+    Swal.fire({
+      title: "Deleting...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+  
     try {
       const res = await deletePurchaseApi(id, { userId });
+      Swal.close();
+  
       if (res.status === 200) {
-        toast.success("Purchase deleted successfully");
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: "Purchase deleted successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
         navigate("/app/purchasing/purchases");
       } else {
-        toast.error("Failed to delete purchase");
+        Swal.fire("Failed", "Failed to delete purchase", "error");
       }
     } catch (error) {
-      console.error("DELETE ERROR", error);
-      toast.error("Error deleting purchase");
+      Swal.close();
+      console.error("DELETE INVOICE ERROR", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error deleting purchase",
+      });
+    }
+  };
+
+  const handleRestorePurchase = async () => {
+    const result = await Swal.fire({
+      title: "Restore purchase?",
+      text: "Do you want to restore this purchase?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981", 
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+  
+    if (!result.isConfirmed) return;
+  
+    Swal.fire({
+      title: "Restoring...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+  
+    try {
+      const res = await restorePurchaseApi(id, { userId });
+      Swal.close();
+  
+      if (res.status === 200) {
+        await Swal.fire({
+          icon: "success",
+          title: "Restored!",
+          text: "Purchase restored successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        navigate("/app/purchasing/purchases");
+      } else {
+        Swal.fire("Failed", "Failed to restore purchase", "error");
+      }
+    } catch (error) {
+      Swal.close();
+      console.error("RESTORE ERROR", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error restoring purchase",
+      });
     }
   };
 
@@ -696,24 +790,37 @@ const NewPurchase = () => {
           <button onClick={() => navigate(-1)} className="text-white-500 hover:text-white-400">
             <ArrowLeft size={24} />
           </button>
-          <h2 className="text-xl text-white-500 font-medium">{id ? "Edit Purchase" : "New Purchase"}</h2>
+          <h2 className="text-xl text-white-500 font-medium">
+            {id ? (inactiveView ? "View Inactive Purchase" : "Edit Purchase") : "New Purchase"}
+          </h2>
         </div>
 
         {/* ACTIONS BAR */}
         <div className="flex gap-2 mb-6">
           {id ? (
             <>
+              {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
               <button onClick={handleUpdatePurchase}  className="flex items-center gap-2 bg-gray-700 border border-gray-800 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
                 <Save size={18} /> Update
               </button>
+              )}
+              {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.DELETE) && (
               <button onClick={handleDeletePurchase} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
                 <Trash2 size={18} /> Delete
               </button>
+              )}
+              {inactiveView && (
+                  <button onClick={handleRestorePurchase} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
+                      <ArchiveRestore size={18} /> Restore
+                  </button>
+              )}
             </>
           ) : (
+            hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
             <button onClick={handleSavePurchase} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
               <Save size={18} /> Save
             </button>
+            )
           )}
           
           {/* <button className="flex items-center justify-center bg-gray-700 border border-gray-600 w-10 h-10 rounded text-white hover:bg-gray-600">
@@ -736,9 +843,12 @@ const NewPurchase = () => {
                     value={supplier}
                     onChange={(val) => setSupplier(val)}
                     placeholder="--select--"
+                    disabled={inactiveView} 
                   />
                 </div>
+                {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && !inactiveView && (
                 <Star size={20} className="text-white cursor-pointer hover:text-yellow-400" onClick={() => navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname } })} />
+                )}
               </div>
             </div>
 
@@ -750,7 +860,8 @@ const NewPurchase = () => {
                 <select
                   value={paymentAccount}
                   onChange={(e) => setPaymentAccount(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                  disabled={inactiveView}
                 >
                   <option value="">--select--</option>
                   <option value="Cash at Hand">Cash at Hand</option>
@@ -768,7 +879,8 @@ const NewPurchase = () => {
                 type="text"
                 value={invoiceNo}
                 onChange={(e) => setInvoiceNo(e.target.value)}
-                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
           </div>
@@ -783,7 +895,8 @@ const NewPurchase = () => {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
           </div>
@@ -793,12 +906,14 @@ const NewPurchase = () => {
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
             <label className="text-sm text-gray-300">Line Items</label>
+            {!inactiveView && (
             <button
               onClick={openItemModal}
                 className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
             >
               <Plus size={16} /> Add
             </button>
+            )}
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[800px]">
@@ -826,6 +941,8 @@ const NewPurchase = () => {
                     <td className="p-3">{row.discount}</td>
                     <td className="p-3 text-gray-300">{parseFloat(row.total).toFixed(2)}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
+                     {!inactiveView && (
+                       <>
                       <Edit 
                         size={18} 
                         className="text-blue-400 cursor-pointer hover:text-blue-300"
@@ -836,6 +953,8 @@ const NewPurchase = () => {
                         className="text-red-400 cursor-pointer hover:text-red-300"
                         onClick={() => deleteRow(i)}
                       />
+                      </>
+                     )}
                     </td>
                   </tr>
                 ))}
@@ -871,7 +990,8 @@ const NewPurchase = () => {
               type="number"
               value={paidAmount}
               onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
-              className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+              className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
+              disabled={inactiveView} 
             />
 
             </div>
@@ -880,7 +1000,8 @@ const NewPurchase = () => {
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none"
+                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none disabled:opacity-50"
+                disabled={inactiveView}
               ></textarea>
             </div>
           </div>
@@ -892,8 +1013,9 @@ const NewPurchase = () => {
               <input
                 type="number"
                 value={globalDiscount}
-onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -923,8 +1045,9 @@ onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
               <input
                 type="number"
                 value={shippingCost}
-onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -939,7 +1062,8 @@ onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
                 type="checkbox"
                 checked={noTax}
                 onChange={(e) => setNoTax(e.target.checked)}
-                className="w-5 h-5 rounded border-gray-600 bg-gray-800"
+                className="w-5 h-5 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
+                disabled={inactiveView}
               />
             </div>
             <div className="flex items-center justify-between pt-2">
@@ -978,11 +1102,13 @@ onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
                       placeholder="--select--"
                     />
                   </div>
+                  {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
                   <Star 
                     size={20} 
                     className="text-yellow-500 cursor-pointer hover:scale-110"
                     onClick={() => setIsBrandModalOpen(true)}
                   />
+                  )}
                 </div>
               </div>
 
@@ -1002,6 +1128,7 @@ onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
                       placeholder="--select--"
                     />
                   </div>
+                  {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
                   <Star 
                     size={20} 
                     className={`cursor-pointer hover:scale-110 ${!newItem.brandId ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-yellow-500'}`}
@@ -1011,6 +1138,7 @@ onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
                         openProductModal();
                     }}
                   />
+                  )}
                 </div>
               </div>
 

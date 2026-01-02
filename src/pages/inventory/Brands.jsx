@@ -13,6 +13,7 @@ import Pagination from "../../components/Pagination";
 
 import toast from "react-hot-toast";
 import { ArchiveRestore } from "lucide-react";
+import Swal from "sweetalert2";
 
 // API
 import {
@@ -21,10 +22,13 @@ import {
   updateBrandApi,
   deleteBrandApi,
   searchBrandApi,
-  getInactiveBrandsApi,
-  restoreBrandApi
+  restoreBrandApi,
+  getInactiveBrandsApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
 
 const Brands = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -138,6 +142,17 @@ const Brands = () => {
     if (!newBrand.name.trim())
       return toast.error("Brand name required");
 
+    // DUPLICATE CHECK
+    try {
+      const searchRes = await searchBrandApi(newBrand.name.trim());
+      if (searchRes?.status === 200) {
+         const existing = searchRes.data.find(b => b.name.toLowerCase() === newBrand.name.trim().toLowerCase());
+         if (existing) return toast.error("Brand Name already exists");
+      }
+    } catch(err) {
+      console.error("Duplicate check error", err);
+    }
+
     const res = await addBrandApi({
       name: newBrand.name,
       description: newBrand.description,
@@ -149,6 +164,8 @@ const Brands = () => {
       setNewBrand({ name: "", description: "" });
       setModalOpen(false);
       loadBrands();
+    } else if (res?.status === 409) {
+      toast.error(res.data.message || "Brand Name already exists");
     } else {
       toast.error("Failed to add");
     }
@@ -158,6 +175,20 @@ const Brands = () => {
   const handleUpdateBrand = async () => {
     if (!editBrand.name.trim())
       return toast.error("Brand name required");
+
+    // DUPLICATE CHECK
+    try {
+    const searchRes = await searchBrandApi(editBrand.name.trim());
+    if (searchRes?.status === 200) {
+        const existing = searchRes.data.find(b => 
+            b.name.toLowerCase() === editBrand.name.trim().toLowerCase() && 
+            String(b.id) !== String(editBrand.id)
+        );
+        if (existing) return toast.error("Brand Name already exists");
+    }
+    } catch(err) {
+    console.error("Duplicate check error", err);
+    }
 
     const res = await updateBrandApi(editBrand.id, {
       name: editBrand.name,
@@ -169,6 +200,8 @@ const Brands = () => {
       toast.success("Brand updated");
       setEditModalOpen(false);
       loadBrands();
+    } else if (res?.status === 409) {
+      toast.error(res.data.message || "Brand Name already exists");
     } else {
       toast.error("Update failed");
     }
@@ -176,32 +209,73 @@ const Brands = () => {
 
   // DELETE BRAND
   const handleDeleteBrand = async () => {
-    const res = await deleteBrandApi(editBrand.id, {
-      userId: user?.userId || 1
-    });
-
-    if (res?.status === 200) {
-      toast.success("Brand deleted");
-      setEditModalOpen(false);
-      loadBrands();
-      if (showInactive) loadInactive();
-    } else {
-      toast.error("Delete failed");
-    }
+    const result = await Swal.fire({
+        title: "Are you sure?",
+        text: "This brand will be deleted!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Yes, delete",
+        cancelButtonText: "Cancel",
+      });
+  
+      if (!result.isConfirmed) return;
+  
+      try {
+        const res = await deleteBrandApi(editBrand.id, {
+          userId: user?.userId || 1
+        });
+  
+        if (res?.status === 200) {
+          toast.success("Brand deleted");
+          setEditModalOpen(false);
+          loadBrands();
+          if (showInactive) loadInactive();
+        } else {
+          toast.error("Delete failed");
+        }
+      } catch(err) {
+        console.error("Delete failed", err);
+        toast.error("Delete failed");
+      }
   };
 
   // RESTORE BRAND
   const handleRestoreBrand = async () => {
-    const res = await restoreBrandApi(editBrand.id, { userId: user?.userId || 1 });
-    if (res?.status === 200) {
-      toast.success("Brand restored");
-      setEditModalOpen(false);
-      loadBrands();
-      loadInactive();
-    } else {
-      toast.error("Restore failed");
-    }
+    const result = await Swal.fire({
+        title: "Are you sure?",
+        text: "This brand will be restored!",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#10b981",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Yes, restore",
+        cancelButtonText: "Cancel",
+      });
+  
+      if (!result.isConfirmed) return;
+  
+      try {
+        const res = await restoreBrandApi(editBrand.id, { userId: user?.userId || 1 });
+        if (res?.status === 200) {
+          toast.success("Brand restored");
+          setEditModalOpen(false);
+          loadBrands();
+          loadInactive();
+        } else {
+          toast.error("Restore failed");
+        }
+      } catch(err) {
+        console.error("Restore failed", err);
+        toast.error("Restore failed");
+      }
   };
+
+  /* ======================================================
+     RENDER
+  ====================================================== */
+  const { theme } = useTheme();
 
   return (
     <>
@@ -229,7 +303,7 @@ const Brands = () => {
                   setNewBrand((prev) => ({ ...prev, name: e.target.value }))
                 }
                 placeholder="Enter brand name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
               />
 
               {/* DESCRIPTION */}
@@ -240,17 +314,19 @@ const Brands = () => {
                   setNewBrand((prev) => ({ ...prev, description: e.target.value }))
                 }
                 placeholder="Enter description"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+              {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
               <button
                 onClick={handleAddBrand}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
+                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
 
           </div>
@@ -280,7 +356,7 @@ const Brands = () => {
                 onChange={(e) =>
                   setEditBrand((prev) => ({ ...prev, name: e.target.value }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
               />
 
               {/* DESCRIPTION */}
@@ -290,7 +366,7 @@ const Brands = () => {
                 onChange={(e) =>
                   setEditBrand((prev) => ({ ...prev, description: e.target.value }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-blue-500 focus:outline-none"
               />
             </div>
 
@@ -298,26 +374,30 @@ const Brands = () => {
               
               {/* DELETE / RESTORE */}
               {editBrand.isInactive ? (
+                hasPermission(PERMISSIONS.INVENTORY.BRANDS.DELETE) && (
                 <button
                   onClick={handleRestoreBrand}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
+                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded hover:bg-green-700"
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>
+                )
               ) : (
+                hasPermission(PERMISSIONS.INVENTORY.BRANDS.DELETE) && (
                 <button
                   onClick={handleDeleteBrand}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
+                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded hover:bg-red-700"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
+                )
               )}
 
               {/* UPDATE (only if active) */}
-              {!editBrand.isInactive && (
+              {!editBrand.isInactive && hasPermission(PERMISSIONS.INVENTORY.BRANDS.EDIT) && (
                 <button
                   onClick={handleUpdateBrand}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
+                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
                 >
                   <Save size={16} /> Save
                 </button>
@@ -349,7 +429,7 @@ const Brands = () => {
                 placeholder="search columns..."
                 value={searchColumn}
                 onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
+                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
 
@@ -398,14 +478,14 @@ const Brands = () => {
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
               <button
                 onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
               >
                 Restore Defaults
               </button>
 
               <button
                 onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
+                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
               >
                 OK
               </button>
@@ -419,160 +499,170 @@ const Brands = () => {
           MAIN PAGE
       ======================================================= */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
+        <div className={`p-4 text-white h-full ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
 
-          <h2 className="text-2xl font-semibold mb-4">Brands</h2>
+            <h2 className="text-2xl font-semibold mb-4">Brands</h2>
 
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2 mb-4">
+            {/* ACTION BAR */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
 
-            {/* SEARCH */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-              <Search size={16} className="text-gray-300" />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-              />
+              {/* SEARCH */}
+              <div className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600' : 'bg-gray-700 border-gray-600'}`}>
+                <Search size={16} className="text-gray-300" />
+                <input
+                  type="text"
+                  placeholder="search..."
+                  value={searchText}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
+                />
+              </div>
+
+              {/* ADD */}
+              {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
+              <button
+                onClick={() => setModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
+              >
+                <Plus size={16} /> New Brand
+              </button>
+              )}
+
+              {/* REFRESH */}
+              <button
+                onClick={() => {
+                  setSearchText("");
+                  setPage(1);
+                  loadBrands();
+                }}
+                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
+              >
+                <RefreshCw size={16} className="text-blue-400" />
+              </button>
+
+              {/* COLUMN PICKER */}
+              <button
+                onClick={() => setColumnModal(true)}
+                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
+              >
+                <List size={16} className="text-blue-300" />
+              </button>
+
+              {/* INACTIVE TOGGLE */}
+              <button
+                onClick={async () => {
+                  if (!showInactive) await loadInactive();
+                  setShowInactive(!showInactive);
+                }}
+                className={`p-2 border rounded flex items-center gap-2 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
+              >
+                <ArchiveRestore size={16} className="text-yellow-400" />
+                <span className="text-xs text-gray-300">
+                 Inactive
+                </span>
+              </button>
+
             </div>
 
-            {/* ADD */}
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
-            >
-              <Plus size={16} /> New Brand
-            </button>
+            {/* TABLE */}
+            <div className="flex-grow overflow-auto min-h-0 w-full">
+              <div className="w-full overflow-auto">
+                <table className="w-[500px] text-left border-separate border-spacing-y-1 text-sm">
+                  <thead className="sticky top-0 bg-gray-900 z-10">
+                    <tr className="text-white">
 
-            {/* REFRESH */}
-            <button
-              onClick={() => {
+                      {visibleColumns.id && (
+                        <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
+                      )}
+
+                      {visibleColumns.name && (
+                        <SortableHeader label="Name" sortKey="name" currentSort={sortConfig} onSort={handleSort} />
+                      )}
+
+                      {visibleColumns.description && (
+                        <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
+                      )}
+
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {sortedBrands.map((b) => (
+                      <tr
+                        key={b.id}
+                        className={`${theme === 'emerald' ? 'bg-emerald-800 hover:bg-emerald-700' : 'bg-gray-900 hover:bg-gray-700'} cursor-pointer rounded shadow-sm`}
+                        onClick={() => {
+                          setEditBrand({
+                            id: b.id,
+                            name: b.name,
+                            description: b.description,
+                            isInactive: false
+                          });
+                          setEditModalOpen(true);
+                        }}
+                      >
+                        {visibleColumns.id && (
+                          <td className="px-2 py-1 text-center">{b.id}</td>
+                        )}
+                        {visibleColumns.name && (
+                          <td className="px-2 py-1 text-center">{b.name}</td>
+                        )}
+                        {visibleColumns.description && (
+                          <td className="px-2 py-1 text-center">{b.description}</td>
+                        )}
+                      </tr>
+                    ))}
+
+                    {/* INACTIVE BRANDS */}
+                    {showInactive && inactiveBrands.map((b) => (
+                      <tr
+                        key={`inactive-${b.id}`}
+                        className={`${theme === 'emerald' ? 'bg-emerald-900 hover:bg-emerald-800' : 'bg-gray-900 hover:bg-gray-800'} cursor-pointer opacity-50 line-through rounded shadow-sm`}
+                        onClick={() => {
+                          setEditBrand({
+                            id: b.id,
+                            name: b.name,
+                            description: b.description,
+                            isInactive: true
+                          });
+                          setEditModalOpen(true);
+                        }}
+                      >
+                         {visibleColumns.id && (
+                          <td className="px-2 py-1 text-center">{b.id}</td>
+                        )}
+                        {visibleColumns.name && (
+                          <td className="px-2 py-1 text-center">{b.name}</td>
+                        )}
+                        {visibleColumns.description && (
+                          <td className="px-2 py-1 text-center">{b.description}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+
+                </table>
+              </div>
+            </div>
+
+
+            {/* PAGINATION */}
+            <Pagination
+              page={page}
+              setPage={setPage}
+              limit={limit}
+              setLimit={setLimit}
+              total={totalRecords}
+              onRefresh={() => {
                 setSearchText("");
                 setPage(1);
                 loadBrands();
               }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            {/* COLUMN PICKER */}
-            <button
-              onClick={() => setColumnModal(true)}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            {/* INACTIVE TOGGLE */}
-            <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive(!showInactive); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1">
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
-            </button>
+            />
 
           </div>
-
-          {/* TABLE */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-auto">
-              <table className="w-[500px] text-left border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr className="text-white">
-
-                    {visibleColumns.id && (
-                      <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-
-                    {visibleColumns.name && (
-                      <SortableHeader label="Name" sortKey="name" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-
-                    {visibleColumns.description && (
-                      <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {sortedBrands.map((b) => (
-                    <tr
-                      key={b.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm"
-                      onClick={() => {
-                        setEditBrand({
-                          id: b.id,
-                          name: b.name,
-                          description: b.description,
-                          isInactive: false
-                        });
-                        setEditModalOpen(true);
-                      }}
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{b.id}</td>
-                      )}
-                      {visibleColumns.name && (
-                        <td className="px-2 py-1 text-center">{b.name}</td>
-                      )}
-                      {visibleColumns.description && (
-                        <td className="px-2 py-1 text-center">{b.description}</td>
-                      )}
-                    </tr>
-                  ))}
-
-                  {/* INACTIVE BRANDS */}
-                  {showInactive && inactiveBrands.map((b) => (
-                    <tr
-                      key={`inactive-${b.id}`}
-                      className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
-                      onClick={() => {
-                        setEditBrand({
-                          id: b.id,
-                          name: b.name,
-                          description: b.description,
-                          isInactive: true
-                        });
-                        setEditModalOpen(true);
-                      }}
-                    >
-                       {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{b.id}</td>
-                      )}
-                      {visibleColumns.name && (
-                        <td className="px-2 py-1 text-center">{b.name}</td>
-                      )}
-                      {visibleColumns.description && (
-                        <td className="px-2 py-1 text-center">{b.description}</td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-
-              </table>
-            </div>
-          </div>
-
-
-          {/* PAGINATION */}
-          <Pagination
-            page={page}
-            setPage={setPage}
-            limit={limit}
-            setLimit={setLimit}
-            total={totalRecords}
-            onRefresh={() => {
-              setSearchText("");
-              setPage(1);
-              loadBrands();
-            }}
-          />
-
         </div>
-      </div>
       </PageLayout>
 
     </>

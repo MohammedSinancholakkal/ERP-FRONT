@@ -15,6 +15,8 @@ import Pagination from "../../components/Pagination";
 import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 import {
   addTerritoryApi,
@@ -328,9 +330,11 @@ const Territories = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+              {hasPermission(PERMISSIONS.TERRITORIES.CREATE) && (
               <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
                 <Plus size={16} /> New Territory
               </button>
+              )}
               <button
                 onClick={() => {
                   setSearchText("");
@@ -432,14 +436,16 @@ const Territories = () => {
                             className="w-full"
                             direction="up"
                           />
-                          <button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                          {hasPermission(PERMISSIONS.REGIONS.CREATE) && (<button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                <Star size={18} className="text-yellow-400" />
-                          </button>
+                          </button>)}
                       </div>
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+                   {hasPermission(PERMISSIONS.TERRITORIES.CREATE) && (
                    <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                   )}
                </div>
             </div>
           </div>
@@ -469,7 +475,7 @@ const Territories = () => {
                             className="w-full"
                             direction="up"
                           />
-                          {!editData.isInactive && (
+                          {!editData.isInactive && hasPermission(PERMISSIONS.REGIONS.CREATE) && (
                               <button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                    <Star size={18} className="text-yellow-400" />
                               </button>
@@ -481,9 +487,11 @@ const Territories = () => {
                    {editData.isInactive ? (
                        <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
                    ) : (
+                       hasPermission(PERMISSIONS.TERRITORIES.DELETE) && (
                        <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
+                       )
                    )}
-                   {!editData.isInactive && (
+                   {!editData.isInactive && hasPermission(PERMISSIONS.TERRITORIES.EDIT) && (
                        <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
                    )}
                </div>

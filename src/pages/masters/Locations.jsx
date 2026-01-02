@@ -30,6 +30,8 @@ import {
   addStateApi,
   addCityApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 import SearchableSelect from "../../components/SearchableSelect";
 
 import FilterBar from "../../components/FilterBar";
@@ -504,9 +506,11 @@ const Locations = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+              {hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
               <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
                 <Plus size={16} /> New Location
               </button>
+              )}
               <button
                 onClick={() => {
                   setSearchText("");
@@ -648,9 +652,9 @@ const Locations = () => {
                                    onChange={(val) => setNewData({...newData, countryId: val, stateId: "", cityId: ""})}
                                    className="w-full"
                                />
-                               <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                               {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                    <Star size={18} className="text-yellow-400" />
-                               </button>
+                               </button>)}
                            </div>
                        </div>
                        <div>
@@ -663,9 +667,9 @@ const Locations = () => {
                                    disabled={!newData.countryId}
                                    className="w-full"
                                />
-                               <button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
                                    <Star size={18} className="text-yellow-400" />
-                               </button>
+                               </button>)}
                            </div>
                        </div>
                    </div>
@@ -680,9 +684,9 @@ const Locations = () => {
                                    disabled={!newData.stateId}
                                    className="w-full"
                                />
-                               <button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
                                    <Star size={18} className="text-yellow-400" />
-                               </button>
+                               </button>)}
                            </div>
                        </div>
                    </div>
@@ -702,7 +706,9 @@ const Locations = () => {
                    </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+                   {hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
                    <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                   )}
                </div>
             </div>
           </div>
@@ -787,24 +793,23 @@ const Locations = () => {
                        <div>
                            <label className="text-sm">Longitude</label>
                            <input value={editData.longitude} onChange={e => setEditData({...editData, longitude: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                       </div>
-                   </div>
-               </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-                   {editData.isInactive ? (
-                       <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
-                   ) : (
-                       <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
-                   )}
-                   {!editData.isInactive && (
-                       <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                   )}
-               </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
+                    {editData.isInactive ? (
+                        <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
+                    ) : (
+                        hasPermission(PERMISSIONS.LOCATIONS.DELETE) && (<button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>)
+                    )}
+                    {!editData.isInactive && hasPermission(PERMISSIONS.LOCATIONS.EDIT) && (
+                        <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                    )}
+                </div>
             </div>
-          </div>
+        </div>
        )}
 
-        {/* --- QUICK ADD MODALS --- */}
         {addCountryModalOpen && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
                 <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">

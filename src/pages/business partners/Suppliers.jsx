@@ -13,7 +13,7 @@ import Pagination from "../../components/Pagination";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
-import {
+  import {
   getSuppliersApi,
   searchSupplierApi,
   getCountriesApi,
@@ -21,7 +21,12 @@ import {
   getCitiesApi,
   getRegionsApi,
   getSupplierGroupsApi,
+  getInactiveSuppliersApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+
+
 
 const Suppliers = () => {
   const navigate = useNavigate();
@@ -60,16 +65,23 @@ const Suppliers = () => {
   // --------------------------------------
   // Filters
   // --------------------------------------
+  // --------------------------------------
+  // Filters
+  // --------------------------------------
   const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterCity, setFilterCity] = useState("");
   const [filterRegion, setFilterRegion] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
 
-  const [rows, setRows] = useState([]);
+  /* Data State */
+  const [allSuppliers, setAllSuppliers] = useState([]); // Stores all active suppliers
+  const [filteredSuppliers, setFilteredSuppliers] = useState([]); // Stores filtered active suppliers
+  
   const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
+  
   const [lookupMaps, setLookupMaps] = useState({
     countries: {},
     states: {},
@@ -107,34 +119,59 @@ const Suppliers = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
-  const applyFilters = (data) => {
-    return data.filter((row) => {
-      const countryMatch = filterCountry ? String(row.countryId) === String(filterCountry) : true;
-      const stateMatch = filterState ? String(row.stateId) === String(filterState) : true;
-      const cityMatch = filterCity ? String(row.cityId) === String(filterCity) : true;
-      const regionMatch = filterRegion ? String(row.regionId) === String(filterRegion) : true;
-      const groupMatch = filterGroup ? String(row.supplierGroupId) === String(filterGroup) : true;
-      return countryMatch && stateMatch && cityMatch && regionMatch && groupMatch;
-    });
-  };
+  /* ================================
+     CLIENT-SIDE FILTERING LOGIC
+  =================================*/
+  useEffect(() => {
+    let result = Array.isArray(allSuppliers) ? allSuppliers : [];
 
-  const dataSource = showInactive ? inactiveRows : rows;
-  const filteredRows = applyFilters(dataSource);
+    // 1. Text Search
+    if (searchText.trim()) {
+       const q = searchText.toLowerCase();
+       result = result.filter(r => 
+         Object.values(r).some(val => String(val).toLowerCase().includes(q))
+       );
+    }
 
-  // Sorting
-  const sortedRows = [...filteredRows].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const valA = String(a[sortConfig.key] || "").toLowerCase();
-    const valB = String(b[sortConfig.key] || "").toLowerCase();
-    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
+    // 2. Dropdown Filters
+    if (filterCountry) result = result.filter(r => String(r.countryId) === String(filterCountry));
+    if (filterState) result = result.filter(r => String(r.stateId) === String(filterState));
+    if (filterCity) result = result.filter(r => String(r.cityId) === String(filterCity));
+    if (filterRegion) result = result.filter(r => String(r.regionId) === String(filterRegion));
+    if (filterGroup) result = result.filter(r => String(r.supplierGroupId) === String(filterGroup));
 
-  const totalRecords = sortedRows.length;
+    // 3. Sorting
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        const valA = String(a[sortConfig.key] || "").toLowerCase();
+        const valB = String(b[sortConfig.key] || "").toLowerCase();
+        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    setFilteredSuppliers(result);
+    setPage(1); // Reset to page 1 on filter change
+  }, [
+    allSuppliers,
+    searchText,
+    filterCountry,
+    filterState,
+    filterCity,
+    filterRegion,
+    filterGroup,
+    sortConfig
+  ]);
+
+
+  /* Pagination Calculations */
+  const totalRecords = filteredSuppliers.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
+  const startIdx = (page - 1) * limit;
+  const paginatedData = filteredSuppliers.slice(startIdx, startIdx + limit);
+  const start = totalRecords === 0 ? 0 : startIdx + 1;
+  const end = Math.min(startIdx + limit, totalRecords);
 
   // --------------------------------------
   // Helpers
@@ -281,11 +318,37 @@ const Suppliers = () => {
   };
 
 
-  const loadSuppliers = async (pageNo = page, pageSize = limit) => {
+  const loadInactiveSuppliers = async () => {
+    try {
+      // Intentionally NOT setting global loading to true to avoid hiding active table
+      const res = await getInactiveSuppliersApi();
+      const records = parseArrayFromResponse(res);
+      // Mark them as inactive so we can style them
+      setInactiveRows(records.map(r => ({ ...normalizeRow(r), isInactive: true })));
+    } catch (err) {
+      console.error("load inactive suppliers error", err);
+      toast.error("Failed to load inactive suppliers");
+    }
+  };
+
+  const toggleInactive = async () => {
+    const newVal = !showInactive;
+    setShowInactive(newVal);
+    if (newVal && inactiveRows.length === 0) {
+      // Only load if not already loaded (or implementation choice: reload every time?)
+      // Let's load if empty to save bandwidth, or you can force reload.
+      // Given user wants "no extra loading", checking if empty is better, 
+      // but refreshing might be needed if user just made one inactive.
+      // Let's force load but without UI loader block.
+      await loadInactiveSuppliers();
+    }
+  };
+
+
+  const loadSuppliers = async () => {
     try {
       setLoading(true);
-      const res = await getSuppliersApi(pageNo, pageSize);
-      console.log(res);
+      const res = await getSuppliersApi(1, 5000); // Fetch all for client-side
       
       let records = [];
       if (res?.data?.records) {
@@ -295,8 +358,7 @@ const Suppliers = () => {
       } else if (Array.isArray(res)) {
         records = res;
       }
-      setRows(records.map(normalizeRow));
-      setPage(pageNo);
+      setAllSuppliers(records.map(normalizeRow));
     } catch (err) {
       console.error("load suppliers error", err);
       toast.error("Failed to load suppliers");
@@ -305,21 +367,9 @@ const Suppliers = () => {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchText.trim()) return loadSuppliers(1, limit);
-    try {
-      setLoading(true);
-      const res = await searchSupplierApi(searchText.trim());
-      const records = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      setRows(records.map(normalizeRow));
-      setPage(1);
-    } catch (err) {
-      console.error("search suppliers error", err);
-      toast.error("Search failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Deprecated handleSearch - search is now effect-based
+  // keeping empty or removing references in JSX to avoid errors
+  // We will map inputs to setSearchText directly.
 
   useEffect(() => {
     loadSuppliers();
@@ -513,23 +563,26 @@ const Suppliers = () => {
             <input
               placeholder="Search suppliers..."
               value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSearch();
-                }}
+              onChange={(e) => setSearchText(e.target.value)}
               className="bg-transparent pl-2 text-sm w-full outline-none"
             />
           </div>
 
+          {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && (
           <button
             onClick={() => navigate("/app/businesspartners/newsupplier")}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
           >
             <Plus size={16} /> New Supplier
           </button>
+          )}
 
           <button
-            onClick={() => loadSuppliers(page, limit)}
+            onClick={() => {
+              setSearchText("");
+              setPage(1);
+              loadSuppliers();
+            }}
             className="p-2 bg-gray-700 border border-gray-600 rounded"
           >
             <RefreshCw size={16} className="text-blue-400" />
@@ -545,10 +598,15 @@ const Suppliers = () => {
             <List size={16} className="text-blue-300" />
           </button>
 
-          <button className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1">
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
+          <button 
+             onClick={toggleInactive}
+             className={`p-2 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? 'bg-gray-700' : 'bg-gray-700'}`}
+           >
+             <ArchiveRestore size={16} className={showInactive ? "text-yellow-400" : "text-yellow-300"} />
+             <span className={`text-xs ${showInactive ? "opacity-100 font-bold text-yellow-100" : "opacity-80"}`}>
+               {showInactive ? " Inactive" : " Inactive"}
+             </span>
+           </button>
         </div>
 
         {/* FILTER BAR */}
@@ -592,14 +650,19 @@ const Suppliers = () => {
                       Loading...
                     </td>
                   </tr>
-                ) : sortedRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={20} className="py-6 text-center text-gray-400">
-                      No suppliers found
-                    </td>
-                  </tr>
                 ) : (
-                  sortedRows.slice(start - 1, end).map((r) => (
+                  <>
+                  {/* ACTIVE DATA */}
+                  {paginatedData.length === 0 ? (
+                     (!showInactive || inactiveRows.length === 0) && (
+                        <tr>
+                          <td colSpan={20} className="py-6 text-center text-gray-400">
+                            No suppliers found
+                          </td>
+                        </tr>
+                     )
+                  ) : (
+                    paginatedData.map((r) => (
                     <tr
                       key={r.id ?? Math.random()}
                       className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
@@ -608,7 +671,7 @@ const Suppliers = () => {
                           r.id
                             ? `/app/businesspartners/newsupplier/${r.id}`
                             : "/app/businesspartners/newsupplier",
-                          { state: { supplier: r } }
+                          { state: { supplier: r, isInactive: false } }
                         )
                       }
                     >
@@ -684,6 +747,95 @@ const Suppliers = () => {
                       )}
                     </tr>
                   ))
+                  )}
+
+                  {/* INACTIVE DATA (APPENDED) */}
+                  {showInactive && inactiveRows.map((r) => (
+                    <tr
+                      key={`inactive-${r.id}`}
+                      className="bg-gray-700/50 opacity-60 line-through grayscale cursor-pointer"
+                      onClick={() =>
+                        navigate(
+                          r.id
+                            ? `/app/businesspartners/newsupplier/${r.id}`
+                            : "/app/businesspartners/newsupplier",
+                          { state: { supplier: r, isInactive: true } }
+                        )
+                      }
+                    >
+                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
+                      {visibleColumns.companyName && (
+                        <td className="py-2">{r.companyName}</td>
+                      )}
+                      {visibleColumns.contactName && (
+                        <td className="py-2">{r.contactName}</td>
+                      )}
+                      {visibleColumns.contactTitle && (
+                        <td className="py-2">{r.contactTitle}</td>
+                      )}
+                      {visibleColumns.countryName && (
+                        <td className="py-2">
+                          {lookupMaps.countries[String(r.countryId)] ||
+                            r.countryName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.stateName && (
+                        <td className="py-2">
+                          {lookupMaps.states[String(r.stateId)] ||
+                            r.stateName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.cityName && (
+                        <td className="py-2">
+                          {lookupMaps.cities[String(r.cityId)] ||
+                            r.cityName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.regionName && (
+                        <td className="py-2">
+                          {lookupMaps.regions[String(r.regionId)] ||
+                            r.regionName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.supplierGroupName && (
+                        <td className="py-2">
+                          {lookupMaps.groups[String(r.supplierGroupId)] ||
+                            r.supplierGroupName ||
+                            ""}
+                        </td>
+                      )}
+                      {visibleColumns.postalCode && (
+                        <td className="py-2">{r.postalCode}</td>
+                      )}
+                      {visibleColumns.phone && (
+                        <td className="py-2">{r.phone}</td>
+                      )}
+                      {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
+                      {visibleColumns.website && (
+                        <td className="py-2 truncate max-w-[150px]">{r.website}</td>
+                      )}
+                      {visibleColumns.email && (
+                        <td className="py-2 truncate max-w-[150px]">{r.email}</td>
+                      )}
+                      {visibleColumns.emailAddress && (
+                        <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
+                      )}
+                      {visibleColumns.previousCreditBalance && (
+                        <td className="py-2">{r.previousCreditBalance}</td>
+                      )}
+                      {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
+                      {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
+                      {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
+                      {visibleColumns.orderBooker && (
+                        <td className="py-2">{r.orderBooker}</td>
+                      )}
+                    </tr>
+                  ))}
+                  </>
                 )}
               </tbody>
             </table>

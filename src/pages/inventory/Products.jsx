@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   FileText
 } from "lucide-react";
+import Swal from "sweetalert2";
 import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import toast from "react-hot-toast";
@@ -42,6 +43,8 @@ import {
   addUnitApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 /* ------------------------------
    Small components
@@ -200,10 +203,12 @@ const Products = () => {
 
   const loadInactive = async () => {
     try {
+      // setLoading(true); // Clean load
       const res = await getInactiveProductsApi();
       if (res.status === 200) setInactiveProducts(res.data.records || res.data || []);
     } catch (err) {
       console.error("LOAD INACTIVE ERR", err);
+      toast.error("Failed to load inactive products");
       setInactiveProducts([]);
     }
   };
@@ -237,6 +242,12 @@ const Products = () => {
     loadDropdowns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit]);
+
+  useEffect(() => {
+    if (showInactive) {
+      loadInactive();
+    }
+  }, [showInactive]);
 
   /* --------------------
      SN generation: P000001
@@ -421,13 +432,26 @@ const Products = () => {
   };
 
   const handleRestoreProduct = async () => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This product will be restored!",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await restoreProductApi(editProduct.id, { userId: currentUserId });
       if (res.status === 200) {
         toast.success("Restored");
-        setEditModalOpen(false);
+        setEditModalOpen(false); // Close if open
         loadProducts();
-        loadInactive();
+        if(showInactive) loadInactive();
       }
     } catch (err) {
       console.error("RESTORE ERR", err);
@@ -776,7 +800,7 @@ const Products = () => {
                   className="w-full"
                 />
 
-                <div className="flex gap-2 items-start mt-3">
+                <div className="flex gap-2 items-end mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Unit</label>
                     <SearchableSelect
@@ -788,15 +812,16 @@ const Products = () => {
                     />
                   </div>
                   <button
+                    type="button"
                     title="Add Unit"
                     onClick={() => setUnitModalOpen(true)}
-                    className="mt-6 p-2 bg-gray-800 border border-gray-700 rounded"
+                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
                   >
-                    <Star size={16} />
+                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && <Star size={16} />}
                   </button>
                 </div>
 
-                <div className="flex gap-2 items-start mt-3">
+                <div className="flex gap-2 items-end mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Company / Brand</label>
                     <SearchableSelect
@@ -808,11 +833,12 @@ const Products = () => {
                     />
                   </div>
                   <button
+                    type="button"
                     title="Add Brand"
                     onClick={() => setBrandModalOpen(true)}
-                    className="mt-6 p-2 bg-gray-800 border border-gray-700 rounded"
+                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
                   >
-                    <Star size={16} />
+                   {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && <Star size={16} />}
                   </button>
                 </div>
 
@@ -881,7 +907,9 @@ const Products = () => {
                   <input placeholder="Brand name" value={newBrandName} onChange={(e) => setNewBrandName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setBrandModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
+                    {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
                     <button onClick={handleAddBrand} className="px-3 py-1.5 bg-gray-800 text-blue-300 rounded border border-gray-700">Add</button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -897,7 +925,9 @@ const Products = () => {
                   <input placeholder="Unit name" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setUnitModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
+                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
                     <button onClick={handleAddUnit} className="px-3 py-1.5 bg-gray-800 rounded border text-blue-300 border-gray-700">Add</button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -906,7 +936,9 @@ const Products = () => {
             {/* footer */}
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2 sticky bottom-5 bg-gray-900 z-30">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 rounded">Cancel</button>
+              {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
               <button onClick={handleAddProduct} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"><Save size={16} /> Save</button>
+              )}
             </div>
           </div>
         </div>
@@ -946,22 +978,26 @@ const Products = () => {
 
               <div>
                 <label className="font-semibold">* Category</label>
-                <SearchableSelect options={categories} value={editProduct.CategoryId} onChange={(v) => setEditProduct((p) => ({ ...p, CategoryId: v }))} placeholder="Search / select category" className="w-full" />
+                <SearchableSelect options={categories} value={editProduct.CategoryId} onChange={(v) => setEditProduct((p) => ({ ...p, CategoryId: v }))} disabled={editProduct.isInactive} placeholder="Search / select category" className="w-full" />
 
-                <div className="flex gap-2 items-start mt-3">
+                <div className="flex gap-2 items-end mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Unit</label>
-                    <SearchableSelect options={units} value={editProduct.UnitId} onChange={(v) => setEditProduct((p) => ({ ...p, UnitId: v }))} placeholder="Search / select unit" className="w-full" />
+                    <SearchableSelect options={units} value={editProduct.UnitId} onChange={(v) => setEditProduct((p) => ({ ...p, UnitId: v }))} disabled={editProduct.isInactive} placeholder="Search / select unit" className="w-full" />
                   </div>
-                  <button title="Add Unit" onClick={() => setUnitModalOpen(true)} className="mt-6 p-2 bg-gray-800 border border-gray-700 rounded"><Star size={16} /></button>
+                  <button type="button" title="Add Unit" disabled={editProduct.isInactive} onClick={() => setUnitModalOpen(true)} className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && <Star size={16} />}
+                  </button>
                 </div>
 
-                <div className="flex gap-2 items-start mt-3">
+                <div className="flex gap-2 items-end mt-3">
                   <div className="flex-1">
                     <label className="font-semibold">* Company / Brand</label>
-                    <SearchableSelect options={brands} value={editProduct.BrandId} onChange={(v) => setEditProduct((p) => ({ ...p, BrandId: v }))} placeholder="Search / select brand" className="w-full" />
+                    <SearchableSelect options={brands} value={editProduct.BrandId} onChange={(v) => setEditProduct((p) => ({ ...p, BrandId: v }))} disabled={editProduct.isInactive} placeholder="Search / select brand" className="w-full" />
                   </div>
-                  <button title="Add Brand" onClick={() => setBrandModalOpen(true)} className="mt-6 p-2 bg-gray-800 border border-gray-700 rounded"><Star size={16} /></button>
+                  <button type="button" title="Add Brand" disabled={editProduct.isInactive} onClick={() => setBrandModalOpen(true)} className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                     {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && <Star size={16} />}
+                  </button>
                 </div>
 
                 <label className="mt-3">Image</label>
@@ -1036,7 +1072,9 @@ const Products = () => {
                   <input placeholder="Brand name" value={newBrandName} onChange={(e) => setNewBrandName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setBrandModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
+                    {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
                     <button onClick={handleAddBrand} className="px-3 py-1.5 bg-green-600 rounded border border-green-900">Add</button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1052,7 +1090,9 @@ const Products = () => {
                   <input placeholder="Unit name" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setUnitModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
+                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
                     <button onClick={handleAddUnit} className="px-3 py-1.5 bg-green-600 rounded border border-green-900">Add</button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1060,12 +1100,16 @@ const Products = () => {
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-between sticky bottom-5 bg-gray-900 z-30">
               {editProduct.isInactive ? (
-                <button onClick={handleRestoreProduct} className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"><ArchiveRestore size={16} /> Restore</button>
+                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
+                  <button onClick={handleRestoreProduct} className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"><ArchiveRestore size={16} /> Restore</button>
+                )
               ) : (
-                <button onClick={handleDeleteProduct} className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"><Trash2 size={16} /> Delete</button>
+                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
+                  <button onClick={handleDeleteProduct} className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"><Trash2 size={16} /> Delete</button>
+                )
               )}
 
-              {!editProduct.isInactive && (
+              {!editProduct.isInactive && hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT) && (
                 <button onClick={handleUpdateProduct} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"><Save size={16} /> Save</button>
               )}
             </div>
@@ -1141,14 +1185,27 @@ const Products = () => {
             />
           </div>
 
+            {/* ADD */}
+            {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
+            <button onClick={() => openAddModal()} className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600">
+              <Plus size={16} /> New Product
+            </button>
+            )}
 
-            <button onClick={openAddModal} className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"><Plus size={16} /> New Product</button>
-
+            {/* REFRESH */}
             <button onClick={refreshAll} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"><RefreshCw size={16} className="text-blue-400" /></button>
 
             <button onClick={() => setColumnModal(true)} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"><List size={16} className="text-blue-300" /></button>
 
-            <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive((s) => !s); }} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1"><ArchiveRestore size={16} className="text-yellow-300" /><span className="text-xs opacity-80">Inactive</span></button>
+            <button onClick={async () => { 
+                // if (!showInactive) await loadInactive(); // Handled by useEffect
+                setShowInactive((s) => !s); 
+              }} 
+              className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
+            >
+              <ArchiveRestore size={16} className="text-yellow-400" />
+              <span className="text-xs text-gray-300">{showInactive ? "Mask" : "Show"} Inactive</span>
+            </button>
 
             <ExportButtons onExcel={exportToExcel} onPDF={exportToPDF} />
           </div>
@@ -1202,11 +1259,28 @@ const Products = () => {
                     </tr>
                   ))}
 
-                  {!loading && sortedList.length === 0 && (
+                  {!loading && sortedList.length === 0 && !showInactive && (
                     <tr>
                       <td colSpan={12} className="text-center py-6 text-gray-400">No records found</td>
                     </tr>
                   )}
+
+                  {/* INACTIVE ROWS APPENDED */}
+                  {showInactive && inactiveProducts.map((p) => (
+                    <tr key={`inactive-${p.id}`} className="bg-gray-900 opacity-50 line-through cursor-pointer hover:bg-gray-800" onClick={() => openEditModal(p, true)}>
+                      {visibleColumns.id && <td className="px-2 py-2 text-center">{p.id}</td>}
+                      {visibleColumns.barcode && <td className="px-2 py-2 text-center">{p.Barcode}</td>}
+                      {visibleColumns.sn && <td className="px-2 py-2 text-center">{p.SN}</td>}
+                      {visibleColumns.productName && <td className="px-2 py-2 text-center">{p.ProductName}</td>}
+                      {visibleColumns.model && <td className="px-2 py-2 text-center">{p.Model}</td>}
+                      {visibleColumns.unitPrice && <td className="px-2 py-2 text-center">{p.UnitPrice}</td>}
+                      {visibleColumns.unitsInStock && <td className="px-2 py-2 text-center">{p.UnitsInStock}</td>}
+                      {visibleColumns.reorderLevel && <td className="px-2 py-2 text-center">{p.ReorderLevel}</td>}
+                      {visibleColumns.categoryName && <td className="px-2 py-2 text-center">{p.categoryName || "-"}</td>}
+                      {visibleColumns.unitName && <td className="px-2 py-2 text-center">{p.unitName || "-"}</td>}
+                      {visibleColumns.brandName && <td className="px-2 py-2 text-center">{p.brandName || "-"}</td>}
+                    </tr>
+                  ))}
 
                 </tbody>
               </table>

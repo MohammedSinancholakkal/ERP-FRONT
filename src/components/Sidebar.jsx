@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   ChevronDown,
   LayoutDashboard,
-  ChevronRight,
   Search,
   LineChart,
   Folder,
@@ -22,6 +21,8 @@ import "../styles/Dashboard.css";
 import { useSettings } from "../contexts/SettingsContext";
 import { serverURL } from "../services/serverURL";
 import { useTheme } from "../context/ThemeContext";
+import { hasPermission, hasAnyPermission } from "../utils/permissionUtils";
+import { PERMISSIONS } from "../constants/permissions";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const { theme } = useTheme();
@@ -71,35 +72,148 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     setOpenAdmin(false);
   };
 
-  // Links
-  const masterLinks = ["Countries", "States", "Cities", "Banks", "Expense Types", "Services", "Territories", "Regions", "Shippers", "Warehouses", "Customer Groups", "Supplier Groups", "Agenda Item Types", "Meeting Types", "Locations", "Attendance Status", "Attendee Types", "Resolution Status", "Deductions", "Incomes"];
-  const meetingLinks = ["Meetings"];
-  const inventoryLinks = ["Products", "Categories", "Units", "Brands", "Damaged Products", "Goods Receipts", "Goods Issue", "Update Stock"];
-  const salesLinks = ["New Sale Quotation", "New Sale", "Sales", "Sales Quotations"];
-  const bpLinks = ["New Customer", "New Supplier", "Customers", "Suppliers"];
-  const purchaseLinks = ["New Purchase", "Purchases"];
-  const servicesLinks = ["New Invoice", "Invoices"];
-  const cashBankLinks = ["Bank Transaction", "Expenses", "Customer Receive", "Supplier Payment", "Cash Adjustment"];
-  const financialLinks = ["Chart of Accounts", "Opening Balance", "Debit Voucher", "Credit Voucher", "Contra Voucher", "Journal Voucher"];
-  const hrLinks = ["New Employee", "Employees", "Departments", "Designations", "Attendance", "Payroll"];
-  const reportsLinks = ["Day Closing", "Today's Report", "Daily Closing Reports", "Stock Reports", "Sales Reports", "Product Wise Sale Report", "Purchase Report", "Customer Receivable Report", "Supplier Payable Report"];
-  const adminLinks = ["Language", "Translations", "Roles", "User Management", "Currencies", "Settings"];
+  // Links with Permissions
+  // If key is null, it shows for everyone (or you can restrict it)
+  // For now, assuming null = visible to basic users or handled elsewhere
+  const masterLinks = [
+    { label: "Countries", key: PERMISSIONS.COUNTRIES.VIEW },
+    { label: "States", key: PERMISSIONS.STATES.VIEW },
+    { label: "Cities", key: PERMISSIONS.CITIES.VIEW },
+    { label: "Banks", key: PERMISSIONS.BANKS.VIEW },
+    { label: "Expense Types", key: PERMISSIONS.EXPENSE_TYPES.VIEW },
+    { label: "Services", key: PERMISSIONS.SERVICES_MASTER.VIEW },
+    { label: "Territories", key: PERMISSIONS.TERRITORIES.VIEW },
+    { label: "Regions", key: PERMISSIONS.REGIONS.VIEW },
+    { label: "Shippers", key: PERMISSIONS.SHIPPERS.VIEW },
+    { label: "Warehouses", key: PERMISSIONS.WAREHOUSES.VIEW },
+    { label: "Customer Groups", key: PERMISSIONS.CUSTOMER_GROUPS.VIEW },
+    { label: "Supplier Groups", key: PERMISSIONS.SUPPLIER_GROUPS.VIEW },
+    { label: "Agenda Item Types", key: PERMISSIONS.AGENDA_ITEM_TYPES.VIEW },
+    { label: "Meeting Types", key: PERMISSIONS.MEETING_TYPES.VIEW },
+    { label: "Locations", key: PERMISSIONS.LOCATIONS.VIEW },
+    { label: "Attendance Status", key: PERMISSIONS.ATTENDANCE_STATUS.VIEW },
+    { label: "Attendee Types", key: PERMISSIONS.ATTENDEE_TYPES.VIEW },
+    { label: "Resolution Status", key: PERMISSIONS.RESOLUTION_STATUS.VIEW },
+    { label: "Deductions", key: PERMISSIONS.DEDUCTIONS.VIEW },
+    { label: "Incomes", key: PERMISSIONS.INCOMES.VIEW },
+  ];
+
+  const meetingLinks = [
+    { label: "Meetings", key: PERMISSIONS.MEETINGS.VIEW }
+  ];
+
+  const inventoryLinks = [
+    { label: "Products", key: PERMISSIONS.INVENTORY.PRODUCTS.VIEW },
+    { label: "Categories", key: PERMISSIONS.INVENTORY.CATEGORIES.VIEW },
+    { label: "Units", key: PERMISSIONS.INVENTORY.UNITS.VIEW },
+    { label: "Brands", key: PERMISSIONS.INVENTORY.BRANDS.VIEW },
+    { label: "Damaged Products", key: PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.VIEW },
+    { label: "Goods Receipts", key: PERMISSIONS.INVENTORY.GOODS_RECEIPTS.VIEW },
+    { label: "Goods Issue", key: PERMISSIONS.INVENTORY.GOODS_ISSUE.VIEW },
+    // { label: "Update Stock", key: "update_stock" } // Keeping commented if not in constants yet, or map to general
+  ];
+
+  const salesLinks = [
+    { label: "New Sale Quotation", key: PERMISSIONS.SALES.CREATE }, 
+    { label: "New Sale", key: PERMISSIONS.SALES.CREATE },
+    { label: "Sales", key: PERMISSIONS.SALES.VIEW },
+    { label: "Sales Quotations", key: PERMISSIONS.SALES.VIEW }
+  ];
+
+  const bpLinks = [
+    { label: "New Customer", key: PERMISSIONS.CUSTOMERS.CREATE },
+    { label: "New Supplier", key: PERMISSIONS.SUPPLIERS.CREATE },
+    { label: "Customers", key: PERMISSIONS.CUSTOMERS.VIEW },
+    { label: "Suppliers", key: PERMISSIONS.SUPPLIERS.VIEW }
+  ];
+
+  const purchaseLinks = [
+    { label: "New Purchase", key: PERMISSIONS.PURCHASING.CREATE },
+    { label: "Purchases", key: PERMISSIONS.PURCHASING.VIEW }
+  ];
+
+  const servicesLinks = [
+    { label: "New Invoice", key: PERMISSIONS.SERVICES.CREATE },
+    { label: "Invoices", key: PERMISSIONS.SERVICES.VIEW }
+  ];
+
+  const cashBankLinks = [
+    { label: "Bank Transaction", key: PERMISSIONS.CASH_BANK.VIEW },
+    { label: "Expenses", key: PERMISSIONS.CASH_BANK.VIEW },
+    { label: "Customer Receive", key: PERMISSIONS.CASH_BANK.VIEW },
+    { label: "Supplier Payment", key: PERMISSIONS.CASH_BANK.VIEW },
+    { label: "Cash Adjustment", key: PERMISSIONS.CASH_BANK.VIEW }
+  ];
+
+  const financialLinks = [
+    { label: "Chart of Accounts", key: PERMISSIONS.FINANCIAL.VIEW },
+    { label: "Opening Balance", key: PERMISSIONS.FINANCIAL.VIEW },
+    { label: "Debit Voucher", key: PERMISSIONS.FINANCIAL.VIEW },
+    { label: "Credit Voucher", key: PERMISSIONS.FINANCIAL.VIEW },
+    { label: "Contra Voucher", key: PERMISSIONS.FINANCIAL.VIEW },
+    { label: "Journal Voucher", key: PERMISSIONS.FINANCIAL.VIEW }
+  ];
+
+  const hrLinks = [
+    { label: "New Employee", key: PERMISSIONS.HR.EMPLOYEES.CREATE },
+    { label: "Employees", key: PERMISSIONS.HR.EMPLOYEES.VIEW },
+    { label: "Departments", key: PERMISSIONS.HR.DEPARTMENTS.VIEW },
+    { label: "Designations", key: PERMISSIONS.HR.DESIGNATIONS.VIEW },
+    { label: "Attendance", key: PERMISSIONS.HR.ATTENDANCE.VIEW },
+    { label: "Payroll", key: PERMISSIONS.HR.PAYROLL.VIEW }
+  ];
+
+  const reportsLinks = [
+    { label: "Day Closing", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Today's Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Daily Closing Reports", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Stock Reports", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Sales Reports", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Product Wise Sale Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Purchase Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Customer Receivable Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW }
+  ];
+
+  const adminLinks = [
+    { label: "Language", key: PERMISSIONS.LANGUAGES.VIEW },
+    { label: "Translations", key: PERMISSIONS.LANGUAGES.VIEW },
+    { label: "Roles", key: PERMISSIONS.ROLE.VIEW },
+    { label: "User Management", key: PERMISSIONS.USER.VIEW },
+    { label: "Currencies", key: PERMISSIONS.CURRENCIES.VIEW },
+    { label: "Settings", key: PERMISSIONS.SETTINGS }
+  ];
 
   // -------------------------
   // SEARCH LOGIC
   // -------------------------
 
   const filterSection = (title, items) => {
-    if (!search.trim()) return { show: true, items };
+    // 1. Filter by Permissions first
+    const permittedItems = items.filter(item => {
+        if (!item.key) return true; // No key = visible
+
+        // Handle Array of Permissions (ANY match)
+        if (Array.isArray(item.key)) {
+          return hasAnyPermission(item.key);
+        }
+
+        // Handle Single Permission
+        return hasPermission(item.key);
+    });
+
+    if (permittedItems.length === 0) return { show: false, items: [] };
+
+    if (!search.trim()) return { show: true, items: permittedItems };
 
     const s = search.toLowerCase();
 
     const parentMatch = title.toLowerCase().includes(s);
-    const childMatches = items.filter((i) => i.toLowerCase().includes(s));
+    const childMatches = permittedItems.filter((i) => i.label.toLowerCase().includes(s));
 
-    // When parent matched → show all items
+    // When parent matched → show all permitted items
     if (parentMatch) {
-      return { show: true, items };
+      return { show: true, items: permittedItems };
     }
 
     // When child matched → show ONLY matching items
@@ -155,7 +269,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           className={`w-full flex items-center px-3 py-2 rounded transition 
             ${sidebarOpen ? "justify-between" : "justify-center"}
             ${location.pathname.startsWith(pathRoot) ? "bg-white/10" : ""}
-            ${theme === 'emerald' ? 'hover:bg-emerald-700' : 'hover:bg-gray-700'}
+            ${theme === 'emerald' ? 'hover:bg-emerald-600' : 'hover:bg-gray-700'}
           `}
         >
           <div className={`flex items-center ${sidebarOpen ? "gap-3" : ""}`}>
@@ -178,19 +292,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             `}
           >
             {items.map((item, index) => {
-              const isActive = location.pathname.includes(formatRoute(item));
+              const routePath = formatRoute(item.label);
+              const isActive = location.pathname.includes(routePath);
 
               return (
                 <li key={index}>
                   <NavLink
-                    to={`${pathRoot}/${formatRoute(item)}`}
+                    to={`${pathRoot}/${routePath}`}
                     className={({ isActive }) =>
                       `flex items-center gap-3 py-1 px-2 rounded transition 
-                      ${isActive ? "bg-white/20 text-white" : theme === 'emerald' ? "hover:bg-emerald-700 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
+                      ${isActive ? "bg-white/20 text-white" : theme === 'emerald' ? "hover:bg-emerald-600 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
                     }
                   >
                     <TriangleIcon active={isActive} />
-                    <span>{item}</span>
+                    <span>{item.label}</span>
                   </NavLink>
                 </li>
               );
@@ -215,7 +330,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       )}
 
       <aside
-        className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-800' : 'bg-gradient-to-b from-gray-900 to-gray-800'} text-white h-screen flex flex-col transition-all duration-300 z-50 
+        className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-600' : 'bg-gradient-to-b from-gray-900 to-gray-800'} text-white h-screen flex flex-col transition-all duration-300 z-50 
         md:static md:flex 
         ${sidebarOpen ? "md:w-64" : "md:w-16"} 
         ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden md:flex"}`}
@@ -223,7 +338,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
       
 {/* HEADER */}
-<div className="p-4 border-b border-gray-700 flex items-center gap-3 h-[72px]">
+<div className={`p-4 border-b flex items-center gap-3 h-[72px] ${theme === 'emerald' ? 'border-emerald-500' : 'border-gray-700'}`}>
   <div className="w-10 h-10 shrink-0 flex items-center justify-center">
     {logoUrl ? (
       <img
@@ -256,7 +371,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
             {/* SEARCH BAR */}
             {sidebarOpen && (
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-5 ${theme === 'emerald' ? 'bg-white' : 'bg-gray-800'}`}>
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-5 ${theme === 'emerald' ? 'bg-emerald-100' : 'bg-gray-800'}`}>
                 <Search className={`${theme === 'emerald' ? 'text-emerald-700' : 'text-gray-400'}`} size={18} />
                 <input
                   type="text"
@@ -269,6 +384,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             )}
 
             {/* DASHBOARD */}
+            {hasPermission(PERMISSIONS.DASHBOARD.VIEW) && (
             <li>
               <NavLink
                 to="/app/dashboard"
@@ -276,13 +392,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 className={({ isActive }) =>
                   `px-3 py-2 rounded flex items-center transition 
                   ${sidebarOpen ? "gap-3" : "justify-center"} 
-                  ${isActive ? "bg-white/20" : theme === 'emerald' ? "hover:bg-emerald-700 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
+                  ${isActive ? "bg-white/20" : theme === 'emerald' ? "hover:bg-emerald-600 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
                 }
               >
                 <LineChart className="w-5 h-5" />
                 {sidebarOpen && <span>Dashboard</span>}
               </NavLink>
             </li>
+            )}
 
             {/* MENU SECTIONS */}
             {renderSection("Masters", <Folder className="w-5 h-5" />, openMasters, setOpenMasters, "/app/masters", masterLinks)}

@@ -7,25 +7,28 @@ import {
   ArrowLeft,
   Star,
   X,
-  Edit
+  Edit,
+  ArchiveRestore
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
-import { useLocation } from "react-router-dom";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 // APIs (service-invoice & supporting)
 import {
   getCustomersApi,
-  addCustomerApi,
   getEmployeesApi,
   getServicesApi,
   getServiceInvoiceByIdApi,
   addServiceInvoiceApi,
   updateServiceInvoiceApi,
-  deleteServiceInvoiceApi
+  deleteServiceInvoiceApi,
+  restoreServiceInvoiceApi
 } from "../../services/allAPI";
+import Swal from "sweetalert2";
 
 const NewInvoices = () => {
   const navigate = useNavigate();
@@ -40,6 +43,14 @@ const NewInvoices = () => {
   const [employee, setEmployee] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  
+  const [inactiveView, setInactiveView] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.isInactive) {
+      setInactiveView(true);
+    }
+  }, [location.state]);
 
   // --- DROPDOWN DATA ---
   const [customersList, setCustomersList] = useState([]);
@@ -54,22 +65,15 @@ const NewInvoices = () => {
   const [editingIndex, setEditingIndex] = useState(null);
 
   // --- MODAL ITEM STATE (service-based) ---
-const [newItem, setNewItem] = useState({
-  serviceId: "",
-  serviceName: "",
-  description: "",
-  quantity: 0,
-  unitPrice: 0,
-  discount: "0",   
-  total: 0
-});
-
-
-
-  // --- QUICK CREATE CUSTOMER MODAL STATE ---
-  // --- QUICK CREATE CUSTOMER MODAL STATE ---
-  // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false); // Removed in favor of navigation
-  // const [newCustomerName, setNewCustomerName] = useState("");
+  const [newItem, setNewItem] = useState({
+    serviceId: "",
+    serviceName: "",
+    description: "",
+    quantity: 0,
+    unitPrice: 0,
+    discount: "0",   
+    total: 0
+  });
 
   // --- BOTTOM SECTION STATE ---
   const [globalDiscount, setGlobalDiscount] = useState(0);
@@ -134,9 +138,7 @@ const [newItem, setNewItem] = useState({
   const fetchEmployees = async () => {
     try {
       const res = await getEmployeesApi(1, 1000);
-      console.log("EMPLOYEES RAW:", res.data);
-
-      // handle both shapes: res.data.records or res.data (array)
+      
       const records = Array.isArray(res?.data?.records)
         ? res.data.records
         : Array.isArray(res?.data)
@@ -161,15 +163,13 @@ const [newItem, setNewItem] = useState({
   const fetchServices = async () => {
     try {
       const res = await getServicesApi(1, 1000);
-      console.log("SERVICES RAW:", res.data);
-
+      
       const records = Array.isArray(res?.data?.records)
         ? res.data.records
         : Array.isArray(res?.data)
         ? res.data
         : [];
 
-      // Important: include actual DB column names (ServiceName, Charge, Description)
       const normalized = records.map(s => ({
         id: s.id ?? s.Id ?? s.serviceId ?? s.ServiceId ?? null,
         name: s.name ?? s.ServiceName ?? s.serviceName ?? "",
@@ -239,15 +239,14 @@ const [newItem, setNewItem] = useState({
     );
 
     if (!service) {
-      // clear if none
         setNewItem({
-        serviceId: service.id,
-        serviceName: service.name,
+        serviceId: "",
+        serviceName: "",
         description: "",
-        quantity: qty,
-        unitPrice: price,
+        quantity: 0,
+        unitPrice: 0,
         discount: "0", 
-        total: +(qty * price).toFixed(2)
+        total: 0
         });
 
       return;
@@ -288,7 +287,6 @@ const [newItem, setNewItem] = useState({
 
     const itemToInsert = {
       ...newItem,
-      // ensure types
       quantity: parseFloat(newItem.quantity) || 0,
       unitPrice: parseFloat(newItem.unitPrice) || 0,
       discount: parseFloat(newItem.discount) || 0,
@@ -317,10 +315,6 @@ const [newItem, setNewItem] = useState({
     setRows(updated);
   };
 
-  /* ================= QUICK CREATE CUSTOMER ================= */
-  /* ================= QUICK CREATE CUSTOMER REMOVED (Replaced by Navigation) ================= */
- /* const handleCreateCustomer = async () => { ... } */
-
   /* ================= TOTAL CALC (no tax on UI) ================= */
   useEffect(() => {
     let sumLineTotals = 0;
@@ -344,7 +338,6 @@ const [newItem, setNewItem] = useState({
     const shipping = parseFloat(shippingCost) || 0;
     const paid = parseFloat(paidAmount) || 0;
 
-    // tax removed from UI — set tax = 0, vatPercentage 0
     const tax = 0;
 
     const finalTotal = subTotal - gDiscount + tax + shipping;
@@ -364,7 +357,7 @@ const [newItem, setNewItem] = useState({
 
   }, [rows, globalDiscount, shippingCost, paidAmount]);
 
-  /* ================= SAVE / UPDATE / DELETE ================= */
+  /* ================= SAVE / UPDATE / DELETE / RESTORE ================= */
   const handleSaveInvoice = async () => {
     const currentUserId = userData?.userId || userData?.id || userData?.Id;
     if (!currentUserId) {
@@ -385,7 +378,7 @@ const [newItem, setNewItem] = useState({
       paymentAccount: paymentAccount || "",
       discount: parseFloat(globalDiscount) || 0,
       totalDiscount: parseFloat(totalDiscount) || 0,
-      vat: 0, // tax removed from UI but backend expects field
+      vat: 0,
       totalTax: 0,
       vatPercentage: 0,
       noTax: 1,
@@ -396,7 +389,6 @@ const [newItem, setNewItem] = useState({
       paidAmount: parseFloat(paidAmount) || 0,
       due: parseFloat(dueAmount) || 0,
       change: parseFloat(changeAmount) || 0,
-      // paymentAccount set above
       details,
       vno: "",
       items: rows.map(r => ({
@@ -478,21 +470,105 @@ const [newItem, setNewItem] = useState({
     }
   };
 
-  const handleDeleteInvoice = async () => {
-    if (!window.confirm("Are you sure you want to delete this invoice?")) return;
-    try {
-      const res = await deleteServiceInvoiceApi(id, { userId });
-      if (res.status === 200) {
-        toast.success("Service invoice deleted successfully");
-        navigate("/app/services/invoices");
-      } else {
-        toast.error("Failed to delete service invoice");
-      }
-    } catch (error) {
-      console.error("DELETE INVOICE ERROR", error);
-      toast.error("Error deleting invoice");
+const handleDeleteInvoice = async () => {
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "Do you really want to delete this invoice?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#6b7280",
+    confirmButtonText: "Yes, delete",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!result.isConfirmed) return;
+
+  Swal.fire({
+    title: "Deleting...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  try {
+    const res = await deleteServiceInvoiceApi(id, { userId });
+    Swal.close();
+
+    if (res.status === 200) {
+      await Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        text: "Service invoice deleted successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      navigate("/app/services/invoices");
+    } else {
+      Swal.fire("Failed", "Failed to delete service invoice", "error");
     }
-  };
+  } catch (error) {
+    Swal.close();
+    console.error("DELETE INVOICE ERROR", error);
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Error deleting invoice",
+    });
+  }
+};
+
+
+const handleRestoreInvoice = async () => {
+  const result = await Swal.fire({
+    title: "Restore invoice?",
+    text: "Do you want to restore this invoice?",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#10b981", // green
+    cancelButtonColor: "#6b7280",
+    confirmButtonText: "Yes, restore",
+    cancelButtonText: "Cancel",
+  });
+
+  if (!result.isConfirmed) return;
+
+  Swal.fire({
+    title: "Restoring...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  try {
+    const res = await restoreServiceInvoiceApi(id, { userId });
+    Swal.close();
+
+    if (res.status === 200) {
+      await Swal.fire({
+        icon: "success",
+        title: "Restored!",
+        text: "Service invoice restored successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      navigate("/app/services/invoices");
+    } else {
+      Swal.fire("Failed", "Failed to restore service invoice", "error");
+    }
+  } catch (error) {
+    Swal.close();
+    console.error("RESTORE INVOICE ERROR", error);
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Error restoring invoice",
+    });
+  }
+};
+
 
   const openItemModal = () => {
     setEditingIndex(null);
@@ -525,123 +601,142 @@ const [newItem, setNewItem] = useState({
         <div className="flex gap-2 mb-6">
           {id ? (
             <>
+              {!inactiveView && hasPermission(PERMISSIONS.SERVICES.EDIT) && (
               <button onClick={handleUpdateInvoice} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
                 <Save size={18} /> Update
               </button>
+              )}
+              
+              {!inactiveView && hasPermission(PERMISSIONS.SERVICES.DELETE) && (
               <button onClick={handleDeleteInvoice} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
                 <Trash2 size={18} /> Delete
               </button>
+              )}
+
+              {inactiveView && (
+                  <button onClick={handleRestoreInvoice} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
+                      <ArchiveRestore size={18} /> Restore
+                  </button>
+              )}
             </>
           ) : (
+            hasPermission(PERMISSIONS.SERVICES.CREATE) && (
             <button onClick={handleSaveInvoice} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
               <Save size={18} /> Save
             </button>
+            )
           )}
         </div>
 
         {/* TOP SECTION */}
-<div className="grid grid-cols-1 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-6 mb-8">
 
-  {/* ROW 1: Customer | Payment | Date */}
-  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          {/* ROW 1: Customer | Payment | Date */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
 
-    {/* Customer */}
-    <div className="lg:col-span-6">
-      <div className="flex items-center gap-3">
-        <label className="w-32 text-sm text-gray-300">
-          <span className="text-red-400">*</span> Customer
-        </label>
+            {/* Customer */}
+            <div className="lg:col-span-6">
+              <div className="flex items-center gap-3">
+                <label className="w-32 text-sm text-gray-300">
+                  <span className="text-red-400">*</span> Customer
+                </label>
 
-        <div className="flex-1 flex items-center gap-2">
-          <SearchableSelect
-            options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
-            value={customer}
-            onChange={setCustomer}
-            placeholder="Select customer..."
-            className="w-full"
-          />
+                <div className="flex-1 flex items-center gap-2">
+                  <SearchableSelect
+                    options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
+                    value={customer}
+                    onChange={setCustomer}
+                    placeholder="Select customer..."
+                    className="w-full"
+                    disabled={inactiveView}
+                  />
 
-          <Star
-            size={20}
-            className="text-white cursor-pointer hover:text-yellow-400"
-            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
-          />
+                  <Star
+                    size={20}
+                    className={`text-white cursor-pointer hover:text-yellow-400 ${inactiveView ? "pointer-events-none opacity-50" : ""}`}
+                    onClick={() => !inactiveView && navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment */}
+            <div className="lg:col-span-3">
+              <div className="flex items-center gap-3">
+                <label className="w-24 text-sm text-gray-300">
+                  <span className="text-red-400">*</span> Payment
+                </label>
+
+                <select
+                  value={paymentAccount}
+                  onChange={(e) => setPaymentAccount(e.target.value)}
+                  disabled={inactiveView}
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                >
+                  <option value="">-- select --</option>
+                  {paymentOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Date */}
+            <div className="lg:col-span-3">
+              <div className="flex items-center gap-3">
+                <label className="w-16 text-sm text-gray-300">
+                  <span className="text-red-400">*</span> Date
+                </label>
+
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  disabled={inactiveView}
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ROW 2: Employee */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <div className="lg:col-span-6">
+              <div className="flex items-center gap-3">
+                <label className="w-32 text-sm text-gray-300">
+                  <span className="text-red-400">*</span> Employee
+                </label>
+
+                <SearchableSelect
+                    options={employeesList.map(e => ({ id: e.id, name: e.name }))}
+                    value={employee}
+                    onChange={setEmployee}
+                    placeholder="Select employee..."
+                    className="w-full"
+                    disabled={inactiveView}
+                />
+              </div>
+            </div>
+
+          </div>
         </div>
-      </div>
-    </div>
-
-    {/* Payment */}
-    <div className="lg:col-span-3">
-      <div className="flex items-center gap-3">
-        <label className="w-24 text-sm text-gray-300">
-          <span className="text-red-400">*</span> Payment
-        </label>
-
-        <select
-          value={paymentAccount}
-          onChange={(e) => setPaymentAccount(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-        >
-          <option value="">-- select --</option>
-          {paymentOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-
-    {/* Date */}
-    <div className="lg:col-span-3">
-      <div className="flex items-center gap-3">
-        <label className="w-16 text-sm text-gray-300">
-          <span className="text-red-400">*</span> Date
-        </label>
-
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-        />
-      </div>
-    </div>
-  </div>
-
-  {/* ROW 2: Employee */}
-  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-    <div className="lg:col-span-6">
-      <div className="flex items-center gap-3">
-        <label className="w-32 text-sm text-gray-300">
-          <span className="text-red-400">*</span> Employee
-        </label>
-
-        <SearchableSelect
-            options={employeesList.map(e => ({ id: e.id, name: e.name }))}
-            value={employee}
-            onChange={setEmployee}
-            placeholder="Select employee..."
-            className="w-full"
-        />
-      </div>
-    </div>
-
-  </div>
-</div>
 
 
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
             <label className="text-sm text-gray-300">Line Items</label>
+            { !inactiveView && (
             <button
               onClick={openItemModal}
               className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
             >
               <Plus size={16} /> Add
             </button>
+            )}
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[900px]">
@@ -667,16 +762,20 @@ const [newItem, setNewItem] = useState({
                     <td className="p-3">{row.discount}</td>
                     <td className="p-3 text-gray-300">{parseFloat(row.total).toFixed(2)}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
-                      <Edit 
-                        size={18} 
-                        className="text-blue-400 cursor-pointer hover:text-blue-300"
-                        onClick={() => editRow(i)}
-                      />
-                      <Trash2
-                        size={18}
-                        className="text-red-400 cursor-pointer hover:text-red-300"
-                        onClick={() => deleteRow(i)}
-                      />
+                      {!inactiveView && (
+                          <>
+                          <Edit 
+                            size={18} 
+                            className="text-blue-400 cursor-pointer hover:text-blue-300"
+                            onClick={() => editRow(i)}
+                          />
+                          <Trash2
+                            size={18}
+                            className="text-red-400 cursor-pointer hover:text-red-300"
+                            onClick={() => deleteRow(i)}
+                          />
+                          </>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -701,15 +800,14 @@ const [newItem, setNewItem] = useState({
               </div>
             </div>
 
-            {/* Tax removed from UI */}
-
             <div className="flex items-center justify-between">
               <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Paid Amount</label>
               <input
                 type="number"
                 value={paidAmount}
                 onChange={(e) => setPaidAmount(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                disabled={inactiveView}
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
               />
             </div>
 
@@ -718,7 +816,8 @@ const [newItem, setNewItem] = useState({
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none"
+                disabled={inactiveView}
+                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none disabled:opacity-50"
               ></textarea>
             </div>
           </div>
@@ -731,7 +830,8 @@ const [newItem, setNewItem] = useState({
                 type="number"
                 value={globalDiscount}
                 onChange={(e) => setGlobalDiscount(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                disabled={inactiveView}
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
               />
             </div>
 
@@ -758,7 +858,8 @@ const [newItem, setNewItem] = useState({
                 type="number"
                 value={shippingCost}
                 onChange={(e) => setShippingCost(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none"
+                disabled={inactiveView}
+                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
               />
             </div>
 
@@ -880,7 +981,7 @@ const [newItem, setNewItem] = useState({
 
                     setNewItem({
                     ...newItem,
-                    discount: discountStr, // ✅ allows empty
+                    discount: discountStr, // allows empty
                     total: calculateItemTotal(qty, price, disc)
                     });
                 }}

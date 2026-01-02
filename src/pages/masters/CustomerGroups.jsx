@@ -24,6 +24,8 @@ import {
   getInactiveCustomerGroupsApi,
   restoreCustomerGroupApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 import SortableHeader from "../../components/SortableHeader";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
@@ -341,12 +343,14 @@ const CustomerGroups = () => {
             </div>
 
             <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+              {hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE) && (
               <button
                 onClick={handleAdd}
                 className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
               >
                 <Save size={16} /> Save
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -407,15 +411,17 @@ const CustomerGroups = () => {
                   <ArchiveRestore size={16} /> Restore
                 </button>
               ) : (
+                hasPermission(PERMISSIONS.CUSTOMER_GROUPS.DELETE) && (
                 <button
                   onClick={handleDelete}
                   className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
                 >
                   <Trash2 size={16} /> Delete
                 </button>
+                )
               )}
 
-              {!editData.isInactive && (
+              {!editData.isInactive && hasPermission(PERMISSIONS.CUSTOMER_GROUPS.EDIT) && (
                 <button
                   onClick={handleUpdate}
                   className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
@@ -543,12 +549,14 @@ const CustomerGroups = () => {
             />
           </div>
 
+          {hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded"
           >
             <Plus size={16} /> New Group
           </button>
+          )}
 
           <button
             onClick={() => {

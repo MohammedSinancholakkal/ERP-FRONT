@@ -15,6 +15,8 @@ import Pagination from "../../components/Pagination";
 import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 import {
   addStateApi,
@@ -310,7 +312,7 @@ const States = () => {
         <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">States</h2>
 
-          <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-1 mb-4">
              <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
                 <Search size={16} className="text-gray-300" />
                 <input
@@ -320,9 +322,11 @@ const States = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+              {hasPermission(PERMISSIONS.STATES.CREATE) && (
               <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
                 <Plus size={16} /> New State
               </button>
+              )}
               <button
                 onClick={() => {
                   setSearchText("");
@@ -424,14 +428,16 @@ const States = () => {
                             className="w-full"
                             direction="up"
                           />
-                          <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                          {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
                                <Star size={18} className="text-yellow-400" />
-                           </button>
+                           </button>)}
                       </div>
                   </div>
                </div>
                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
+                   {hasPermission(PERMISSIONS.STATES.CREATE) && (
                    <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
+                   )}
                </div>
             </div>
           </div>
@@ -473,9 +479,11 @@ const States = () => {
                    {editData.isInactive ? (
                        <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
                    ) : (
+                       hasPermission(PERMISSIONS.STATES.DELETE) && (
                        <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
+                       )
                    )}
-                   {!editData.isInactive && (
+                   {!editData.isInactive && hasPermission(PERMISSIONS.STATES.EDIT) && (
                        <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
                    )}
                </div>
