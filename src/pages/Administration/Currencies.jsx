@@ -27,6 +27,8 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Currencies = () => {
   if (!hasPermission(PERMISSIONS.CURRENCIES.VIEW)) {
@@ -277,148 +279,100 @@ const Currencies = () => {
       {/* =============================
           ADD CURRENCY MODAL
       ============================== */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
+      {/* =============================
+          ADD CURRENCY MODAL
+      ============================== */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAddCurrency}
+        title="New Currency"
+        width="700px"
+        permission={hasPermission(PERMISSIONS.CURRENCIES.CREATE)}
+      >
+        <div className="p-0 space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Currency Name *</label>
+            <input
+              type="text"
+              value={newCurrency.currencyName}
+              onChange={(e) =>
+                setNewCurrency((prev) => ({ ...prev, currencyName: e.target.value }))
+              }
+              placeholder="e.g. US Dollar"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+            />
+          </div>
 
-            <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Currency</h2>
-
-              <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm mb-1">Currency Name *</label>
-                <input
-                  type="text"
-                  value={newCurrency.currencyName}
-                  onChange={(e) =>
-                    setNewCurrency((prev) => ({ ...prev, currencyName: e.target.value }))
-                  }
-                  placeholder="e.g. US Dollar"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Currency Symbol *</label>
-                <input
-                  type="text"
-                  value={newCurrency.currencySymbol}
-                  onChange={(e) =>
-                    setNewCurrency((prev) => ({ ...prev, currencySymbol: e.target.value }))
-                  }
-                  placeholder="e.g. $"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              {hasPermission(PERMISSIONS.CURRENCIES.CREATE) && (
-              <button
-                onClick={handleAddCurrency}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm mb-1">Currency Symbol *</label>
+            <input
+              type="text"
+              value={newCurrency.currencySymbol}
+              onChange={(e) =>
+                setNewCurrency((prev) => ({ ...prev, currencySymbol: e.target.value }))
+              }
+              placeholder="e.g. $"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
       {/* =============================
           EDIT CURRENCY MODAL
       ============================== */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+      {/* =============================
+          EDIT CURRENCY MODAL
+      ============================== */}
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdateCurrency}
+        onDelete={handleDeleteCurrency}
+        onRestore={handleRestoreCurrency}
+        isInactive={editCurrency.isInactive}
+        title={`${
+          editCurrency.isInactive ? "Restore Currency" : "Edit Currency"
+        } (${editCurrency.currencyName})`}
+        permissionDelete={hasPermission(PERMISSIONS.CURRENCIES.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.CURRENCIES.EDIT)}
+        width="700px"
+      >
+        <div className="p-0 space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Currency Name *</label>
+            <input
+              type="text"
+              value={editCurrency.currencyName}
+              onChange={(e) =>
+                setEditCurrency((prev) => ({
+                  ...prev,
+                  currencyName: e.target.value,
+                }))
+              }
+              disabled={editCurrency.isInactive}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+            />
+          </div>
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">
-                {editCurrency.isInactive ? "Restore Currency" : "Edit Currency"} ({editCurrency.currencyName})
-              </h2>
-
-              <button onClick={() => setEditModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm mb-1">Currency Name *</label>
-                <input
-                  type="text"
-                  value={editCurrency.currencyName}
-                  onChange={(e) =>
-                    setEditCurrency((prev) => ({
-                      ...prev,
-                      currencyName: e.target.value,
-                    }))
-                  }
-                  disabled={editCurrency.isInactive}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Currency Symbol *</label>
-                <input
-                  type="text"
-                  value={editCurrency.currencySymbol}
-                  onChange={(e) =>
-                    setEditCurrency((prev) => ({
-                      ...prev,
-                      currencySymbol: e.target.value,
-                    }))
-                  }
-                  disabled={editCurrency.isInactive}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-
-              {editCurrency.isInactive ? (
-                hasPermission(PERMISSIONS.CURRENCIES.DELETE) && (
-                <button
-                  onClick={handleRestoreCurrency}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-                )
-              ) : (
-                hasPermission(PERMISSIONS.CURRENCIES.DELETE) && (
-                <button
-                  onClick={handleDeleteCurrency}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-                )
-              )}
-
-              {!editCurrency.isInactive && (
-                hasPermission(PERMISSIONS.CURRENCIES.EDIT) && (
-                <button
-                  onClick={handleUpdateCurrency}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-                >
-                  <Save size={16} /> Save
-                </button>
-                )
-              )}
-            </div>
-
+          <div>
+            <label className="block text-sm mb-1">Currency Symbol *</label>
+            <input
+              type="text"
+              value={editCurrency.currencySymbol}
+              onChange={(e) =>
+                setEditCurrency((prev) => ({
+                  ...prev,
+                  currencySymbol: e.target.value,
+                }))
+              }
+              disabled={editCurrency.isInactive}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+            />
           </div>
         </div>
-      )}
+      </EditModal>
 
       {/* =============================
               MAIN PAGE
@@ -600,6 +554,3 @@ const Currencies = () => {
 };
 
 export default Currencies;
-
-
-

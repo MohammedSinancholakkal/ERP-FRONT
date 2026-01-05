@@ -17,6 +17,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import AddModal from "../../components/modals/AddModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -122,149 +123,142 @@ const SupplierPayment = () => {
   return (
     <>
       {/* ------------------------------ ADD MODAL ------------------------------ */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setModalOpen(false)}
-          />
+      {/* ------------------------------ ADD MODAL ------------------------------ */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAdd}
+        title="New Supplier Payment"
+        width="750px"
+        permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+      >
+        <div className="p-0 space-y-4">
+          {/* Date */}
+          <div>
+            <label className="text-sm">Voucher Date *</label>
+            <input
+              type="date"
+              value={newPay.date}
+              onChange={(e) => setNewPay({ ...newPay, date: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-          <div className="relative w-[750px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-lg">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Supplier Payment</h2>
-              <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X />
-              </button>
+          {/* Supplier Searchable Dropdown */}
+          <div className="relative">
+            <label className="text-sm">Supplier *</label>
+
+            <div className="flex items-center gap-2">
+              <input
+                value={newPay.supplierSearch || newPay.supplier}
+                onChange={(e) =>
+                  setNewPay({
+                    ...newPay,
+                    supplierSearch: e.target.value,
+                    supplierDropdown: true,
+                  })
+                }
+                onClick={() =>
+                  setNewPay((p) => ({
+                    ...p,
+                    supplierDropdown: !p.supplierDropdown,
+                  }))
+                }
+                placeholder="Search or select supplier..."
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
+              />
+
+              {/* New Supplier Button */}
+              {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && (
+                <button
+                  onClick={() => navigate("/masters/new-supplier")}
+                  className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700"
+                >
+                  <Star size={16} className="text-yellow-300" />
+                </button>
+              )}
             </div>
 
-            <div className="p-5 space-y-4">
+            {newPay.supplierDropdown && (
+              <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto">
+                {suppliers
+                  .filter((s) =>
+                    s
+                      .toLowerCase()
+                      .includes(newPay.supplierSearch.toLowerCase())
+                  )
+                  .map((s) => (
+                    <div
+                      key={s}
+                      onClick={() =>
+                        setNewPay({
+                          ...newPay,
+                          supplier: s,
+                          supplierSearch: "",
+                          supplierDropdown: false,
+                        })
+                      }
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {s}
+                    </div>
+                  ))}
 
-              {/* Date */}
-              <div>
-                <label className="text-sm">Voucher Date *</label>
-                <input
-                  type="date"
-                  value={newPay.date}
-                  onChange={(e) => setNewPay({ ...newPay, date: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* Supplier Searchable Dropdown */}
-              <div className="relative">
-                <label className="text-sm">Supplier *</label>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    value={newPay.supplierSearch || newPay.supplier}
-                    onChange={(e) =>
-                      setNewPay({
-                        ...newPay,
-                        supplierSearch: e.target.value,
-                        supplierDropdown: true,
-                      })
-                    }
-                    onClick={() =>
-                      setNewPay((p) => ({ ...p, supplierDropdown: !p.supplierDropdown }))
-                    }
-                    placeholder="Search or select supplier..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
-                  />
-
-                  {/* New Supplier Button */}
-                  {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && (
-                  <button
-                    onClick={() => navigate("/masters/new-supplier")}
-                    className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700"
-                  >
-                    <Star size={16} className="text-yellow-300" />
-                  </button>
-                  )}
-                </div>
-
-                {newPay.supplierDropdown && (
-                  <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto">
-                    {suppliers
-                      .filter((s) =>
-                        s.toLowerCase().includes(newPay.supplierSearch.toLowerCase())
-                      )
-                      .map((s) => (
-                        <div
-                          key={s}
-                          onClick={() =>
-                            setNewPay({
-                              ...newPay,
-                              supplier: s,
-                              supplierSearch: "",
-                              supplierDropdown: false,
-                            })
-                          }
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                        >
-                          {s}
-                        </div>
-                      ))}
-
-                    {suppliers.filter((s) =>
-                      s.toLowerCase().includes(newPay.supplierSearch.toLowerCase())
-                    ).length === 0 && (
-                      <div className="px-3 py-2 text-gray-400 text-sm">No results found</div>
-                    )}
+                {suppliers.filter((s) =>
+                  s.toLowerCase().includes(newPay.supplierSearch.toLowerCase())
+                ).length === 0 && (
+                  <div className="px-3 py-2 text-gray-400 text-sm">
+                    No results found
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* Payment Type */}
-              <div>
-                <label className="text-sm">Payment Type *</label>
-                <select
-                  value={newPay.paymentType}
-                  onChange={(e) => setNewPay({ ...newPay, paymentType: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                >
-                  <option value="">Select Payment Type</option>
-                  <option value="Cash at Hand">Cash at Hand</option>
-                  <option value="Cash at Bank">Cash at Bank</option>
-                </select>
-              </div>
+          {/* Payment Type */}
+          <div>
+            <label className="text-sm">Payment Type *</label>
+            <select
+              value={newPay.paymentType}
+              onChange={(e) =>
+                setNewPay({ ...newPay, paymentType: e.target.value })
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            >
+              <option value="">Select Payment Type</option>
+              <option value="Cash at Hand">Cash at Hand</option>
+              <option value="Cash at Bank">Cash at Bank</option>
+            </select>
+          </div>
 
-              {/* Amount */}
-              <div>
-                <label className="text-sm">Amount *</label>
-                <input
-                  type="number"
-                  value={newPay.amount}
-                  onChange={(e) => setNewPay({ ...newPay, amount: e.target.value })}
-                  placeholder="0"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
+          {/* Amount */}
+          <div>
+            <label className="text-sm">Amount *</label>
+            <input
+              type="number"
+              value={newPay.amount}
+              onChange={(e) =>
+                setNewPay({ ...newPay, amount: e.target.value })
+              }
+              placeholder="0"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-              {/* Remarks */}
-              <div>
-                <label className="text-sm">Remarks (optional)</label>
-                <textarea
-                  value={newPay.remarks}
-                  onChange={(e) => setNewPay({ ...newPay, remarks: e.target.value })}
-                  rows={2}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end px-5 py-3 border-t border-gray-700">
-              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
+          {/* Remarks */}
+          <div>
+            <label className="text-sm">Remarks (optional)</label>
+            <textarea
+              value={newPay.remarks}
+              onChange={(e) =>
+                setNewPay({ ...newPay, remarks: e.target.value })
+              }
+              rows={2}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
       {/* ------------------------------ MAIN PAGE ------------------------------ */}
       <PageLayout>

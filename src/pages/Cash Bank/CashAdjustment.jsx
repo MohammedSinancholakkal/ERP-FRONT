@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import AddModal from "../../components/modals/AddModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -123,117 +124,101 @@ const CashAdjustment = () => {
   return (
     <>
       {/* --------------------------- ADD MODAL --------------------------- */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setModalOpen(false)}
-          />
+      {/* --------------------------- ADD MODAL --------------------------- */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAdd}
+        title="New Cash Adjustment"
+        width="700px"
+        permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+      >
+        <div className="p-0 space-y-4">
+          {/* Voucher Date */}
+          <div>
+            <label className="text-sm">Voucher Date *</label>
+            <input
+              type="date"
+              value={newAdj.date}
+              onChange={(e) => setNewAdj({ ...newAdj, date: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-          <div className="relative w-[700px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white border border-gray-700 rounded-lg shadow-lg">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Cash Adjustment</h2>
-              <button onClick={() => setModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
+          {/* Code Auto Generated */}
+          <div>
+            <label className="text-sm">Code *</label>
+            <input
+              value={newAdj.code}
+              readOnly
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 opacity-70 cursor-not-allowed"
+            />
+          </div>
 
-            <div className="p-5 space-y-4">
+          {/* Adjustment Type */}
+          <div>
+            <label className="text-sm">Adjustment Type *</label>
+            <select
+              value={newAdj.type}
+              onChange={(e) => setNewAdj({ ...newAdj, type: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            >
+              <option value="">Select Type</option>
+              <option value="Debit">Debit (-)</option>
+              <option value="Credit">Credit (+)</option>
+            </select>
+          </div>
 
-              {/* Voucher Date */}
-              <div>
-                <label className="text-sm">Voucher Date *</label>
-                <input
-                  type="date"
-                  value={newAdj.date}
-                  onChange={(e) => setNewAdj({ ...newAdj, date: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
+          {/* COA Head Name */}
+          <div>
+            <label className="text-sm">COA Head Name *</label>
+            <input
+              value={newAdj.coaHeadName}
+              onChange={(e) =>
+                setNewAdj({ ...newAdj, coaHeadName: e.target.value })
+              }
+              placeholder="Cash Adjustment"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-              {/* Code Auto Generated */}
-              <div>
-                <label className="text-sm">Code *</label>
-                <input
-                  value={newAdj.code}
-                  readOnly
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 opacity-70 cursor-not-allowed"
-                />
-              </div>
+          {/* COA Code */}
+          <div>
+            <label className="text-sm">COA *</label>
+            <input
+              value={newAdj.coa}
+              onChange={(e) => setNewAdj({ ...newAdj, coa: e.target.value })}
+              placeholder="5001"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-              {/* Adjustment Type */}
-              <div>
-                <label className="text-sm">Adjustment Type *</label>
-                <select
-                  value={newAdj.type}
-                  onChange={(e) => setNewAdj({ ...newAdj, type: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                >
-                  <option value="">Select Type</option>
-                  <option value="Debit">Debit (-)</option>
-                  <option value="Credit">Credit (+)</option>
-                </select>
-              </div>
+          {/* Amount */}
+          <div>
+            <label className="text-sm">Amount *</label>
+            <input
+              type="number"
+              value={newAdj.amount}
+              onChange={(e) => setNewAdj({ ...newAdj, amount: e.target.value })}
+              placeholder="0"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-              {/* COA Head Name */}
-              <div>
-                <label className="text-sm">COA Head Name *</label>
-                <input
-                  value={newAdj.coaHeadName}
-                  onChange={(e) => setNewAdj({ ...newAdj, coaHeadName: e.target.value })}
-                  placeholder="Cash Adjustment"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* COA Code */}
-              <div>
-                <label className="text-sm">COA *</label>
-                <input
-                  value={newAdj.coa}
-                  onChange={(e) => setNewAdj({ ...newAdj, coa: e.target.value })}
-                  placeholder="5001"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* Amount */}
-              <div>
-                <label className="text-sm">Amount *</label>
-                <input
-                  type="number"
-                  value={newAdj.amount}
-                  onChange={(e) => setNewAdj({ ...newAdj, amount: e.target.value })}
-                  placeholder="0"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* Remarks */}
-              <div>
-                <label className="text-sm">Remarks *</label>
-                <textarea
-                  value={newAdj.remarks}
-                  onChange={(e) => setNewAdj({ ...newAdj, remarks: e.target.value })}
-                  rows={2}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end px-5 py-3 border-t border-gray-700">
-              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
+          {/* Remarks */}
+          <div>
+            <label className="text-sm">Remarks *</label>
+            <textarea
+              value={newAdj.remarks}
+              onChange={(e) =>
+                setNewAdj({ ...newAdj, remarks: e.target.value })
+              }
+              rows={2}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
       {/* --------------------------- MAIN PAGE --------------------------- */}
       <PageLayout>

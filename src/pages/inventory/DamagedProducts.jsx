@@ -9,10 +9,6 @@ import {
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
   FileSpreadsheet,
   FileText,
@@ -43,43 +39,14 @@ import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 
 
 
-/* ============================
-   Simple Portal Modal wrapper
-   - backdrop closes on click
-   - inner stops propagation
-   - prevents body scroll while open
-   ============================ */
-const PortalModal = ({ open, onClose, children }) => {
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
-  if (!open) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-start z-50 pt-12"
-      onClick={onClose}
-    >
-      <div
-        className="w-[760px] max-h-[90vh] overflow-auto bg-gray-900 text-white rounded-lg border border-gray-700 relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body
-  );
-};
 
 /* =========================================================
    MAIN COMPONENT
@@ -135,7 +102,7 @@ const DamagedProducts = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [searchColumn, setSearchColumn] = useState("");
 
   /* =========================================================
@@ -595,414 +562,272 @@ const DamagedProducts = () => {
     doc.save(`${f}.pdf`);
   };
 
-  /* =========================================================
-                        ADD MODAL (using PortalModal)
-     ========================================================= */
-  const AddModalContent = (
-    <>
-      <div className="flex justify-between px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-50">
-        <h2 className="text-lg">New Damaged Product</h2>
-        <button onClick={() => setModalOpen(false)}>
-          <X size={20} />
-        </button>
-      </div>
 
-      <div className="p-6 grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="font-semibold">* Select Product</label>
-          <SearchableSelect
-            options={products.map((p) => ({
-              id: p.Id ?? p.id,
-              name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
-                p.Barcode ?? p.barcode ?? ""
-              })`,
-            }))}
-            value={newDP.ProductId}
-            onChange={(v) => handleSelectProduct(v, "add")}
-            placeholder="Search / select product"
-            className="w-full"
-          />
-        </div>
-
-        <div>
-          <label>* Code</label>
-          <input
-            disabled
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={newDP.Code ?? ""}
-            autoFocus
-          />
-
-          <label>* Name</label>
-          <input
-            disabled
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={newDP.Name ?? ""}
-          />
-
-          <label>* Date</label>
-          <div className="relative">
-  <input
-    type="date"
-    className="
-      w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2
-      text-white appearance-none pr-10
-    "
-    value={newDP.Date ?? ""}
-    onChange={(e) => setNewDP((prev) => ({ ...prev, Date: e.target.value }))}
-  />
-
-  <Calendar
-    size={18}
-    className="text-white absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-  />
-</div>
-
-
-        </div>
-
-        <div>
-          <label className="font-semibold">* Category</label>
-          <div className="h-[50px]">
-          <div className="h-[50px]">
-            <SearchableSelect
-              options={categories.map((c) => ({
-                id: c.Id ?? c.id,
-                name:
-                  c.Name ??
-                  c.name ??
-                  c.CategoryName ??
-                  c.categoryName ??
-                  String(c.Id ?? c.id),
-              }))}
-              value={newDP.CategoryId}
-              onChange={(v) => setNewDP((prev) => ({ ...prev, CategoryId: v }))}
-              placeholder="Select category"
-              className="w-full"
-            />
-          </div>
-          </div>
-
-          <label className="mt-3">* Purchase Price</label>
-          <input
-            type="number"
-            step="0.01"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={newDP.PurchasePrice ?? ""}
-            onChange={(e) =>
-              setNewDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))
-            }
-          />
-
-          <label>* Quantity</label>
-          <input
-            type="number"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={newDP.Quantity ?? ""}
-            onChange={(e) =>
-              setNewDP((prev) => ({ ...prev, Quantity: e.target.value }))
-            }
-          />
-        </div>
-
-
-
-        <div className="col-span-2">
-          <label>Note</label>
-          <textarea
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24"
-            value={newDP.Note ?? ""}
-            onChange={(e) =>
-              setNewDP((prev) => ({ ...prev, Note: e.target.value }))
-            }
-          />
-        </div>
-      </div>
-
-      <div className="px-5 py-3 border-t border-gray-700 sticky bottom-5 bg-gray-900 flex justify-end gap-2">
-        <button
-          onClick={() => setModalOpen(false)}
-          className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-        >
-          Cancel
-        </button>
-        {hasPermission(PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.CREATE) && (
-        <button
-          onClick={handleAdd}
-          className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-        >
-          <Save size={16} /> Save
-        </button>
-        )}
-      </div>
-    </>
-  );
-
-  /* =========================================================
-                        EDIT MODAL (using PortalModal)
-     ========================================================= */
-  const EditModalContent = (
-    <>
-      <div className="flex justify-between px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-50">
-        <h2 className="text-lg">
-          {editDP.isInactive
-            ? "Restore Damaged Product"
-            : "Edit Damaged Product"}
-        </h2>
-        <button onClick={() => setEditModalOpen(false)}>
-          <X size={20} />
-        </button>
-      </div>
-
-      <div className="p-6 grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="font-semibold">* Select Product</label>
-          <SearchableSelect
-            options={products.map((p) => ({
-              id: p.Id ?? p.id,
-              name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
-                p.Barcode ?? p.barcode ?? ""
-              })`,
-            }))}
-            value={editDP.ProductId}
-            onChange={(v) => handleSelectProduct(v, "edit")}
-            placeholder="Search / select product"
-            className="w-full"
-          />
-        </div>
-
-        <div>
-          <label>* Code</label>
-          <input
-            disabled
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={editDP.Code ?? ""}
-          />
-
-          <label>* Name</label>
-          <input
-            disabled
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={editDP.Name ?? ""}
-          />
-
-          <label>* Date</label>
-          <div className="relative">
-  <input
-    type="date"
-    disabled={editDP.isInactive}
-    className="
-      w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2
-      text-white appearance-none pr-10
-    "
-    value={editDP.Date ?? ""}
-    onChange={(e) => setEditDP((prev) => ({ ...prev, Date: e.target.value }))}
-  />
-
-  <Calendar
-    size={18}
-    className="text-white absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-  />
-</div>
-
-        </div>
-
-        <div className="h-[100px]">
-          <label className="font-semibold">* Category</label>
-          <label className="font-semibold">* Category</label>
-          <SearchableSelect
-            options={categories.map((c) => ({
-              id: c.Id ?? c.id,
-              name:
-                c.Name ??
-                c.name ??
-                c.CategoryName ??
-                c.categoryName ??
-                String(c.Id ?? c.id),
-            }))}
-            value={editDP.CategoryId}
-            onChange={(v) => setEditDP((prev) => ({ ...prev, CategoryId: v }))}
-            placeholder="Select category"
-            className="w-full"
-          />
-
-          <label className="mt-3">* Purchase Price</label>
-          <input
-            type="number"
-            disabled={editDP.isInactive}
-            step="0.01"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={editDP.PurchasePrice ?? ""}
-            onChange={(e) =>
-              setEditDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))
-            }
-          />
-
-          <label>* Quantity</label>
-          <input
-            type="number"
-            disabled={editDP.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2"
-            value={editDP.Quantity ?? ""}
-            onChange={(e) =>
-              setEditDP((prev) => ({ ...prev, Quantity: e.target.value }))
-            }
-          />
-        </div>
-
-
-
-        <div className="col-span-2">
-          <label>Note</label>
-          <textarea
-            disabled={editDP.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24"
-            value={editDP.Note ?? ""}
-            onChange={(e) =>
-              setEditDP((prev) => ({ ...prev, Note: e.target.value }))
-            }
-          />
-        </div>
-      </div>
-      {/* FOOTER */}
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-        {editDP.isInactive ? (
-          hasPermission(PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.DELETE) && (
-          <button
-            onClick={handleRestore}
-            className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-          >
-            <ArchiveRestore size={16} /> Restore
-          </button>
-          )
-        ) : (
-          hasPermission(PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.DELETE) && (
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-          >
-            <Trash2 size={16} /> Delete
-          </button>
-          )
-        )}
-
-        {!editDP.isInactive && hasPermission(PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.EDIT) && (
-          <button
-            onClick={handleUpdate}
-            className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-          >
-            <Save size={16} /> Save
-          </button>
-        )}
-      </div>
-    </>
-  );
 
   /* =========================================================
                           MAIN PAGE RENDER
      ========================================================= */
   return (
     <>
-      <PortalModal open={modalOpen} onClose={() => setModalOpen(false)}>
-        {AddModalContent}
-      </PortalModal>
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAdd}
+        title="New Damaged Product"
+        width="760px"
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="font-semibold text-sm">* Select Product</label>
+            <SearchableSelect
+              options={products.map((p) => ({
+                id: p.Id ?? p.id,
+                name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
+                  p.Barcode ?? p.barcode ?? ""
+                })`,
+              }))}
+              value={newDP.ProductId}
+              onChange={(v) => handleSelectProduct(v, "add")}
+              placeholder="Search / select product"
+              className="w-full mt-1"
+            />
+          </div>
 
-      <PortalModal open={editModalOpen} onClose={() => setEditModalOpen(false)}>
-        {EditModalContent}
-      </PortalModal>
+          <div>
+            <label className="text-sm">* Code</label>
+            <input
+              disabled
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
+              value={newDP.Code ?? ""}
+            />
 
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[600px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            {/* column picker content (kept as in previous file) */}
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="px-5 py-3">
+            <label className="text-sm">* Name</label>
+            <input
+              disabled
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
+              value={newDP.Name ?? ""}
+            />
+
+            <label className="text-sm">* Date</label>
+            <div className="relative">
               <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
+                type="date"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm text-white appearance-none pr-10"
+                value={newDP.Date ?? ""}
+                onChange={(e) =>
+                  setNewDP((prev) => ({ ...prev, Date: e.target.value }))
+                }
+              />
+              <Calendar
+                size={18}
+                className="text-white absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
               />
             </div>
-            <div className="px-5 pb-5">
-              <div className="grid grid-cols-2 gap-4 max-h-64 overflow-auto">
-                <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                  <h3 className="font-semibold mb-3">Visible Columns</h3>
-                  {Object.keys(visibleColumns)
-                    .filter(
-                      (c) => visibleColumns[c] && c.includes(searchColumn)
-                    )
-                    .map((col) => (
-                      <div
-                        key={col}
-                        className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                      >
-                        <span>{col.toUpperCase()}</span>
-                        <button
-                          className="text-red-400"
-                          onClick={() =>
-                            setVisibleColumns((prev) => ({
-                              ...prev,
-                              [col]: false,
-                            }))
-                          }
-                        >
-                          ✖
-                        </button>
-                      </div>
-                    ))}
-                </div>
-                <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                  <h3 className="font-semibold mb-3">Hidden Columns</h3>
-                  {Object.keys(visibleColumns)
-                    .filter(
-                      (c) => !visibleColumns[c] && c.includes(searchColumn)
-                    )
-                    .map((col) => (
-                      <div
-                        key={col}
-                        className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                      >
-                        <span>{col.toUpperCase()}</span>
-                        <button
-                          className="text-green-400"
-                          onClick={() =>
-                            setVisibleColumns((prev) => ({
-                              ...prev,
-                              [col]: true,
-                            }))
-                          }
-                        >
-                          ➕
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
+          </div>
+
+          <div>
+            <label className="font-semibold text-sm">* Category</label>
+            <div className="mt-1">
+              <SearchableSelect
+                options={categories.map((c) => ({
+                  id: c.Id ?? c.id,
+                  name:
+                    c.Name ??
+                    c.name ??
+                    c.CategoryName ??
+                    c.categoryName ??
+                    String(c.Id ?? c.id),
+                }))}
+                value={newDP.CategoryId}
+                onChange={(v) =>
+                  setNewDP((prev) => ({ ...prev, CategoryId: v }))
+                }
+                placeholder="Select category"
+                className="w-full"
+              />
             </div>
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={() => setVisibleColumns(defaultColumns)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
+
+            <label className="mt-3 block text-sm">* Purchase Price</label>
+            <input
+              type="number"
+              step="0.01"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
+              value={newDP.PurchasePrice ?? ""}
+              onChange={(e) =>
+                setNewDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))
+              }
+            />
+
+            <label className="text-sm">* Quantity</label>
+            <input
+              type="number"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
+              value={newDP.Quantity ?? ""}
+              onChange={(e) =>
+                setNewDP((prev) => ({ ...prev, Quantity: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className="text-sm">Note</label>
+            <textarea
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24 text-sm"
+              value={newDP.Note ?? ""}
+              onChange={(e) =>
+                setNewDP((prev) => ({ ...prev, Note: e.target.value }))
+              }
+            />
           </div>
         </div>
-      )}
+      </AddModal>
+
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdate}
+        onDelete={handleDelete}
+        onRestore={handleRestore}
+        isInactive={editDP.isInactive}
+        title={`${
+          editDP.isInactive ? "Restore Damaged Product" : "Edit Damaged Product"
+        }`}
+        permissionDelete={hasPermission(
+          PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.DELETE
+        )}
+        permissionEdit={hasPermission(
+          PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.EDIT
+        )}
+        width="760px"
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="font-semibold text-sm">* Select Product</label>
+            <SearchableSelect
+              options={products.map((p) => ({
+                id: p.Id ?? p.id,
+                name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
+                  p.Barcode ?? p.barcode ?? ""
+                })`,
+              }))}
+              value={editDP.ProductId}
+              onChange={(v) => handleSelectProduct(v, "edit")}
+              placeholder="Search / select product"
+              className="w-full mt-1"
+              disabled={editDP.isInactive}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm">* Code</label>
+            <input
+              disabled
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
+              value={editDP.Code ?? ""}
+            />
+
+            <label className="text-sm">* Name</label>
+            <input
+              disabled
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
+              value={editDP.Name ?? ""}
+            />
+
+            <label className="text-sm">* Date</label>
+            <div className="relative">
+              <input
+                type="date"
+                disabled={editDP.isInactive}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm text-white appearance-none pr-10"
+                value={editDP.Date ?? ""}
+                onChange={(e) =>
+                  setEditDP((prev) => ({ ...prev, Date: e.target.value }))
+                }
+              />
+              <Calendar
+                size={18}
+                className="text-white absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="font-semibold text-sm">* Category</label>
+            <div className="mt-1">
+              <SearchableSelect
+                options={categories.map((c) => ({
+                  id: c.Id ?? c.id,
+                  name:
+                    c.Name ??
+                    c.name ??
+                    c.CategoryName ??
+                    c.categoryName ??
+                    String(c.Id ?? c.id),
+                }))}
+                value={editDP.CategoryId}
+                onChange={(v) =>
+                  setEditDP((prev) => ({ ...prev, CategoryId: v }))
+                }
+                placeholder="Select category"
+                className="w-full"
+                disabled={editDP.isInactive}
+              />
+            </div>
+
+            <label className="mt-3 block text-sm">* Purchase Price</label>
+            <input
+              type="number"
+              step="0.01"
+              disabled={editDP.isInactive}
+              className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm ${
+                editDP.isInactive ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+              value={editDP.PurchasePrice ?? ""}
+              onChange={(e) =>
+                setEditDP((prev) => ({
+                  ...prev,
+                  PurchasePrice: e.target.value,
+                }))
+              }
+            />
+
+            <label className="text-sm">* Quantity</label>
+            <input
+              type="number"
+              disabled={editDP.isInactive}
+              className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm ${
+                editDP.isInactive ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+              value={editDP.Quantity ?? ""}
+              onChange={(e) =>
+                setEditDP((prev) => ({ ...prev, Quantity: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label className="text-sm">Note</label>
+            <textarea
+              className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24 text-sm ${
+                editDP.isInactive ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+              value={editDP.Note ?? ""}
+              onChange={(e) =>
+                setEditDP((prev) => ({ ...prev, Note: e.target.value }))
+              }
+              disabled={editDP.isInactive}
+            />
+          </div>
+        </div>
+      </EditModal>
+
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       <PageLayout>
 <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
@@ -1043,7 +868,7 @@ const DamagedProducts = () => {
             </button>
 
             <button
-              onClick={() => setColumnModal(true)}
+              onClick={() => setColumnModalOpen(true)}
               className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
             >
               <List size={16} className="text-blue-300" />

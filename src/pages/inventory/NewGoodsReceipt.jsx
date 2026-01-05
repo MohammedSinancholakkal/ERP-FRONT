@@ -21,6 +21,7 @@ import {
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import AddModal from "../../components/modals/AddModal";
 
 function NewGoodsReceipt() {
   const navigate = useNavigate()
@@ -725,125 +726,93 @@ useEffect(() => {
       </div>
 
       {/* ITEM MODAL */}
-      {isItemModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-[700px] p-6 relative">
+      <AddModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        onSave={addItemToTable}
+        title={editingIndex !== null ? "Edit Goods Receipt Details" : "New Goods Receipt Details"}
+        width="700px"
+      >
+        <div className="grid grid-cols-1 gap-5">
+           {/* PRODUCT */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">
+              <span className="text-red-400">*</span> Product
+            </label>
+            <SearchableSelect
+              value={newItem.productId}
+              onChange={(val) => {
+                const p = productsList.find(x => String(x.id) === String(val))
+                if (p) {
+                  setNewItem(prev => ({
+                    ...prev,
+                    productId: p.id,
+                    productName: p.ProductName || p.name || '',
+                    quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1
+                  }))
+                } else {
+                  setNewItem(prev => ({ ...prev, productId: val, quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1 }))
+                }
+              }}
+              placeholder="Product"
+              options={productsList}
+              disabled={isReadonly}
+            />
+          </div>
 
-            {/* CLOSE */}
-            <button
-              onClick={() => setIsItemModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={24} />
-            </button>
+          {/* QUANTITY */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">
+              <span className="text-red-400">*</span> Quantity
+            </label>
+            <input
+              type="number"
+              value={newItem.quantity}
+              onChange={(e) =>
+                setNewItem({ ...newItem, quantity: e.target.value })
+              }
+              disabled={isReadonly}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
 
-            <h3 className="text-xl text-white font-semibold mb-6">
-              {editingIndex !== null ? "Edit Goods Receipt Details" : "New Goods Receipt Details"}
-            </h3>
+          {/* WAREHOUSE */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">
+              <span className="text-red-400">*</span> Warehouse
+            </label>
+            <SearchableSelect
+              value={newItem.warehouseId}
+              onChange={(val) => {
+                const w = warehousesList.find(x => String(x.id) === String(val))
+                if (w) {
+                  setNewItem({ ...newItem, warehouseId: w.id, warehouseName: w.name })
+                } else {
+                  setNewItem(prev => ({ ...prev, warehouseId: val }))
+                }
+              }}
+              placeholder="Warehouse"
+              options={warehousesList}
+              disabled={isReadonly}
+            />
+          </div>
 
-            <div className="grid grid-cols-1 gap-5">
-
-              {/* PRODUCT */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  <span className="text-red-400">*</span> Product
-                </label>
-                <SearchableSelect
-                  value={newItem.productId}
-                  onChange={(val) => {
-                    const p = productsList.find(x => String(x.id) === String(val))
-                    if (p) {
-                      setNewItem(prev => ({
-                        ...prev,
-                        productId: p.id,
-                        productName: p.ProductName || p.name || '',
-                        quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1
-                      }))
-                    } else {
-                      setNewItem(prev => ({ ...prev, productId: val, quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1 }))
-                    }
-                  }}
-                  placeholder="Product"
-                  options={productsList}
-                  disabled={isReadonly}
-                />
-              </div>
-
-              {/* QUANTITY */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  <span className="text-red-400">*</span> Quantity
-                </label>
-                <input
-                  type="number"
-                  value={newItem.quantity}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, quantity: e.target.value })
-                  }
-                  disabled={isReadonly}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* WAREHOUSE */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  <span className="text-red-400">*</span> Warehouse
-                </label>
-                <SearchableSelect
-                  value={newItem.warehouseId}
-                  onChange={(val) => {
-                    const w = warehousesList.find(x => String(x.id) === String(val))
-                    if (w) {
-                      setNewItem({ ...newItem, warehouseId: w.id, warehouseName: w.name })
-                    } else {
-                      setNewItem(prev => ({ ...prev, warehouseId: val }))
-                    }
-                  }}
-                  placeholder="Warehouse"
-                  options={warehousesList}
-                  disabled={isReadonly}
-                />
-              </div>
-
-              {/* DESCRIPTION */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={newItem.description || ""}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, description: e.target.value })
-                  }
-                  rows={3}
-                  disabled={isReadonly}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none"
-                />
-              </div>
-
-            </div>
-
-            {/* FOOTER */}
-            <div className="flex justify-end gap-3 mt-8">
-              <button
-                onClick={() => setIsItemModalOpen(false)}
-                className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addItemToTable}
-                disabled={isReadonly}
-                className={`flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700 ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {editingIndex !== null ? "Update Item" : "Add Item"}
-              </button>
-            </div>
-
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">
+              Description
+            </label>
+            <textarea
+              value={newItem.description || ""}
+              onChange={(e) =>
+                setNewItem({ ...newItem, description: e.target.value })
+              }
+              rows={3}
+              disabled={isReadonly}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
     </PageLayout>
   )

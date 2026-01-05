@@ -29,6 +29,7 @@ import {
   getInactiveServiceInvoicesApi,
   restoreServiceInvoiceApi
 } from "../../services/allAPI";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const defaultColumns = {
   id: true,
@@ -372,64 +373,13 @@ const Invoices = () => {
   return (
     <>
       {/* COLUMN PICKER MODAL */}
-      {columnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setColumnModalOpen(false)}
+          <ColumnPickerModal
+            isOpen={columnModalOpen} 
+            onClose={() => setColumnModalOpen(false)} 
+            visibleColumns={visibleColumns} 
+            setVisibleColumns={setVisibleColumns} 
+            defaultColumns={defaultColumns} 
           />
-          <div className="relative w-[700px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
-            <div className="sticky top-0 bg-gray-900 flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModalOpen(false)} className="text-gray-300 hover:text-white">✕</button>
-            </div>
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="Search column..."
-                value={columnSearch}
-                onChange={(e) => setColumnSearch(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns)
-                    .filter((col) => tempVisibleColumns[col] && col.toLowerCase().includes(columnSearch))
-                    .map((col) => (
-                      <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between">
-                        <span>{col}</span>
-                        <button className="text-red-400" onClick={() => setTempVisibleColumns((p) => ({ ...p, [col]: false }))}>✕</button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns)
-                    .filter((col) => !tempVisibleColumns[col] && col.toLowerCase().includes(columnSearch))
-                    .map((col) => (
-                      <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between">
-                        <span>{col}</span>
-                        <button className="text-green-400" onClick={() => setTempVisibleColumns((p) => ({ ...p, [col]: true }))}>➕</button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-            <div className="sticky bottom-5 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={() => setTempVisibleColumns(defaultColumns)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">Restore Defaults</button>
-              <div className="flex gap-3">
-                <button onClick={() => setColumnModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">Cancel</button>
-                <button onClick={() => { setVisibleColumns(tempVisibleColumns); setColumnModalOpen(false); }} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">OK</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <PageLayout> 
         <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">

@@ -5,9 +5,7 @@ import {
   RefreshCw,
   List,
   ArchiveRestore,
-  ChevronDown,
 } from "lucide-react";
-
 import SortableHeader from "../../components/SortableHeader";
 import FilterBar from "../../components/FilterBar";
 import Pagination from "../../components/Pagination";
@@ -22,6 +20,8 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import toast from "react-hot-toast";
+
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 
 
@@ -41,10 +41,8 @@ const Meetings = () => {
     reporter: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
+  // Column picker modal state
   const [columnModalOpen, setColumnModalOpen] = useState(false);
-  const [columnSearch, setColumnSearch] = useState("");
-  const columnModalRef = useRef(null);
 
   /* Inactive State */
   const [showInactive, setShowInactive] = useState(false);
@@ -103,11 +101,7 @@ const Meetings = () => {
         let records = res.data.records || res.data || [];
         if (!Array.isArray(records)) records = [];
         setAllMeetings(records);
-        
-        setAllMeetings(records);
-        
         const unique = (key) => [...new Set(records.map(r => r[key]).filter(Boolean))].sort().map(val => ({ id: val, name: val }));
-        
         setDropdownOptions({
           meetingTypes: unique('meetingType'),
           startDates: unique('startDate'),
@@ -165,8 +159,7 @@ const Meetings = () => {
     try {
       await restoreMeetingApi(id, { userId: 1 });
       toast.success("Meeting restored successfully");
-      loadMeetings(false); // Reload and stay on inactive view or active view? Usually active view is default but let's just reload.
-      // Or if we want to remove it from the inactive list instantly:
+      loadMeetings(false);
       setInactiveMeetings(prev => prev.filter(m => m.id !== id));
     } catch (error) {
       console.error("RESTORE ERROR:", error);
@@ -227,22 +220,11 @@ const Meetings = () => {
   /* Pagination Logic */
   const safeFiltered = Array.isArray(filteredMeetings) ? filteredMeetings : [];
   const total = safeFiltered.length;
-  const totalPages = Math.ceil(total / limit);
   const startIdx = (page - 1) * limit;
   const paginatedData = safeFiltered.slice(startIdx, startIdx + limit);
-  const endIdx = Math.min(startIdx + limit, total);
-  const startRec = total === 0 ? 0 : startIdx + 1;
 
-  // Close dropdowns logic
-  useEffect(() => {
-    const handler = (e) => {
-      if (columnModalRef.current && columnModalRef.current.contains(e.target)) {
-        return;
-      }
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
+
+
 
   const filterFilters = [
       { label: "Meeting Type", options: dropdownOptions.meetingTypes, value: filterMeetingType, onChange: setFilterMeetingType, placeholder: "Select Type" },
@@ -266,60 +248,13 @@ const Meetings = () => {
 
   return (
     <>
-      {/* COLUMN PICKER MODAL */}
-      {columnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setColumnModalOpen(false)} />
-          <div ref={columnModalRef} className="relative w-[700px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
-            <div className="sticky top-0 bg-gray-900 flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModalOpen(false)} className="text-gray-300 hover:text-white">✕</button>
-            </div>
-            <div className="px-5 py-3">
-              <input 
-                type="text" 
-                placeholder="Search column..." 
-                value={columnSearch} 
-                onChange={(e) => setColumnSearch(e.target.value.toLowerCase())} 
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white" 
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              {/* Visible */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns).filter(col => tempVisibleColumns[col] && col.toLowerCase().includes(columnSearch)).map(col => (
-                    <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between">
-                      <span>{col}</span>
-                      <button className="text-red-400" onClick={() => setTempVisibleColumns(p => ({ ...p, [col]: false }))}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Hidden */}
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns).filter(col => !tempVisibleColumns[col] && col.toLowerCase().includes(columnSearch)).map(col => (
-                    <div key={col} className="bg-gray-800 px-3 py-2 rounded flex justify-between">
-                      <span>{col}</span>
-                      <button className="text-green-400" onClick={() => setTempVisibleColumns(p => ({ ...p, [col]: true }))}>➕</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="sticky bottom-5 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={() => setTempVisibleColumns(defaultColumns)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700 text-white">Restore Defaults</button>
-              <div className="flex gap-3">
-                <button onClick={() => setColumnModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700 text-white">Cancel</button>
-                <button onClick={() => { setVisibleColumns(tempVisibleColumns); setColumnModalOpen(false); }} className="px-3 py-2 bg-gray-800  rounded hover:bg-gray-800 text-white">OK</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ColumnPickerModal 
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       <PageLayout>
         <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full flex flex-col">
@@ -358,7 +293,7 @@ const Meetings = () => {
 
               <button 
                 className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-                onClick={() => { setTempVisibleColumns(visibleColumns); setColumnModalOpen(true); }}
+                onClick={() => setColumnModalOpen(true)}
               >
                 <List size={16} className="text-blue-300" />
               </button>
@@ -535,7 +470,7 @@ const Meetings = () => {
   );
 };
 
-export default Meetings;
+export default Meetings;  
 
 
 

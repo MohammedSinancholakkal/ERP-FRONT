@@ -1,26 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Search,
   Plus,
   RefreshCw,
   List,
-  X,
-  Save,
-  Trash2,
   ArchiveRestore,
   Star,
 } from "lucide-react";
-import PageLayout from "../../layout/PageLayout";
-import Pagination from "../../components/Pagination";
-import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
-import SearchableSelect from "../../components/SearchableSelect";
-import { hasPermission } from "../../utils/permissionUtils";
-import { PERMISSIONS } from "../../constants/permissions";
 
 import {
-  addTerritoryApi,
   getTerritoriesApi,
+  addTerritoryApi,
   updateTerritoryApi,
   deleteTerritoryApi,
   searchTerritoryApi,
@@ -29,58 +20,64 @@ import {
   getRegionsApi,
   addRegionApi,
 } from "../../services/allAPI";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
+
+import SortableHeader from "../../components/SortableHeader";
+import PageLayout from "../../layout/PageLayout";
+import Pagination from "../../components/Pagination";
+import SearchableSelect from "../../components/SearchableSelect";
+
+// MODALS
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const Territories = () => {
+  // ===============================
+  // State Declarations
+  // ===============================
   const [modalOpen, setModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  
+  // Quick Add Region
+  const [addRegionModalOpen, setAddRegionModalOpen] = useState(false);
+  const [newRegionName, setNewRegionName] = useState("");
 
-  const [territories, setTerritories] = useState([]);
-  const [inactiveTerritories, setInactiveTerritories] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
 
-  // Dropdown data
   const [regions, setRegions] = useState([]);
 
-  const [newData, setNewData] = useState({ name: "", regionId: "" });
+  const [searchText, setSearchText] = useState("");
 
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editData, setEditData] = useState({
+  const user = JSON.parse(localStorage.getItem("user")) || null;
+  const currentUserId = user?.userId || 1;
+
+  const [newItem, setNewItem] = useState({ 
+    name: "", 
+    regionId: ""
+  });
+
+  const [editItem, setEditItem] = useState({
     id: null,
     name: "",
     regionId: "",
     isInactive: false,
   });
 
-  // QUICK ADD STATE
-  const [addRegionModalOpen, setAddRegionModalOpen] = useState(false);
-  const [newRegionName, setNewRegionName] = useState("");
+  const defaultColumns = { 
+    id: true, 
+    name: true, 
+    regionName: true 
+  };
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
-
-  const user = JSON.parse(localStorage.getItem("user"));
-  const userId = user?.userId || 1;
-
-  // SEARCH
-  const [searchText, setSearchText] = useState("");
-
-  // COLUMN PICKER
-  const defaultColumns = {
-    id: true,
-    name: true,
-    region: true,
-  };
-  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
-
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
@@ -94,9 +91,9 @@ const Territories = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedTerritories = [...territories];
+  const sortedRows = [...rows];
   if (sortConfig.key) {
-    sortedTerritories.sort((a, b) => {
+    sortedRows.sort((a, b) => {
       let valA = a[sortConfig.key] || "";
       let valB = b[sortConfig.key] || "";
       if (typeof valA === "string") valA = valA.toLowerCase();
@@ -108,42 +105,54 @@ const Territories = () => {
     });
   }
 
-  // LOAD DROPDOWNS
+  // ===============================
+  // Helpers
+  // ===============================
+  const normalizeRows = (items = []) =>
+    items.map((r) => ({
+      id: r.Id ?? r.id ?? null,
+      name: r.TerritoryDescription ?? r.territoryDescription ?? r.name ?? "",
+      regionId: r.RegionId ?? r.regionId ?? "",
+      regionName: r.RegionName ?? r.regionName ?? "N/A",
+    }));
+
+  // ===============================
+  // Load Dropdowns & Data
+  // ===============================
   const loadRegions = async () => {
     try {
-      // Fetching enough regions
-      const res = await getRegionsApi(1, 1000); // Assuming standard paginated api
-      if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        setRegions(rows.map(r => ({ 
-            id: r.regionId || r.Id || r.id, 
-            name: r.regionName || r.Name || r.name 
-        })));
-      }
+        const res = await getRegionsApi(1, 10000); // fetch all
+        if (res?.status === 200) {
+            const data = res.data.records || res.data || [];
+            setRegions(data.map(r => ({
+                id: r.RegionId ?? r.regionId ?? r.Id ?? r.id,
+                name: r.RegionName ?? r.regionName ?? r.Name ?? r.name
+            })));
+        }
     } catch (err) {
-      console.error(err);
+        console.error(err);
     }
   };
 
-  useEffect(() => {
-    loadRegions();
-  }, []);
-
-  // LOAD TERRITORIES
-  const loadTerritories = async () => {
+  const loadRows = async () => {
     try {
       const res = await getTerritoriesApi(page, limit);
       if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.id,
-            name: r.territoryDescription || r.name,
-            regionId: r.regionId,
-            regionName: r.regionName || "N/A"
-        }));
-        setTerritories(normalized);
-        const total = res.data.total || normalized.length;
-        setTotalRecords(total);
+        const data = res.data;
+        let items = [];
+
+        if (Array.isArray(data.records)) {
+          items = data.records;
+          setTotalRecords(data.total ?? data.records.length);
+        } else if (Array.isArray(data)) {
+          items = data;
+          setTotalRecords(items.length);
+        } else {
+          items = [];
+          setTotalRecords(0);
+        }
+
+        setRows(normalizeRows(items));
       } else {
         toast.error("Failed to load territories");
       }
@@ -153,471 +162,491 @@ const Territories = () => {
     }
   };
 
-  useEffect(() => {
-    loadTerritories();
-  }, [page, limit]);
-
   const loadInactive = async () => {
     try {
       const res = await getInactiveTerritoriesApi();
       if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.id,
-            name: r.territoryDescription || r.name,
-            regionId: r.regionId,
-            regionName: r.regionName || "N/A"
-        }));
-        setInactiveTerritories(normalized);
+        const items = res.data.records ?? res.data ?? [];
+        setInactiveRows(normalizeRows(items));
+      }
+    } catch (err) {
+      console.error("Load inactive error:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadRegions();
+  }, []);
+
+  useEffect(() => {
+    loadRows();
+  }, [page, limit]);
+
+  // ===============================
+  // Search
+  // ===============================
+  const handleSearch = async (value) => {
+    setSearchText(value);
+
+    if (!value.trim()) {
+      setPage(1);
+      loadRows();
+      return;
+    }
+
+    try {
+      const res = await searchTerritoryApi(value);
+      if (res?.status === 200) {
+        const items = Array.isArray(res.data)
+          ? res.data
+          : res.data.records ?? [];
+        setRows(normalizeRows(items));
+        setTotalRecords(items.length);
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+    }
+  };
+
+  // ===============================
+  // Add Territory
+  // ===============================
+  const handleAdd = async () => {
+    if (!newItem.name?.trim()) return toast.error("Territory name is required");
+    if (!newItem.regionId) return toast.error("Region is required");
+
+    try {
+      const payload = {
+          territoryDescription: newItem.name.trim(),
+          regionId: newItem.regionId,
+          userId: currentUserId
+      };
+      const res = await addTerritoryApi(payload);
+
+      if (res?.status === 201 || res?.status === 200) {
+        toast.success("Territory added");
+        setModalOpen(false);
+        setNewItem({ name: "", regionId: "" });
+        setPage(1);
+        loadRows();
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load inactive");
+      toast.error("Server error");
     }
   };
 
-  const handleSearch = async (text) => {
-    setSearchText(text);
-    if (!text.trim()) {
-        setPage(1);
-        return loadTerritories();
-    }
-    try {
-      const res = await searchTerritoryApi(text);
-      if (res?.status === 200) {
-        const rows = res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.id,
-            name: r.territoryDescription || r.name,
-            regionId: r.regionId,
-            regionName: r.regionName || "N/A"
-        }));
-        setTerritories(normalized);
-        setTotalRecords(rows.length);
-      }
-    } catch (err) {
-        console.error(err);
-    }
-  };
-
-  const handleAdd = async () => {
-    if (!newData.name.trim()) return toast.error("Name required");
-    if (!newData.regionId) return toast.error("Region required");
-    
-    try {
-      const res = await addTerritoryApi({
-        territoryDescription: newData.name,
-        regionId: newData.regionId,
-        userId
-      });
-      if (res?.status === 200 || res?.status === 201) {
-        toast.success("Added");
-        setNewData({ name: "", regionId: "" });
-        setModalOpen(false);
-        setPage(1); 
-        loadTerritories();
-      } else {
-        toast.error("Failed to add");
-      }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!editData.name.trim()) return toast.error("Name required");
-    if (!editData.regionId) return toast.error("Region required");
-    
-    try {
-      const res = await updateTerritoryApi(editData.id, {
-        territoryDescription: editData.name,
-        regionId: editData.regionId,
-        userId
-      });
-      if (res?.status === 200) {
-        toast.success("Updated");
-        setEditModalOpen(false);
-        loadTerritories();
-        if (showInactive) loadInactive();
-      } else {
-        toast.error("Update failed");
-      }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      const res = await deleteTerritoryApi(editData.id, { userId });
-      if (res?.status === 200) {
-        toast.success("Deleted");
-        setEditModalOpen(false);
-        loadTerritories();
-        if (showInactive) loadInactive();
-      } else {
-        toast.error("Delete failed");
-      }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
-    }
-  };
-
-  const handleRestore = async () => {
-    try {
-      const res = await restoreTerritoryApi(editData.id, { userId });
-      if (res?.status === 200) {
-        toast.success("Restored");
-        setEditModalOpen(false);
-        loadTerritories();
-        loadInactive();
-      } else {
-        toast.error("Restore failed");
-      }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
-    }
-  };
-
-  // --- QUICK ADD HANDLER ---
+  // ===============================
+  // Quick Add Region
+  // ===============================
   const handleAddRegion = async () => {
-      if(!newRegionName.trim()) return toast.error("Name required");
+      if(!newRegionName.trim()) return toast.error("Region name required");
       try {
-          const res = await addRegionApi({ regionName: newRegionName, userId });
+          const res = await addRegionApi({ regionName: newRegionName, userId: currentUserId });
           if(res?.status === 200 || res?.status === 201) {
               toast.success("Region added");
               setAddRegionModalOpen(false);
               setNewRegionName("");
               
-              const resR = await getRegionsApi(1, 1000);
+              // Refresh regions
+              const resR = await getRegionsApi(1, 10000);
               if(resR?.status === 200) {
-                  const rows = resR.data.records || resR.data || [];
-                  const created = rows.find(r => (r.Name || r.name).toLowerCase() === newRegionName.toLowerCase());
-                  setRegions(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
-                  
+                  const data = resR.data.records || resR.data || [];
+                  const mapped = data.map(r => ({
+                    id: r.RegionId ?? r.regionId ?? r.Id ?? r.id,
+                    name: r.RegionName ?? r.regionName ?? r.Name ?? r.name
+                  }));
+                  setRegions(mapped);
+
+                  // Auto select the new region
+                  const created = mapped.find(r => r.name.toLowerCase() === newRegionName.toLowerCase());
                   if(created) {
-                      const createdId = created.Id || created.id;
-                      if(modalOpen) setNewData(prev => ({ ...prev, regionId: createdId }));
-                      if(editModalOpen) setEditData(prev => ({ ...prev, regionId: createdId }));
+                      if(modalOpen) setNewItem(prev => ({ ...prev, regionId: created.id }));
+                      if(editModalOpen) setEditItem(prev => ({ ...prev, regionId: created.id }));
                   }
               }
-          } else {
-              toast.error("Failed to add region");
           }
-      } catch(err) {
+      } catch (err) {
           console.error(err);
-          toast.error("Server error");
+          toast.error("Failed to add region");
       }
+  }
+
+  // ===============================
+  // Edit / Restore
+  // ===============================
+  const openEdit = (row, inactive = false) => {
+    setEditItem({
+      id: row.id,
+      name: row.name,
+      regionId: row.regionId,
+      isInactive: inactive,
+    });
+
+    setEditModalOpen(true);
   };
 
+  const handleUpdate = async () => {
+    if (!editItem.name?.trim()) return toast.error("Territory name is required");
+    if (!editItem.regionId) return toast.error("Region is required");
+
+    try {
+      const payload = {
+        territoryDescription: editItem.name.trim(),
+        regionId: editItem.regionId,
+        userId: currentUserId
+      };
+      const res = await updateTerritoryApi(editItem.id, payload);
+
+      if (res?.status === 200) {
+        toast.success("Updated");
+        setEditModalOpen(false);
+        loadRows();
+        if (showInactive) loadInactive();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Update failed");
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const res = await deleteTerritoryApi(editItem.id, {
+        userId: currentUserId,
+      });
+
+      if (res?.status === 200) {
+        toast.success("Deleted");
+        setEditModalOpen(false);
+        loadRows();
+        if (showInactive) loadInactive();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Delete failed");
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      const res = await restoreTerritoryApi(editItem.id, {
+        userId: currentUserId,
+      });
+
+      if (res?.status === 200) {
+        toast.success("Restored");
+        setEditModalOpen(false);
+        loadRows();
+        loadInactive();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Restore failed");
+    }
+  };
+
+
+  // ===============================
+  // Render UI
+  // ===============================
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-        <div className="flex flex-col h-full overflow-hidden">
-          <h2 className="text-2xl font-semibold mb-4">Territories</h2>
+    <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+      <div className="flex flex-col h-full overflow-hidden">
 
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-             <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-                <Search size={16} className="text-gray-300" />
-                <input
-                  value={searchText}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="bg-transparent pl-2 text-sm w-full outline-none"
-                />
-              </div>
-              {hasPermission(PERMISSIONS.TERRITORIES.CREATE) && (
-              <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
-                <Plus size={16} /> New Territory
-              </button>
-              )}
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadTerritories();
-                }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
-              >
-                <RefreshCw size={16} className="text-blue-400" />
-              </button>
-              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded">
-                <List size={16} className="text-blue-300" />
-              </button>
-              <button
-                onClick={async () => {
-                  if (!showInactive) await loadInactive();
-                  setShowInactive((s) => !s);
-                }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1"
-              >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
-              </button>
+        <h2 className="text-2xl font-semibold mb-4">Territories</h2>
+
+        {/* ACTION BAR */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+
+          {/* SEARCH */}
+          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
+            <Search size={16} className="text-gray-300" />
+            <input
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search..."
+              className="bg-transparent pl-2 text-sm w-full outline-none"
+            />
           </div>
 
-          <div className="flex-grow overflow-auto min-h-0">
-            <table className="w-[600px] border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white text-center">
-                        {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                        {visibleColumns.name && <SortableHeader label="Territory Description" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
-                        {visibleColumns.region && <SortableHeader label="Region Name" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
-                    </tr>
-                </thead>
-                <tbody>
-                    {!sortedTerritories.length && !showInactive && (
-                         <tr><td colSpan="3" className="text-center py-4 text-gray-400">No records found</td></tr>
-                    )}
-                    {!showInactive && sortedTerritories.map(r => (
-                        <tr key={r.id} onClick={() => {
-                            setEditData({ id: r.id, name: r.name, regionId: r.regionId, isInactive: false });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 hover:bg-gray-700 cursor-pointer text-center">
-                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
-                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.region && <td className="px-2 py-1">{r.regionName}</td>}
-                        </tr>
-                    ))}
-                    {showInactive && inactiveTerritories.map(r => (
-                        <tr key={`inactive-${r.id}`} onClick={() => {
-                            setEditData({ id: r.id, name: r.name, regionId: r.regionId, isInactive: true });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer text-center">
-                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
-                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.region && <td className="px-2 py-1">{r.regionName}</td>}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-          </div>
+          {/* ADD */}
+          {hasPermission(PERMISSIONS.TERRITORIES.CREATE) && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
+          >
+            <Plus size={16} /> New Territory
+          </button>
+          )}
 
-              <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={totalRecords}
-                onRefresh={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadTerritories();
-                }}
-              />
+          {/* REFRESH */}
+          <button
+            onClick={() => {
+              setSearchText("");
+              setPage(1);
+              loadRows();
+            }}
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
+          >
+            <RefreshCw size={16} className="text-blue-400" />
+          </button>
+
+          {/* COLUMNS */}
+          <button
+            onClick={() => setColumnModalOpen(true)}
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
+          >
+            <List size={16} className="text-blue-300" />
+          </button>
+
+          {/* INACTIVE TOGGLE */}
+          <button
+            onClick={async () => {
+              if (!showInactive) await loadInactive();
+              setShowInactive((s) => !s);
+            }}
+            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
+              showInactive ? "ring-1 ring-yellow-300" : ""
+            }`}
+          >
+            <ArchiveRestore size={16} className="text-yellow-300" />
+            <span className="text-xs opacity-80">Inactive</span>
+          </button>
         </div>
+
+        {/* TABLE */}
+        <div className="flex-grow overflow-auto min-h-0">
+          <table className="w-[600px] border-separate border-spacing-y-1 text-sm">
+
+            {/* HEADER */}
+            <thead className="sticky top-0 bg-gray-900 z-10">
+              <tr className="text-white text-center">
+
+                {visibleColumns.id && (
+                  <SortableHeader
+                    label="ID"
+                    sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
+                    onClick={() => handleSort("id")}
+                  />
+                )}
+
+                {visibleColumns.name && (
+                  <SortableHeader
+                    label="Territory Description"
+                    sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
+                    onClick={() => handleSort("name")}
+                  />
+                )}
+                 {visibleColumns.regionName && (
+                  <SortableHeader
+                    label="Region Name"
+                    sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null}
+                    onClick={() => handleSort("regionName")}
+                  />
+                )}
+              </tr>
+            </thead>
+
+            {/* BODY */}
+            <tbody className="text-center">
+
+              {/* No Records */}
+              {sortedRows.length === 0 && inactiveRows.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={Object.values(visibleColumns).filter(Boolean).length}
+                    className="px-4 py-6 text-center text-gray-400"
+                  >
+                    No records found
+                  </td>
+                </tr>
+              )}
+
+              {/* ACTIVE ROWS */}
+              {sortedRows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                  onClick={() => openEdit(row, false)}
+                >
+                  {visibleColumns.id && (
+                    <td className="px-2 py-1 align-middle">{row.id}</td>
+                  )}
+                  {visibleColumns.name && (
+                    <td className="px-2 py-1 align-middle">{row.name}</td>
+                  )}
+                  {visibleColumns.regionName && (
+                     <td className="px-2 py-1 align-middle">{row.regionName}</td>
+                  )}
+                </tr>
+              ))}
+
+              {/* INACTIVE ROWS */}
+              {showInactive &&
+                inactiveRows.map((row) => (
+                  <tr
+                    key={`inactive-${row.id}`}
+                    className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
+                    onClick={() => openEdit(row, true)}
+                  >
+                    {visibleColumns.id && (
+                      <td className="px-2 py-1 align-middle">{row.id}</td>
+                    )}
+                    {visibleColumns.name && (
+                      <td className="px-2 py-1 align-middle">{row.name}</td>
+                    )}
+                    {visibleColumns.regionName && (
+                      <td className="px-2 py-1 align-middle">{row.regionName}</td>
+                    )}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        
+
+        {/* PAGINATION */}
+        <Pagination
+          page={page}
+          setPage={setPage}
+          limit={limit}
+          setLimit={setLimit}
+          total={totalRecords}
+          onRefresh={() => {
+            setSearchText("");
+            setPage(1);
+            loadRows();
+          }}
+        />
       </div>
+    </div>
 
-       {/* MODALS */}
-       {modalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">New Territory</h2>
-                  <button onClick={() => setModalOpen(false)}><X size={20}/></button>
-               </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm"> Territory Description *</label>
-                      <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
-                  </div>
-                  <div>
-                      <label className="text-sm">Region *</label>
-                      <div className="flex items-center gap-2">
-                          <SearchableSelect
+       {/* ADD MODAL */}
+       <AddModal
+         isOpen={modalOpen}
+         onClose={() => setModalOpen(false)}
+         onSave={handleAdd}
+         title="New Territory"
+       >
+          <div className="space-y-4">
+            <div>
+                <label className="text-sm text-gray-300">Territory Description *</label>
+                <input
+                    type="text"
+                    value={newItem.name}
+                    onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                />
+            </div>
+            <div>
+                <label className="text-sm text-gray-300">Region *</label>
+                <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-grow">
+                        <SearchableSelect
                             options={regions.map(r => ({ id: r.id, name: r.name }))}
-                            value={newData.regionId}
-                            onChange={(val) => setNewData({...newData, regionId: val})}
+                            value={newItem.regionId}
+                            onChange={(val) => setNewItem((p) => ({ ...p, regionId: val }))}
                             placeholder="Select Region"
                             className="w-full"
                             direction="up"
-                          />
-                          {hasPermission(PERMISSIONS.REGIONS.CREATE) && (<button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                               <Star size={18} className="text-yellow-400" />
-                          </button>)}
-                      </div>
-                  </div>
-               </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                   {hasPermission(PERMISSIONS.TERRITORIES.CREATE) && (
-                   <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                   )}
-               </div>
-            </div>
-          </div>
-       )}
-
-       {editModalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">{editData.isInactive ? "Restore Territory" : "Edit Territory"}</h2>
-                  <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
-               </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm">Territory Description *</label>
-                      <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                  </div>
-                  <div>
-                      <label className="text-sm">Region *</label>
-                      <div className="flex items-center gap-2">
-                          <SearchableSelect
-                            options={regions.map(r => ({ id: r.id, name: r.name }))}
-                            value={editData.regionId}
-                            onChange={(val) => setEditData({...editData, regionId: val})}
-                            placeholder="Select Region"
-                            disabled={editData.isInactive}
-                            className="w-full"
-                            direction="up"
-                          />
-                          {!editData.isInactive && hasPermission(PERMISSIONS.REGIONS.CREATE) && (
-                              <button onClick={() => setAddRegionModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                                   <Star size={18} className="text-yellow-400" />
-                              </button>
-                          )}
-                      </div>
-                  </div>
-               </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-                   {editData.isInactive ? (
-                       <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
-                   ) : (
-                       hasPermission(PERMISSIONS.TERRITORIES.DELETE) && (
-                       <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
-                       )
-                   )}
-                   {!editData.isInactive && hasPermission(PERMISSIONS.TERRITORIES.EDIT) && (
-                       <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                   )}
-               </div>
-            </div>
-          </div>
-       )}
-
-       {/* QUICK ADD REGION MODAL */}
-       {addRegionModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add Region</h2>
-                        <button onClick={() => setAddRegionModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                        <label className="text-sm">Region Name *</label>
-                        <input 
-                            value={newRegionName} 
-                            onChange={e => setNewRegionName(e.target.value)} 
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                            autoFocus
                         />
                     </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddRegion} className="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600">Save</button>
-                    </div>
+                    {hasPermission(PERMISSIONS.REGIONS.CREATE) && (
+                    <button
+                        onClick={() => setAddRegionModalOpen(true)}
+                        className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700"
+                        title="Quick Add Region"
+                    >
+                        <Star size={18} className="text-yellow-400" />
+                    </button>
+                    )}
                 </div>
             </div>
-       )}
-
-       {/* columnModal */}
-       {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* VISIBLE / HIDDEN COLUMNS */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter(
-                  (col) => !visibleColumns[col]
-                ).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
           </div>
-        </div>
-       )}
+       </AddModal>
+
+       {/* EDIT MODAL */}
+       <EditModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdate}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          isInactive={editItem.isInactive}
+          title={editItem.isInactive ? "Restore Territory" : "Edit Territory"}
+          permissionDelete={hasPermission(PERMISSIONS.TERRITORIES.DELETE)}
+          permissionEdit={hasPermission(PERMISSIONS.TERRITORIES.EDIT)}
+       >
+          <div className="space-y-4">
+             <div>
+                <label className="text-sm text-gray-300">Territory Description *</label>
+                <input
+                    type="text"
+                    value={editItem.name}
+                    onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
+                    disabled={editItem.isInactive}
+                    className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 ${
+                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
+                />
+             </div>
+             <div>
+                <label className="text-sm text-gray-300">Region *</label>
+                <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-grow">
+                        <SearchableSelect
+                            options={regions.map(r => ({ id: r.id, name: r.name }))}
+                            value={editItem.regionId}
+                            onChange={(val) => setEditItem((p) => ({ ...p, regionId: val }))}
+                            placeholder="Select Region"
+                            className="w-full"
+                            disabled={editItem.isInactive}
+                            direction="up"
+                        />
+                    </div>
+                    {!editItem.isInactive && hasPermission(PERMISSIONS.REGIONS.CREATE) && (
+                    <button
+                        onClick={() => setAddRegionModalOpen(true)}
+                        className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700"
+                        title="Quick Add Region"
+                    >
+                        <Star size={18} className="text-yellow-400" />
+                    </button>
+                    )}
+                </div>
+             </div>
+          </div>
+       </EditModal>
+     
+       {/* QUICK ADD REGION MODAL (Using AddModal reused) */}
+       <AddModal
+            isOpen={addRegionModalOpen}
+            onClose={() => setAddRegionModalOpen(false)}
+            onSave={handleAddRegion}
+            title="New Region"
+            zIndex={60}
+       >
+           <div>
+               <label className="text-sm text-gray-300">Region Name *</label>
+               <input 
+                   value={newRegionName} 
+                   onChange={e => setNewRegionName(e.target.value)} 
+                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                   autoFocus
+               />
+           </div>
+       </AddModal>
+
+       {/* COLUMN PICKER MODAL */}
+       <ColumnPickerModal
+          isOpen={columnModalOpen}
+          onClose={() => setColumnModalOpen(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+       />
 
     </PageLayout>
   );

@@ -4,13 +4,6 @@ import {
   Plus,
   RefreshCw,
   List,
-  X,
-  Save,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -26,18 +19,26 @@ import {
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+
 import SortableHeader from "../../components/SortableHeader";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 
+// MODALS
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+
 const CustomerGroups = () => {
+  // ===============================
+  // State Declarations
+  // ===============================
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
-  // Data
-  const [groups, setGroups] = useState([]);
-  const [inactiveGroups, setInactiveGroups] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
 
   const [searchText, setSearchText] = useState("");
@@ -45,41 +46,20 @@ const CustomerGroups = () => {
   const user = JSON.parse(localStorage.getItem("user")) || null;
   const currentUserId = user?.userId || 1;
 
-  // ADD FORM
-  const [newData, setNewData] = useState({
-    name: "",
-    description: "",
-  });
+  const [newItem, setNewItem] = useState({ name: "" });
 
-  // EDIT FORM
-  const [editData, setEditData] = useState({
+  const [editItem, setEditItem] = useState({
     id: null,
     name: "",
-    description: "",
     isInactive: false,
   });
 
-  // COLUMN PICKER
-  const defaultCols = { id: true, name: true, description: true };
-  const [visibleColumns, setVisibleColumns] = useState(defaultCols);
-  const [searchColumn, setSearchColumn] = useState("");
+  const defaultColumns = { id: true, name: true };
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaults = () => {
-    setVisibleColumns(defaultCols);
-  };
-
-  // PAGINATION
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
@@ -93,9 +73,9 @@ const CustomerGroups = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedGroups = [...groups];
+  const sortedRows = [...rows];
   if (sortConfig.key) {
-    sortedGroups.sort((a, b) => {
+    sortedRows.sort((a, b) => {
       let valA = a[sortConfig.key] || "";
       let valB = b[sortConfig.key] || "";
       if (typeof valA === "string") valA = valA.toLowerCase();
@@ -107,438 +87,200 @@ const CustomerGroups = () => {
     });
   }
 
-  // LOAD GROUPS
-  const loadGroups = async () => {
+  // ===============================
+  // Helpers
+  // ===============================
+  const normalizeRows = (items = []) =>
+    items.map((r) => ({
+      id: r.Id ?? r.id ?? r.customerGroupId ?? null,
+      name: r.Name ?? r.GroupName ?? r.name ?? "",
+    }));
+
+  // ===============================
+  // Load Active
+  // ===============================
+  const loadRows = async () => {
     try {
       const res = await getCustomerGroupsApi(page, limit);
-
       if (res?.status === 200) {
-        const rows = Array.isArray(res.data) ? res.data : res.data.records || [];
-        setGroups(
-          rows.map((g) => ({
-            id: g.Id,
-            name: g.GroupName,
-            description: g.Description,
-          }))
-        );
+        const data = res.data;
+        let items = [];
 
-        // prefer server total when provided
-        const total = res.data && res.data.total ? res.data.total : rows.length;
-        setTotalRecords(total);
+        if (Array.isArray(data.records)) {
+          items = data.records;
+          setTotalRecords(data.total ?? data.records.length);
+        } else if (Array.isArray(data)) {
+          items = data;
+          setTotalRecords(items.length);
+        } else {
+          items = [];
+          setTotalRecords(0);
+        }
+
+        setRows(normalizeRows(items));
       } else {
         toast.error("Failed to load customer groups");
       }
     } catch (err) {
-      console.error("loadGroups error:", err);
+      console.error(err);
       toast.error("Failed to load customer groups");
     }
   };
 
-  useEffect(() => {
-    loadGroups();
-  }, [page, limit]);
-
-  // LOAD INACTIVE GROUPS
+  // inactive loader
   const loadInactive = async () => {
     try {
       const res = await getInactiveCustomerGroupsApi();
       if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        setInactiveGroups(
-          rows.map((g) => ({
-            id: g.Id,
-            name: g.GroupName,
-            description: g.Description,
-          }))
-        );
-      } else {
-        toast.error("Failed to load inactive groups");
+        const items = res.data.records ?? res.data ?? [];
+        setInactiveRows(normalizeRows(items));
       }
     } catch (err) {
-      console.error("loadInactive error:", err);
-      toast.error("Failed to load inactive groups");
+      console.error("Load inactive error:", err);
     }
   };
 
-  // SEARCH
+  useEffect(() => {
+    loadRows();
+  }, [page, limit]);
+
+  // ===============================
+  // Search
+  // ===============================
   const handleSearch = async (value) => {
     setSearchText(value);
 
     if (!value.trim()) {
       setPage(1);
-      loadGroups();
+      loadRows();
       return;
     }
 
     try {
       const res = await searchCustomerGroupApi(value);
       if (res?.status === 200) {
-        const rows = res.data || [];
-        setGroups(
-          rows.map((g) => ({
-            id: g.Id,
-            name: g.GroupName,
-            description: g.Description,
-          }))
-        );
-        setTotalRecords(rows.length);
+        const items = Array.isArray(res.data)
+          ? res.data
+          : res.data.records ?? [];
+        setRows(normalizeRows(items));
+        setTotalRecords(items.length);
       }
     } catch (err) {
-      console.error("search error:", err);
+      console.error("Search error:", err);
     }
   };
 
-  // ADD
+  // ===============================
+  // Add
+  // ===============================
   const handleAdd = async () => {
-    if (!newData.name.trim()) return toast.error("Group name is required");
+    if (!newItem.name?.trim())
+      return toast.error("Name is required");
 
     try {
       const res = await addCustomerGroupApi({
-        groupName: newData.name,
-        description: newData.description,
+        name: newItem.name.trim(),
         userId: currentUserId,
       });
 
       if (res?.status === 201) {
-        toast.success("Customer Group added");
+        toast.success("Customer group added");
         setModalOpen(false);
-        setNewData({ name: "", description: "" });
-        // reload first page
+        setNewItem({ name: "" });
         setPage(1);
-        loadGroups();
-      } else {
-        toast.error(res?.data?.message || "Add failed");
+        loadRows();
       }
     } catch (err) {
-      console.error("add error:", err);
+      console.error(err);
       toast.error("Server error");
     }
   };
 
-  // OPEN EDIT (correct name used throughout)
+  // ===============================
+  // Edit / Restore
+  // ===============================
   const openEdit = (row, inactive = false) => {
-    setEditData({
+    setEditItem({
       id: row.id,
       name: row.name,
-      description: row.description,
       isInactive: inactive,
     });
+
     setEditModalOpen(true);
   };
 
-  // UPDATE
   const handleUpdate = async () => {
-    if (!editData.name.trim()) return toast.error("Group name is required");
+    if (!editItem.name?.trim()) return toast.error("Name is required");
 
     try {
-      const res = await updateCustomerGroupApi(editData.id, {
-        groupName: editData.name,
-        description: editData.description,
+      const res = await updateCustomerGroupApi(editItem.id, {
+        name: editItem.name.trim(),
         userId: currentUserId,
       });
 
       if (res?.status === 200) {
         toast.success("Updated");
         setEditModalOpen(false);
-        loadGroups();
+        loadRows();
         if (showInactive) loadInactive();
-      } else {
-        toast.error(res?.data?.message || "Update failed");
       }
     } catch (err) {
-      console.error("update error:", err);
-      toast.error("Server error");
+      console.error(err);
+      toast.error("Update failed");
     }
   };
 
-  // DELETE (soft delete)
   const handleDelete = async () => {
     try {
-      const res = await deleteCustomerGroupApi(editData.id, {
+      const res = await deleteCustomerGroupApi(editItem.id, {
         userId: currentUserId,
       });
 
       if (res?.status === 200) {
         toast.success("Deleted");
         setEditModalOpen(false);
-        // refresh lists
-        loadGroups();
+        loadRows();
         if (showInactive) loadInactive();
-      } else {
-        toast.error(res?.data?.message || "Delete failed");
       }
     } catch (err) {
-      console.error("delete error:", err);
-      toast.error("Server error");
+      console.error(err);
+      toast.error("Delete failed");
     }
   };
 
-  // RESTORE
   const handleRestore = async () => {
     try {
-      const res = await restoreCustomerGroupApi(editData.id, {
+      const res = await restoreCustomerGroupApi(editItem.id, {
         userId: currentUserId,
       });
 
       if (res?.status === 200) {
-        toast.success("Customer Group restored");
+        toast.success("Restored");
         setEditModalOpen(false);
-        loadGroups();
+        loadRows();
         loadInactive();
-      } else {
-        toast.error(res?.data?.message || "Restore failed");
       }
     } catch (err) {
-      console.error("restore error:", err);
-      toast.error("Server error");
+      console.error(err);
+      toast.error("Restore failed");
     }
   };
 
 
-
-  // =============================================================
-  // UI START
-  // =============================================================
+  // ===============================
+  // Render UI
+  // ===============================
   return (
-    <>
-      {/* ADD MODAL */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Customer Group</h2>
-              <button onClick={() => setModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
+    <PageLayout>
+    <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+      <div className="flex flex-col h-full overflow-hidden">
 
-            <div className="p-6 space-y-4">
-              {/* Name */}
-              <div>
-                <label className="text-sm text-gray-300">
-                  Group Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newData.name}
-                  onChange={(e) =>
-                    setNewData((p) => ({ ...p, name: e.target.value }))
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="text-sm text-gray-300">Description</label>
-                <textarea
-                  value={newData.description}
-                  onChange={(e) =>
-                    setNewData((p) => ({ ...p, description: e.target.value }))
-                  }
-                  rows="3"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              {hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE) && (
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT / RESTORE MODAL */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">
-                {editData.isInactive ? "Restore Customer Group" : "Edit Customer Group"} (
-                {editData.name})
-              </h2>
-              <button onClick={() => setEditModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-sm text-gray-300">Group Name</label>
-                <input
-                  type="text"
-                  value={editData.name}
-                  onChange={(e) =>
-                    setEditData((p) => ({ ...p, name: e.target.value }))
-                  }
-                  disabled={editData.isInactive}
-                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
-                    editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-gray-300">Description</label>
-                <textarea
-                  rows="3"
-                  value={editData.description}
-                  onChange={(e) =>
-                    setEditData((p) => ({ ...p, description: e.target.value }))
-                  }
-                  disabled={editData.isInactive}
-                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
-                    editData.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              {editData.isInactive ? (
-                <button
-                  onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-              ) : (
-                hasPermission(PERMISSIONS.CUSTOMER_GROUPS.DELETE) && (
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-                )
-              )}
-
-              {!editData.isInactive && hasPermission(PERMISSIONS.CUSTOMER_GROUPS.EDIT) && (
-                <button
-                  onClick={handleUpdate}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
-                >
-                  <Save size={16} /> Save
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* COLUMN PICKER MODAL */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* VISIBLE / HIDDEN COLUMNS */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter(
-                  (col) => !visibleColumns[col]
-                ).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaults}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MAIN PAGE */}
-      <PageLayout>
-
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
         <h2 className="text-2xl font-semibold mb-4">Customer Groups</h2>
 
         {/* ACTION BAR */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
+
+          {/* SEARCH */}
           <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
             <Search size={16} className="text-gray-300" />
             <input
@@ -549,29 +291,32 @@ const CustomerGroups = () => {
             />
           </div>
 
+          {/* ADD */}
           {hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded"
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
             <Plus size={16} /> New Group
           </button>
           )}
 
+          {/* REFRESH */}
           <button
             onClick={() => {
               setSearchText("");
               setPage(1);
-              loadGroups();
+              loadRows();
             }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
+          {/* COLUMNS */}
           <button
-            onClick={() => setColumnModal(true)}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
+            onClick={() => setColumnModalOpen(true)}
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
             <List size={16} className="text-blue-300" />
           </button>
@@ -582,7 +327,9 @@ const CustomerGroups = () => {
               if (!showInactive) await loadInactive();
               setShowInactive((s) => !s);
             }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1"
+            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
+              showInactive ? "ring-1 ring-yellow-300" : ""
+            }`}
           >
             <ArchiveRestore size={16} className="text-yellow-300" />
             <span className="text-xs opacity-80">Inactive</span>
@@ -591,11 +338,12 @@ const CustomerGroups = () => {
 
         {/* TABLE */}
         <div className="flex-grow overflow-auto min-h-0">
-          <table className="w-[650px] border-separate border-spacing-y-1 text-sm">
+          <table className="w-[500px] border-separate border-spacing-y-1 text-sm">
+
             {/* HEADER */}
             <thead className="sticky top-0 bg-gray-900 z-10">
-              <tr className="text-white">
-                {/* Sortable ID */}
+              <tr className="text-white text-center">
+
                 {visibleColumns.id && (
                   <SortableHeader
                     label="ID"
@@ -606,86 +354,137 @@ const CustomerGroups = () => {
 
                 {visibleColumns.name && (
                   <SortableHeader
-                    label="Group Name"
+                    label="Name"
                     sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
                     onClick={() => handleSort("name")}
-                  />
-                )}
-
-                {visibleColumns.description && (
-                  <SortableHeader
-                    label="Description"
-                    sortOrder={sortConfig.key === "description" ? sortConfig.direction : null}
-                    onClick={() => handleSort("description")}
                   />
                 )}
               </tr>
             </thead>
 
             {/* BODY */}
-            <tbody>
-              {sortedGroups.length === 0 && (
+            <tbody className="text-center">
+
+              {/* No Records */}
+              {sortedRows.length === 0 && inactiveRows.length === 0 && (
                 <tr>
                   <td
                     colSpan={Object.values(visibleColumns).filter(Boolean).length}
-                    className="text-center py-4 text-gray-400"
+                    className="px-4 py-6 text-center text-gray-400"
                   >
                     No records found
                   </td>
                 </tr>
               )}
 
-              {sortedGroups.map((g) => (
+              {/* ACTIVE ROWS */}
+              {sortedRows.map((row) => (
                 <tr
-                  key={g.id}
-                  onClick={() => openEdit(g, false)}
+                  key={row.id}
                   className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
+                  onClick={() => openEdit(row, false)}
                 >
-                  {visibleColumns.id && <td className="px-2 py-1 text-center">{g.id}</td>}
-                  {visibleColumns.name && <td className="px-2 py-1 text-center">{g.name}</td>}
-                  {visibleColumns.description && <td className="px-2 py-1 text-center">{g.description}</td>}
+                  {visibleColumns.id && (
+                    <td className="px-2 py-1 align-middle">{row.id}</td>
+                  )}
+                  {visibleColumns.name && (
+                    <td className="px-2 py-1 align-middle">{row.name}</td>
+                  )}
                 </tr>
               ))}
 
               {/* INACTIVE ROWS */}
               {showInactive &&
-                inactiveGroups.map((g) => (
+                inactiveRows.map((row) => (
                   <tr
-                    key={`inactive-${g.id}`}
-                    onClick={() => openEdit(g, true)}
+                    key={`inactive-${row.id}`}
                     className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
+                    onClick={() => openEdit(row, true)}
                   >
-                    {visibleColumns.id && <td className="px-2 py-1 text-center">{g.id}</td>}
-                    {visibleColumns.name && <td className="px-2 py-1 text-center">{g.name}</td>}
-                    {visibleColumns.description && <td className="px-2 py-1 text-center">{g.description}</td>}
+                    {visibleColumns.id && (
+                      <td className="px-2 py-1 align-middle">{row.id}</td>
+                    )}
+                    {visibleColumns.name && (
+                      <td className="px-2 py-1 align-middle">{row.name}</td>
+                    )}
                   </tr>
                 ))}
             </tbody>
           </table>
-
-
         </div>
+        
 
         {/* PAGINATION */}
-          <Pagination
-            page={page}
-            setPage={setPage}
-            limit={limit}
-            setLimit={setLimit}
-            total={totalRecords}
-            onRefresh={() => {
-              setSearchText("");
-              setPage(1);
-              loadGroups();
-            }}
-          />
+        <Pagination
+          page={page}
+          setPage={setPage}
+          limit={limit}
+          setLimit={setLimit}
+          total={totalRecords}
+          onRefresh={() => {
+            setSearchText("");
+            setPage(1);
+            loadRows();
+          }}
+        />
       </div>
-      </div>
-     </PageLayout>
+    </div>
 
-    </>
+       {/* ADD MODAL */}
+       <AddModal
+         isOpen={modalOpen}
+         onClose={() => setModalOpen(false)}
+         onSave={handleAdd}
+         title="New Customer Group"
+       >
+          <div>
+            <label className="text-sm text-gray-300">Name *</label>
+            <input
+                type="text"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ name: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+            />
+          </div>
+       </AddModal>
+
+       {/* EDIT MODAL */}
+       <EditModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdate}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          isInactive={editItem.isInactive}
+          title={editItem.isInactive ? "Restore Customer Group" : "Edit Customer Group"}
+          permissionDelete={hasPermission(PERMISSIONS.CUSTOMER_GROUPS.DELETE)}
+          permissionEdit={hasPermission(PERMISSIONS.CUSTOMER_GROUPS.EDIT)}
+       >
+          <div>
+             <label className="text-sm text-gray-300">Name *</label>
+             <input
+                type="text"
+                value={editItem.name}
+                onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
+                disabled={editItem.isInactive}
+                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 ${
+                  editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+             />
+          </div>
+       </EditModal>
+
+       {/* COLUMN PICKER MODAL */}
+       <ColumnPickerModal
+          isOpen={columnModalOpen}
+          onClose={() => setColumnModalOpen(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+       />
+
+    </PageLayout>
   );
 };
 
 export default CustomerGroups;
-

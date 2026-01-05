@@ -17,6 +17,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import AddModal from "../../components/modals/AddModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -125,154 +126,143 @@ const CustomerReceive = () => {
   return (
     <>
       {/* ------------------ ADD MODAL ------------------ */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setModalOpen(false)}
-          />
+      {/* ------------------ ADD MODAL ------------------ */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleSave}
+        title="New Customer Receive"
+        width="750px"
+        permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+      >
+        <div className="p-0 grid grid-cols-2 gap-4">
+          {/* Voucher Date */}
+          <div>
+            <label className="text-sm">Voucher Date *</label>
+            <input
+              type="date"
+              value={form.voucherDate}
+              onChange={(e) =>
+                setForm({ ...form, voucherDate: e.target.value })
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-          <div className="relative w-[750px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-lg">
+          {/* PAYMENT TYPE */}
+          <div>
+            <label className="text-sm">Payment Type *</label>
+            <select
+              value={form.paymentType}
+              onChange={(e) =>
+                setForm({ ...form, paymentType: e.target.value })
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            >
+              <option value="">Select...</option>
+              <option value="Cash At Hand">Cash At Hand</option>
+              <option value="Cash At Bank">Cash At Bank</option>
+            </select>
+          </div>
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Customer Receive</h2>
-              <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X />
-              </button>
+          {/* CUSTOMER (Searchable Dropdown + Star) */}
+          <div className="col-span-2 relative">
+            <label className="text-sm">Customer *</label>
+            <div className="flex gap-2 items-center">
+              {/* Searchable input */}
+              <input
+                value={form.customerSearch || form.customer}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    customerSearch: e.target.value,
+                    customerDropdown: true,
+                  })
+                }
+                onClick={() =>
+                  setForm((p) => ({
+                    ...p,
+                    customerDropdown: !p.customerDropdown,
+                  }))
+                }
+                placeholder="Search or select customer..."
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
+              />
+
+              {/* Star icon */}
+              {hasPermission(PERMISSIONS.CUSTOMERS.CREATE) && (
+                <button
+                  onClick={() => navigate("/new-customers")}
+                  className="p-2 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600"
+                >
+                  <Star size={18} className="text-yellow-400" />
+                </button>
+              )}
             </div>
 
-            <div className="p-5 grid grid-cols-2 gap-4">
+            {/* DROPDOWN */}
+            {form.customerDropdown && (
+              <div className="absolute left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto z-50">
+                {customerList
+                  .filter((c) =>
+                    c
+                      .toLowerCase()
+                      .includes((form.customerSearch || "").toLowerCase())
+                  )
+                  .map((c) => (
+                    <div
+                      key={c}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          customer: c,
+                          customerSearch: "",
+                          customerDropdown: false,
+                        })
+                      }
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {c}
+                    </div>
+                  ))}
 
-              {/* Voucher Date */}
-              <div>
-                <label className="text-sm">Voucher Date *</label>
-                <input
-                  type="date"
-                  value={form.voucherDate}
-                  onChange={(e) => setForm({ ...form, voucherDate: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* PAYMENT TYPE */}
-              <div>
-                <label className="text-sm">Payment Type *</label>
-                <select
-                  value={form.paymentType}
-                  onChange={(e) => setForm({ ...form, paymentType: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                >
-                  <option value="">Select...</option>
-                  <option value="Cash At Hand">Cash At Hand</option>
-                  <option value="Cash At Bank">Cash At Bank</option>
-                </select>
-              </div>
-
-              {/* CUSTOMER (Searchable Dropdown + Star) */}
-              <div className="col-span-2 relative">
-                <label className="text-sm">Customer *</label>
-                <div className="flex gap-2 items-center">
-
-                  {/* Searchable input */}
-                  <input
-                    value={form.customerSearch || form.customer}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        customerSearch: e.target.value,
-                        customerDropdown: true,
-                      })
-                    }
-                    onClick={() =>
-                      setForm((p) => ({ ...p, customerDropdown: !p.customerDropdown }))
-                    }
-                    placeholder="Search or select customer..."
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
-                  />
-
-                  {/* Star icon */}
-                  {hasPermission(PERMISSIONS.CUSTOMERS.CREATE) && (
-                  <button
-                    onClick={() => navigate("/new-customers")}
-                    className="p-2 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600"
-                  >
-                    <Star size={18} className="text-yellow-400" />
-                  </button>
-                  )}
-                </div>
-
-                {/* DROPDOWN */}
-                {form.customerDropdown && (
-                  <div className="absolute left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto z-50">
-
-                    {customerList
-                      .filter((c) =>
-                        c.toLowerCase().includes((form.customerSearch || "").toLowerCase())
-                      )
-                      .map((c) => (
-                        <div
-                          key={c}
-                          onClick={() =>
-                            setForm({
-                              ...form,
-                              customer: c,
-                              customerSearch: "",
-                              customerDropdown: false,
-                            })
-                          }
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                        >
-                          {c}
-                        </div>
-                      ))}
-
-                    {/* No results */}
-                    {customerList.filter((c) =>
-                      c.toLowerCase().includes((form.customerSearch || "").toLowerCase())
-                    ).length === 0 && (
-                      <div className="px-3 py-2 text-gray-400 text-sm">No customers found</div>
-                    )}
+                {/* No results */}
+                {customerList.filter((c) =>
+                  c
+                    .toLowerCase()
+                    .includes((form.customerSearch || "").toLowerCase())
+                ).length === 0 && (
+                  <div className="px-3 py-2 text-gray-400 text-sm">
+                    No customers found
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* AMOUNT */}
-              <div>
-                <label className="text-sm">Amount *</label>
-                <input
-                  type="number"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
+          {/* AMOUNT */}
+          <div>
+            <label className="text-sm">Amount *</label>
+            <input
+              type="number"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-              {/* Remarks */}
-              <div>
-                <label className="text-sm">Remarks (optional)</label>
-                <textarea
-                  value={form.remarks}
-                  onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-                  rows={2}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-            </div>
-
-            {/* Save */}
-            <div className="flex justify-end px-5 py-3 border-t border-gray-700">
-              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-              <button
-                onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
+          {/* Remarks */}
+          <div>
+            <label className="text-sm">Remarks (optional)</label>
+            <textarea
+              value={form.remarks}
+              onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+              rows={2}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
       {/* ------------------ PAGE HEADER ------------------ */}
       <PageLayout>

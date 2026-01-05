@@ -30,6 +30,9 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import SearchableSelect from "../../components/SearchableSelect";
 import SortableHeader from "../../components/SortableHeader";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Attendance = () => {
   const defaultColumns = {
@@ -388,347 +391,203 @@ const Attendance = () => {
 
   return (
     <>
-      {columnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setColumnModalOpen(false)}
-          />
-          <div className="relative w-[600px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
-            <div className="sticky top-0 bg-gray-900 flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModalOpen(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+      {/* COLUMN PICKER */}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
-            <div className="px-5 py-3">
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={saveAttendance}
+        title="Add Attendance"
+        width="700px"
+        permission={hasPermission(PERMISSIONS.HR.ATTENDANCE.CREATE)}
+      >
+        <div className="p-0 space-y-4">
+          <div className="mb-4">
+            <label className="text-sm opacity-80 mb-1 block">Employee</label>
+            <SearchableSelect
+              value={form.employeeId}
+              onChange={(val) => {
+                const emp = employees.find((e) => e.Id === val);
+                setForm({
+                  ...form,
+                  employeeId: val,
+                  employee: emp ? `${emp.FirstName} ${emp.LastName}` : "",
+                });
+              }}
+              options={employees.map((e) => ({
+                id: e.Id,
+                name: `${e.FirstName} ${e.LastName}`,
+              }))}
+              placeholder="Select employee"
+              className="w-full"
+            />
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm opacity-80">Check In Date</label>
               <input
-                type="text"
-                placeholder="Search column..."
-                value={columnSearch}
+                type="date"
+                value={form.checkInDate}
                 onChange={(e) =>
-                  setColumnSearch(e.target.value.toLowerCase())
+                  setForm((p) => ({
+                    ...p,
+                    checkInDate: e.target.value,
+                  }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[45vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns)
-                    .filter((c) => tempVisibleColumns[c])
-                    .filter((c) => c.includes(columnSearch))
-                    .map((c) => (
-                      <div
-                        key={c}
-                        className="bg-gray-800 px-3 py-2 rounded flex justify-between"
-                      >
-                        <span>{c}</span>
-                        <button
-                          className="text-red-400"
-                          onClick={() =>
-                            setTempVisibleColumns((p) => ({
-                              ...p,
-                              [c]: false,
-                            }))
-                          }
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[45vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns)
-                    .filter((c) => !tempVisibleColumns[c])
-                    .filter((c) => c.includes(columnSearch))
-                    .map((c) => (
-                      <div
-                        key={c}
-                        className="bg-gray-800 px-3 py-2 rounded flex justify-between"
-                      >
-                        <span>{c}</span>
-                        <button
-                          className="text-green-400"
-                          onClick={() =>
-                            setTempVisibleColumns((p) => ({
-                              ...p,
-                              [c]: true,
-                            }))
-                          }
-                        >
-                          ➕
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="sticky bottom-5 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={() => setTempVisibleColumns(defaultColumns)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setColumnModalOpen(false)}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={() => {
-                    setVisibleColumns(tempVisibleColumns);
-                    setColumnModalOpen(false);
-                  }}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  OK
-                </button>
-              </div>
+            <div>
+              <label className="text-sm opacity-80">Check In Time</label>
+              <input
+                type="time"
+                value={form.checkInTime}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    checkInTime: e.target.value,
+                  }))
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+              />
             </div>
           </div>
-        </div>
-      )}
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setModalOpen(false)}
-          />
-
-          <div className="relative w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white p-5 overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-4">Add Attendance</h2>
-
-            <div className="mb-4">
-              <label className="text-sm opacity-80 mb-1 block">Employee</label>
-              <SearchableSelect
-                value={form.employeeId}
-                onChange={(val) => {
-                    const emp = employees.find(e => e.Id === val);
-                    setForm({ 
-                        ...form, 
-                        employeeId: val, 
-                        employee: emp ? `${emp.FirstName} ${emp.LastName}` : "" 
-                    });
-                }}
-                options={employees.map(e => ({ id: e.Id, name: `${e.FirstName} ${e.LastName}` }))}
-                placeholder="Select employee"
-                className="w-full"
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm opacity-80">Check Out Date</label>
+              <input
+                type="date"
+                value={form.checkOutDate}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    checkOutDate: e.target.value,
+                  }))
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
               />
             </div>
 
-            <div className="mb-4 grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm opacity-80">Check In Date</label>
-                <input
-                  type="date"
-                  value={form.checkInDate}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      checkInDate: e.target.value,
-                    }))
-                  }
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm opacity-80">Check In Time</label>
-                <input
-                  type="time"
-                  value={form.checkInTime}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      checkInTime: e.target.value,
-                    }))
-                  }
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="mb-4 grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm opacity-80">Check Out Date</label>
-                <input
-                  type="date"
-                  value={form.checkOutDate}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      checkOutDate: e.target.value,
-                    }))
-                  }
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm opacity-80">Check Out Time</label>
-                <input
-                  type="time"
-                  value={form.checkOutTime}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      checkOutTime: e.target.value,
-                    }))
-                  }
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={saveAttendance}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-              >
-                <Save size={16} /> Save
-              </button>
+            <div>
+              <label className="text-sm opacity-80">Check Out Time</label>
+              <input
+                type="time"
+                value={form.checkOutTime}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    checkOutTime: e.target.value,
+                  }))
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+              />
             </div>
           </div>
         </div>
-      )}
+      </AddModal>
 
       {/* EDIT / RESTORE MODAL */}
-      {actionModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setActionModalOpen(false)} />
-            
-            <div className="relative w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white p-5 overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-semibold">
-                        {editForm.isInactive ? "Restore Attendance" : "Edit Attendance"}
-                    </h2>
-                    <button onClick={() => setActionModalOpen(false)}>
-                        <X size={20} className="text-gray-400 hover:text-white" />
-                    </button>
-                </div>
+      <EditModal
+        isOpen={actionModalOpen}
+        onClose={() => setActionModalOpen(false)}
+        onSave={handleUpdate}
+        onDelete={handleDelete}
+        onRestore={handleRestore}
+        isInactive={editForm.isInactive}
+        title={editForm.isInactive ? "Restore Attendance" : "Edit Attendance"}
+        permissionDelete={hasPermission(PERMISSIONS.HR.ATTENDANCE.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.HR.ATTENDANCE.EDIT)}
+        width="700px"
+      >
+        <div className="p-0 space-y-4">
+          {/* EMPLOYEE */}
+          <div className="mb-4">
+            <label className="text-sm opacity-80 mb-1 block">Employee</label>
+            <SearchableSelect
+              value={editForm.employeeId}
+              onChange={(val) => {
+                const emp = employees.find((e) => e.Id === val);
+                setEditForm({
+                  ...editForm,
+                  employeeId: val,
+                  employee: emp ? `${emp.FirstName} ${emp.LastName}` : "",
+                });
+              }}
+              options={employees.map((e) => ({
+                id: e.Id,
+                name: `${e.FirstName} ${e.LastName}`,
+              }))}
+              placeholder="Select employee"
+              className="w-full"
+              disabled={editForm.isInactive}
+            />
+          </div>
 
-                {/* EMPLOYEE */}
-                <div className="mb-4">
-                    <label className="text-sm opacity-80 mb-1 block">Employee</label>
-                    <SearchableSelect
-                        value={editForm.employeeId}
-                        onChange={(val) => {
-                             const emp = employees.find(e => e.Id === val);
-                             setEditForm({ ...editForm, employeeId: val, employee: emp ? `${emp.FirstName} ${emp.LastName}` : "" });
-                        }}
-                        options={employees.map(e => ({ id: e.Id, name: `${e.FirstName} ${e.LastName}` }))}
-                        placeholder="Select employee"
-                        className="w-full"
-                        disabled={editForm.isInactive}
-                    />
-                </div>
-
-                 <div className="mb-4 grid grid-cols-2 gap-3">
-                    <div>
-                        <label className="text-sm opacity-80">Check In Date</label>
-                        <input
-                            type="date"
-                            value={editForm.checkInDate}
-                            onChange={(e) => setEditForm({ ...editForm, checkInDate: e.target.value })}
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                            disabled={editForm.isInactive}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-sm opacity-80">Check In Time</label>
-                        <input
-                            type="time"
-                            value={editForm.checkInTime}
-                            onChange={(e) => setEditForm({ ...editForm, checkInTime: e.target.value })}
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                            disabled={editForm.isInactive}
-                        />
-                    </div>
-                </div>
-
-                <div className="mb-4 grid grid-cols-2 gap-3">
-                    <div>
-                        <label className="text-sm opacity-80">Check Out Date</label>
-                        <input
-                            type="date"
-                            value={editForm.checkOutDate}
-                            onChange={(e) => setEditForm({ ...editForm, checkOutDate: e.target.value })}
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                            disabled={editForm.isInactive}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-sm opacity-80">Check Out Time</label>
-                        <input
-                            type="time"
-                            value={editForm.checkOutTime}
-                            onChange={(e) => setEditForm({ ...editForm, checkOutTime: e.target.value })}
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                            disabled={editForm.isInactive}
-                        />
-                    </div>
-                </div>
-
-                <div className="flex justify-between mt-6 border-t border-gray-700 pt-4">
-                    {editForm.isInactive ? (
-                        hasPermission(PERMISSIONS.HR.ATTENDANCE.DELETE) && (
-                        <button 
-                            onClick={handleRestore}
-                            className="flex items-center gap-2 bg-green-600/20 border border-green-600 text-green-400 px-4 py-2 rounded hover:bg-green-600/30"
-                        >
-                            <ArchiveRestore size={16} /> Restore
-                        </button>
-                        )
-                    ) : (
-                         hasPermission(PERMISSIONS.HR.ATTENDANCE.DELETE) && (
-                         <button 
-                            onClick={handleDelete}
-                            className="flex items-center gap-2 bg-red-600/20 border border-red-600 text-red-400 px-4 py-2 rounded hover:bg-red-600/30"
-                        >
-                            <Trash2 size={16} /> Delete
-                        </button>
-                        )
-                    )}
-
-                    <div className="flex gap-3">
-                        <button onClick={() => setActionModalOpen(false)} className="px-3 py-2 bg-gray-800 border border-gray-600 rounded">
-                            Cancel
-                        </button>
-                        {!editForm.isInactive && hasPermission(PERMISSIONS.HR.ATTENDANCE.EDIT) && (
-                            <button onClick={handleUpdate} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300">
-                                <Save size={16} /> Save
-                            </button>
-                        )}
-                    </div>
-                </div>
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm opacity-80">Check In Date</label>
+              <input
+                type="date"
+                value={editForm.checkInDate}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, checkInDate: e.target.value })
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                disabled={editForm.isInactive}
+              />
             </div>
+            <div>
+              <label className="text-sm opacity-80">Check In Time</label>
+              <input
+                type="time"
+                value={editForm.checkInTime}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, checkInTime: e.target.value })
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                disabled={editForm.isInactive}
+              />
+            </div>
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm opacity-80">Check Out Date</label>
+              <input
+                type="date"
+                value={editForm.checkOutDate}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, checkOutDate: e.target.value })
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                disabled={editForm.isInactive}
+              />
+            </div>
+            <div>
+              <label className="text-sm opacity-80">Check Out Time</label>
+              <input
+                type="time"
+                value={editForm.checkOutTime}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, checkOutTime: e.target.value })
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                disabled={editForm.isInactive}
+              />
+            </div>
+          </div>
         </div>
-      )}
+      </EditModal>
 
       <PageLayout>
         <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">

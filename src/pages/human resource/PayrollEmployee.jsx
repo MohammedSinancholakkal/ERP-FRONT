@@ -13,246 +13,9 @@ import { getEmployeesApi, getEmployeeByIdApi, getBanksApi, getIncomesApi, getDed
 import SearchableSelect from "../../components/SearchableSelect";
 
 
-/* =========================
-   PORTAL
-========================= */
-const Portal = ({ children }) => {
-  if (typeof document === "undefined") return null;
-  return ReactDOM.createPortal(children, document.body);
-};
+import AddModal from "../../components/modals/AddModal";
 
-/* =========================
-   INCOME MODAL
-========================= */
-const IncomeModal = React.memo(({
-incomeTypes,
-incomeForm,
-setIncomeForm,
-editingIncomeId,
-setEditingIncomeId,
-setShowIncomeModal,
-updateIncomeRow,
-addIncomeRow,
-setIncomeTypes,
-}) => {
 
-const resetAndClose = () => {
-  setIncomeForm({ type: null, amount: "", note: "" });
-  setEditingIncomeId(null);
-  setShowIncomeModal(false);
-};
-
-return (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999]">
-      <div className="w-[700px] bg-gray-900 border border-gray-700 rounded">
-        <div className="flex justify-between p-4 border-b border-gray-700">
-          <h2 className="text-lg text-white">
-            {editingIncomeId ? "Edit Income" : "Add Income"}
-          </h2>
-          <button onClick={resetAndClose} className="p-1 text-white">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="p-4 space-y-3">
-          <label className="text-sm text-white block mb-1">
-             <span className="text-red-400 mr-1">*</span>
-             Income Name
-          </label>
-          <SearchableSelect
-            options={incomeTypes}
-            value={incomeForm.type?.id}
-            onChange={(val) => {
-                const item = incomeTypes.find(x => x.id === val);
-                if (item) {
-                   setIncomeForm(p => ({ ...p, type: item }));
-                }
-            }}
-            placeholder="Select Income..."
-          />
-
-        <div className="grid grid-cols-3 gap-2 items-end">
-          <div>
-            <label className="text-sm text-white block mb-1">Amount *</label>
-            <input
-              type="number"
-              min="0"
-              value={incomeForm.amount}
-              onChange={(e) =>
-                setIncomeForm((p) => ({ ...p, amount: e.target.value }))
-              }
-              className="w-full bg-gray-800 text-white border border-gray-700 rounded px-2 py-2"
-            />
-          </div>
-
-          <div className="col-span-2">
-            <label className="text-sm text-white block mb-1">
-              Short Note (optional)
-            </label>
-            <input
-              value={incomeForm.note}
-              onChange={(e) =>
-                setIncomeForm((p) => ({ ...p, note: e.target.value }))
-              }
-              className="w-full bg-gray-800 text-white border border-gray-700 rounded px-2 py-2"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button
-            onClick={resetAndClose}
-            className="px-3 py-1 bg-gray-800 text-white border border-gray-700 rounded text-sm"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={() => {
-              if (!incomeForm.type?.name?.trim())
-                return toast.error("Income name is required");
-              if (!Number(incomeForm.amount))
-                return toast.error("Amount must be greater than 0");
-
-              if (editingIncomeId) {
-                updateIncomeRow(editingIncomeId, {
-                  type: incomeForm.type,
-                  amount: Number(incomeForm.amount),
-                  note: incomeForm.note || "",
-                });
-                toast.success("Income updated");
-              } else {
-                addIncomeRow({
-                  id: `i_${Date.now()}`,
-                  type: incomeForm.type,
-                  typeName: incomeForm.type.name,
-                  amount: Number(incomeForm.amount),
-                  note: incomeForm.note || "",
-                });
-                toast.success("Income added");
-              }
-
-              resetAndClose();
-            }}
-            className="px-3 py-1 bg-gray-800 border border-gray-700 rounded text-blue-300"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-});
-
-/* =========================
-   DEDUCTION MODAL
-========================= */
-const DeductionModal = ({
-  deductionTypes,
-  deductionForm,
-  setDeductionForm,
-  editingDeductionId,
-  setEditingDeductionId,
-  setShowDeductionModal,
-  updateDeductionRow,
-  addDeductionRow,
-  setDeductionTypes,
-}) => {
-  const resetAndClose = () => {
-    setDeductionForm({ type: null, amount: "", note: "" });
-    setEditingDeductionId(null);
-    setShowDeductionModal(false);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999]">
-      <div className="w-[700px] bg-gray-900 border border-gray-700 rounded">
-        <div className="flex justify-between p-4 border-b border-gray-700">
-          <h2 className="text-lg text-white">{editingDeductionId ? "Edit Deduction" : "Add Deduction"}</h2>
-          <button onClick={resetAndClose} className="p-1 text-white"><X size={18} /></button>
-        </div>
-
-        <div className="p-4 space-y-3">
-           <label className="text-sm text-white block mb-1">
-             <span className="text-red-400 mr-1">*</span>
-             Deduction Name
-          </label>
-          <SearchableSelect
-             options={deductionTypes}
-             value={deductionForm.type?.id}
-             onChange={(val) => {
-                const item = deductionTypes.find(x => x.id === val);
-                if(item) {
-                     setDeductionForm(p => ({...p, type: item}));
-                }
-             }}
-             placeholder="Select Deduction..."
-          />
-
-          <div className="grid grid-cols-3 gap-2 items-end">
-            <div>
-              <label className="text-sm text-white block mb-1">Amount *</label>
-              <input
-                type="number"
-                min="0"
-                value={deductionForm.amount}
-                onChange={(e) => setDeductionForm((p) => ({ ...p, amount: e.target.value }))}
-                className="w-full bg-gray-800 border text-white border-gray-700 rounded px-2 py-2"
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-sm text-white block mb-1">Short Note (optional)</label>
-              <input
-                value={deductionForm.note}
-                onChange={(e) => setDeductionForm((p) => ({ ...p, note: e.target.value }))}
-                className="w-full bg-gray-800 border text-white border-gray-700 rounded px-2 py-2"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button onClick={resetAndClose} className="px-3 py-1 bg-gray-800 text-white border border-gray-700 rounded text-sm">Cancel</button>
-
-            <button
-              onClick={() => {
-                if (!deductionForm.type || !deductionForm.type.name?.trim()) return toast.error("Deduction name is required");
-                if (!String(deductionForm.amount).trim() || Number(deductionForm.amount) <= 0) return toast.error("Amount must be greater than 0");
-
-                if (editingDeductionId) {
-                  updateDeductionRow(editingDeductionId, {
-                    type: deductionForm.type,
-                    amount: Number(deductionForm.amount),
-                    note: deductionForm.note || ""
-                  });
-                  toast.success("Deduction updated");
-                } else {
-                  const newRow = {
-                    id: `d_${Date.now()}`,
-                    type: deductionForm.type,
-                    typeName: deductionForm.type.name,
-                    amount: Number(deductionForm.amount),
-                    note: deductionForm.note || ""
-                  };
-                  addDeductionRow(newRow);
-                  toast.success("Deduction added");
-                }
-
-                setDeductionForm({ type: null, amount: "", note: "" });
-                setEditingDeductionId(null);
-                setShowDeductionModal(false);
-              }}
-              className="px-3 py-1 bg-gray-800 border border-gray-700 rounded text-blue-300"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 const PayrollEmployee = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -265,7 +28,11 @@ const [employee, setEmployee] = useState(null);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [bankAccount, setBankAccount] = useState("");
   const [bankName, setBankName] = useState("");
+  const [bankId, setBankId] = useState(null);
   const [banks, setBanks] = useState([]);
+  
+  console.log("🔄 Render - bankName state:", bankName);
+
 
   /* =========================
      PAYROLL COMPONENTS
@@ -354,7 +121,7 @@ const [employee, setEmployee] = useState(null);
 
   const fetchBanks = async () => {
     try {
-      const resp = await getBanksApi(1, 1000);
+      const resp = await getBanksApi(1, 5000);
       const records = resp?.data?.records || [];
       const normalized = records.map(b => ({
         id: b.Id,
@@ -376,19 +143,27 @@ const [employee, setEmployee] = useState(null);
         setBankAccount(data.BankAccountForPayroll || "");
         
         // resolve bank name
-        if (data.PayrollBankId) {
-          let currentBanks = banks;
-          if (currentBanks.length === 0) {
-            // fallback if banks not loaded yet
-            const respB = await getBanksApi(1, 1000);
-            const records = respB?.data?.records || [];
-            currentBanks = records.map(b => ({ id: b.Id, name: b.BankName }));
-            setBanks(currentBanks);
-          }
-          const bank = currentBanks.find(b => String(b.id) === String(data.PayrollBankId));
-          if (bank) {
-            setBankName(bank.name || "");
-          }
+        console.log("🏦 Employee Data Full:", data);
+        
+        if (data.PayrollBankName) {
+            setBankName(data.PayrollBankName);
+            setBankId(data.PayrollBankId); // Capture ID
+        } else if (data.PayrollBankId) {
+            // Fallback to client-side lookup if needed (e.g. legacy data)
+             const pBankId = data.PayrollBankId;
+             setBankId(pBankId); // Capture ID
+             let currentBanks = banks;
+             if (currentBanks.length === 0) {
+                const respB = await getBanksApi(1, 5000);
+                const records = respB?.data?.records || [];
+                currentBanks = records.map(b => ({ id: b.Id, name: b.BankName }));
+                setBanks(currentBanks);
+             }
+             const bank = currentBanks.find(b => String(b.id) === String(pBankId));
+             if (bank) setBankName(bank.name);
+        } else {
+             setBankName(""); 
+             setBankId(null);
         }
 
         // auto-fill incomes
@@ -459,6 +234,64 @@ const [employee, setEmployee] = useState(null);
   const deleteIncome = (id) => setIncomes((p) => p.filter((x) => x.id !== id));
   const deleteDeduction = (id) => setDeductions((p) => p.filter((x) => x.id !== id));
 
+  // Handlers for Modals
+  const handleIncomeSave = () => {
+    if (!incomeForm.type?.name?.trim())
+      return toast.error("Income name is required");
+    if (!Number(incomeForm.amount))
+      return toast.error("Amount must be greater than 0");
+
+    if (editingIncomeId) {
+      updateIncomeRow(editingIncomeId, {
+        type: incomeForm.type,
+        amount: Number(incomeForm.amount),
+        note: incomeForm.note || "",
+      });
+      toast.success("Income updated");
+    } else {
+      addIncomeRow({
+        id: `i_${Date.now()}`,
+        type: incomeForm.type,
+        typeName: incomeForm.type.name,
+        amount: Number(incomeForm.amount),
+        note: incomeForm.note || "",
+      });
+      toast.success("Income added");
+    }
+
+    setIncomeForm({ type: null, amount: "", note: "" });
+    setEditingIncomeId(null);
+    setShowIncomeModal(false);
+  };
+
+  const handleDeductionSave = () => {
+    if (!deductionForm.type || !deductionForm.type.name?.trim()) return toast.error("Deduction name is required");
+    if (!String(deductionForm.amount).trim() || Number(deductionForm.amount) <= 0) return toast.error("Amount must be greater than 0");
+
+    if (editingDeductionId) {
+      updateDeductionRow(editingDeductionId, {
+        type: deductionForm.type,
+        amount: Number(deductionForm.amount),
+        note: deductionForm.note || ""
+      });
+      toast.success("Deduction updated");
+    } else {
+      const newRow = {
+        id: `d_${Date.now()}`,
+        type: deductionForm.type,
+        typeName: deductionForm.type.name,
+        amount: Number(deductionForm.amount),
+        note: deductionForm.note || ""
+      };
+      addDeductionRow(newRow);
+      toast.success("Deduction added");
+    }
+
+    setDeductionForm({ type: null, amount: "", note: "" });
+    setEditingDeductionId(null);
+    setShowDeductionModal(false);
+  };
+
   /* =========================
      SAVE (STRICT VALIDATION)
   ========================= */
@@ -487,6 +320,7 @@ const handleSave = () => {
   const employeePayload = {
     employeeId: employee.id,
     employeeName: employee.name,
+    bankId, // Add BankId
     bankAccount,
     bankName,
     basicSalary: Number(basicSalary),
@@ -497,10 +331,15 @@ const handleSave = () => {
     deductions: deductions // pass raw for UI editing
   };
 
-  navigate("/app/hr/newpayroll", {
+  const targetPath = location.state?.payrollId 
+      ? `/app/hr/editpayroll/${location.state.payrollId}`
+      : "/app/hr/newpayroll";
+
+  navigate(targetPath, {
     state: {
       ...location.state,
-      employeePayload
+      employeePayload,
+      editIndex: location.state?.editIndex // Pass it back
     }
   });
 };
@@ -528,7 +367,7 @@ const handleSave = () => {
             onClick={handleSave}
             className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded"
           >
-            <Save size={16} /> Save
+            <Save size={16} /> {location.state?.editEmployee ? "Update" : "Save"}
           </button>
         </div>
 
@@ -543,6 +382,8 @@ const handleSave = () => {
                 <SearchableSelect
                     options={employees}
                     value={employee?.id}
+                    name="employee"
+                    id="employee"
                     onChange={(val) => {
                         const emp = employees.find(e => e.id === val);
                         if (emp) {
@@ -559,7 +400,7 @@ const handleSave = () => {
                     placeholder={employeesLoading ? "Loading..." : "Select Employee"}
                 />
             </div>
-            <Input label="Bank Account" value={bankAccount} onChange={setBankAccount} required />
+            <Input label="Bank Account" value={bankAccount} onChange={setBankAccount} required name="bankAccount" />
             <div className="w-full">
                 <label className="text-sm text-gray-300 block mb-1">
                     <span className="text-red-400 mr-1">*</span>
@@ -568,10 +409,11 @@ const handleSave = () => {
                 <input
                     type="text"
                     value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder={employee ? "Enter Bank Name" : "Select Employee first..."}
-                    disabled={!employee}
+                    readOnly
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400 cursor-not-allowed"
+                    name="bankName"
+                    id="bankName"
+                    placeholder={employee ? "Auto-filled from Employee Profile" : "Select Employee first..."}
                 />
             </div>
           </div>
@@ -586,6 +428,7 @@ const handleSave = () => {
               value={basicSalary}
               onChange={setBasicSalary}
               required
+              name="basicSalary"
             />
           </div>
 
@@ -727,45 +570,131 @@ const handleSave = () => {
         {/* SUMMARY */}
         <Section title="Summary">
           <div className="space-y-4">
-            <ReadOnly label="Total Income" value={summaryTotalIncome} />
-            <ReadOnly label="Total Deduction" value={totalDeduction} />
-            <ReadOnly label="Take Home Pay" value={takeHomePay} bold />
+            <ReadOnly label="Total Income" value={summaryTotalIncome} name="summaryTotalIncome" />
+            <ReadOnly label="Total Deduction" value={totalDeduction} name="summaryTotalDeduction" />
+            <ReadOnly label="Take Home Pay" value={takeHomePay} bold name="summaryTakeHomePay" />
           </div>
         </Section>
 
       </div>
 
       {/* MODALS */}
-{showIncomeModal && (
-  <Portal>
-    <IncomeModal
-      incomeTypes={incomeTypes}
-      incomeForm={incomeForm}
-      setIncomeForm={setIncomeForm}
-      editingIncomeId={editingIncomeId}
-      setEditingIncomeId={setEditingIncomeId}
-      setShowIncomeModal={setShowIncomeModal}
-      updateIncomeRow={updateIncomeRow}
-      addIncomeRow={addIncomeRow}
-      setIncomeTypes={setIncomeTypes}
-    />
-  </Portal>
-)}
-      {showDeductionModal && (
-        <Portal>
-            <DeductionModal 
-                deductionTypes={deductionTypes}
-                deductionForm={deductionForm}
-                setDeductionForm={setDeductionForm}
-                editingDeductionId={editingDeductionId}
-                setEditingDeductionId={setEditingDeductionId}
-                setShowDeductionModal={setShowDeductionModal}
-                updateDeductionRow={updateDeductionRow}
-                addDeductionRow={addDeductionRow}
-                setDeductionTypes={setDeductionTypes}
-            />
-        </Portal>
-      )}
+      {/* MODALS */}
+      {/* INCOME MODAL */}
+      <AddModal
+        isOpen={showIncomeModal}
+        onClose={() => setShowIncomeModal(false)}
+        onSave={handleIncomeSave}
+        title={editingIncomeId ? "Edit Income" : "Add Income"}
+        width="500px"
+      >
+        <div className="space-y-3">
+          <label className="text-sm text-gray-300 block mb-1">
+             <span className="text-red-400 mr-1">*</span>
+             Income Name
+          </label>
+          <SearchableSelect
+            options={incomeTypes}
+            value={incomeForm.type?.id}
+            name="incomeType"
+            id="incomeType"
+            onChange={(val) => {
+                const item = incomeTypes.find(x => x.id === val);
+                if (item) {
+                   setIncomeForm(p => ({ ...p, type: item }));
+                }
+            }}
+            placeholder="Select Income..."
+          />
+
+          <div className="grid grid-cols-3 gap-2 items-end">
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">Amount *</label>
+              <input
+                type="number"
+                min="0"
+                value={incomeForm.amount}
+                onChange={(e) =>
+                  setIncomeForm((p) => ({ ...p, amount: e.target.value }))
+                }
+                name="incomeAmount"
+                id="incomeAmount"
+                className="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded px-2 py-2"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-sm text-gray-300 block mb-1">
+                Short Note (optional)
+              </label>
+              <input
+                value={incomeForm.note}
+                onChange={(e) =>
+                  setIncomeForm((p) => ({ ...p, note: e.target.value }))
+                }
+                name="incomeNote"
+                id="incomeNote"
+                className="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded px-2 py-2"
+              />
+            </div>
+          </div>
+        </div>
+      </AddModal>
+
+      {/* DEDUCTION MODAL */}
+      <AddModal
+        isOpen={showDeductionModal}
+        onClose={() => setShowDeductionModal(false)}
+        onSave={handleDeductionSave}
+        title={editingDeductionId ? "Edit Deduction" : "Add Deduction"}
+        width="500px"
+      >
+         <div className="space-y-3">
+           <label className="text-sm text-gray-300 block mb-1">
+             <span className="text-red-400 mr-1">*</span>
+             Deduction Name
+          </label>
+          <SearchableSelect
+             options={deductionTypes}
+             value={deductionForm.type?.id}
+             name="deductionType"
+             id="deductionType"
+             onChange={(val) => {
+                const item = deductionTypes.find(x => x.id === val);
+                if(item) {
+                     setDeductionForm(p => ({...p, type: item}));
+                }
+             }}
+             placeholder="Select Deduction..."
+          />
+
+          <div className="grid grid-cols-3 gap-2 items-end">
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">Amount *</label>
+              <input
+                type="number"
+                min="0"
+                value={deductionForm.amount}
+                onChange={(e) => setDeductionForm((p) => ({ ...p, amount: e.target.value }))}
+                name="deductionAmount"
+                id="deductionAmount"
+                className="w-full bg-gray-800 border text-gray-200 border-gray-600 rounded px-2 py-2"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-sm text-gray-300 block mb-1">Short Note (optional)</label>
+              <input
+                value={deductionForm.note}
+                onChange={(e) => setDeductionForm((p) => ({ ...p, note: e.target.value }))}
+                name="deductionNote"
+                id="deductionNote"
+                className="w-full bg-gray-800 border text-gray-200 border-gray-600 rounded px-2 py-2"
+              />
+            </div>
+          </div>
+        </div>
+      </AddModal>
     </PageLayout>
   );
 };
@@ -785,9 +714,9 @@ const Section = ({ title, children }) => (
   </div>
 );
 
-const Input = ({ label, value, onChange, type = "text", required }) => (
+const Input = ({ label, value, onChange, type = "text", required, name, id }) => (
   <div>
-    <label className="text-sm text-gray-300 block mb-1">
+    <label className="text-sm text-gray-300 block mb-1" htmlFor={id || name}>
       {required && <span className="text-red-400 mr-1">*</span>}
       {label}
     </label>
@@ -796,17 +725,21 @@ const Input = ({ label, value, onChange, type = "text", required }) => (
       value={value}
       required={required}
       onChange={(e) => onChange(e.target.value)}
+      name={name}
+      id={id || name}
       className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2"
     />
   </div>
 );
 
-const ReadOnly = ({ label, value, bold }) => (
+const ReadOnly = ({ label, value, bold, name, id }) => (
   <div>
-    <label className="text-sm text-gray-300 block mb-1">{label}</label>
+    <label className="text-sm text-gray-300 block mb-1" htmlFor={id || name}>{label}</label>
     <input
       disabled
       value={Number(value || 0).toFixed(2)}
+      name={name}
+      id={id || name}
       className={`w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-right ${
         bold ? "font-bold text-lg text-white" : "text-gray-300"
       }`}

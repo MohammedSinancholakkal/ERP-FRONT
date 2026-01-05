@@ -29,6 +29,9 @@ import SortableHeader from "../../components/SortableHeader";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Designations = () => {
   // =============================
@@ -81,7 +84,7 @@ const Designations = () => {
     parentName: true
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   // SORT
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -329,258 +332,135 @@ const Designations = () => {
 {/* =============================
     ADD DESIGNATION MODAL
 ============================= */}
-{modalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-      
-      {/* HEADER */}
-      <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-        <h2 className="text-lg">New Designation</h2>
-        <button onClick={() => setModalOpen(false)}>
-          <X size={20} className="text-gray-300" />
-        </button>
-      </div>
+{/* =============================
+    ADD DESIGNATION MODAL
+============================= */}
+<AddModal
+  isOpen={modalOpen}
+  onClose={() => setModalOpen(false)}
+  onSave={handleAdd}
+  title="New Designation"
+  width="700px"
+  permission={hasPermission(PERMISSIONS.HR.DESIGNATIONS.CREATE)}
+>
+  <div className="p-0 space-y-4">
+    {/* DESIGNATION */}
+    <div>
+      <label className="block text-sm mb-1">Designation *</label>
+      <input
+        type="text"
+        value={newDesignation.designation}
+        onChange={(e) =>
+          setNewDesignation((p) => ({ ...p, designation: e.target.value }))
+        }
+        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
+      />
+    </div>
 
-      {/* BODY */}
-      <div className="p-6">
-        {/* DESIGNATION */}
-        <label>Designation *</label>
-        <input
-          type="text"
-          value={newDesignation.designation}
-          onChange={(e) =>
-            setNewDesignation((p) => ({ ...p, designation: e.target.value }))
-          }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4 focus:border-blue-500 focus:outline-none"
-        />
+    {/* DESCRIPTION */}
+    <div>
+      <label className="block text-sm mb-1">Description</label>
+      <textarea
+        value={newDesignation.description}
+        onChange={(e) =>
+          setNewDesignation((p) => ({ ...p, description: e.target.value }))
+        }
+        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 focus:border-blue-500 focus:outline-none"
+      />
+    </div>
 
-        {/* DESCRIPTION */}
-        <label>Description</label>
-        <textarea
-          value={newDesignation.description}
-          onChange={(e) =>
-            setNewDesignation((p) => ({ ...p, description: e.target.value }))
-          }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4 focus:border-blue-500 focus:outline-none"
-        />
-
-        {/* PARENT DESIGNATION */}
-        <label>Parent Designation</label>
-        <SearchableSelect
-            value={newDesignation.parentDesignationId}
-            onChange={(val) => setNewDesignation({ ...newDesignation, parentDesignationId: val })}
-            options={designations.map(d => ({ id: d.id, name: d.designation }))}
-            placeholder="Select parent designation"
-            className="w-full mt-1"
-            direction="up"
-        />
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-        {hasPermission(PERMISSIONS.HR.DESIGNATIONS.CREATE) && (
-        <button
-          onClick={handleAdd}
-          className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-700"
-        >
-          <Save size={16} /> Save
-        </button>
-        )}
-      </div>
+    {/* PARENT DESIGNATION */}
+    <div>
+      <label className="block text-sm mb-1">Parent Designation</label>
+      <SearchableSelect
+        value={newDesignation.parentDesignationId}
+        onChange={(val) =>
+          setNewDesignation({ ...newDesignation, parentDesignationId: val })
+        }
+        options={designations.map((d) => ({ id: d.id, name: d.designation }))}
+        placeholder="Select parent designation"
+        className="w-full"
+        direction="up"
+      />
     </div>
   </div>
-)}
+</AddModal>
 
 {/* =============================
     EDIT DESIGNATION MODAL
 ============================= */}
-{editModalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-      
-      {/* HEADER */}
-      <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-        <h2 className="text-lg">
-          {editDesignation.isInactive ? "Restore Designation" : "Edit Designation"}
-        </h2>
-        <button onClick={() => setEditModalOpen(false)}>
-          <X size={20} />
-        </button>
-      </div>
+{/* =============================
+    EDIT DESIGNATION MODAL
+============================= */}
+<EditModal
+  isOpen={editModalOpen}
+  onClose={() => setEditModalOpen(false)}
+  onSave={handleUpdate}
+  onDelete={handleDelete}
+  onRestore={handleRestore}
+  isInactive={editDesignation.isInactive}
+  title={editDesignation.isInactive ? "Restore Designation" : "Edit Designation"}
+  permissionDelete={hasPermission(PERMISSIONS.HR.DESIGNATIONS.DELETE)}
+  permissionEdit={hasPermission(PERMISSIONS.HR.DESIGNATIONS.EDIT)}
+  width="700px"
+>
+  <div className="p-0 space-y-4">
+    {/* DESIGNATION */}
+    <div>
+      <label className="block text-sm mb-1">Designation *</label>
+      <input
+        value={editDesignation.designation}
+        onChange={(e) =>
+          setEditDesignation((p) => ({ ...p, designation: e.target.value }))
+        }
+        disabled={editDesignation.isInactive}
+        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+      />
+    </div>
 
-      {/* BODY */}
-      <div className="p-6">
-        {/* DESIGNATION */}
-        <label>Designation *</label>
-        <input
-          value={editDesignation.designation}
-          onChange={(e) =>
-            setEditDesignation((p) => ({ ...p, designation: e.target.value }))
-          }
-          disabled={editDesignation.isInactive}
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4 focus:border-blue-500 focus:outline-none"
-        />
+    {/* DESCRIPTION */}
+    <div>
+      <label className="block text-sm mb-1">Description</label>
+      <textarea
+        value={editDesignation.description}
+        onChange={(e) =>
+          setEditDesignation((p) => ({ ...p, description: e.target.value }))
+        }
+        disabled={editDesignation.isInactive}
+        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+      />
+    </div>
 
-        {/* DESCRIPTION */}
-        <label>Description</label>
-        <textarea
-          value={editDesignation.description}
-          onChange={(e) =>
-            setEditDesignation((p) => ({ ...p, description: e.target.value }))
-          }
-          disabled={editDesignation.isInactive}
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4 focus:border-blue-500 focus:outline-none"
-        />
-
-        {/* PARENT DESIGNATION */}
-        <label>Parent Designation</label>
-         <SearchableSelect
-            value={editDesignation.parentDesignationId}
-            onChange={(val) => setEditDesignation({ ...editDesignation, parentDesignationId: val })}
-            options={designations.map(d => ({ id: d.id, name: d.designation }))}
-            placeholder="Select parent designation"
-            disabled={editDesignation.isInactive}
-            className="w-full mt-1"
-            direction="up"
-        />
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-        {editDesignation.isInactive ? (
-          hasPermission(PERMISSIONS.HR.DESIGNATIONS.DELETE) && (
-          <button
-            onClick={handleRestore}
-            className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded hover:bg-green-700"
-          >
-            <ArchiveRestore size={16} /> Restore
-          </button>
-          )
-        ) : (
-          hasPermission(PERMISSIONS.HR.DESIGNATIONS.DELETE) && (
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded hover:bg-red-700"
-          >
-            <Trash2 size={16} /> Delete
-          </button>
-          )
-        )}
-
-        {!editDesignation.isInactive && hasPermission(PERMISSIONS.HR.DESIGNATIONS.EDIT) && (
-          <button
-            onClick={handleUpdate}
-            className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-          >
-            <Save size={16} /> Save
-          </button>
-        )}
-      </div>
+    {/* PARENT DESIGNATION */}
+    <div>
+      <label className="block text-sm mb-1">Parent Designation</label>
+      <SearchableSelect
+        value={editDesignation.parentDesignationId}
+        onChange={(val) =>
+          setEditDesignation({ ...editDesignation, parentDesignationId: val })
+        }
+        options={designations.map((d) => ({ id: d.id, name: d.designation }))}
+        placeholder="Select parent designation"
+        disabled={editDesignation.isInactive}
+        className="w-full"
+        direction="up"
+      />
     </div>
   </div>
-)}
+</EditModal>
 
 
       {/* =============================
           COLUMN PICKER
       ============================= */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
 
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              {/* VISIBLE */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>{col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() =>
-                          setVisibleColumns((p) => ({
-                            ...p,
-                            [col]: false
-                          }))
-                        }
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* HIDDEN */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>{col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() =>
-                          setVisibleColumns((p) => ({
-                            ...p,
-                            [col]: true
-                          }))
-                        }
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={() => setVisibleColumns(defaultColumns)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
-              >
-                Restore Defaults
-              </button>
-
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       {/* ===================================
               MAIN PAGE
@@ -617,7 +497,7 @@ const Designations = () => {
               </button>
 
               {/* COLUMN PICKER */}
-              <button onClick={() => setColumnModal(true)} className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
+              <button onClick={() => setColumnModalOpen(true)} className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
                 <List size={16} className="text-blue-300" />
               </button>
 

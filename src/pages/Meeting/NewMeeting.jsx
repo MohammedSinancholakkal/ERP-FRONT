@@ -33,12 +33,14 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
+import AddModal from "../../components/modals/AddModal";
 
 const NewMeeting = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const isEdit = Boolean(id);
 
@@ -73,8 +75,8 @@ const NewMeeting = () => {
   const [modalCountries, setModalCountries] = useState([]);
   const [modalStates, setModalStates] = useState([]);
   const [modalCities, setModalCities] = useState([]);
-  const [locationModalStates, setLocationModalStates] = useState([]); // For Location Modal
-  const [locationModalCities, setLocationModalCities] = useState([]); // For Location Modal
+  const [locationModalStates, setLocationModalStates] = useState([]); 
+  const [locationModalCities, setLocationModalCities] = useState([]); 
 
   // Search States for Dropdowns in Modals
   const [parentDeptSearch, setParentDeptSearch] = useState("");
@@ -657,7 +659,7 @@ const NewMeeting = () => {
     else if (type === "Attendee Type") setAttendeeTypeModalOpen(true);
     else if (type === "Attendance Status") setAttendanceStatusModalOpen(true);
     else if (type === "Organizer" || type === "Reporter") {
-      navigate("/app/hr/newemployee");
+      navigate("/app/hr/newemployee", { state: { from: location.pathname } });
     } else {
       toast.success(`Create New ${type} clicked`);
     }
@@ -947,26 +949,17 @@ const NewMeeting = () => {
       </div>
 
       {showAttendeeModal && (
-<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] max-h-[80vh] overflow-y-auto shadow-xl">
-
-            {/* HEADER */}
-            <div className="flex justify-between mb-4">
-              <h3 className="text-white text-lg">
-                {editIndex !== null ? "Edit Attendee" : "Add Attendee"}
-              </h3>
-
-              {/* TOP CLOSE BUTTON */}
-              <X
-                size={22}
-                className="cursor-pointer hover:text-white"
-                onClick={() => setShowAttendeeModal(false)}
-              />
-            </div>
-
+        <AddModal
+          isOpen={showAttendeeModal}
+          onClose={() => setShowAttendeeModal(false)}
+          onSave={saveAttendee}
+          title={editIndex !== null ? "Edit Attendee" : "Add Attendee"}
+          width="700px"
+        >
+            <div className="p-0 space-y-4">
             {/* ATTENDEE DROPDOWN */}
-            <div className="mb-3">
-              <label className="text-sm text-white">Attendee *</label>
+            <div>
+              <label className="block text-sm mb-1">Attendee *</label>
               <div className="flex gap-2">
                   <SearchableSelect
                     options={employees.map(e => ({ id: e.id, name: e.name }))}
@@ -988,8 +981,8 @@ const NewMeeting = () => {
             </div>
 
             {/* TYPE DROPDOWN */}
-             <div className="mb-3">
-              <label className="text-sm text-white">Attendee Type *</label>
+             <div>
+              <label className="block text-sm mb-1">Attendee Type *</label>
               <div className="flex gap-2">
                   <SearchableSelect
                     options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
@@ -1011,8 +1004,8 @@ const NewMeeting = () => {
             </div>
 
             {/* STATUS DROPDOWN */}
-             <div className="mb-6">
-              <label className="text-sm text-white">Attendance Status *</label>
+             <div>
+              <label className="block text-sm mb-1">Attendance Status *</label>
               <div className="flex gap-2">
                   <SearchableSelect
                     options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
@@ -1032,95 +1025,96 @@ const NewMeeting = () => {
                    )}
               </div>
             </div>
-
-            {/* FOOTER BUTTONS */}
-            <div className="flex justify-end gap-3">
-
-              {/* NEW CANCEL / CLOSE BUTTON */}
-              <button
-                onClick={() => setShowAttendeeModal(false)}
-                className="flex items-center gap-2 bg-red-700 border border-gray-600 px-4 py-2 rounded text-sm text-gray-300 hover:bg-gray-600"
-              >
-                <X size={16} /> Cancel
-              </button>
-
-              {/* SAVE BUTTON */}
-              <button
-                onClick={saveAttendee}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
-              >
-                <Save size={16} /> Save
-              </button>
-
             </div>
-
-          </div>
-        </div>
+        </AddModal>
       )}
 
 
       {/* SIMPLE MODALS */}
-      <SimpleModal
+      <AddModal
         title="Add Meeting Type"
         isOpen={meetingTypeModalOpen}
         onClose={() => setMeetingTypeModalOpen(false)}
         onSave={handleSaveMeetingType}
-        value={newMeetingType}
-        setValue={setNewMeetingType}
-        placeholder="Enter Meeting Type Name"
-      />
+        width="700px"
+      >
+        <div>
+           <input
+            type="text"
+            placeholder="Enter Meeting Type Name"
+            value={newMeetingType}
+            onChange={(e) => setNewMeetingType(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+          />
+        </div>
+      </AddModal>
 
-      <SimpleModal
+      <AddModal
         title="Add Attendee Type"
         isOpen={attendeeTypeModalOpen}
         onClose={() => setAttendeeTypeModalOpen(false)}
         onSave={handleSaveAttendeeType}
-        value={newAttendeeType}
-        setValue={setNewAttendeeType}
-        placeholder="Enter Attendee Type Name"
-      />
+        width="700px"
+      >
+        <div>
+           <input
+            type="text"
+            placeholder="Enter Attendee Type Name"
+            value={newAttendeeType}
+            onChange={(e) => setNewAttendeeType(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+          />
+        </div>
+      </AddModal>
 
-      <SimpleModal
+      <AddModal
         title="Add Attendance Status"
         isOpen={attendanceStatusModalOpen}
         onClose={() => setAttendanceStatusModalOpen(false)}
         onSave={handleSaveAttendanceStatus}
-        value={newAttendanceStatus}
-        setValue={setNewAttendanceStatus}
-        placeholder="Enter Attendance Status Name"
-      />
+        width="700px"
+      >
+        <div>
+           <input
+            type="text"
+            placeholder="Enter Attendance Status Name"
+            value={newAttendanceStatus}
+            onChange={(e) => setNewAttendanceStatus(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+          />
+        </div>
+      </AddModal>
 
       {/* DEPARTMENT MODAL */}
-      {departmentModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
-            <div className="flex justify-between mb-4">
-              <h3 className="text-white text-lg">Add Department</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setDepartmentModalOpen(false)} />
-            </div>
-
+      <AddModal
+          isOpen={departmentModalOpen}
+          onClose={() => setDepartmentModalOpen(false)}
+          onSave={handleSaveDepartment}
+          title="Add Department"
+          width="700px"
+      >
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-white">Department Name *</label>
+                <label className="block text-sm mb-1">Department Name *</label>
                 <input
                   type="text"
                   value={newDepartment.department}
                   onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Description</label>
+                <label className="block text-sm mb-1">Description</label>
                 <textarea
                   value={newDepartment.description}
                   onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Parent Department</label>
+                <label className="block text-sm mb-1">Parent Department</label>
                 <SearchableSelect
                   options={departments.map(d => ({ id: d.id, name: d.name }))}
                   value={newDepartment.parentDepartmentId}
@@ -1131,38 +1125,30 @@ const NewMeeting = () => {
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setDepartmentModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
-              <button onClick={handleSaveDepartment} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </AddModal>
 
       {/* LOCATION MODAL */}
-      {locationModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="flex justify-between mb-4">
-              <h3 className="text-white text-lg">Add Location</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setLocationModalOpen(false)} />
-            </div>
-
+      <AddModal
+        isOpen={locationModalOpen}
+        onClose={() => setLocationModalOpen(false)}
+        onSave={handleSaveLocation}
+        title="Add Location"
+        width="700px"
+      >
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="text-sm text-white">Location Name *</label>
+                <label className="block text-sm mb-1">Location Name *</label>
                 <input
                   type="text"
                   value={newLocation.name}
                   onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
                  <div className="space-y-1">
-                    <label className="text-sm text-white">Country</label>
+                    <label className="block text-sm mb-1">Country</label>
                     <div className="flex gap-2">
                         <SearchableSelect
                           options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
@@ -1186,7 +1172,7 @@ const NewMeeting = () => {
 
               <div>
                 <div className="space-y-1">
-                    <label className="text-sm text-white">State</label>
+                    <label className="block text-sm mb-1">State</label>
                     <div className="flex gap-2">
                         <SearchableSelect
                           options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
@@ -1210,7 +1196,7 @@ const NewMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className="text-sm text-white">City</label>
+                    <label className="block text-sm mb-1">City</label>
                     <div className="flex gap-2">
                         <SearchableSelect
                           options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
@@ -1233,78 +1219,76 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <label className="text-sm text-white">Address</label>
+                <label className="block text-sm mb-1">Address</label>
                 <input
                   type="text"
                   value={newLocation.address}
                   onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Latitude</label>
+                <label className="block text-sm mb-1">Latitude</label>
                 <input
                   type="text"
                   value={newLocation.latitude}
                   onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Longitude</label>
+                <label className="block text-sm mb-1">Longitude</label>
                 <input
                   type="text"
                   value={newLocation.longitude}
                   onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
             </div>
-
-
-
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setLocationModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
-              <button onClick={handleSaveLocation} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </AddModal>
 
       {/* NESTED ADD COUNTRY MODAL */}
-      <SimpleModal
+      <AddModal
         title="Add Country"
         isOpen={addCountryModalOpen}
         onClose={() => setAddCountryModalOpen(false)}
         onSave={handleSaveCountry}
-        value={newCountryName}
-        setValue={setNewCountryName}
-        placeholder="Enter Country Name"
-      />
+        width="700px"
+      >
+        <div>
+           <input
+            type="text"
+            placeholder="Enter Country Name"
+            value={newCountryName}
+            onChange={(e) => setNewCountryName(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+          />
+        </div>
+      </AddModal>
 
       {/* NESTED ADD STATE MODAL */}
-      {addStateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
-            <div className="flex justify-between mb-4">
-              <h3 className="text-white text-lg">Add State</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setAddStateModalOpen(false)} />
-            </div>
-
+      <AddModal
+        isOpen={addStateModalOpen}
+        onClose={() => setAddStateModalOpen(false)}
+        onSave={handleSaveState}
+        title="Add State"
+        width="700px"
+      >
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-white">State Name *</label>
+                <label className="block text-sm mb-1">State Name *</label>
                 <input
                   type="text"
                   value={newState.name}
                   onChange={(e) => setNewState({ ...newState, name: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="text-sm text-white">Country *</label>
+                <label className="block text-sm mb-1">Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newState.countryId}
@@ -1315,36 +1299,28 @@ const NewMeeting = () => {
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setAddStateModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
-              <button onClick={handleSaveState} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </AddModal>
 
       {/* NESTED ADD CITY MODAL */}
-      {addCityModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
-            <div className="flex justify-between mb-4">
-              <h3 className="text-white text-lg">Add City</h3>
-              <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={() => setAddCityModalOpen(false)} />
-            </div>
-
+      <AddModal
+        isOpen={addCityModalOpen}
+        onClose={() => setAddCityModalOpen(false)}
+        onSave={handleSaveCity}
+        title="Add City"
+        width="700px"
+      >
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-white">City Name *</label>
+                <label className="block text-sm mb-1">City Name *</label>
                 <input
                   type="text"
                   value={newCity.name}
                   onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="text-sm text-white">Country *</label>
+                <label className="block text-sm mb-1">Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newCity.countryId}
@@ -1354,7 +1330,7 @@ const NewMeeting = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-white">State *</label>
+                <label className="block text-sm mb-1">State *</label>
                 <SearchableSelect
                   options={modalStates.map(s => ({ id: s.id, name: s.name }))}
                   value={newCity.stateId}
@@ -1365,44 +1341,9 @@ const NewMeeting = () => {
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setAddCityModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white rounded hover:bg-gray-700">Cancel</button>
-              <button onClick={handleSaveCity} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </AddModal>
 
     </PageLayout>
-  );
-};
-
-// ===============================
-// SIMPLE MODAL COMPONENT (Internal)
-// ===============================
-const SimpleModal = ({ title, isOpen, onClose, onSave, value, setValue, placeholder }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-5 w-[700px] shadow-xl">
-        <div className="flex justify-between mb-4">
-          <h3 className="text-white text-lg">{title}</h3>
-          <X size={20} className="cursor-pointer text-gray-400 hover:text-white" onClick={onClose} />
-        </div>
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mb-4"
-        />
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-800 border border-gray-600 text-white-400 rounded hover:bg-gray-700">Cancel</button>
-          <button onClick={onSave} className="px-4 py-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700">Save</button>
-        </div>
-      </div>
-    </div>
   );
 };
 

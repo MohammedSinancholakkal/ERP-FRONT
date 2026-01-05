@@ -13,6 +13,8 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
 
 const BankTransactions = () => {
   // ------------------------- Columns -------------------------
@@ -132,160 +134,150 @@ const [newTx, setNewTx] = useState({
   return (
     <>
       {/* ---------------------- ADD MODAL ---------------------- */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setModalOpen(false)}
-          />
-<div className="relative w-[750px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-lg">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Bank Transaction</h2>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {/* Date */}
-              <div>
-                <label className="text-sm">Date</label>
-                <input
-                  type="date"
-                  value={newTx.date}
-                  onChange={(e) => setNewTx({ ...newTx, date: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* Account Type */}
-              <div>
-                <label className="text-sm">Account Type</label>
-                <select
-                  value={newTx.accountType}
-                  onChange={(e) =>
-                    setNewTx({ ...newTx, accountType: e.target.value })
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                >
-                  <option value="Debit">Debit (-)</option>
-                  <option value="Credit">Credit (+)</option>
-                </select>
-              </div>
-
-              {/* WD ID */}
-              <div>
-                <label className="text-sm">Withdraw / Deposit ID</label>
-                <input
-                  value={newTx.wdId}
-                  onChange={(e) => setNewTx({ ...newTx, wdId: e.target.value })}
-                  placeholder="WD-001"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* Bank */}
-{/* Bank Searchable Dropdown */}
-<div className="relative">
-  <label className="text-sm">Bank</label>
-
-  {/* INPUT FIELD */}
-  <input
-    value={newTx.bankSearch || newTx.bank}
-    onChange={(e) =>
-      setNewTx({
-        ...newTx,
-        bankSearch: e.target.value,
-        bankDropdown: true,
-      })
-    }
-    onClick={() =>
-      setNewTx((p) => ({ ...p, bankDropdown: !p.bankDropdown }))
-    }
-    placeholder="Search or select bank..."
-    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
-  />
-
-  {/* DROPDOWN LIST */}
-  {newTx.bankDropdown && (
-    <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto">
-      {["Meezan Bank", "HBL", "UBL", "Bank Al Habib", "Alfalah"]
-        .filter((b) =>
-          b.toLowerCase().includes(newTx.bankSearch.toLowerCase())
-        )
-        .map((b) => (
-          <div
-            key={b}
-            onClick={() =>
-              setNewTx({
-                ...newTx,
-                bank: b,
-                bankSearch: "",
-                bankDropdown: false,
-              })
-            }
-            className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-          >
-            {b}
+      {/* ---------------------- ADD MODAL ---------------------- */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAdd}
+        title="New Bank Transaction"
+        width="750px"
+        permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+      >
+        <div className="p-0 space-y-4">
+          {/* Date */}
+          <div>
+            <label className="text-sm">Date</label>
+            <input
+              type="date"
+              value={newTx.date}
+              onChange={(e) => setNewTx({ ...newTx, date: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
           </div>
-        ))}
 
-      {/* No results */}
-      {["Meezan Bank", "HBL", "UBL", "Bank Al Habib", "Alfalah"].filter((b) =>
-        b.toLowerCase().includes(newTx.bankSearch.toLowerCase())
-      ).length === 0 && (
-        <div className="px-3 py-2 text-gray-400 text-sm">No results found</div>
-      )}
-    </div>
-  )}
-</div>
+          {/* Account Type */}
+          <div>
+            <label className="text-sm">Account Type</label>
+            <select
+              value={newTx.accountType}
+              onChange={(e) =>
+                setNewTx({ ...newTx, accountType: e.target.value })
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            >
+              <option value="Debit">Debit (-)</option>
+              <option value="Credit">Credit (+)</option>
+            </select>
+          </div>
 
+          {/* WD ID */}
+          <div>
+            <label className="text-sm">Withdraw / Deposit ID</label>
+            <input
+              value={newTx.wdId}
+              onChange={(e) => setNewTx({ ...newTx, wdId: e.target.value })}
+              placeholder="WD-001"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
+          {/* Bank */}
+          {/* Bank Searchable Dropdown */}
+          <div className="relative">
+            <label className="text-sm">Bank</label>
 
-              {/* Amount */}
-              <div>
-                <label className="text-sm">Amount</label>
-                <input
-                  value={newTx.amount}
-                  onChange={(e) =>
-                    setNewTx({ ...newTx, amount: e.target.value })
-                  }
-                  type="number"
-                  placeholder="0"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
+            {/* INPUT FIELD */}
+            <input
+              value={newTx.bankSearch || newTx.bank}
+              onChange={(e) =>
+                setNewTx({
+                  ...newTx,
+                  bankSearch: e.target.value,
+                  bankDropdown: true,
+                })
+              }
+              onClick={() =>
+                setNewTx((p) => ({ ...p, bankDropdown: !p.bankDropdown }))
+              }
+              placeholder="Search or select bank..."
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
+            />
+
+            {/* DROPDOWN LIST */}
+            {newTx.bankDropdown && (
+              <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto">
+                {["Meezan Bank", "HBL", "UBL", "Bank Al Habib", "Alfalah"]
+                  .filter((b) =>
+                    b.toLowerCase().includes(newTx.bankSearch.toLowerCase())
+                  )
+                  .map((b) => (
+                    <div
+                      key={b}
+                      onClick={() =>
+                        setNewTx({
+                          ...newTx,
+                          bank: b,
+                          bankSearch: "",
+                          bankDropdown: false,
+                        })
+                      }
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {b}
+                    </div>
+                  ))}
+
+                {/* No results */}
+                {["Meezan Bank", "HBL", "UBL", "Bank Al Habib", "Alfalah"].filter(
+                  (b) =>
+                    b.toLowerCase().includes(newTx.bankSearch.toLowerCase())
+                ).length === 0 && (
+                  <div className="px-3 py-2 text-gray-400 text-sm">
+                    No results found
+                  </div>
+                )}
               </div>
+            )}
+          </div>
 
-              {/* Description */}
-              <div>
-                <label className="text-sm">Description</label>
-                <textarea
-                  value={newTx.description}
-                  onChange={(e) =>
-                    setNewTx({ ...newTx, description: e.target.value })
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                  rows={2}
-                />
-              </div>
-            </div>
+          {/* Amount */}
+          <div>
+            <label className="text-sm">Amount</label>
+            <input
+              value={newTx.amount}
+              onChange={(e) =>
+                setNewTx({ ...newTx, amount: e.target.value })
+              }
+              type="number"
+              placeholder="0"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
 
-            <div className="flex justify-end px-5 py-3 border-t border-gray-700">
-              {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
+          {/* Description */}
+          <div>
+            <label className="text-sm">Description</label>
+            <textarea
+              value={newTx.description}
+              onChange={(e) =>
+                setNewTx({ ...newTx, description: e.target.value })
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              rows={2}
+            />
           </div>
         </div>
-      )}
+      </AddModal>
+
+
+      {/* COLUMN PICKER MODAL */}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       {/* ---------------------- MAIN ---------------------- */}
       <PageLayout>

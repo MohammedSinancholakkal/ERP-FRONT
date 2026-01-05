@@ -11,7 +11,9 @@ const SearchableSelect = ({
   className = "",
   direction = "down", // "down" | "up"
   dropdownHeight = "max-h-48",
-  compact = false
+  compact = false,
+  name,
+  id
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -161,6 +163,8 @@ const SearchableSelect = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               onClick={(e) => e.stopPropagation()}
               autoFocus
+              name={name ? `search_${name}` : undefined}
+              id={id ? `search_${id}` : undefined}
             />
           </div>
 

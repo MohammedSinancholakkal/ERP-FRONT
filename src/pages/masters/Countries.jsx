@@ -4,33 +4,45 @@ import {
   Plus,
   RefreshCw,
   List,
-  X,
-  Save,
-  Trash2,
   ArchiveRestore,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
-import SortableHeader from "../../components/SortableHeader";
+// import SortableHeader from "../../components/SortableHeader"; // Unused?
 import toast from "react-hot-toast";
 
 // API
 import {
   addCountryApi,
-  getCountriesApi,
+//   getCountriesApi, // Unused?
   updateCountryApi,
   deleteCountryApi,
-  searchCountryApi,
   restoreCountryApi,
-  getInactiveCountriesApi,
+//   getInactiveCountriesApi, // Unused?
+  searchCountryApi,
 } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
-// import FireflyEffect from "../../components/FireflyEffect";
+import MasterTable from "../../components/MasterTable";
+import Swal from "sweetalert2";
+
+// MODALS
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+
 
 const Countries = () => {
   const { theme } = useTheme();
+  const { 
+    loadCountries: loadCountriesCtx, 
+    // refreshCountries, 
+    loadInactiveCountries: loadInactiveCtx,
+    refreshInactiveCountries
+  } = useMasters();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -53,9 +65,9 @@ const Countries = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
+//   const totalPages = Math.max(1, Math.ceil(totalRecords / limit)); // Unused?
+//   const start = (page - 1) * limit + 1; // Unused?
+//   const end = Math.min(page * limit, totalRecords); // Unused?
 
   // SEARCH
   const [searchText, setSearchText] = useState("");
@@ -69,15 +81,10 @@ const Countries = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
+  // const [searchColumn, setSearchColumn] = useState(""); // Moved to Modal
 
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
+  // const toggleColumn = (col) => { ... } // Moved to Modal
+  // const restoreDefaultColumns = () => { ... } // Moved to Modal
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
@@ -106,40 +113,35 @@ const Countries = () => {
   }
 
   // LOAD ACTIVE COUNTRIES
-  const loadCountries = async () => {
-    setSearchText("");
-    const res = await getCountriesApi(page, limit);
-    if (res?.status === 200) {
-      setCountries(res.data.records);
-      setTotalRecords(res.data.total);
-    } else {
-      toast.error("Failed to load countries");
-    }
+  const loadCountries = async (forceRefresh = false) => {
+    const { data, total } = await loadCountriesCtx(page, limit, searchText, forceRefresh);
+    setCountries(data || []);
+    setTotalRecords(total || 0);
   };
 
   useEffect(() => {
     loadCountries();
-  }, [page, limit]);
+  }, [page, limit]); 
 
   // LOAD INACTIVE
   const loadInactive = async () => {
-    const res = await getInactiveCountriesApi();
-    if (res?.status === 200) {
-      setInactiveCountries(res.data.records || res.data);
-    } else {
-      toast.error("Failed to load inactive records");
-    }
+    const data = await loadInactiveCtx();
+    setInactiveCountries(data || []);
   };
 
   // SEARCH
   const handleSearch = async (text) => {
     setSearchText(text);
-    if (text.trim() === "") return loadCountries();
-
-    const res = await searchCountryApi(text);
-    if (res?.status === 200) {
-      setCountries(res.data);
+    if (text.trim() === "") {
+        const { data, total } = await loadCountriesCtx(1, limit, "");
+        setCountries(data || []);
+        setTotalRecords(total || 0);
+        return;
     }
+
+    const { data, total } = await loadCountriesCtx(1, limit, text);
+    setCountries(data || []);
+    setTotalRecords(total || 0); 
   };
 
   // ADD
@@ -159,8 +161,6 @@ const Countries = () => {
       }
     } catch (err) {
       console.error(err);
-      // verify connection? proceed? safest to stop or warn. 
-      // Proceeding might cause server error if unique constraint exists, preventing is better.
       return toast.error("Error checking for duplicates");
     }
 
@@ -173,7 +173,7 @@ const Countries = () => {
       toast.success("Country added");
       setNewCountry("");
       setModalOpen(false);
-      loadCountries();
+      loadCountries(true); // Force Reload
     } else {
       toast.error("Failed to add");
     }
@@ -206,8 +206,11 @@ const Countries = () => {
     if (res?.status === 200) {
       toast.success("Country updated");
       setEditModalOpen(false);
-      loadCountries();
-      if (showInactive) loadInactive();
+      loadCountries(true);
+      if (showInactive) {
+          refreshInactiveCountries();
+          loadInactive();
+      }
     } else {
       toast.error("Update failed");
     }
@@ -215,256 +218,132 @@ const Countries = () => {
 
   // DELETE
   const handleDeleteCountry = async () => {
-    const res = await deleteCountryApi(editCountry.id, {
-      userId: user?.userId || 1,
-    });
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const res = await deleteCountryApi(editCountry.id, {
+          userId: user?.userId || 1,
+        });
 
-    if (res?.status === 200) {
-      toast.success("Country deleted");
-      setEditModalOpen(false);
-      loadCountries();
-      if (showInactive) loadInactive();
-    } else {
-      toast.error("Delete failed");
-    }
+        if (res?.status === 200) {
+          toast.success("Country deleted");
+          setEditModalOpen(false);
+          loadCountries(true);
+          if (showInactive) {
+            refreshInactiveCountries();
+            loadInactive();
+          }
+        } else {
+          toast.error("Delete failed");
+        }
+      }
+    });
   };
 
   // RESTORE
   const handleRestoreCountry = async () => {
-    const res = await restoreCountryApi(editCountry.id, {
-      userId: user?.userId || 1,
-    });
+    Swal.fire({
+      title: "Are you sure?",
+      text: "Do you want to restore this country?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, restore it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const res = await restoreCountryApi(editCountry.id, {
+          userId: user?.userId || 1,
+        });
 
-    if (res?.status === 200) {
-      toast.success("Country restored");
-      setEditModalOpen(false);
-      loadCountries();
-      loadInactive();
-    } else {
-      toast.error("Failed to restore");
-    }
+        if (res?.status === 200) {
+          toast.success("Country restored");
+          setEditModalOpen(false);
+          loadCountries(true);
+          refreshInactiveCountries();
+          loadInactive();
+        } else {
+          toast.error("Failed to restore");
+        }
+      }
+    });
   };
+
+  const tableColumns = [
+    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+    visibleColumns.name && { key: "name", label: "Name", sortable: true },
+  ].filter(Boolean);
 
   return (
     <PageLayout>
       <>
-        {/* =============================
-            ADD COUNTRY MODAL
-        ============================== */}
-        {modalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
-              <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-                <h2 className="text-lg font-semibold">New Country</h2>
+        {/* ADD COUNTRY MODAL */}
+        <AddModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onSave={handleAddCountry}
+          title="New Country"
+        >
+          <label className="block text-sm mb-1">Name *</label>
+          <input
+            type="text"
+            value={newCountry}
+            onChange={(e) => setNewCountry(e.target.value)}
+            placeholder="Enter country name"
+            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+          />
+        </AddModal>
 
-                <button
-                  onClick={() => setModalOpen(false)}
-                  className="text-gray-300 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+        {/* EDIT COUNTRY MODAL */}
+        <EditModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdateCountry}
+          onDelete={handleDeleteCountry}
+          onRestore={handleRestoreCountry}
+          isInactive={editCountry.isInactive}
+          title={`${editCountry.isInactive ? "Restore Country" : "Edit Country"} (${editCountry.name})`}
+          permissionDelete={hasPermission(PERMISSIONS.COUNTRIES.DELETE)}
+          permissionEdit={hasPermission(PERMISSIONS.COUNTRIES.EDIT)}
+        >
+           <label className="block text-sm mb-1">Name *</label>
+            <input
+              type="text"
+              value={editCountry.name}
+              onChange={(e) =>
+                setEditCountry((prev) => ({
+                  ...prev,
+                  name: e.target.value,
+                }))
+              }
+              disabled={editCountry.isInactive}
+              className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none ${
+                editCountry.isInactive
+                  ? "opacity-60 cursor-not-allowed"
+                  : ""
+              }`}
+            />
+        </EditModal>
 
-              <div className="p-6">
-                <label className="block text-sm mb-1">Name *</label>
+        {/* COLUMN PICKER MODAL */}
+        <ColumnPickerModal
+          isOpen={columnModal}
+          onClose={() => setColumnModal(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+        />
 
-                <input
-                  type="text"
-                  value={newCountry}
-                  onChange={(e) => setNewCountry(e.target.value)}
-                  placeholder="Enter country name"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                />
-              </div>
 
-              <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                <button
-                  onClick={handleAddCountry}
-                  className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
-                >
-                  <Save size={16} /> Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* =============================
-            EDIT COUNTRY MODAL
-        ============================== */}
-        {editModalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-              <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                <h2 className="text-lg font-semibold">
-                  {editCountry.isInactive
-                    ? "Restore Country"
-                    : "Edit Country"}{" "}
-                  ({editCountry.name})
-                </h2>
-
-                <button
-                  onClick={() => setEditModalOpen(false)}
-                  className="text-gray-300 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-6">
-                <label className="block text-sm mb-1">Name *</label>
-
-                <input
-                  type="text"
-                  value={editCountry.name}
-                  onChange={(e) =>
-                    setEditCountry((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
-                  }
-                  disabled={editCountry.isInactive}
-                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none ${
-                    editCountry.isInactive
-                      ? "opacity-60 cursor-not-allowed"
-                      : ""
-                  }`}
-                />
-              </div>
-
-              <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-                {editCountry.isInactive ? (
-                  <button
-                    onClick={handleRestoreCountry}
-                    className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                  >
-                    <ArchiveRestore size={16} /> Restore
-                  </button>
-                ) : (
-                  hasPermission(PERMISSIONS.COUNTRIES.DELETE) && (
-                  <button
-                    onClick={handleDeleteCountry}
-                    className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-                  >
-                    <Trash2 size={16} /> Delete
-                  </button>
-                  )
-                )}
-
-                {hasPermission(PERMISSIONS.COUNTRIES.EDIT) && !editCountry.isInactive && (
-                  <button
-                    onClick={handleUpdateCountry}
-                    className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-                  >
-                    <Save size={16} /> Save
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* =============================
-              COLUMN PICKER MODAL
-        ============================== */}
-        {columnModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-              <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                <h2 className="text-lg font-semibold">Column Picker</h2>
-                <button
-                  onClick={() => setColumnModal(false)}
-                  className="text-gray-300 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* SEARCH */}
-              <div className="px-5 py-3">
-                <input
-                  type="text"
-                  placeholder="search columns..."
-                  value={searchColumn}
-                  onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                  className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-                />
-              </div>
-
-              {/* VISIBLE / HIDDEN COLUMNS */}
-              <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-                <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                  <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                  {Object.keys(visibleColumns)
-                    .filter((col) => visibleColumns[col])
-                    .filter((col) => col.includes(searchColumn))
-                    .map((col) => (
-                      <div
-                        key={col}
-                        className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                      >
-                        <span>☰ {col.toUpperCase()}</span>
-                        <button
-                          className="text-red-400"
-                          onClick={() => toggleColumn(col)}
-                        >
-                          ✖
-                        </button>
-                      </div>
-                    ))}
-                </div>
-
-                <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                  <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                  {Object.keys(visibleColumns)
-                    .filter((col) => !visibleColumns[col])
-                    .filter((col) => col.includes(searchColumn))
-                    .map((col) => (
-                      <div
-                        key={col}
-                        className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                      >
-                        <span>☰ {col.toUpperCase()}</span>
-                        <button
-                          className="text-green-400"
-                          onClick={() => toggleColumn(col)}
-                        >
-                          ➕
-                        </button>
-                      </div>
-                    ))}
-
-                  {Object.keys(visibleColumns).filter(
-                    (col) => !visibleColumns[col]
-                  ).length === 0 && (
-                    <p className="text-gray-400 text-sm">No hidden columns</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-                <button
-                  onClick={restoreDefaultColumns}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  Restore Defaults
-                </button>
-                <button
-                  onClick={() => setColumnModal(false)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  OK
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* =============================
-              MAIN PAGE
-        ============================== */}
+        {/* MAIN PAGE */}
         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
             <h2 className="text-2xl font-semibold mb-4">Countries</h2>
@@ -522,66 +401,22 @@ const Countries = () => {
             </div>
 
             {/* TABLE SECTION */}
-            <div className="flex-grow overflow-auto min-h-0 w-full">
-              <div className="w-full overflow-auto">
-                <table className="w-[400px] text-left border-separate border-spacing-y-1 text-sm">
-                  <thead className={`sticky top-0 z-10 ${theme === 'emerald' ? 'bg-emerald-700 text-white' : 'bg-gray-900 text-white'}`}>
-                    <tr className="">
-                      {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                      {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {sortedCountries.map((c) => (
-                      <tr
-                        key={c.id}
-                        className={`cursor-pointer rounded shadow-sm border-b ${theme === 'emerald' ? 'bg-gradient-to-r from-emerald-100 to-white hover:from-emerald-200 hover:to-white text-gray-900 border-emerald-300' : 'bg-gray-900 hover:bg-gray-700 text-white'}`}
-                        onClick={() => {
-                          setEditCountry({
-                            id: c.id,
-                            name: c.name,
-                            isInactive: false,
-                          });
-                          setEditModalOpen(true);
-                        }}
-                      >
-                        {visibleColumns.id && (
-                          <td className={`px-2 py-1 text-center ${theme === 'emerald' ? 'border-b border-emerald-200' : ''}`}>{c.id}</td>
-                        )}
-                        {visibleColumns.name && (
-                          <td className={`px-2 py-1 text-center ${theme === 'emerald' ? 'border-b border-emerald-200' : ''}`}>{c.name}</td>
-                        )}
-                      </tr>
-                    ))}
-
-                    {showInactive &&
-                      inactiveCountries.map((c) => (
-                        <tr
-                          key={`inactive-${c.id}`}
-                          className={`cursor-pointer opacity-40 line-through rounded shadow-sm ${theme === 'emerald' ? 'bg-gray-100 hover:bg-gray-200 text-gray-500' : 'bg-gray-900 hover:bg-gray-700 text-white'}`}
-                          onClick={() => {
-                            setEditCountry({
-                              id: c.id,
-                              name: c.name,
-                              isInactive: true,
-                              });
-                            setEditModalOpen(true);
-                          }}
-                        >
-                          {visibleColumns.id && (
-                            <td className="px-2 py-1 text-center">{c.id}</td>
-                          )}
-                          {visibleColumns.name && (
-                            <td className="px-2 py-1 text-center">{c.name}</td>
-                          )}
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
+            <MasterTable
+              columns={tableColumns}
+              data={sortedCountries}
+              inactiveData={inactiveCountries}
+              showInactive={showInactive}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(item, isInactive) => {
+                setEditCountry({
+                  id: item.id,
+                  name: item.name,
+                  isInactive,
+                });
+                setEditModalOpen(true);
+              }}
+            />
           
             {/* PAGINATION */}
             <Pagination
@@ -604,6 +439,3 @@ const Countries = () => {
 };
 
 export default Countries;
-
-
-

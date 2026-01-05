@@ -95,6 +95,7 @@ import SortableHeader from "../../components/SortableHeader";
 import { serverURL } from "../../services/serverURL";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 // file -> base64 preview utility (same pattern as Banks)
 const fileToBase64 = (file) =>
@@ -368,7 +369,7 @@ const handleEditRoles = async () => {
     source: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const toggleColumn = (col) =>
     setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
@@ -1109,89 +1110,14 @@ const handleEditRoles = async () => {
       )}
 
       {/* COLUMN PICKER */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[750px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg shadow-xl border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-base sm:text-lg font-semibold">
-                Column Picker
-              </h2>
-              <button onClick={() => setColumnModal(false)}>
-                <X size={22} className="text-gray-300" />
-              </button>
-            </div>
-
-            <div className="px-4 sm:px-5 py-3">
-              <input
-                type="text"
-                placeholder="Search columns…"
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 sm:px-5 pb-5">
-              <div className="bg-gray-800 p-3 rounded border border-gray-700">
-                <h3 className="text-sm font-medium mb-3">Visible Columns</h3>
-                {Object.keys(visibleColumns)
-                  .filter((c) => visibleColumns[c])
-                  .filter((c) => c.toLowerCase().includes(searchColumn))
-                  .map((c) => (
-                    <div
-                      key={c}
-                      className="flex justify-between bg-gray-700 p-2 rounded mb-2"
-                    >
-                      <span>{c}</span>
-                      <button
-                        onClick={() => toggleColumn(c)}
-                        className="text-red-400"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="bg-gray-800 p-3 rounded border border-gray-700">
-                <h3 className="text-sm font-medium mb-3">Hidden Columns</h3>
-                {Object.keys(visibleColumns)
-                  .filter((c) => !visibleColumns[c])
-                  .filter((c) => c.toLowerCase().includes(searchColumn))
-                  .map((c) => (
-                    <div
-                      key={c}
-                      className="flex justify-between bg-gray-700 p-2 rounded mb-2"
-                    >
-                      <span>{c}</span>
-                      <button
-                        onClick={() => toggleColumn(c)}
-                        className="text-green-400"
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 px-4 sm:px-5 py-3 border-t border-gray-700">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-3 sm:px-4 py-2 bg-gray-800 border border-gray-600 rounded text-sm sm:text-base"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-3 sm:px-4 py-2 bg-gray-800 border border-gray-600 rounded text-sm sm:text-base"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
+       <ColumnPickerModal
+          isOpen={columnModalOpen}
+          onClose={() => setColumnModalOpen(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+        />
 
       {/* MAIN PAGE */}
          <PageLayout>
@@ -1234,7 +1160,7 @@ const handleEditRoles = async () => {
             </button>
 
             <button
-              onClick={() => setColumnModal(true)}
+              onClick={() => setColumnModalOpen(true)}
               className="p-1.5 bg-gray-700 border border-gray-600 rounded"
             >
               <List className="text-blue-300" size={16} />

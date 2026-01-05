@@ -110,7 +110,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Damaged Products", key: PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.VIEW },
     { label: "Goods Receipts", key: PERMISSIONS.INVENTORY.GOODS_RECEIPTS.VIEW },
     { label: "Goods Issue", key: PERMISSIONS.INVENTORY.GOODS_ISSUE.VIEW },
-    // { label: "Update Stock", key: "update_stock" } // Keeping commented if not in constants yet, or map to general
+    { label: "Update Stock", key: "update_stock" } // Keeping commented if not in constants yet, or map to general
   ];
 
   const salesLinks = [

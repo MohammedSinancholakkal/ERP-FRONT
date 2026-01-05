@@ -1,18 +1,9 @@
-// src/pages/masters/AttendanceStatuses.jsx
-
 import React, { useEffect, useState } from "react";
 import {
   Search,
   Plus,
   RefreshCw,
   List,
-  X,
-  Save,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -28,61 +19,48 @@ import {
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+
 import SortableHeader from "../../components/SortableHeader";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 
+// MODALS
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+
 const AttendanceStatuses = () => {
-  // Modals
+  // ===============================
+  // State Declarations
+  // ===============================
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
-  // Data
   const [rows, setRows] = useState([]);
   const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
 
-  // Search
   const [searchText, setSearchText] = useState("");
 
-  // User
   const user = JSON.parse(localStorage.getItem("user")) || null;
   const currentUserId = user?.userId || 1;
 
-  // Add form
   const [newItem, setNewItem] = useState({ name: "" });
 
-  // Edit form
   const [editItem, setEditItem] = useState({
     id: null,
     name: "",
     isInactive: false,
   });
 
-  // Column Picker
   const defaultColumns = { id: true, name: true };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
 
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
-
-  // Pagination
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
 
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
-
-  // Sorting
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
   const handleSort = (key) => {
@@ -95,9 +73,9 @@ const AttendanceStatuses = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedActiveRows = [...rows];
+  const sortedRows = [...rows];
   if (sortConfig.key) {
-    sortedActiveRows.sort((a, b) => {
+    sortedRows.sort((a, b) => {
       let valA = a[sortConfig.key] || "";
       let valB = b[sortConfig.key] || "";
       if (typeof valA === "string") valA = valA.toLowerCase();
@@ -109,30 +87,56 @@ const AttendanceStatuses = () => {
     });
   }
 
-  // Normalize helper
-  const normalize = (arr = []) =>
-    arr.map((r) => ({
-      id: r.Id ?? r.id,
-      name: r.Name ?? r.name,
+  // ===============================
+  // Helpers
+  // ===============================
+  const normalizeRows = (items = []) =>
+    items.map((r) => ({
+      id: r.Id ?? r.id ?? r.attendanceStatusId ?? null,
+      name: r.Name ?? r.AttendanceStatusName ?? r.name ?? "",
     }));
 
+  // ===============================
   // Load Active
+  // ===============================
   const loadRows = async () => {
     try {
       const res = await getAttendanceStatusesApi(page, limit);
       if (res?.status === 200) {
         const data = res.data;
-        const rows = Array.isArray(data.records)
-          ? data.records
-          : Array.isArray(data)
-          ? data
-          : [];
+        let items = [];
 
-        setRows(normalize(rows));
-        setTotalRecords(data.total ?? rows.length);
+        if (Array.isArray(data.records)) {
+          items = data.records;
+          setTotalRecords(data.total ?? data.records.length);
+        } else if (Array.isArray(data)) {
+          items = data;
+          setTotalRecords(items.length);
+        } else {
+          items = [];
+          setTotalRecords(0);
+        }
+
+        setRows(normalizeRows(items));
+      } else {
+        toast.error("Failed to load attendance statuses");
       }
     } catch (err) {
+      console.error(err);
       toast.error("Failed to load attendance statuses");
+    }
+  };
+
+  // inactive loader
+  const loadInactive = async () => {
+    try {
+      const res = await getInactiveAttendanceStatusesApi();
+      if (res?.status === 200) {
+        const items = res.data.records ?? res.data ?? [];
+        setInactiveRows(normalizeRows(items));
+      }
+    } catch (err) {
+      console.error("Load inactive error:", err);
     }
   };
 
@@ -140,20 +144,9 @@ const AttendanceStatuses = () => {
     loadRows();
   }, [page, limit]);
 
-  // Load inactive
-  const loadInactive = async () => {
-    try {
-      const res = await getInactiveAttendanceStatusesApi();
-      if (res?.status === 200) {
-        const rows = res.data.records ?? res.data ?? [];
-        setInactiveRows(normalize(rows));
-      }
-    } catch (err) {
-      toast.error("Failed to load inactive statuses");
-    }
-  };
-
+  // ===============================
   // Search
+  // ===============================
   const handleSearch = async (value) => {
     setSearchText(value);
 
@@ -165,19 +158,24 @@ const AttendanceStatuses = () => {
 
     try {
       const res = await searchAttendanceStatusApi(value);
-
       if (res?.status === 200) {
-        setRows(normalize(res.data));
-        setTotalRecords(res.data.length);
+        const items = Array.isArray(res.data)
+          ? res.data
+          : res.data.records ?? [];
+        setRows(normalizeRows(items));
+        setTotalRecords(items.length);
       }
     } catch (err) {
       console.error("Search error:", err);
     }
   };
 
+  // ===============================
   // Add
+  // ===============================
   const handleAdd = async () => {
-    if (!newItem.name.trim()) return toast.error("Name is required");
+    if (!newItem.name?.trim())
+      return toast.error("Name is required");
 
     try {
       const res = await addAttendanceStatusApi({
@@ -186,30 +184,33 @@ const AttendanceStatuses = () => {
       });
 
       if (res?.status === 201) {
-        toast.success("Status added");
+        toast.success("Attendance status added");
         setModalOpen(false);
         setNewItem({ name: "" });
         setPage(1);
         loadRows();
       }
     } catch (err) {
+      console.error(err);
       toast.error("Server error");
     }
   };
 
-  // Open Edit (active/inactive)
+  // ===============================
+  // Edit / Restore
+  // ===============================
   const openEdit = (row, inactive = false) => {
     setEditItem({
       id: row.id,
       name: row.name,
       isInactive: inactive,
     });
+
     setEditModalOpen(true);
   };
 
-  // Update
   const handleUpdate = async () => {
-    if (!editItem.name.trim()) return toast.error("Name is required");
+    if (!editItem.name?.trim()) return toast.error("Name is required");
 
     try {
       const res = await updateAttendanceStatusApi(editItem.id, {
@@ -224,11 +225,11 @@ const AttendanceStatuses = () => {
         if (showInactive) loadInactive();
       }
     } catch (err) {
-      toast.error("Server error");
+      console.error(err);
+      toast.error("Update failed");
     }
   };
 
-  // Delete
   const handleDelete = async () => {
     try {
       const res = await deleteAttendanceStatusApi(editItem.id, {
@@ -242,11 +243,11 @@ const AttendanceStatuses = () => {
         if (showInactive) loadInactive();
       }
     } catch (err) {
+      console.error(err);
       toast.error("Delete failed");
     }
   };
 
-  // Restore
   const handleRestore = async () => {
     try {
       const res = await restoreAttendanceStatusApi(editItem.id, {
@@ -260,231 +261,26 @@ const AttendanceStatuses = () => {
         loadInactive();
       }
     } catch (err) {
+      console.error(err);
       toast.error("Restore failed");
     }
   };
 
 
-
+  // ===============================
+  // Render UI
+  // ===============================
   return (
-    <>
-      {/* ---------------- MODALS ------------------- */}
-
-      {/* ADD MODAL */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
-
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Attendance Status</h2>
-              <button onClick={() => setModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <label className="text-sm text-gray-300">Name *</label>
-              <input
-                type="text"
-                value={newItem.name}
-                onChange={(e) => setNewItem({ name: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-2"
-              />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Cancel
-              </button>
-
-              {hasPermission(PERMISSIONS.ATTENDANCE_STATUS.CREATE) && (
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* EDIT / RESTORE MODAL */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
-
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">
-                {editItem.isInactive ? "Restore Attendance Status" : "Edit Attendance Status"} ({editItem.name})
-              </h2>
-              <button onClick={() => setEditModalOpen(false)}>
-                <X className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <label className="text-sm text-gray-300">Name</label>
-
-              <input
-                type="text"
-                value={editItem.name}
-                onChange={(e) =>
-                  setEditItem((p) => ({ ...p, name: e.target.value }))
-                }
-                disabled={editItem.isInactive}
-                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-2 ${
-                  editItem.isInactive ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              {editItem.isInactive ? (
-                <button
-                  onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 rounded border border-green-900"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-              ) : (
-                hasPermission(PERMISSIONS.ATTENDANCE_STATUS.DELETE) && (
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded border border-red-900"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-                )
-              )}
-
-              {!editItem.isInactive && hasPermission(PERMISSIONS.ATTENDANCE_STATUS.EDIT) && (
-                <button
-                  onClick={handleUpdate}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded"
-                >
-                  <Save size={16} /> Save
-                </button>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* COLUMN PICKER */}
-      {columnModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModalOpen(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* VISIBLE / HIDDEN COLUMNS */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter(
-                  (col) => !visibleColumns[col]
-                ).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModalOpen(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------- MAIN PAGE ------------------- */}
-<PageLayout>
-
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
+    <PageLayout>
+    <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+      <div className="flex flex-col h-full overflow-hidden">
 
         <h2 className="text-2xl font-semibold mb-4">Attendance Statuses</h2>
 
         {/* ACTION BAR */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
 
-          {/* Search */}
+          {/* SEARCH */}
           <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
             <Search size={16} className="text-gray-300" />
             <input
@@ -495,55 +291,53 @@ const AttendanceStatuses = () => {
             />
           </div>
 
-          {/* Add */}
+          {/* ADD */}
           {hasPermission(PERMISSIONS.ATTENDANCE_STATUS.CREATE) && (
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded"
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
             <Plus size={16} /> New Status
           </button>
           )}
 
-          {/* Refresh */}
+          {/* REFRESH */}
           <button
             onClick={() => {
               setSearchText("");
               setPage(1);
               loadRows();
             }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
             <RefreshCw size={16} className="text-blue-400" />
           </button>
 
-          {/* Column Picker */}
+          {/* COLUMNS */}
           <button
             onClick={() => setColumnModalOpen(true)}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
+            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
           >
             <List size={16} className="text-blue-300" />
           </button>
 
-          {/* Show Inactive Toggle */}
+          {/* INACTIVE TOGGLE */}
           <button
             onClick={async () => {
               if (!showInactive) await loadInactive();
               setShowInactive((s) => !s);
             }}
-            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 ${
-              showInactive ? "" : ""
+            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
+              showInactive ? "ring-1 ring-yellow-300" : ""
             }`}
           >
             <ArchiveRestore size={16} className="text-yellow-300" />
             <span className="text-xs opacity-80">Inactive</span>
           </button>
-
         </div>
 
         {/* TABLE */}
-        <div className="flex-grow overflow-auto">
-        <div className="w-full overflow-auto">
+        <div className="flex-grow overflow-auto min-h-0">
           <table className="w-[500px] border-separate border-spacing-y-1 text-sm">
 
             {/* HEADER */}
@@ -565,15 +359,14 @@ const AttendanceStatuses = () => {
                     onClick={() => handleSort("name")}
                   />
                 )}
-
               </tr>
             </thead>
 
             {/* BODY */}
             <tbody className="text-center">
 
-              {/* ACTIVE ROWS */}
-              {sortedActiveRows.length === 0 && !showInactive && (
+              {/* No Records */}
+              {sortedRows.length === 0 && inactiveRows.length === 0 && (
                 <tr>
                   <td
                     colSpan={Object.values(visibleColumns).filter(Boolean).length}
@@ -584,18 +377,18 @@ const AttendanceStatuses = () => {
                 </tr>
               )}
 
-              {sortedActiveRows.map((row) => (
+              {/* ACTIVE ROWS */}
+              {sortedRows.map((row) => (
                 <tr
                   key={row.id}
                   className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
                   onClick={() => openEdit(row, false)}
                 >
                   {visibleColumns.id && (
-                    <td className="px-2 py-1">{row.id}</td>
+                    <td className="px-2 py-1 align-middle">{row.id}</td>
                   )}
-
                   {visibleColumns.name && (
-                    <td className="px-2 py-1">{row.name}</td>
+                    <td className="px-2 py-1 align-middle">{row.name}</td>
                   )}
                 </tr>
               ))}
@@ -609,19 +402,17 @@ const AttendanceStatuses = () => {
                     onClick={() => openEdit(row, true)}
                   >
                     {visibleColumns.id && (
-                      <td className="px-2 py-1">{row.id}</td>
+                      <td className="px-2 py-1 align-middle">{row.id}</td>
                     )}
-
                     {visibleColumns.name && (
-                      <td className="px-2 py-1">{row.name}</td>
+                      <td className="px-2 py-1 align-middle">{row.name}</td>
                     )}
                   </tr>
                 ))}
             </tbody>
-
           </table>
         </div>
-      </div>
+        
 
         {/* PAGINATION */}
         <Pagination
@@ -637,13 +428,63 @@ const AttendanceStatuses = () => {
           }}
         />
       </div>
-      </div>
-      </PageLayout>
-    </>
+    </div>
+
+       {/* ADD MODAL */}
+       <AddModal
+         isOpen={modalOpen}
+         onClose={() => setModalOpen(false)}
+         onSave={handleAdd}
+         title="New Attendance Status"
+       >
+          <div>
+            <label className="text-sm text-gray-300">Name *</label>
+            <input
+                type="text"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ name: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+            />
+          </div>
+       </AddModal>
+
+       {/* EDIT MODAL */}
+       <EditModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdate}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          isInactive={editItem.isInactive}
+          title={editItem.isInactive ? "Restore Attendance Status" : "Edit Attendance Status"}
+          permissionDelete={hasPermission(PERMISSIONS.ATTENDANCE_STATUS.DELETE)}
+          permissionEdit={hasPermission(PERMISSIONS.ATTENDANCE_STATUS.EDIT)}
+       >
+          <div>
+             <label className="text-sm text-gray-300">Name *</label>
+             <input
+                type="text"
+                value={editItem.name}
+                onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
+                disabled={editItem.isInactive}
+                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 ${
+                  editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+             />
+          </div>
+       </EditModal>
+
+       {/* COLUMN PICKER MODAL */}
+       <ColumnPickerModal
+          isOpen={columnModalOpen}
+          onClose={() => setColumnModalOpen(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+       />
+
+    </PageLayout>
   );
 };
 
 export default AttendanceStatuses;
-
-
-

@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import AddModal from "../../components/modals/AddModal";
 
 // APIs
 import {
@@ -1170,414 +1171,341 @@ const CustomDropdown = ({
 
 
 
+
       {/* --- ADD ITEM MODAL --- */}
-      {isItemModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl p-6 relative">
-            <button
-              onClick={() => setIsItemModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={24} />
-            </button>
-            <h3 className="text-xl text-white font-semibold mb-6">{editingIndex !== null ? "Edit Line Item" : "Add Line Item"}</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Brand */}
-        <div>
-  <label className="block text-sm text-gray-300 mb-1">Brand</label>
-
-  <div className="flex items-center gap-2">
-    <SearchableSelect
-        options={brandsList.map(b => ({ id: b.id, name: b.name }))}
-        value={newItem.brandId}
-        onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
-        placeholder="--select brand--"
-        className="flex-1"
-    />
-    <Star
-        size={20}
-        className="text-yellow-500 cursor-pointer hover:scale-110"
-        onClick={() => setIsBrandModalOpen(true)}
-    />
-  </div>
-</div>
-
-
-              {/* Product */}
-             <div>
-  <label className="block text-sm text-gray-300 mb-1">Product</label>
-
-  <div className="flex items-center gap-2">
-    <SearchableSelect
-        options={productsList
-            .filter(p => String(p.BrandId ?? p.brandId) === String(newItem.brandId))
-            .map(p => ({ id: p.id, name: p.ProductName }))
-        }
-        value={newItem.productId}
-        onChange={handleProductSelect}
-        placeholder="--select product--"
-        disabled={!newItem.brandId}
-        className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''}`}
-    />
-    <Star
-        size={20}
-        className={`cursor-pointer hover:scale-110 ${newItem.brandId ? 'text-yellow-500' : 'text-gray-500'}`}
-        onClick={() => {
-            if(newItem.brandId) {
-                setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
-                openProductModal();
-            }
-        }}
-    />
-  </div>
-</div>
-
-
-              {/* Description */}
-              <div className="col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  value={newItem.quantity}
-                  onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* Unit Price */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
-                <input
-                  type="number"
-                  value={newItem.unitPrice}
-                  onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* Discount */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
-                <input
-                  type="number"
-                  value={newItem.discount}
-                  onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* Unit (Read Only) */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Unit</label>
-                <input
-                  type="text"
-                  value={newItem.unitName}
-                  readOnly
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-8">
-              <button
-                onClick={() => setIsItemModalOpen(false)}
-                className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addItemToTable}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-              >
-                {editingIndex !== null ? "Update Item" : "Add Item"}
-              </button>
+      <AddModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        onSave={addItemToTable}
+        title={editingIndex !== null ? "Edit Line Item" : "Add Line Item"}
+        width="700px"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Brand */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Brand</label>
+            <div className="flex items-center gap-2">
+              <SearchableSelect
+                options={brandsList.map(b => ({ id: b.id, name: b.name }))}
+                value={newItem.brandId}
+                onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
+                placeholder="--select brand--"
+                className="flex-1"
+              />
+              <Star
+                size={20}
+                className="text-yellow-500 cursor-pointer hover:scale-110"
+                onClick={() => setIsBrandModalOpen(true)}
+              />
             </div>
           </div>
+
+          {/* Product */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Product</label>
+            <div className="flex items-center gap-2">
+              <SearchableSelect
+                options={productsList
+                  .filter(p => String(p.BrandId ?? p.brandId) === String(newItem.brandId))
+                  .map(p => ({ id: p.id, name: p.ProductName }))
+                }
+                value={newItem.productId}
+                onChange={handleProductSelect}
+                placeholder="--select product--"
+                disabled={!newItem.brandId}
+                className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''}`}
+              />
+              <Star
+                size={20}
+                className={`cursor-pointer hover:scale-110 ${newItem.brandId ? 'text-yellow-500' : 'text-gray-500'}`}
+                onClick={() => {
+                  if (newItem.brandId) {
+                    setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                    openProductModal();
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Description</label>
+            <input
+              type="text"
+              value={newItem.description}
+              onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Quantity</label>
+            <input
+              type="number"
+              value={newItem.quantity}
+              onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Unit Price */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
+            <input
+              type="number"
+              value={newItem.unitPrice}
+              onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Discount */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
+            <input
+              type="number"
+              value={newItem.discount}
+              onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Unit (Read Only) */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Unit</label>
+            <input
+              type="text"
+              value={newItem.unitName}
+              readOnly
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            />
+          </div>
         </div>
-      )}
+      </AddModal>
 
       {/* --- ADD BRAND MODAL --- */}
-{isBrandModalOpen &&
-  ReactDOM.createPortal(
-    <div className="fixed inset-0 z-[12000] flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={() => setIsBrandModalOpen(false)}
-      />
-
-      <div className="relative w-[700px]  bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-5">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-white">Add New Brand</h3>
-          <button onClick={() => setIsBrandModalOpen(false)}>
-            <X size={18} className="text-gray-400 hover:text-white" />
-          </button>
-        </div>
-
+      <AddModal
+        isOpen={isBrandModalOpen}
+        onClose={() => setIsBrandModalOpen(false)}
+        onSave={handleCreateBrand}
+        title="Add New Brand"
+        width="400px"
+      >
         <input
           value={newBrandName}
           onChange={(e) => setNewBrandName(e.target.value)}
-          placeholder="Brand name"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4"
+          placeholder="Brand Name"
+          className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
         />
-
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={() => setIsBrandModalOpen(false)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCreateBrand}
-            className="px-4 py-2 bg-blue-900/60 border border-blue-700 rounded text-blue-200"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  )}
-
+      </AddModal>
 
       {/* --- ADD CUSTOMER MODAL REMOVED (Replaced by navigation) --- */}
 
       {/* --- ADD PRODUCT MODAL --- */}
-      {isProductModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl p-6 relative my-8">
-            <button
-              onClick={() => setIsProductModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+      <AddModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        onSave={handleCreateProduct}
+        title="Add New Product"
+        width="800px"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Product Code</label>
+            <input
+              type="text"
+              value={newProductData.productCode}
+              onChange={(e) => setNewProductData({ ...newProductData, productCode: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Product Name *</label>
+            <input
+              type="text"
+              value={newProductData.name}
+              onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">SN</label>
+            <input
+              type="text"
+              value={newProductData.SN}
+              readOnly
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Model</label>
+            <input
+              type="text"
+              value={newProductData.Model}
+              onChange={(e) => setNewProductData({ ...newProductData, Model: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
+            <input
+              type="number"
+              value={newProductData.price}
+              onChange={(e) => setNewProductData({ ...newProductData, price: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Reorder Level</label>
+            <input
+              type="number"
+              value={newProductData.ReorderLevel}
+              onChange={(e) => setNewProductData({ ...newProductData, ReorderLevel: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+          {/* CATEGORY */}
+          <div className="relative" ref={categoryRef}>
+            <label className="block text-sm text-gray-300 mb-1">Category</label>
+
+            <div
+              onClick={() => setOpenCategory(o => !o)}
+              className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer flex justify-between items-center"
             >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg text-white font-semibold mb-4">Add New Product</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Product Code</label>
-                <input
-                  type="text"
-                  value={newProductData.productCode}
-                  onChange={(e) => setNewProductData({...newProductData, productCode: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Product Name *</label>
-                <input
-                  type="text"
-                  value={newProductData.name}
-                  onChange={(e) => setNewProductData({...newProductData, name: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">SN</label>
-                <input
-                  type="text"
-                  value={newProductData.SN}
-                  readOnly
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Model</label>
-                <input
-                  type="text"
-                  value={newProductData.Model}
-                  onChange={(e) => setNewProductData({...newProductData, Model: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
-                <input
-                  type="number"
-                  value={newProductData.price}
-                  onChange={(e) => setNewProductData({...newProductData, price: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Reorder Level</label>
-                <input
-                  type="number"
-                  value={newProductData.ReorderLevel}
-                  onChange={(e) => setNewProductData({...newProductData, ReorderLevel: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-             {/* CATEGORY */}
-<div className="relative" ref={categoryRef}>
-  <label className="block text-sm text-gray-300 mb-1">Category</label>
-
-  <div
-    onClick={() => setOpenCategory(o => !o)}
-    className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer flex justify-between items-center"
-  >
-    <span className={newProductData.CategoryId ? "text-white" : "text-gray-500"}>
-      {categoriesList.find(c => String(c.id) === String(newProductData.CategoryId))?.name || "--select--"}
-    </span>
-    <span className="text-gray-400">▾</span>
-  </div>
-
-  {openCategory && (
-    <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
-      <input
-        autoFocus
-        value={searchCategory}
-        onChange={(e) => setSearchCategory(e.target.value)}
-        placeholder="Search..."
-        className="w-full px-3 py-2 bg-gray-900 text-white border-b border-gray-700 text-sm outline-none"
-      />
-
-      {categoriesList
-        .filter(c => c.name.toLowerCase().includes(searchCategory.toLowerCase()))
-        .map(c => (
-          <div
-            key={c.id}
-            onClick={() => {
-              setNewProductData({ ...newProductData, CategoryId: c.id });
-              setOpenCategory(false);
-              setSearchCategory("");
-            }}
-className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
-          >
-            {c.name}
-          </div>
-        ))}
-    </div>
-  )}
-</div>
-
-      {/* UNIT */}
-<div className="relative" ref={unitRef}>
-  <label className="block text-sm text-gray-300 mb-1">Unit *</label>
-
-  <div
-    onClick={() => setOpenUnit(o => !o)}
-    className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer flex justify-between items-center"
-  >
-    <span className={newProductData.unitId ? "text-white" : "text-gray-500"}>
-      {unitsList.find(u => String(u.id) === String(newProductData.unitId))?.name || "--select--"}
-    </span>
-    <span className="text-gray-400">▾</span>
-  </div>
-
-  {openUnit && (
-    <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
-      <input
-        autoFocus
-        value={searchUnit}
-        onChange={(e) => setSearchUnit(e.target.value)}
-        placeholder="Search..."
-        className="w-full px-3 py-2 bg-gray-900 border-b border-gray-700 text-sm outline-none"
-      />
-
-      {unitsList
-        .filter(u => u.name.toLowerCase().includes(searchUnit.toLowerCase()))
-        .map(u => (
-          <div
-            key={u.id}
-            onClick={() => {
-              setNewProductData({ ...newProductData, unitId: u.id });
-              setOpenUnit(false);
-              setSearchUnit("");
-            }}
-            className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-          >
-            {u.name}
-          </div>
-        ))}
-    </div>
-  )}
-</div>
-
-{/* BRAND */}
-<div className="relative" ref={brandRef}>
-  <label className="block text-sm text-gray-300 mb-1">Brand *</label>
-
-  <div
-    onClick={() => setOpenBrand(o => !o)}
-    className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer flex justify-between items-center"
-  >
-    <span className={newProductData.brandId ? "text-white" : "text-gray-500"}>
-      {brandsList.find(b => String(b.id) === String(newProductData.brandId))?.name || "--select--"}
-    </span>
-    <span className="text-gray-400">▾</span>
-  </div>
-
-  {openBrand && (
-    <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
-      <input
-        autoFocus
-        value={searchBrand}
-        onChange={(e) => setSearchBrand(e.target.value)}
-        placeholder="Search..."
-        className="w-full px-3 py-2 bg-gray-900 border-b border-gray-700 text-sm outline-none"
-      />
-
-      {brandsList
-        .filter(b => b.name.toLowerCase().includes(searchBrand.toLowerCase()))
-        .map(b => (
-          <div
-            key={b.id}
-            onClick={() => {
-              setNewProductData({ ...newProductData, brandId: b.id });
-              setOpenBrand(false);
-              setSearchBrand("");
-            }}
-            className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-          >
-            {b.name}
-          </div>
-        ))}
-    </div>
-  )}
-</div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newProductData.description}
-                  onChange={(e) => setNewProductData({...newProductData, description: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
+              <span className={newProductData.CategoryId ? "text-white" : "text-gray-500"}>
+                {categoriesList.find(c => String(c.id) === String(newProductData.CategoryId))?.name || "--select--"}
+              </span>
+              <span className="text-gray-400">▾</span>
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                onClick={() => setIsProductModalOpen(false)}
-                className="px-3 py-1.5 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateProduct}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-              >
-                Save Product
-              </button>
+            {openCategory && (
+              <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
+                <input
+                  autoFocus
+                  value={searchCategory}
+                  onChange={(e) => setSearchCategory(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full px-3 py-2 bg-gray-900 text-white border-b border-gray-700 text-sm outline-none"
+                />
+
+                {categoriesList
+                  .filter(c => c.name.toLowerCase().includes(searchCategory.toLowerCase()))
+                  .map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setNewProductData({ ...newProductData, CategoryId: c.id });
+                        setOpenCategory(false);
+                        setSearchCategory("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
+                    >
+                      {c.name}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* UNIT */}
+          <div className="relative" ref={unitRef}>
+            <label className="block text-sm text-gray-300 mb-1">Unit *</label>
+
+            <div
+              onClick={() => setOpenUnit(o => !o)}
+              className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer flex justify-between items-center"
+            >
+              <span className={newProductData.unitId ? "text-white" : "text-gray-500"}>
+                {unitsList.find(u => String(u.id) === String(newProductData.unitId))?.name || "--select--"}
+              </span>
+              <span className="text-gray-400">▾</span>
             </div>
+
+            {openUnit && (
+              <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
+                <input
+                  autoFocus
+                  value={searchUnit}
+                  onChange={(e) => setSearchUnit(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full px-3 py-2 bg-gray-900 border-b border-gray-700 text-sm outline-none"
+                />
+
+                {unitsList
+                  .filter(u => u.name.toLowerCase().includes(searchUnit.toLowerCase()))
+                  .map(u => (
+                    <div
+                      key={u.id}
+                      onClick={() => {
+                        setNewProductData({ ...newProductData, unitId: u.id });
+                        setOpenUnit(false);
+                        setSearchUnit("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {u.name}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* BRAND */}
+          <div className="relative" ref={brandRef}>
+            <label className="block text-sm text-gray-300 mb-1">Brand *</label>
+
+            <div
+              onClick={() => setOpenBrand(o => !o)}
+              className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer flex justify-between items-center"
+            >
+              <span className={newProductData.brandId ? "text-white" : "text-gray-500"}>
+                {brandsList.find(b => String(b.id) === String(newProductData.brandId))?.name || "--select--"}
+              </span>
+              <span className="text-gray-400">▾</span>
+            </div>
+
+            {openBrand && (
+              <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
+                <input
+                  autoFocus
+                  value={searchBrand}
+                  onChange={(e) => setSearchBrand(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full px-3 py-2 bg-gray-900 border-b border-gray-700 text-sm outline-none"
+                />
+
+                {brandsList
+                  .filter(b => b.name.toLowerCase().includes(searchBrand.toLowerCase()))
+                  .map(b => (
+                    <div
+                      key={b.id}
+                      onClick={() => {
+                        setNewProductData({ ...newProductData, brandId: b.id });
+                        setOpenBrand(false);
+                        setSearchBrand("");
+                      }}
+                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
+                    >
+                      {b.name}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Description</label>
+            <input
+              type="text"
+              value={newProductData.description}
+              onChange={(e) => setNewProductData({ ...newProductData, description: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
     </PageLayout>
   );

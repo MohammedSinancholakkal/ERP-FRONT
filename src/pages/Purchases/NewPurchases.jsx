@@ -18,6 +18,7 @@ import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import AddModal from "../../components/modals/AddModal";
 
 // APIs
 import {
@@ -1077,368 +1078,290 @@ const NewPurchase = () => {
 
       </div>
 
+
       {/* --- ADD ITEM MODAL --- */}
-      {isItemModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl p-6 relative">
-            <button 
-              onClick={() => setIsItemModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={24} />
-            </button>
-            <h3 className="text-xl text-white font-semibold mb-6">{editingIndex !== null ? "Edit Line Item" : "Add Line Item"}</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Brand */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Brand</label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <SearchableSelect
-                      options={brandsList.map(b => ({ id: b.id, name: b.name }))}
-                      value={newItem.brandId}
-                      onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
-                      placeholder="--select--"
-                    />
-                  </div>
-                  {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
-                  <Star 
-                    size={20} 
-                    className="text-yellow-500 cursor-pointer hover:scale-110"
-                    onClick={() => setIsBrandModalOpen(true)}
-                  />
-                  )}
-                </div>
-              </div>
-
-              {/* Product */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Product</label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <SearchableSelect
-                      options={productsList
-                        .filter(p => String(p.BrandId) === String(newItem.brandId) || String(p.brandId) === String(newItem.brandId))
-                        .map(p => ({ id: p.id, name: p.ProductName }))
-                      }
-                      value={newItem.productId}
-                      onChange={(val) => handleProductSelect(val)}
-                      disabled={!newItem.brandId}
-                      placeholder="--select--"
-                    />
-                  </div>
-                  {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
-                  <Star 
-                    size={20} 
-                    className={`cursor-pointer hover:scale-110 ${!newItem.brandId ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-yellow-500'}`}
-                    onClick={() => {
-                        if (!newItem.brandId) return;
-                        setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
-                        openProductModal();
-                    }}
-                  />
-                  )}
-                </div>
-              </div>
-
-
-              {/* Description */}
-              <div className="col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+      <AddModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        onSave={addItemToTable}
+        title={editingIndex !== null ? "Edit Line Item" : "Add Line Item"}
+        width="700px"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Brand */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Brand</label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <SearchableSelect
+                  options={brandsList.map(b => ({ id: b.id, name: b.name }))}
+                  value={newItem.brandId}
+                  onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
+                  placeholder="--select--"
                 />
               </div>
+              {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
+              <Star
+                size={20}
+                className="text-yellow-500 cursor-pointer hover:scale-110"
+                onClick={() => setIsBrandModalOpen(true)}
+              />
+              )}
+            </div>
+          </div>
 
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  value={newItem.quantity}
-                 onChange={(e) =>
-                    setNewItem({ ...newItem, quantity: Number(e.target.value) || 0 })
+          {/* Product */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Product</label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <SearchableSelect
+                  options={productsList
+                    .filter(p => String(p.BrandId) === String(newItem.brandId) || String(p.brandId) === String(newItem.brandId))
+                    .map(p => ({ id: p.id, name: p.ProductName }))
                   }
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+                  value={newItem.productId}
+                  onChange={(val) => handleProductSelect(val)}
+                  disabled={!newItem.brandId}
+                  placeholder="--select--"
+                  className={!newItem.brandId ? 'opacity-50 pointer-events-none' : ''}
                 />
               </div>
+              {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
+              <Star
+                size={20}
+                className={`cursor-pointer hover:scale-110 ${!newItem.brandId ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-yellow-500'}`}
+                onClick={() => {
+                    if (!newItem.brandId) return;
+                    setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                    openProductModal();
+                }}
+              />
+              )}
+            </div>
+          </div>
 
-              {/* Unit Price */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
-                <input
-                  type="number"
-                  value={newItem.unitPrice}
-                 onChange={(e) =>
+
+          {/* Description */}
+          <div className="col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Description</label>
+            <input
+              type="text"
+              value={newItem.description}
+              onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Quantity</label>
+            <input
+              type="number"
+              value={newItem.quantity}
+             onChange={(e) =>
+                setNewItem({ ...newItem, quantity: Number(e.target.value) || 0 })
+              }
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Unit Price */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
+            <input
+              type="number"
+              value={newItem.unitPrice}
+             onChange={(e) =>
   setNewItem({ ...newItem, unitPrice: Number(e.target.value) || 0 })
 }
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
 
-              {/* Discount */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
-                <input
-                  type="number"
-                  value={newItem.discount}
-                  onChange={(e) =>
+          {/* Discount */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
+            <input
+              type="number"
+              value={newItem.discount}
+              onChange={(e) =>
   setNewItem({ ...newItem, discount: Number(e.target.value) || 0 })
 }
 
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
 
-              {/* Unit (Read Only) */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Unit</label>
-                <input
-                  type="text"
-                  value={newItem.unitName}
-                  readOnly
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
-                />
-              </div>
-
-
-            </div>
-
-            <div className="flex justify-end gap-3 mt-8">
-              <button 
-                onClick={() => setIsItemModalOpen(false)}
-                className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={addItemToTable}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-              >
-                {editingIndex !== null ? "Update Item" : "Add Item"}
-              </button>
-            </div>
+          {/* Unit (Read Only) */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Unit</label>
+            <input
+              type="text"
+              value={newItem.unitName}
+              readOnly
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
       {/* --- ADD BRAND MODAL --- */}
-      {isBrandModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-[700px] p-6 relative">
-             <button 
-              onClick={() => setIsBrandModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg text-white font-semibold mb-4">Add New Brand</h3>
-            <input
-              type="text"
-              placeholder="Brand Name"
-              value={newBrandName}
-              onChange={(e) => setNewBrandName(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button 
-                onClick={() => setIsBrandModalOpen(false)}
-                className="px-3 py-1.5 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateBrand}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddModal
+        isOpen={isBrandModalOpen}
+        onClose={() => setIsBrandModalOpen(false)}
+        onSave={handleCreateBrand}
+        title="Add New Brand"
+        width="400px"
+      >
+        <input
+          type="text"
+          placeholder="Brand Name"
+          value={newBrandName}
+          onChange={(e) => setNewBrandName(e.target.value)}
+          className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
+        />
+      </AddModal>
 
       {/* --- ADD SUPPLIER MODAL --- */}
-      {isSupplierModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-96 p-6 relative">
-             <button 
-              onClick={() => setIsSupplierModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg text-white font-semibold mb-4">Add New Supplier</h3>
-            <input
-              type="text"
-              placeholder="Company Name"
-              value={newSupplierName}
-              onChange={(e) => setNewSupplierName(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button 
-                onClick={() => setIsSupplierModalOpen(false)}
-                className="px-3 py-1.5 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateSupplier}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddModal
+        isOpen={isSupplierModalOpen}
+        onClose={() => setIsSupplierModalOpen(false)}
+        onSave={handleCreateSupplier}
+        title="Add New Supplier"
+        width="400px"
+      >
+        <input
+          type="text"
+          placeholder="Company Name"
+          value={newSupplierName}
+          onChange={(e) => setNewSupplierName(e.target.value)}
+          className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
+        />
+      </AddModal>
 
       {/* --- ADD PRODUCT MODAL --- */}
-      {isProductModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-start z-[60] pt-12">
-          <div className="w-[820px] max-h-[86vh] overflow-auto bg-gray-900 text-white rounded-lg border border-gray-700 relative">
-             <div className="flex justify-between px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-20">
-               <h3 className="text-lg">New Product</h3>
-               <button onClick={() => setIsProductModalOpen(false)}><X size={20} /></button>
-             </div>
+      <AddModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        onSave={handleCreateProduct}
+        title="New Product"
+        width="820px"
+      >
+        <div className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto">
+            {/* LEFT COLUMN */}
+            <div>
+                <label className="block text-sm text-gray-300 mb-1">Product Code</label>
+                <input
+                    type="text"
+                    value={newProductData.productCode}
+                    onChange={(e) => setNewProductData({...newProductData, productCode: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                />
+
+                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Product Name</label>
+                <input
+                    type="text"
+                    value={newProductData.name}
+                    onChange={(e) => setNewProductData({...newProductData, name: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                />
+
+                <label className="block text-sm text-gray-300 mb-1">SN</label>
+                <input
+                    type="text"
+                    value={newProductData.SN}
+                    disabled
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-gray-400 outline-none cursor-not-allowed"
+                />
+
+                <label className="block text-sm text-gray-300 mb-1">Model</label>
+                <input
+                    type="text"
+                    value={newProductData.Model}
+                    onChange={(e) => setNewProductData({...newProductData, Model: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                />
+
+                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Unit Price</label>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={newProductData.price}
+                    onChange={(e) => setNewProductData({...newProductData, price: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                />
+
+                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Reorder Level</label>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={newProductData.ReorderLevel}
+                    onChange={(e) => setNewProductData({...newProductData, ReorderLevel: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                />
+            </div>
             
-            <div className="p-6 grid grid-cols-2 gap-4">
-                {/* LEFT COLUMN */}
-                <div>
-                    <label className="block text-sm text-gray-300 mb-1">Product Code</label>
-                    <input
-                        type="text"
-                        value={newProductData.productCode}
-                        onChange={(e) => setNewProductData({...newProductData, productCode: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    />
+            {/* RIGHT COLUMN */}
+            <div>
+                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Category</label>
+                <select
+                    value={newProductData.CategoryId}
+                    onChange={(e) => setNewProductData({...newProductData, CategoryId: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                >
+                    <option value="">--select--</option>
+                    {categoriesList.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
 
-                    <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Product Name</label>
-                    <input
-                        type="text"
-                        value={newProductData.name}
-                        onChange={(e) => setNewProductData({...newProductData, name: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    />
+                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Unit</label>
+                <select
+                    value={newProductData.unitId}
+                    onChange={(e) => setNewProductData({...newProductData, unitId: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                >
+                    <option value="">--select--</option>
+                    {unitsList.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                </select>
 
-                    <label className="block text-sm text-gray-300 mb-1">SN</label>
-                    <input
-                        type="text"
-                        value={newProductData.SN}
-                        disabled
-                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-gray-400 outline-none cursor-not-allowed"
-                    />
+                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Brand</label>
+                <select
+                    value={newProductData.brandId}
+                    onChange={(e) => setNewProductData({...newProductData, brandId: e.target.value})}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                >
+                    <option value="">--select--</option>
+                    {brandsList.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                </select>
 
-                    <label className="block text-sm text-gray-300 mb-1">Model</label>
-                    <input
-                        type="text"
-                        value={newProductData.Model}
-                        onChange={(e) => setNewProductData({...newProductData, Model: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    />
-
-                    <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Unit Price</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        value={newProductData.price}
-                        onChange={(e) => setNewProductData({...newProductData, price: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    />
-
-                    <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Reorder Level</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        value={newProductData.ReorderLevel}
-                        onChange={(e) => setNewProductData({...newProductData, ReorderLevel: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    />
-                </div>
-                
-                {/* RIGHT COLUMN */}
-                <div>
-                    <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Category</label>
-                    <select
-                        value={newProductData.CategoryId}
-                        onChange={(e) => setNewProductData({...newProductData, CategoryId: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    >
-                        <option value="">--select--</option>
-                        {categoriesList.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
-
-                    <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Unit</label>
-                    <select
-                        value={newProductData.unitId}
-                        onChange={(e) => setNewProductData({...newProductData, unitId: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    >
-                        <option value="">--select--</option>
-                        {unitsList.map(u => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                    </select>
-
-                    <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Brand</label>
-                    <select
-                        value={newProductData.brandId}
-                        onChange={(e) => setNewProductData({...newProductData, brandId: e.target.value})}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    >
-                        <option value="">--select--</option>
-                        {brandsList.map(b => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                    </select>
-
-                    <label className="block text-sm text-gray-300 mb-1">Image</label>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                    />
-                     {newProductData.Image && (
-                        <img src={newProductData.Image} alt="Preview" className="w-20 h-20 object-cover mt-2 rounded border border-gray-600" />
-                      )}
-                </div>
-
-                 <div className="col-span-2">
-                    <label className="block text-sm text-gray-300 mb-1">Description</label>
-                    <textarea
-                        value={newProductData.description}
-                        onChange={(e) => setNewProductData({...newProductData, description: e.target.value})}
-                        className="w-full h-20 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white outline-none resize-none"
-                    />
-                </div>
-
+                <label className="block text-sm text-gray-300 mb-1">Image</label>
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                />
+                    {newProductData.Image && (
+                    <img src={newProductData.Image} alt="Preview" className="w-20 h-20 object-cover mt-2 rounded border border-gray-600" />
+                    )}
             </div>
 
-            <div className="flex justify-end gap-2 p-5 border-t border-gray-700 bg-gray-900 sticky bottom-5">
-              <button 
-                onClick={() => setIsProductModalOpen(false)}
-                className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateProduct}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-              >
-                Save
-              </button>
+            <div className="col-span-2">
+                <label className="block text-sm text-gray-300 mb-1">Description</label>
+                <textarea
+                    value={newProductData.description}
+                    onChange={(e) => setNewProductData({...newProductData, description: e.target.value})}
+                    className="w-full h-20 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white outline-none resize-none"
+                />
             </div>
-          </div>
         </div>
-      )}
+      </AddModal>
 
     </PageLayout>
   );

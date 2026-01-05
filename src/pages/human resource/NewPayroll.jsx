@@ -125,6 +125,7 @@ const NewPayroll = () => {
         const normalizedRows = employees.map(emp => ({
           employeeId: emp.EmployeeId,
           employeeName: emp.FirstName + " " + emp.LastName,
+          bankId: emp.BankId, // Get from API
           bankAccount: emp.BankAccount,
           bankName: emp.BankName,
           basicSalary: emp.BasicSalary,
@@ -173,21 +174,30 @@ const NewPayroll = () => {
 
   useEffect(() => {
     if (location.state?.employeePayload) {
+      const editIdx = location.state.editIndex;
       setRows((prev) => {
-        const exists = prev.find(
-          (r) => r.employeeId === location.state.employeePayload.employeeId
-        );
-
-        if (exists) {
-          return prev.map((r) =>
-            r.employeeId === location.state.employeePayload.employeeId
-              ? location.state.employeePayload
-              : r
-          );
+        if (editIdx !== undefined && editIdx !== null && editIdx >= 0 && editIdx < prev.length) {
+             // Update existing row by index
+             const newRows = [...prev];
+             newRows[editIdx] = location.state.employeePayload;
+             return newRows;
+        } else {
+             // Check if employeeId exists just in case (fallback for safety or direct adds)
+             const exists = prev.find(
+               (r) => r.employeeId === location.state.employeePayload.employeeId
+             );
+     
+             if (exists) {
+               return prev.map((r) =>
+                 r.employeeId === location.state.employeePayload.employeeId
+                   ? location.state.employeePayload
+                   : r
+               );
+             }
+             return [...prev, location.state.employeePayload];
         }
-        return [...prev, location.state.employeePayload];
       });
-      navigate(location.pathname, { replace: true, state: { ...location.state, employeePayload: null } });
+      navigate(location.pathname, { replace: true, state: { ...location.state, employeePayload: null, editIndex: null } });
     }
   }, [location.state?.employeePayload]);
 
@@ -215,6 +225,7 @@ const NewPayroll = () => {
         currencyName: currency,
         employees: rows.map((r) => ({
           employeeId: r.employeeId ?? null,
+          bankId: r.bankId, // Add BankId
           bankAccount: r.bankAccount,
           bankName: r.bankName,
           basicSalary: Number(r.basicSalary),
@@ -241,7 +252,11 @@ const NewPayroll = () => {
       
       if (resp.status === 200 || resp.status === 201) {
         toast.success(isEdit ? "Payroll updated successfully!" : "Payroll saved successfully!");
-        navigate("/app/hr/payroll");
+        if (!isEdit && resp.data.payrollId) {
+             navigate(`/app/hr/editpayroll/${resp.data.payrollId}`);
+        } else {
+             if (isEdit) navigate("/app/hr/payroll");
+        }
       } else {
         toast.error(resp.data?.message || `Failed to ${isEdit ? 'update' : 'save'} payroll`);
       }
@@ -387,6 +402,8 @@ const NewPayroll = () => {
               <input
                 disabled
                 value={number}
+                name="payrollNumber"
+                id="payrollNumber"
                 className="w-full sm:flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-300"
               />
             </div>
@@ -398,6 +415,8 @@ const NewPayroll = () => {
                 <SearchableSelect
                     options={banks}
                     value={cashBank?.id}
+                    name="cashBank"
+                    id="cashBank"
                     onChange={(val) => {
                          const b = banks.find(x => x.id === val);
                          if (b) setCashBank(b);
@@ -415,6 +434,8 @@ const NewPayroll = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={inactiveView}
+                name="description"
+                id="description"
                 className={`w-full sm:flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 ${inactiveView ? "opacity-50 cursor-not-allowed" : ""}`}
               />
             </div>
@@ -429,6 +450,8 @@ const NewPayroll = () => {
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
                 disabled={inactiveView}
+                name="paymentDate"
+                id="paymentDate"
                 className={`w-full sm:w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 ${inactiveView ? "opacity-50 cursor-not-allowed" : ""}`}
               />
             </div>
@@ -442,7 +465,8 @@ const NewPayroll = () => {
             <button
               onClick={() => navigate("/app/hr/employee", {
                 state: {
-                  payrollState: { number, paymentDate, cashBank, description, rows }
+                  payrollState: { number, paymentDate, cashBank, description, rows },
+                  payrollId: id
                 }
               })}
               className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
@@ -466,7 +490,7 @@ const NewPayroll = () => {
                   <th className="p-3"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-gray-700 text-center">
                 {rows.map((r, i) => (
                   <tr key={i} className="hover:bg-gray-750">
                     <td className="p-3">{r.employeeName}</td>
@@ -480,10 +504,12 @@ const NewPayroll = () => {
                        {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
                        <>
                       <button 
-                        onClick={() => navigate("/app/payroll/employee", {
+                        onClick={() => navigate("/app/hr/employee", {
                           state: {
                             payrollState: { number, paymentDate, cashBank, description, rows },
-                            editEmployee: r
+                            editEmployee: r,
+                            editIndex: i,
+                            payrollId: id // Pass current ID
                           }
                         })}
                         className="text-blue-400 hover:text-blue-300"
@@ -507,27 +533,27 @@ const NewPayroll = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-3">
               <label className="text-sm text-gray-300 block mb-1">Currency</label>
-              <input value={currency} disabled className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400 cursor-not-allowed" />
+              <input value={currency} disabled name="currency" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400 cursor-not-allowed" />
             </div>
             <div className="lg:col-span-3">
               <label className="text-sm text-gray-300 block mb-1">Total Basic Salary</label>
-              <input value={Number(sumBasic).toFixed(2)} readOnly className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
+              <input value={Number(sumBasic).toFixed(2)} readOnly name="sumBasic" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
             </div>
             <div className="lg:col-span-3">
               <label className="text-sm text-gray-300 block mb-1">Total Income</label>
-              <input value={Number(sumIncome).toFixed(2)} readOnly className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
+              <input value={Number(sumIncome).toFixed(2)} readOnly name="sumIncome" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
             </div>
             <div className="lg:col-span-3">
               <label className="text-sm text-gray-300 block mb-1">Total Deduction</label>
-              <input value={Number(sumDeduction).toFixed(2)} readOnly className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
+              <input value={Number(sumDeduction).toFixed(2)} readOnly name="sumDeduction" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
             </div>
             <div className="lg:col-span-3">
               <label className="text-sm text-gray-300 block mb-1">Total Take Home Pay</label>
-              <input value={Number(sumTakeHome).toFixed(2)} readOnly className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
+              <input value={Number(sumTakeHome).toFixed(2)} readOnly name="sumTakeHome" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
             </div>
             <div className="lg:col-span-3">
               <label className="text-sm text-gray-300 block mb-1"><span className="text-red-400">*</span> Total Payment Amount</label>
-              <input value={Number(totalPaymentAmount).toFixed(2)} readOnly className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-right font-semibold" />
+              <input value={Number(totalPaymentAmount).toFixed(2)} readOnly name="totalPaymentAmount" className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-right font-semibold" />
             </div>
           </div>
         </div>

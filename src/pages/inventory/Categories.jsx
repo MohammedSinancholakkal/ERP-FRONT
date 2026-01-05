@@ -29,13 +29,16 @@ import PageLayout from "../../layout/PageLayout";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import Swal from "sweetalert2";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Categories = () => {
   // =============================
   // STATES
   // =============================
   const [modalOpen, setModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const [categories, setCategories] = useState([]);
   const [inactiveCategories, setInactiveCategories] = useState([]);
@@ -288,44 +291,38 @@ const handleRestore = async () => {
 {/* =============================
     ADD CATEGORY MODAL
 ============================= */}
-{modalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-      
-      {/* HEADER */}
-      <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-        <h2 className="text-lg">New Category</h2>
-        <button onClick={() => setModalOpen(false)}>
-          <X size={20} className="text-gray-300" />
-        </button>
-      </div>
-
-      {/* BODY */}
-      <div className="p-6">
+      {/* =============================
+          ADD CATEGORY MODAL
+      ============================= */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAdd}
+        title="New Category"
+      >
         {/* NAME */}
-        <label>Name *</label>
+        <label className="block text-sm mb-1">Name *</label>
         <input
           type="text"
           value={newCategory.name}
           onChange={(e) =>
             setNewCategory((p) => ({ ...p, name: e.target.value }))
           }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white outline-none"
         />
 
         {/* DESCRIPTION */}
-        <label>Description</label>
+        <label className="block text-sm mb-1">Description</label>
         <textarea
           value={newCategory.description}
           onChange={(e) =>
             setNewCategory((p) => ({ ...p, description: e.target.value }))
           }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-20 mb-4 focus:border-white outline-none"
         />
 
         {/* PARENT CATEGORY */}
-        <label>Parent Category</label>
-
+        <label className="block text-sm mb-1">Parent Category</label>
         <div className="mt-1">
           <SearchableSelect
             options={categories.map(c => ({ id: c.id, name: c.name }))}
@@ -339,67 +336,53 @@ const handleRestore = async () => {
             direction="up"
           />
         </div>
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-        {hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.CREATE) && (
-        <button
-          onClick={handleAdd}
-          className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300"
-        >
-          <Save size={16} /> Save
-        </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+      </AddModal>
 
 {/* =============================
     EDIT CATEGORY MODAL
 ============================= */}
-{editModalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-    <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-      
-      {/* HEADER */}
-      <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-        <h2 className="text-lg">
-          {editCategory.isInactive ? "Restore Category" : "Edit Category"}
-        </h2>
-        <button onClick={() => setEditModalOpen(false)}>
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* BODY */}
-      <div className="p-6">
+      {/* =============================
+          EDIT CATEGORY MODAL
+      ============================= */}
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdate}
+        onDelete={handleDelete}
+        onRestore={handleRestore}
+        isInactive={editCategory.isInactive}
+        title={`${editCategory.isInactive ? "Restore Category" : "Edit Category"}`}
+        permissionDelete={hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.EDIT)}
+      >
         {/* NAME */}
-        <label>Name *</label>
+        <label className="block text-sm mb-1">Name *</label>
         <input
           value={editCategory.name}
           onChange={(e) =>
             setEditCategory((p) => ({ ...p, name: e.target.value }))
           }
           disabled={editCategory.isInactive}
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4"
+          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4 text-sm focus:border-white outline-none ${
+            editCategory.isInactive ? "opacity-60 cursor-not-allowed" : ""
+          }`}
         />
 
         {/* DESCRIPTION */}
-        <label>Description</label>
+        <label className="block text-sm mb-1">Description</label>
         <textarea
           value={editCategory.description}
           onChange={(e) =>
             setEditCategory((p) => ({ ...p, description: e.target.value }))
           }
           disabled={editCategory.isInactive}
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4"
+          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4 text-sm focus:border-white outline-none ${
+            editCategory.isInactive ? "opacity-60 cursor-not-allowed" : ""
+          }`}
         />
 
         {/* PARENT CATEGORY */}
-        <label>Parent Category</label>
-
+        <label className="block text-sm mb-1">Parent Category</label>
         <div className="mt-1">
           <SearchableSelect
             options={categories.map(c => ({ id: c.id, name: c.name }))}
@@ -414,144 +397,19 @@ const handleRestore = async () => {
             disabled={editCategory.isInactive}
           />
         </div>
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-        {editCategory.isInactive ? (
-          hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.DELETE) && (
-          <button
-            onClick={handleRestore}
-            className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-          >
-            <ArchiveRestore size={16} /> Restore
-          </button>
-          )
-        ) : (
-          hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.DELETE) && (
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-          >
-            <Trash2 size={16} /> Delete
-          </button>
-          )
-        )}
-
-        {!editCategory.isInactive && hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.EDIT) && (
-          <button
-            onClick={handleUpdate}
-            className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-          >
-            <Save size={16} /> Save
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+      </EditModal>
 
 
       {/* =============================
           COLUMN PICKER
       ============================= */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              {/* VISIBLE */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>{col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() =>
-                          setVisibleColumns((p) => ({
-                            ...p,
-                            [col]: false
-                          }))
-                        }
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* HIDDEN */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>{col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() =>
-                          setVisibleColumns((p) => ({
-                            ...p,
-                            [col]: true
-                          }))
-                        }
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={() => setVisibleColumns(defaultColumns)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       {/* ===================================
               MAIN PAGE
@@ -588,7 +446,7 @@ const handleRestore = async () => {
             </button>
 
             {/* COLUMN PICKER */}
-            <button onClick={() => setColumnModal(true)} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600">
+            <button onClick={() => setColumnModalOpen(true)} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600">
               <List size={16} className="text-blue-300" />
             </button>
 

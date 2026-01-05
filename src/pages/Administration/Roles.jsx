@@ -36,6 +36,7 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 
 
@@ -99,7 +100,7 @@ const PermissionItem = ({ item, level = 0, onToggle }) => {
 
 const Roles = () => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const [roles, setRoles] = useState([]);
   const [inactiveRoles, setInactiveRoles] = useState([]);
@@ -658,93 +659,13 @@ const Roles = () => {
       {/* =============================
           COLUMN PICKER MODAL
       ============================== */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* COLUMN SELECT */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-
-              {/* VISIBLE COLUMNS */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button className="text-red-400" onClick={() => toggleColumn(col)}>
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* HIDDEN COLUMNS */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button className="text-green-400" onClick={() => toggleColumn(col)}>
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter((col) => !visibleColumns[col]).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+<ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
 
       {/* =============================
@@ -859,7 +780,7 @@ const Roles = () => {
 
             {/* COLUMN PICKER */}
             <button
-              onClick={() => setColumnModal(true)}
+              onClick={() => setColumnModalOpen(true)}
               className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
             >
               <List size={16} className="text-blue-300" />
@@ -976,6 +897,3 @@ const Roles = () => {
 };
 
 export default Roles;
-
-
-

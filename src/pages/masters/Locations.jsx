@@ -4,9 +4,6 @@ import {
   Plus,
   RefreshCw,
   List,
-  X,
-  Save,
-  Trash2,
   ArchiveRestore,
   Star,
 } from "lucide-react";
@@ -33,15 +30,20 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import SearchableSelect from "../../components/SearchableSelect";
-
 import FilterBar from "../../components/FilterBar";
+
+// MODALS
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const Locations = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
-  const [locations, setLocations] = useState([]);
-  const [inactiveLocations, setInactiveLocations] = useState([]);
+  // Data
+  const [rows, setRows] = useState([]);
+  const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
 
   // Dropdown data
@@ -49,7 +51,7 @@ const Locations = () => {
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
 
-  // FILTERS STATE
+  // FILTERS
   const [filters, setFilters] = useState({
     countryId: "",
     stateId: "",
@@ -79,7 +81,7 @@ const Locations = () => {
     isInactive: false,
   });
 
-  // QUICK ADD MODAL STATES
+  // QUICK ADD STATE
   const [addCountryModalOpen, setAddCountryModalOpen] = useState(false);
   const [newCountryName, setNewCountryName] = useState("");
 
@@ -96,7 +98,6 @@ const Locations = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?.userId || 1;
 
-  // SEARCH
   const [searchText, setSearchText] = useState("");
 
   // COLUMN PICKER
@@ -111,15 +112,6 @@ const Locations = () => {
     longitude: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
-
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
@@ -133,9 +125,9 @@ const Locations = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedLocations = [...locations];
+  const sortedRows = [...rows];
   if (sortConfig.key) {
-    sortedLocations.sort((a, b) => {
+    sortedRows.sort((a, b) => {
       let valA = a[sortConfig.key] || "";
       let valB = b[sortConfig.key] || "";
       if (typeof valA === "string") valA = valA.toLowerCase();
@@ -146,6 +138,25 @@ const Locations = () => {
       return 0;
     });
   }
+
+  // ===============================
+  // Helpers
+  // ===============================
+  const normalizeRows = (items = []) => 
+     items.map(r => ({
+        id: r.Id || r.id,
+        name: r.Name || r.name,
+        countryId: r.CountryId || r.countryId,
+        countryName: r.CountryName || r.countryName,
+        stateId: r.StateId || r.stateId,
+        stateName: r.StateName || r.stateName,
+        cityId: r.CityId || r.cityId,
+        cityName: r.CityName || r.cityName,
+        address: r.Address || r.address,
+        latitude: r.Latitude || r.latitude,
+        longitude: r.Longitude || r.longitude,
+    }));
+
 
   // LOAD DROPDOWNS
   const loadDropdowns = async () => {
@@ -179,28 +190,23 @@ const Locations = () => {
   }, []);
 
   // LOAD LOCATIONS
-  const loadLocations = async () => {
+  const loadRows = async () => {
     try {
-      // Pass filters to API
       const res = await getLocationsApi(page, limit, filters);
       if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.CountryName || r.countryName,
-            stateId: r.StateId || r.stateId,
-            stateName: r.StateName || r.stateName,
-            cityId: r.CityId || r.cityId,
-            cityName: r.CityName || r.cityName,
-            address: r.Address || r.address,
-            latitude: r.Latitude || r.latitude,
-            longitude: r.Longitude || r.longitude,
-        }));
-        setLocations(normalized);
-        const total = res.data.total || normalized.length;
-        setTotalRecords(total);
+        const data = res.data;
+        let items = [];
+        if (Array.isArray(data.records)) {
+             items = data.records;
+             setTotalRecords(data.total ?? data.records.length);
+        } else if(Array.isArray(data)) {
+             items = data;
+             setTotalRecords(items.length);
+        } else {
+             items = [];
+             setTotalRecords(0);
+        }
+        setRows(normalizeRows(items));
       } else {
         toast.error("Failed to load locations");
       }
@@ -212,28 +218,15 @@ const Locations = () => {
 
   // Reload when page, limit, or filters change
   useEffect(() => {
-    loadLocations();
+    loadRows();
   }, [page, limit, filters]);
 
   const loadInactive = async () => {
     try {
       const res = await getInactiveLocationsApi();
       if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.CountryName || r.countryName,
-            stateId: r.StateId || r.stateId,
-            stateName: r.StateName || r.stateName,
-            cityId: r.CityId || r.cityId,
-            cityName: r.CityName || r.cityName,
-            address: r.Address || r.address,
-            latitude: r.Latitude || r.latitude,
-            longitude: r.Longitude || r.longitude,
-        }));
-        setInactiveLocations(normalized);
+        const items = res.data.records || res.data || [];
+        setInactiveRows(normalizeRows(items));
       }
     } catch (err) {
       console.error(err);
@@ -245,30 +238,14 @@ const Locations = () => {
     setSearchText(text);
     if (!text.trim()) {
         setPage(1);
-        return loadLocations();
+        return loadRows();
     }
-    // Search API usually doesn't take filters, but we could add it if needed. 
-    // Ideally backend search would handle filters too, but searchLocationApi implementation is separate with LIKE queries.
-    // For now we assume standard search overrides filters or works independently.
     try {
       const res = await searchLocationApi(text);
       if (res?.status === 200) {
-        const rows = res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.CountryName || r.countryName,
-            stateId: r.StateId || r.stateId,
-            stateName: r.StateName || r.stateName,
-            cityId: r.CityId || r.cityId,
-            cityName: r.CityName || r.cityName,
-            address: r.Address || r.address,
-            latitude: r.Latitude || r.latitude,
-            longitude: r.Longitude || r.longitude,
-        }));
-        setLocations(normalized);
-        setTotalRecords(rows.length);
+        const items = res.data.records || res.data || [];
+        setRows(normalizeRows(items));
+        setTotalRecords(items.length);
       }
     } catch (err) {
         console.error(err);
@@ -299,10 +276,7 @@ const Locations = () => {
     }
   ];
 
-
-
-
-
+  // ADD
   const handleAdd = async () => {
     if (!newData.name.trim()) return toast.error("Name required");
     try {
@@ -320,7 +294,7 @@ const Locations = () => {
         });
         setModalOpen(false);
         setPage(1); 
-        loadLocations();
+        loadRows();
       } else {
         toast.error("Failed to add");
       }
@@ -328,6 +302,22 @@ const Locations = () => {
         console.error(err);
         toast.error("Server error");
     }
+  };
+
+  // UPDATE
+  const openEdit = (row, inactive = false) => {
+      setEditData({
+        id: row.id,
+        name: row.name,
+        countryId: row.countryId,
+        stateId: row.stateId,
+        cityId: row.cityId,
+        address: row.address,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        isInactive: inactive,
+      });
+      setEditModalOpen(true);
   };
 
   const handleUpdate = async () => {
@@ -346,7 +336,7 @@ const Locations = () => {
       if (res?.status === 200) {
         toast.success("Updated");
         setEditModalOpen(false);
-        loadLocations();
+        loadRows();
         if (showInactive) loadInactive();
       } else {
         toast.error("Update failed");
@@ -363,7 +353,7 @@ const Locations = () => {
       if (res?.status === 200) {
         toast.success("Deleted");
         setEditModalOpen(false);
-        loadLocations();
+        loadRows();
         if (showInactive) loadInactive();
       } else {
         toast.error("Delete failed");
@@ -380,7 +370,7 @@ const Locations = () => {
       if (res?.status === 200) {
         toast.success("Restored");
         setEditModalOpen(false);
-        loadLocations();
+        loadRows();
         loadInactive();
       } else {
         toast.error("Restore failed");
@@ -496,6 +486,7 @@ const Locations = () => {
         <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">Locations</h2>
 
+          {/* ACTION BAR */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
              <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
                 <Search size={16} className="text-gray-300" />
@@ -506,30 +497,39 @@ const Locations = () => {
                   className="bg-transparent pl-2 text-sm w-full outline-none"
                 />
               </div>
+
               {hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
-              <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
+              <button onClick={() => {
+                  setNewData({ name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" });
+                  setModalOpen(true);
+              }} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <Plus size={16} /> New Location
               </button>
               )}
+
               <button
                 onClick={() => {
                   setSearchText("");
                   setPage(1);
-                  loadLocations();
+                  loadRows();
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
+                className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
               >
                 <RefreshCw size={16} className="text-blue-400" />
               </button>
-              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded">
+
+              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <List size={16} className="text-blue-300" />
               </button>
+
               <button
                 onClick={async () => {
                   if (!showInactive) await loadInactive();
                   setShowInactive((s) => !s);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1"
+                className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
+                  showInactive ? "ring-1 ring-yellow-300" : ""
+                }`}
               >
                 <ArchiveRestore size={16} className="text-yellow-300" />
                 <span className="text-xs opacity-80">Inactive</span>
@@ -556,25 +556,13 @@ const Locations = () => {
                         {visibleColumns.longitude && <SortableHeader label="Longitude" sortOrder={sortConfig.key === "longitude" ? sortConfig.direction : null} onClick={() => handleSort("longitude")} />}
                     </tr>
                 </thead>
-                <tbody>
-                    {!sortedLocations.length && !showInactive && (
-                         <tr><td colSpan="8" className="text-center py-4 text-gray-400">No records found</td></tr>
+                <tbody className="text-center">
+                    {!rows.length && !showInactive && (
+                         <tr><td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-6 text-gray-400">No records found</td></tr>
                     )}
-                    {!showInactive && sortedLocations.map(r => (
-                        <tr key={r.id} onClick={() => {
-                            setEditData({ 
-                                id: r.id, 
-                                name: r.name, 
-                                countryId: r.countryId,
-                                stateId: r.stateId,
-                                cityId: r.cityId,
-                                address: r.address,
-                                latitude: r.latitude,
-                                longitude: r.longitude,
-                                isInactive: false 
-                            });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 hover:bg-gray-700 cursor-pointer text-center">
+                    
+                    {sortedRows.map(r => (
+                        <tr key={r.id} onClick={() => openEdit(r, false)} className="bg-gray-900 hover:bg-gray-700 cursor-pointer">
                             {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
                             {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
                             {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
@@ -585,21 +573,9 @@ const Locations = () => {
                             {visibleColumns.longitude && <td className="px-2 py-1">{r.longitude}</td>}
                         </tr>
                     ))}
-                    {showInactive && inactiveLocations.map(r => (
-                        <tr key={`inactive-${r.id}`} onClick={() => {
-                            setEditData({ 
-                                id: r.id, 
-                                name: r.name, 
-                                countryId: r.countryId,
-                                stateId: r.stateId,
-                                cityId: r.cityId,
-                                address: r.address,
-                                latitude: r.latitude,
-                                longitude: r.longitude,
-                                isInactive: true 
-                            });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer text-center">
+
+                    {showInactive && inactiveRows.map(r => (
+                        <tr key={`inactive-${r.id}`} onClick={() => openEdit(r, true)} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer">
                             {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
                             {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
                             {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
@@ -614,350 +590,221 @@ const Locations = () => {
             </table>
           </div>
 
-              <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={totalRecords}
-                onRefresh={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadLocations();
-                }}
-              />
+          <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={totalRecords}
+            onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadRows();
+            }}
+            />
         </div>
       </div>
 
-       {/* MODALS */}
-       {modalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">New Location</h2>
-                  <button onClick={() => setModalOpen(false)}><X size={20}/></button>
+       {/* ADD MODAL */}
+       <AddModal
+         isOpen={modalOpen}
+         onClose={() => setModalOpen(false)}
+         onSave={handleAdd}
+         title="New Location"
+       >
+           <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300">Name *</label>
+                  <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
                </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm">Name *</label>
-                      <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">Country</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={countries}
-                                   value={newData.countryId}
-                                   onChange={(val) => setNewData({...newData, countryId: val, stateId: "", cityId: ""})}
-                                   className="w-full"
-                               />
-                               {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                                   <Star size={18} className="text-yellow-400" />
-                               </button>)}
-                           </div>
-                       </div>
-                       <div>
-                           <label className="text-sm">State</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={states.filter(s => s.countryId == newData.countryId)}
-                                   value={newData.stateId}
-                                   onChange={(val) => setNewData({...newData, stateId: val, cityId: ""})}
-                                   disabled={!newData.countryId}
-                                   className="w-full"
-                               />
-                               {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                   <Star size={18} className="text-yellow-400" />
-                               </button>)}
-                           </div>
-                       </div>
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">City</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={cities.filter(c => c.stateId == newData.stateId)}
-                                   value={newData.cityId}
-                                   onChange={(val) => setNewData({...newData, cityId: val})}
-                                   disabled={!newData.stateId}
-                                   className="w-full"
-                               />
-                               {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                   <Star size={18} className="text-yellow-400" />
-                               </button>)}
-                           </div>
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">Country</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={countries}
+                               value={newData.countryId}
+                               onChange={(val) => setNewData({...newData, countryId: val, stateId: "", cityId: ""})}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                               <Star size={18} className="text-yellow-400" />
+                           </button>)}
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm">Address</label>
-                       <textarea value={newData.address} onChange={e => setNewData({...newData, address: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" rows="2" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">Latitude</label>
-                           <input value={newData.latitude} onChange={e => setNewData({...newData, latitude: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
-                       </div>
-                       <div>
-                           <label className="text-sm">Longitude</label>
-                           <input value={newData.longitude} onChange={e => setNewData({...newData, longitude: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
+                       <label className="text-sm text-gray-300">State</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={states.filter(s => s.countryId == newData.countryId)}
+                               value={newData.stateId}
+                               onChange={(val) => setNewData({...newData, stateId: val, cityId: ""})}
+                               disabled={!newData.countryId}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               <Star size={18} className="text-yellow-400" />
+                           </button>)}
                        </div>
                    </div>
                </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                   {hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
-                   <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                   )}
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">City</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={cities.filter(c => c.stateId == newData.stateId)}
+                               value={newData.cityId}
+                               onChange={(val) => setNewData({...newData, cityId: val})}
+                               disabled={!newData.stateId}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               <Star size={18} className="text-yellow-400" />
+                           </button>)}
+                       </div>
+                   </div>
                </div>
-            </div>
-          </div>
-       )}
+               <div>
+                   <label className="text-sm text-gray-300">Address</label>
+                   <textarea value={newData.address} onChange={e => setNewData({...newData, address: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" rows="2" />
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">Latitude</label>
+                       <input value={newData.latitude} onChange={e => setNewData({...newData, latitude: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
+                   </div>
+                   <div>
+                       <label className="text-sm text-gray-300">Longitude</label>
+                       <input value={newData.longitude} onChange={e => setNewData({...newData, longitude: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
+                   </div>
+               </div>
+           </div>
+       </AddModal>
 
-       {editModalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">{editData.isInactive ? "Restore Location" : "Edit Location"}</h2>
-                  <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
+       {/* EDIT MODAL */}
+       <EditModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdate}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          isInactive={editData.isInactive}
+          title={editData.isInactive ? "Restore Location" : "Edit Location"}
+          permissionDelete={hasPermission(PERMISSIONS.LOCATIONS.DELETE)}
+          permissionEdit={hasPermission(PERMISSIONS.LOCATIONS.EDIT)}
+       >
+           <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300">Name *</label>
+                  <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
                </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm">Name *</label>
-                      <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">Country</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={countries}
-                                   value={editData.countryId}
-                                   onChange={(val) => setEditData({...editData, countryId: val, stateId: "", cityId: ""})}
-                                   disabled={editData.isInactive}
-                                   className="w-full"
-                               />
-                               {!editData.isInactive && (
-                                   <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                                       <Star size={18} className="text-yellow-400" />
-                                   </button>
-                               )}
-                           </div>
-                       </div>
-                       <div>
-                           <label className="text-sm">State</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={states.filter(s => s.countryId == editData.countryId)}
-                                   value={editData.stateId}
-                                   onChange={(val) => setEditData({...editData, stateId: val, cityId: ""})}
-                                   disabled={!editData.countryId || editData.isInactive}
-                                   className="w-full"
-                               />
-                               {!editData.isInactive && (
-                                   <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                       <Star size={18} className="text-yellow-400" />
-                                   </button>
-                               )}
-                           </div>
-                       </div>
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">City</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={cities.filter(c => c.stateId == editData.stateId)}
-                                   value={editData.cityId}
-                                   onChange={(val) => setEditData({...editData, cityId: val})}
-                                   disabled={!editData.stateId || editData.isInactive}
-                                   className="w-full"
-                               />
-                               {!editData.isInactive && (
-                                   <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                       <Star size={18} className="text-yellow-400" />
-                                   </button>
-                               )}
-                           </div>
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">Country</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={countries}
+                               value={editData.countryId}
+                               onChange={(val) => setEditData({...editData, countryId: val, stateId: "", cityId: ""})}
+                               disabled={editData.isInactive}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {!editData.isInactive && (
+                               <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                                   <Star size={18} className="text-yellow-400" />
+                               </button>
+                           )}
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm">Address</label>
-                       <textarea value={editData.address} onChange={e => setEditData({...editData, address: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" rows="2" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">Latitude</label>
-                           <input value={editData.latitude} onChange={e => setEditData({...editData, latitude: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
+                       <label className="text-sm text-gray-300">State</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={states.filter(s => s.countryId == editData.countryId)}
+                               value={editData.stateId}
+                               onChange={(val) => setEditData({...editData, stateId: val, cityId: ""})}
+                               disabled={!editData.countryId || editData.isInactive}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {!editData.isInactive && (
+                               <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                                   <Star size={18} className="text-yellow-400" />
+                               </button>
+                           )}
                        </div>
-                       <div>
-                           <label className="text-sm">Longitude</label>
-                           <input value={editData.longitude} onChange={e => setEditData({...editData, longitude: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                        </div>
-                    </div>
-                </div>
-                <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-                    {editData.isInactive ? (
-                        <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
-                    ) : (
-                        hasPermission(PERMISSIONS.LOCATIONS.DELETE) && (<button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>)
-                    )}
-                    {!editData.isInactive && hasPermission(PERMISSIONS.LOCATIONS.EDIT) && (
-                        <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                    )}
-                </div>
-            </div>
-        </div>
+                   </div>
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">City</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={cities.filter(c => c.stateId == editData.stateId)}
+                               value={editData.cityId}
+                               onChange={(val) => setEditData({...editData, cityId: val})}
+                               disabled={!editData.stateId || editData.isInactive}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {!editData.isInactive && (
+                               <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                                   <Star size={18} className="text-yellow-400" />
+                               </button>
+                           )}
+                       </div>
+                   </div>
+               </div>
+               <div>
+                   <label className="text-sm text-gray-300">Address</label>
+                   <textarea value={editData.address} onChange={e => setEditData({...editData, address: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" rows="2" />
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">Latitude</label>
+                       <input value={editData.latitude} onChange={e => setEditData({...editData, latitude: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
+                   </div>
+                   <div>
+                       <label className="text-sm text-gray-300">Longitude</label>
+                       <input value={editData.longitude} onChange={e => setEditData({...editData, longitude: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
+                   </div>
+               </div>
+           </div>
+       </EditModal>
+
+       {/* COLUMN PICKER */}
+       <ColumnPickerModal
+          isOpen={columnModal}
+          onClose={() => setColumnModal(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+       />
+
+       {/* --- QUICK ADD SUB-MODALS --- */}
+       {/* (Inline implementation for now, can be refactored to separate components if needed) */}
+       {addCountryModalOpen && (
+           <AddModal isOpen={true} onClose={() => setAddCountryModalOpen(false)} onSave={handleAddCountry} title="Quick Add Country">
+               <label className="text-sm text-gray-300">Country Name *</label>
+               <input value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+           </AddModal>
        )}
-
-        {addCountryModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add Country</h2>
-                        <button onClick={() => setAddCountryModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                       <label className="text-sm">Country Name *</label>
-                       <input value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddCountry} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {addStateModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add State</h2>
-                        <button onClick={() => setAddStateModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                       <label className="text-sm">State Name *</label>
-                       <input value={newStateName} onChange={e => setNewStateName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddState} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {addCityModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[400px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add City</h2>
-                        <button onClick={() => setAddCityModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                       <label className="text-sm">City Name *</label>
-                       <input value={newCityName} onChange={e => setNewCityName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddCity} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>
-                    </div>
-                </div>
-            </div>
-        )}
-
-       {/* columnModal */}
-       {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* VISIBLE / HIDDEN COLUMNS */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter(
-                  (col) => !visibleColumns[col]
-                ).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
+       {addStateModalOpen && (
+           <AddModal isOpen={true} onClose={() => setAddStateModalOpen(false)} onSave={handleAddState} title="Quick Add State">
+               <label className="text-sm text-gray-300">State Name *</label>
+               <input value={newStateName} onChange={e => setNewStateName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+           </AddModal>
+       )}
+       {addCityModalOpen && (
+           <AddModal isOpen={true} onClose={() => setAddCityModalOpen(false)} onSave={handleAddCity} title="Quick Add City">
+               <label className="text-sm text-gray-300">City Name *</label>
+               <input value={newCityName} onChange={e => setNewCityName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+           </AddModal>
        )}
 
     </PageLayout>

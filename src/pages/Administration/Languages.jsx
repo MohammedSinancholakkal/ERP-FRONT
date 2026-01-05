@@ -27,6 +27,8 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Languages = () => {
   if (!hasPermission(PERMISSIONS.LANGUAGES.VIEW)) {
@@ -336,157 +338,103 @@ const Languages = () => {
       {/* =============================
           ADD LANGUAGE MODAL
       ============================== */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+      {/* =============================
+          ADD LANGUAGE MODAL
+      ============================== */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAddLanguage}
+        title="New Language"
+        width="700px"
+        permission={hasPermission(PERMISSIONS.LANGUAGES.CREATE)}
+      >
+        <div className="p-0 space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Language ID *</label>
+            <input
+              type="text"
+              value={newLanguage.languageId}
+              onChange={(e) =>
+                setNewLanguage((prev) => ({
+                  ...prev,
+                  languageId: e.target.value,
+                }))
+              }
+              placeholder="Enter Language ID"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
+          </div>
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Language</h2>
-              <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm mb-1">Language ID *</label>
-                <input
-                  type="text"
-                  value={newLanguage.languageId}
-                  onChange={(e) =>
-                    setNewLanguage((prev) => ({
-                      ...prev,
-                      languageId: e.target.value,
-                    }))
-                  }
-                  placeholder="Enter Language ID"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Language Name *</label>
-                <input
-                  type="text"
-                  value={newLanguage.languageName}
-                  onChange={(e) =>
-                    setNewLanguage((prev) => ({
-                      ...prev,
-                      languageName: e.target.value,
-                    }))
-                  }
-                  placeholder="Enter Language Name"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              {hasPermission(PERMISSIONS.LANGUAGES.CREATE) && (
-              <button
-                onClick={handleAddLanguage}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-sm text-blue-300"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
-
+          <div>
+            <label className="block text-sm mb-1">Language Name *</label>
+            <input
+              type="text"
+              value={newLanguage.languageName}
+              onChange={(e) =>
+                setNewLanguage((prev) => ({
+                  ...prev,
+                  languageName: e.target.value,
+                }))
+              }
+              placeholder="Enter Language Name"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+            />
           </div>
         </div>
-      )}
+      </AddModal>
 
       {/* =============================
           EDIT LANGUAGE MODAL
       ============================== */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdateLanguage}
+        onDelete={handleDeleteLanguage}
+        onRestore={handleRestoreLanguage}
+        isInactive={editLanguage.isInactive}
+        title={`${
+          editLanguage.isInactive ? "Restore Language" : "Edit Language"
+        } (${editLanguage.languageName})`}
+        permissionDelete={hasPermission(PERMISSIONS.LANGUAGES.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.LANGUAGES.EDIT)}
+        width="700px"
+      >
+        <div className="p-0 space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Language ID *</label>
+            <input
+              type="text"
+              value={editLanguage.languageId}
+              onChange={(e) =>
+                setEditLanguage((prev) => ({
+                  ...prev,
+                  languageId: e.target.value,
+                }))
+              }
+              disabled={editLanguage.isInactive}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm disabled:opacity-50"
+            />
+          </div>
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">
-                {editLanguage.isInactive ? "Restore Language" : "Edit Language"} ({editLanguage.languageName})
-              </h2>
-
-              <button onClick={() => setEditModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-
-              <div>
-                <label className="block text-sm mb-1">Language ID *</label>
-                <input
-                  type="text"
-                  value={editLanguage.languageId}
-                  onChange={(e) =>
-                    setEditLanguage((prev) => ({
-                      ...prev,
-                      languageId: e.target.value,
-                    }))
-                  }
-                  disabled={editLanguage.isInactive}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Language Name *</label>
-                <input
-                  type="text"
-                  value={editLanguage.languageName}
-                  onChange={(e) =>
-                    setEditLanguage((prev) => ({
-                      ...prev,
-                      languageName: e.target.value,
-                    }))
-                  }
-                  disabled={editLanguage.isInactive}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                />
-              </div>
-
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-
-              {editLanguage.isInactive ? (
-                hasPermission(PERMISSIONS.LANGUAGES.DELETE) && (
-                <button
-                  onClick={handleRestoreLanguage}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-                )
-              ) : (
-                hasPermission(PERMISSIONS.LANGUAGES.DELETE) && (
-                <button
-                  onClick={handleDeleteLanguage}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-                )
-              )}
-
-              {!editLanguage.isInactive && (
-                hasPermission(PERMISSIONS.LANGUAGES.EDIT) && (
-                <button
-                  onClick={handleUpdateLanguage}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-                >
-                  <Save size={16} /> Save
-                </button>
-                )
-              )}
-
-            </div>
-
+          <div>
+            <label className="block text-sm mb-1">Language Name *</label>
+            <input
+              type="text"
+              value={editLanguage.languageName}
+              onChange={(e) =>
+                setEditLanguage((prev) => ({
+                  ...prev,
+                  languageName: e.target.value,
+                }))
+              }
+              disabled={editLanguage.isInactive}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm disabled:opacity-50"
+            />
           </div>
         </div>
-      )}
+      </EditModal>
 
       {/* =============================
               MAIN PAGE
@@ -671,6 +619,3 @@ const Languages = () => {
 };
 
 export default Languages;
-
-
-

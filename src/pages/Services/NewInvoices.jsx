@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import AddModal from "../../components/modals/AddModal";
 
 // APIs (service-invoice & supporting)
 import {
@@ -881,145 +882,123 @@ const handleRestoreInvoice = async () => {
 
       </div>
 
+
       {/* --- ADD ITEM MODAL --- */}
-      {isItemModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl p-6 relative">
-            <button
-              onClick={() => setIsItemModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={24} />
-            </button>
-            <h3 className="text-xl text-white font-semibold mb-6">{editingIndex !== null ? "Edit Line Item" : "Add Line Item"}</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Service select */}
-             <div className="md:col-span-2 w-full">
-  <label className="block text-sm text-gray-300 mb-1">
-    Service
-  </label>
-
-  <div className="w-full">
-    <SearchableSelect
-      options={servicesList.map(s => ({
-        id: s.id,
-        name: s.name ?? s.ServiceName ?? s.serviceName
-      }))}
-      value={newItem.serviceId}
-      onChange={handleServiceSelect}
-      placeholder="--select service--"
-      className="w-full"
-    />
-  </div>
-</div>
-
-
-              {/* Description */}
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  value={newItem.quantity}
-                  onChange={(e) => {
-                      const qty = parseFloat(e.target.value) || 0;
-                      const price = parseFloat(newItem.unitPrice) || 0;
-                      const disc = parseFloat(newItem.discount) || 0;
-                      setNewItem({
-                        ...newItem,
-                        quantity: qty,
-                        total: calculateItemTotal(qty, price, disc)
-                      });
-                  }}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* Service Charge (unitPrice) */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Service Charge</label>
-                <input
-                  type="number"
-                  value={newItem.unitPrice}
-                  onChange={(e) => {
-                      const price = parseFloat(e.target.value) || 0;
-                      const qty = parseFloat(newItem.quantity) || 0;
-                      const disc = parseFloat(newItem.discount) || 0;
-                      setNewItem({
-                        ...newItem,
-                        unitPrice: price,
-                        total: calculateItemTotal(qty, price, disc)
-                      });
-                  }}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                />
-              </div>
-
-              {/* Discount */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
-             <input
-                type="number"
-                value={newItem.discount}
-                placeholder="0"
-                onChange={(e) => {
-                    const discountStr = e.target.value; // keep string
-                    const disc = parseFloat(discountStr) || 0;
-                    const qty = parseFloat(newItem.quantity) || 0;
-                    const price = parseFloat(newItem.unitPrice) || 0;
-
-                    setNewItem({
-                    ...newItem,
-                    discount: discountStr, // allows empty
-                    total: calculateItemTotal(qty, price, disc)
-                    });
-                }}
-                className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
-                required
-                />
-
-              </div>
-
-              {/* Total (read-only) */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Total</label>
-                <input
-                  type="text"
-                  value={parseFloat(newItem.total || 0).toFixed(2)}
-                  readOnly
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-300 outline-none cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-8">
-              <button
-                onClick={() => setIsItemModalOpen(false)}
-                className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addItemToTable}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-              >
-                {editingIndex !== null ? "Update Item" : "Add Item"}
-              </button>
+      <AddModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        onSave={addItemToTable}
+        title={editingIndex !== null ? "Edit Line Item" : "Add Line Item"}
+        width="700px"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Service select */}
+          <div className="md:col-span-2 w-full">
+            <label className="block text-sm text-gray-300 mb-1">
+              Service
+            </label>
+            <div className="w-full">
+              <SearchableSelect
+                options={servicesList.map(s => ({
+                  id: s.id,
+                  name: s.name ?? s.ServiceName ?? s.serviceName
+                }))}
+                value={newItem.serviceId}
+                onChange={handleServiceSelect}
+                placeholder="--select service--"
+                className="w-full"
+              />
             </div>
           </div>
+
+
+          {/* Description */}
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Description</label>
+            <input
+              type="text"
+              value={newItem.description}
+              onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Quantity</label>
+            <input
+              type="number"
+              value={newItem.quantity}
+              onChange={(e) => {
+                  const qty = parseFloat(e.target.value) || 0;
+                  const price = parseFloat(newItem.unitPrice) || 0;
+                  const disc = parseFloat(newItem.discount) || 0;
+                  setNewItem({
+                    ...newItem,
+                    quantity: qty,
+                    total: calculateItemTotal(qty, price, disc)
+                  });
+              }}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Service Charge (unitPrice) */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Service Charge</label>
+            <input
+              type="number"
+              value={newItem.unitPrice}
+              onChange={(e) => {
+                  const price = parseFloat(e.target.value) || 0;
+                  const qty = parseFloat(newItem.quantity) || 0;
+                  const disc = parseFloat(newItem.discount) || 0;
+                  setNewItem({
+                    ...newItem,
+                    unitPrice: price,
+                    total: calculateItemTotal(qty, price, disc)
+                  });
+              }}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+            />
+          </div>
+
+          {/* Discount */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
+            <input
+              type="number"
+              value={newItem.discount}
+              placeholder="0"
+              onChange={(e) => {
+                  const discountStr = e.target.value; // keep string
+                  const disc = parseFloat(discountStr) || 0;
+                  const qty = parseFloat(newItem.quantity) || 0;
+                  const price = parseFloat(newItem.unitPrice) || 0;
+
+                  setNewItem({
+                  ...newItem,
+                  discount: discountStr, // allows empty
+                  total: calculateItemTotal(qty, price, disc)
+                  });
+              }}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+              required
+            />
+          </div>
+
+          {/* Total (read-only) */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Total</label>
+            <input
+              type="text"
+              value={parseFloat(newItem.total || 0).toFixed(2)}
+              readOnly
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-300 outline-none cursor-not-allowed"
+            />
+          </div>
         </div>
-      )}
+      </AddModal>
     </PageLayout>
   );
 };

@@ -29,6 +29,9 @@ import {
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import SearchableSelect from "../../components/SearchableSelect";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Expenses = () => {
   // ====================
@@ -36,7 +39,7 @@ const Expenses = () => {
   // ====================
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const [expenses, setExpenses] = useState([]);
   const [inactiveExpenses, setInactiveExpenses] = useState([]);
@@ -355,157 +358,161 @@ const Expenses = () => {
     <>
       {/* ---------------- ADD EXPENSE MODAL ---------------- */}
 {/* ADD MODAL */}
-{modalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-    <div className="w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
+      {/* ---------------- ADD EXPENSE MODAL ---------------- */}
+      {/* ADD MODAL */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAdd}
+        title="New Expense"
+        width="700px"
+        permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+      >
+        <div className="p-0 space-y-4">
+          {/* Expense Type (searchable input + dropdown) */}
+          <div>
+            <label className="block text-sm mb-1">
+              Expense Type <span className="text-red-500">*</span>
+            </label>
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-        <h2 className="text-lg font-semibold">New Expense</h2>
-        <button onClick={() => setModalOpen(false)}>
-          <X size={20} className="text-gray-300 hover:text-white" />
-        </button>
-      </div>
+            <div className="flex items-start gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={
+                    expenseTypeOpen
+                      ? expenseTypeSearch
+                      : newExpense.expenseTypeText
+                  }
+                  placeholder="Search or type…"
+                  onFocus={(e) => {
+                    setExpenseTypeOpen(true);
+                    setExpenseTypeSearch(newExpense.expenseTypeText || "");
+                  }}
+                  onChange={(e) => {
+                    const typed = e.target.value;
+                    setExpenseTypeSearch(typed);
+                    const match = expenseTypes.find(
+                      (t) =>
+                        (t.typeName || "").toLowerCase() === typed.toLowerCase()
+                    );
+                    setNewExpense((p) => ({
+                      ...p,
+                      expenseTypeText: typed,
+                      expenseTypeId: match ? match.typeId ?? match.id : "",
+                    }));
+                    setExpenseTypeOpen(true);
+                  }}
+                  onBlur={() =>
+                    setTimeout(() => setExpenseTypeOpen(false), 120)
+                  }
+                  className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
+                />
 
-      {/* BODY */}
-      <div className="p-6 space-y-4 overflow-y-auto">
+                {expenseTypeOpen && (
+                  <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
+                    {expenseTypes
+                      .filter((t) =>
+                        (t.typeName || "")
+                          .toLowerCase()
+                          .includes((expenseTypeSearch || "").toLowerCase())
+                      )
+                      .map((t) => (
+                        <div
+                          key={t.typeId ?? t.id}
+                          className="px-3 py-2 cursor-pointer hover:bg-gray-700"
+                          onMouseDown={() => {
+                            const id = t.typeId ?? t.id;
+                            setNewExpense((p) => ({
+                              ...p,
+                              expenseTypeId: id,
+                              expenseTypeText: t.typeName,
+                            }));
+                            setExpenseTypeOpen(false);
+                            setExpenseTypeSearch("");
+                          }}
+                        >
+                          {t.typeName}
+                        </div>
+                      ))}
+                    {expenseTypes.filter((t) =>
+                      (t.typeName || "")
+                        .toLowerCase()
+                        .includes((expenseTypeSearch || "").toLowerCase())
+                    ).length === 0 && (
+                      <div className="px-3 py-2 text-gray-300">No matches</div>
+                    )}
+                  </div>
+                )}
+              </div>
 
-        {/* Expense Type (searchable input + dropdown) */}
-        <div>
-          <label className="block text-sm mb-1">
-            Expense Type <span className="text-red-500">*</span>
-          </label>
-
-          <div className="flex items-start gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={expenseTypeOpen ? expenseTypeSearch : newExpense.expenseTypeText}
-                placeholder="Search or type…"
-                onFocus={(e) => { setExpenseTypeOpen(true); setExpenseTypeSearch(newExpense.expenseTypeText || ""); }}
-                onChange={(e) => {
-                  const typed = e.target.value;
-                  setExpenseTypeSearch(typed);
-                  const match = expenseTypes.find(
-                    (t) => (t.typeName || "").toLowerCase() === typed.toLowerCase()
-                  );
-                  setNewExpense((p) => ({
-                    ...p,
-                    expenseTypeText: typed,
-                    expenseTypeId: match ? (match.typeId ?? match.id) : "",
-                  }));
-                  setExpenseTypeOpen(true);
-                }}
-                onBlur={() => setTimeout(() => setExpenseTypeOpen(false), 120)}
-                className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
-              />
-
-              {expenseTypeOpen && (
-                <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                  {expenseTypes.filter((t) =>
-                    (t.typeName || "").toLowerCase().includes((expenseTypeSearch || "").toLowerCase())
-                  ).map((t) => (
-                    <div
-                      key={t.typeId ?? t.id}
-                      className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                      onMouseDown={() => {
-                        const id = t.typeId ?? t.id;
-                        setNewExpense((p) => ({ ...p, expenseTypeId: id, expenseTypeText: t.typeName }));
-                        setExpenseTypeOpen(false);
-                        setExpenseTypeSearch("");
-                      }}
-                    >
-                      {t.typeName}
-                    </div>
-                  ))}
-                  {expenseTypes.filter((t) => (t.typeName || "").toLowerCase().includes((expenseTypeSearch || "").toLowerCase())).length === 0 && (
-                    <div className="px-3 py-2 text-gray-300">No matches</div>
-                  )}
-                </div>
+              {hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE) && (
+                <button
+                  type="button"
+                  onClick={() => setShowExpenseTypeCreate(true)}
+                  title="Add expense type"
+                  className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 flex items-center"
+                >
+                  <Star size={16} className="text-yellow-300" />
+                </button>
               )}
             </div>
-
-            {hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE) && (
-            <button
-              type="button"
-              onClick={() => setShowExpenseTypeCreate(true)}
-              title="Add expense type"
-              className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 flex items-center"
-            >
-              <Star size={16} className="text-yellow-300" />
-            </button>
-            )}
           </div>
+
+          {/* Date (selectable + typable) */}
+          <div>
+            <label className="block text-sm mb-1">
+              Date <span className="text-red-500">*</span>
+            </label>
+
+            <input
+              type="date"
+              value={newExpense.date}
+              onChange={(e) =>
+                setNewExpense((p) => ({ ...p, date: e.target.value }))
+              }
+              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
+            />
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm mb-1">
+              Amount <span className="text-red-500">*</span>
+            </label>
+
+            <input
+              type="number"
+              value={newExpense.amount}
+              onChange={(e) =>
+                setNewExpense((p) => ({ ...p, amount: e.target.value }))
+              }
+              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
+            />
+          </div>
+
+          {/* Payment Account (default empty) */}
+          <div>
+            <label className="block text-sm mb-1">Payment Account *</label>
+
+            <SearchableSelect
+              options={[
+                { id: "Cash at Hand", name: "Cash at Hand" },
+                { id: "Cash at Bank", name: "Cash at Bank" },
+              ]}
+              value={newExpense.paymentAccount}
+              onChange={(val) =>
+                setNewExpense((p) => ({ ...p, paymentAccount: val }))
+              }
+              placeholder="Select Account"
+              className="w-full"
+              direction="up"
+            />
+          </div>
+
+          {/* Voucher No removed */}
         </div>
-
-        {/* Date (selectable + typable) */}
-        <div>
-          <label className="block text-sm mb-1">
-            Date <span className="text-red-500">*</span>
-          </label>
-
-          <input
-            type="date"
-            value={newExpense.date}
-            onChange={(e) =>
-              setNewExpense((p) => ({ ...p, date: e.target.value }))
-            }
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
-          />
-        </div>
-
-        {/* Amount */}
-        <div>
-          <label className="block text-sm mb-1">
-            Amount <span className="text-red-500">*</span>
-          </label>
-
-          <input
-            type="number"
-            value={newExpense.amount}
-            onChange={(e) =>
-              setNewExpense((p) => ({ ...p, amount: e.target.value }))
-            }
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
-          />
-        </div>
-
-        {/* Payment Account (default empty) */}
-        <div>
-          <label className="block text-sm mb-1">Payment Account *</label>
-
-          <SearchableSelect
-            options={[
-              { id: "Cash at Hand", name: "Cash at Hand" },
-              { id: "Cash at Bank", name: "Cash at Bank" },
-            ]}
-            value={newExpense.paymentAccount}
-            onChange={(val) =>
-              setNewExpense((p) => ({ ...p, paymentAccount: val }))
-            }
-            placeholder="Select Account"
-            className="w-full"
-            direction="up"
-          />
-        </div>
-
-        {/* Voucher No removed */}
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-        {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-        <button
-          onClick={handleAdd}
-          className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm"
-        >
-          <Save size={16} /> Save
-        </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+      </AddModal>
 
 {/* ---------------- QUICK-CREATE EXPENSE TYPE MODAL ---------------- */}
 {showExpenseTypeCreate && (
@@ -547,222 +554,123 @@ const Expenses = () => {
 
       {/* ---------------- EDIT EXPENSE MODAL ---------------- */}
 {/* EDIT MODAL */}
-{editModalOpen && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-    <div className="w-[700px] max-h-[90vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 flex flex-col">
+      {/* ---------------- EDIT EXPENSE MODAL ---------------- */}
+      {/* EDIT MODAL */}
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdate}
+        onDelete={handleDelete}
+        onRestore={handleRestore}
+        isInactive={editExpense.isInactive}
+        title={`${editExpense.isInactive ? "Restore Expense" : "Edit Expense"}`}
+        permissionDelete={hasPermission(PERMISSIONS.CASH_BANK.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
+        width="700px"
+      >
+        <div className="p-0 space-y-4">
+          {/* Expense Type (searchable dropdown) */}
+          <div>
+            <label className="block text-sm mb-1">Expense Type *</label>
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-        <h2 className="text-lg font-semibold">
-          {editExpense.isInactive ? "Restore Expense" : "Edit Expense"}
-        </h2>
-        <button onClick={() => setEditModalOpen(false)}>
-          <X size={20} className="text-gray-300 hover:text-white" />
-        </button>
-      </div>
+            <input
+              type="text"
+              list="expenseTypesListEdit"
+              value={
+                editExpense.expenseTypeId
+                  ? expenseTypes.find(
+                      (t) => (t.typeId ?? t.id) === editExpense.expenseTypeId
+                    )?.typeName || ""
+                  : ""
+              }
+              placeholder="Search or type…"
+              onFocus={(e) => e.target.showPicker && e.target.showPicker()}
+              onChange={(e) => {
+                const typed = e.target.value;
 
-      {/* BODY */}
-      <div className="p-6 space-y-4 overflow-y-auto">
+                const match = expenseTypes.find(
+                  (t) => t.typeName.toLowerCase() === typed.toLowerCase()
+                );
 
-        {/* Expense Type (searchable dropdown) */}
-        <div>
-          <label className="block text-sm mb-1">Expense Type *</label>
+                setEditExpense((p) => ({
+                  ...p,
+                  expenseTypeId: match ? match.typeId ?? match.id : "",
+                }));
+              }}
+              disabled={editExpense.isInactive}
+              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
+            />
 
-          <input
-            type="text"
-            list="expenseTypesListEdit"
-            value={
-              editExpense.expenseTypeId
-                ? expenseTypes.find((t) => (t.typeId ?? t.id) === editExpense.expenseTypeId)?.typeName || ""
-                : ""
-            }
-            placeholder="Search or type…"
-            onFocus={(e) => e.target.showPicker && e.target.showPicker()}
-            onChange={(e) => {
-              const typed = e.target.value;
+            <datalist id="expenseTypesListEdit">
+              {expenseTypes.map((t) => (
+                <option key={t.typeId ?? t.id} value={t.typeName} />
+              ))}
+            </datalist>
+          </div>
 
-              const match = expenseTypes.find(
-                (t) => t.typeName.toLowerCase() === typed.toLowerCase()
-              );
+          {/* Date (selectable + typable) */}
+          <div>
+            <label className="block text-sm mb-1">Date *</label>
 
-              setEditExpense((p) => ({
-                ...p,
-                expenseTypeId: match ? (match.typeId ?? match.id) : "",
-              }));
-            }}
-            disabled={editExpense.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
-          />
+            <input
+              type="date"
+              value={editExpense.date}
+              onChange={(e) =>
+                setEditExpense((p) => ({ ...p, date: e.target.value }))
+              }
+              disabled={editExpense.isInactive}
+              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
+            />
+          </div>
 
-          <datalist id="expenseTypesListEdit">
-                {expenseTypes.map((t) => (
-              <option key={t.typeId ?? t.id} value={t.typeName} />
-            ))}
-          </datalist>
+          {/* Amount */}
+          <div>
+            <label className="block text-sm mb-1">Amount *</label>
+
+            <input
+              type="number"
+              value={editExpense.amount}
+              onChange={(e) =>
+                setEditExpense((p) => ({ ...p, amount: e.target.value }))
+              }
+              disabled={editExpense.isInactive}
+              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
+            />
+          </div>
+
+          {/* Payment Account */}
+          <div>
+            <label className="block text-sm mb-1">Payment Account *</label>
+
+            <SearchableSelect
+              options={[
+                { id: "Cash at Hand", name: "Cash at Hand" },
+                { id: "Cash at Bank", name: "Cash at Bank" },
+              ]}
+              value={editExpense.paymentAccount}
+              onChange={(val) =>
+                setEditExpense((p) => ({ ...p, paymentAccount: val }))
+              }
+              placeholder="Select Account"
+              className="w-full"
+              direction="up"
+            />
+          </div>
+
+          {/* Voucher No removed */}
         </div>
-
-        {/* Date (selectable + typable) */}
-        <div>
-          <label className="block text-sm mb-1">Date *</label>
-
-          <input
-            type="date"
-            value={editExpense.date}
-            onChange={(e) =>
-              setEditExpense((p) => ({ ...p, date: e.target.value }))
-            }
-            disabled={editExpense.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
-          />
-        </div>
-
-        {/* Amount */}
-        <div>
-          <label className="block text-sm mb-1">Amount *</label>
-
-          <input
-            type="number"
-            value={editExpense.amount}
-            onChange={(e) =>
-              setEditExpense((p) => ({ ...p, amount: e.target.value }))
-            }
-            disabled={editExpense.isInactive}
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
-          />
-        </div>
-
-        {/* Payment Account */}
-        <div>
-          <label className="block text-sm mb-1">Payment Account *</label>
-
-          <SearchableSelect
-            options={[
-              { id: "Cash at Hand", name: "Cash at Hand" },
-              { id: "Cash at Bank", name: "Cash at Bank" },
-            ]}
-            value={editExpense.paymentAccount}
-            onChange={(val) =>
-              setEditExpense((p) => ({ ...p, paymentAccount: val }))
-            }
-            placeholder="Select Account"
-            className="w-full"
-            direction="up"
-          />
-        </div>
-
-        {/* Voucher No removed */}
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-        {editExpense.isInactive ? (
-          hasPermission(PERMISSIONS.CASH_BANK.DELETE) && (
-          <button
-            onClick={handleRestore}
-            className="flex items-center gap-2 bg-green-700 px-4 py-2 border border-green-900 rounded"
-          >
-            <ArchiveRestore size={16} /> Restore
-          </button>
-          )
-        ) : (
-          hasPermission(PERMISSIONS.CASH_BANK.DELETE) && (
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-          >
-            <Trash2 size={16} /> Delete
-          </button>
-          )
-        )}
-
-        {!editExpense.isInactive && hasPermission(PERMISSIONS.CASH_BANK.EDIT) && (
-          <button
-            onClick={handleUpdate}
-            className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-          >
-            <Save size={16} /> Save
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+      </EditModal>
 
 
 
       {/* ---------------- COLUMN PICKER ---------------- */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)}>
-                <X size={20} className="text-gray-300 hover:text-white" />
-              </button>
-            </div>
-
-            <div className="p-4">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              {/* Visible */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((c) => visibleColumns[c])
-                  .filter((c) => c.includes(searchColumn))
-                  .map((c) => (
-                    <div key={c} className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2">
-                      <span>{c.toUpperCase()}</span>
-                      <button className="text-red-400" onClick={() => toggleColumn(c)}>
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* Hidden */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((c) => !visibleColumns[c])
-                  .filter((c) => c.includes(searchColumn))
-                  .map((c) => (
-                    <div key={c} className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2">
-                      <span>{c.toUpperCase()}</span>
-                      <button className="text-green-400" onClick={() => toggleColumn(c)}>
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter((c) => !visibleColumns[c]).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={restoreDefaultColumns} className="px-4 py-2 bg-gray-800 border border-gray-600 rounded">
-                Restore Defaults
-              </button>
-              <button onClick={() => setColumnModal(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 rounded">
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       {/* ---------------- MAIN PAGE ---------------- */}
       <PageLayout>
@@ -812,7 +720,7 @@ const Expenses = () => {
 
             {/* COLUMN PICKER */}
             <button
-              onClick={() => setColumnModal(true)}
+              onClick={() => setColumnModalOpen(true)}
               className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
             >
               <List size={16} className="text-blue-300" />

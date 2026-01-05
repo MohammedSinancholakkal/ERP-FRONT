@@ -25,7 +25,7 @@ import {
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
-
+import AddModal from "../../components/modals/AddModal";
 // ----------------- Utilities -----------------
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
@@ -104,128 +104,7 @@ const CustomDropdown = ({
   );
 };
 
-// ----------------- Lookup Create Modal -----------------
 
-
-
-
-const LookupCreateModal = ({
-  open,
-  onClose,
-  contexts = {},
-  onCreated,
-  initialMode = "country",
-  initialCountryId = "",
-  initialStateId = "",
-}) => {
-  const { countries = [], states = [], cities = [] } = contexts;
-  const [mode, setMode] = useState(initialMode);
-  const [name, setName] = useState("");
-  const [countryId, setCountryId] = useState(initialCountryId || "");
-  const [stateId, setStateId] = useState(initialStateId || "");
-
-  useEffect(() => {
-    if (!open) {
-      setName("");
-      setCountryId(initialCountryId || "");
-      setStateId(initialStateId || "");
-      setMode(initialMode || "country");
-    }
-  }, [open, initialCountryId, initialStateId, initialMode]);
-
-  const save = async () => {
-    if (!name || !name.trim()) return toast.error("Name required");
-    try {
-      let created = null;
-      if (mode === "country") {
-        if (typeof addCountryApi === "function") {
-          const res = await addCountryApi({ name: name.trim(), userId: 1 });
-          created = res?.data?.record || res?.data || null;
-        }
-      } else if (mode === "state") {
-        if (typeof addStateApi === "function") {
-          const res = await addStateApi({ name: name.trim(), countryId: Number(countryId || 0), userId: 1 });
-          created = res?.data?.record || res?.data || null;
-        }
-      } else if (mode === "city") {
-        if (typeof addCityApi === "function") {
-          const res = await addCityApi({ name: name.trim(), countryId: Number(countryId || 0), stateId: Number(stateId || 0), userId: 1 });
-          created = res?.data?.record || res?.data || null;
-        }
-      }
-
-      if (!created) created = { id: `t_${Date.now()}`, name: name.trim() };
-
-      onCreated && onCreated({ mode, created });
-      toast.success(`${mode} created`);
-      onClose();
-    } catch (err) {
-      console.error("lookup create error", err);
-      toast.error("Save failed");
-    }
-  };
-
-  if (!open) return null;
-
-  return ReactDOM.createPortal(
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[11000]">
-      <div className="w-[520px] bg-gray-900 text-white rounded-lg border border-gray-700 shadow-xl p-4">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg">Create lookup</h3>
-          <button onClick={onClose}><X /></button>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm mb-1 block">Type</label>
-            <select value={mode} onChange={(e) => setMode(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-2 text-sm">
-              <option value="country">Country</option>
-              <option value="state">State</option>
-              <option value="city">City</option>
-            </select>
-          </div>
-
-          {mode !== "country" && (
-            <div>
-              <label className="text-sm mb-1 block">Country</label>
-              <select value={countryId} onChange={(e) => setCountryId(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-2 text-sm">
-                <option value="">--select--</option>
-                {countries.map((c) => (
-                  <option key={c.Id ?? c.id} value={c.Id ?? c.id}>{c.CountryName || c.name || c.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {mode === "city" && (
-            <div>
-              <label className="text-sm mb-1 block">State</label>
-              <select value={stateId} onChange={(e) => setStateId(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-2 text-sm">
-                <option value="">--select--</option>
-                {states.map((s) => (
-                  <option key={s.Id ?? s.id} value={s.Id ?? s.id}>{s.StateName || s.name || s.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="text-sm mb-1 block">Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2" />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded">Cancel</button>
-            <button onClick={save}                
-             className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 disabled:opacity-60 disabled:cursor-not-allowed">
-              <Save size={14} /> Save</button>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
 
 // ----------------- Main Component -----------------
 const NewSupplier = () => {
@@ -236,19 +115,21 @@ const NewSupplier = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showLookup, setShowLookup] = useState(false);
-  const [lookupMode, setLookupMode] = useState("country");
-  const [lookupDefaults, setLookupDefaults] = useState({ countryId: "", stateId: "" });
-  const [lookupContexts, setLookupContexts] = useState({});
   const [isInactive, setIsInactive] = useState(false);
 
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [quickAddKey, setQuickAddKey] = useState("");
-  const [quickAddLabel, setQuickAddLabel] = useState("");
-  const [quickAddName, setQuickAddName] = useState("");
-  const [quickAddLoading, setQuickAddLoading] = useState(false);
-  const [quickAddCountryId, setQuickAddCountryId] = useState("");
-  const [quickAddStateId, setQuickAddStateId] = useState("");
+  // New Modal States
+  const [addCountryModalOpen, setAddCountryModalOpen] = useState(false);
+  const [addStateModalOpen, setAddStateModalOpen] = useState(false);
+  const [addCityModalOpen, setAddCityModalOpen] = useState(false);
+  const [addSupplierGroupModalOpen, setAddSupplierGroupModalOpen] = useState(false);
+  const [addRegionModalOpen, setAddRegionModalOpen] = useState(false);
+
+  // New Item States
+  const [newCountryName, setNewCountryName] = useState("");
+  const [newState, setNewState] = useState({ name: "", countryId: "" });
+  const [newCity, setNewCity] = useState({ name: "", countryId: "", stateId: "" });
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newRegionName, setNewRegionName] = useState("");
 
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
@@ -343,7 +224,7 @@ const NewSupplier = () => {
       const sgArr = parseArrayFromResponse(sg);
       setSupplierGroups(sgArr);
 
-      setLookupContexts({ countries: countriesArr, states: statesArr, cities: citiesArr });
+      setSupplierGroups(sgArr);
     } catch (err) {
       console.error("lookup load error", err);
       toast.error("Failed to load lookups");
@@ -471,144 +352,140 @@ const NewSupplier = () => {
     }
   };
 
-  const handleLookupCreated = ({ mode, created }) => {
-    // merge new item into local arrays so dropdowns see them immediately
-    if (mode === "country") {
-      setCountries((p) => [created, ...p]);
-      setLookupContexts((p) => ({ ...p, countries: [created, ...(p.countries || [])] }));
-    } else if (mode === "state") {
-      setStates((p) => [created, ...p]);
-      setStatesMaster((p) => [created, ...p]);
-      setLookupContexts((p) => ({ ...p, states: [created, ...(p.states || [])] }));
-    } else if (mode === "city") {
-      setCities((p) => [created, ...p]);
-      setCitiesMaster((p) => [created, ...p]);
-      setLookupContexts((p) => ({ ...p, cities: [created, ...(p.cities || [])] }));
-    }
-  };
+  // --- SAVE HANDLERS FOR NEW MODALS ---
 
-  const openQuickAdd = (key, label) => {
-    setQuickAddKey(key);
-    setQuickAddLabel(label);
-    setQuickAddName("");
-    setQuickAddLoading(false);
-    // seed parent selection for state/city
-    setLookupDefaults({
-      countryId: form.countryId || "",
-      stateId: form.stateId || "",
-    });
-    setQuickAddCountryId(form.countryId || "");
-    setQuickAddStateId(form.stateId || "");
-    setShowQuickAdd(true);
-  };
+  const handleSaveCountry = async () => {
+      if (!newCountryName.trim()) return toast.error("Country name is required");
+      try {
+          let created = null;
+          if (typeof addCountryApi === "function") {
+              const res = await addCountryApi({ name: newCountryName.trim(), userId: 1 });
+              created = res?.data?.record || res?.data || null;
+          }
+           if (!created) created = { id: `t_${Date.now()}`, CountryName: newCountryName.trim() };
+           
+           // Normalize
+           created = { ...created, CountryName: created.CountryName ?? created.name ?? newCountryName.trim(), name: created.name ?? created.CountryName ?? newCountryName.trim() };
 
-  const saveQuickAdd = async () => {
-    const name = quickAddName?.trim();
-    if (!name) return toast.error("Name required");
-    setQuickAddLoading(true);
-    try {
-      let created = null;
-      if (quickAddKey === "country") {
-        if (typeof addCountryApi === "function") {
-          const res = await addCountryApi({ name, userId: 1 });
-          created = res?.data?.record || res?.data || null;
-        }
-        if (!created) created = { id: `t_${Date.now()}`, CountryName: name };
-        created = {
-          ...created,
-          CountryName: created.CountryName ?? created.name ?? name,
-          name: created.name ?? created.CountryName ?? name,
-        };
-        setCountries((p) => [created, ...p]);
-        setLookupContexts((p) => ({ ...p, countries: [created, ...(p.countries || [])] }));
-        const newCountryId = created.Id ?? created.id;
-        update("countryId", newCountryId);
-        setQuickAddCountryId(newCountryId);
-        loadStatesForCountry(newCountryId);
-      } else if (quickAddKey === "state") {
-        const countryId = quickAddCountryId || form.countryId;
-        if (!countryId) {
-          toast.error("Select country first");
-          setQuickAddLoading(false);
-          return;
-        }
-        if (typeof addStateApi === "function") {
-          const res = await addStateApi({ name, countryId: Number(countryId), userId: 1 });
-          created = res?.data?.record || res?.data || null;
-        }
-        if (!created) created = { id: `t_${Date.now()}`, StateName: name, CountryId: countryId };
-        created = {
-          ...created,
-          StateName: created.StateName ?? created.name ?? name,
-          name: created.name ?? created.StateName ?? name,
-          CountryId: created.CountryId ?? countryId,
-        };
-        setStates((p) => [created, ...p]);
-        setStatesMaster((p) => [created, ...p]);
-        setLookupContexts((p) => ({ ...p, states: [created, ...(p.states || [])] }));
-        const newStateId = created.Id ?? created.id;
-        update("countryId", countryId);
-        update("stateId", newStateId);
-        setQuickAddStateId(newStateId);
-      } else if (quickAddKey === "city") {
-        const countryId = quickAddCountryId || form.countryId;
-        const stateId = quickAddStateId || form.stateId;
-        if (!countryId || !stateId) {
-          toast.error("Select country and state first");
-          setQuickAddLoading(false);
-          return;
-        }
-        if (typeof addCityApi === "function") {
-          const res = await addCityApi({
-            name,
-            countryId: Number(countryId),
-            stateId: Number(stateId),
-            userId: 1,
-          });
-          created = res?.data?.record || res?.data || null;
-        }
-        if (!created)
-          created = {
-            id: `t_${Date.now()}`,
-            CityName: name,
-            CountryId: countryId,
-            StateId: stateId,
-          };
-        created = {
-          ...created,
-          CityName: created.CityName ?? created.name ?? name,
-          name: created.name ?? created.CityName ?? name,
-          CountryId: created.CountryId ?? countryId,
-          StateId: created.StateId ?? stateId,
-        };
-        setCities((p) => [created, ...p]);
-        setCitiesMaster((p) => [created, ...p]);
-        setLookupContexts((p) => ({ ...p, cities: [created, ...(p.cities || [])] }));
-        const newCityId = created.Id ?? created.id;
-        update("countryId", countryId);
-        update("stateId", stateId);
-        update("cityId", newCityId);
-      } else if (quickAddKey === "supplierGroup") {
-        const createdLocal = { id: `t_${Date.now()}`, GroupName: name, name };
-        setSupplierGroups((p) => [createdLocal, ...p]);
-        update("supplierGroupId", createdLocal.id);
-      } else if (quickAddKey === "region") {
-        const createdLocal = { id: `t_${Date.now()}`, regionName: name, name };
-        setRegions((p) => [createdLocal, ...p]);
-        update("regionId", createdLocal.id);
-      } else if (quickAddKey === "orderBooker") {
-        const createdLocal = { id: `t_${Date.now()}`, label: name, name };
-        setEmployees((p) => [createdLocal, ...p]);
-        update("orderBookerId", createdLocal.id);
+           setCountries(prev => [created, ...prev]);
+           update("countryId", created.Id ?? created.id);
+           // Reset subordinate
+           update("stateId", null);
+           update("cityId", null);
+           loadStatesForCountry(created.Id ?? created.id); // Load (empty) states for new country
+
+           setNewCountryName("");
+           setAddCountryModalOpen(false);
+           toast.success("Country added successfully");
+      } catch (error) {
+          console.error("Failed to add country", error);
+          toast.error("Failed to add country");
       }
-      setShowQuickAdd(false);
-      toast.success("Added");
-    } catch (err) {
-      console.error("quick add error", err);
-      toast.error("Save failed");
-    } finally {
-      setQuickAddLoading(false);
+  };
+
+  const handleSaveState = async () => {
+    if (!newState.name.trim()) return toast.error("State name is required");
+    if (!newState.countryId) return toast.error("Country is required");
+
+    try {
+        let created = null;
+        if (typeof addStateApi === "function") {
+            const res = await addStateApi({ name: newState.name.trim(), countryId: Number(newState.countryId), userId: 1 });
+            created = res?.data?.record || res?.data || null;
+        }
+        if (!created) created = { id: `t_${Date.now()}`, StateName: newState.name.trim(), CountryId: newState.countryId };
+
+        // Normalize
+        created = { ...created, StateName: created.StateName ?? created.name ?? newState.name.trim(), name: created.name ?? created.StateName ?? newState.name.trim(), CountryId: created.CountryId ?? newState.countryId };
+
+        setStates(prev => [created, ...prev]);
+        setStatesMaster(prev => [created, ...prev]);
+        
+        // If the added state belongs to the currently selected country, select it
+        if(String(created.CountryId) === String(form.countryId)) {
+             update("stateId", created.Id ?? created.id);
+             update("cityId", null);
+             loadCitiesForState(created.Id ?? created.id);
+        } else {
+             // If added for a different country, maybe warn or switch? For now just add to master list.
+        }
+
+        setNewState({ name: "", countryId: "" });
+        setAddStateModalOpen(false);
+        toast.success("State added successfully");
+    } catch (error) {
+        console.error("Failed to add state", error);
+        toast.error("Failed to add state");
     }
+  };
+
+  const handleSaveCity = async () => {
+    if (!newCity.name.trim()) return toast.error("City name is required");
+    if (!newCity.countryId) return toast.error("Country is required");
+    if (!newCity.stateId) return toast.error("State is required");
+
+    try {
+        let created = null;
+        if (typeof addCityApi === "function") {
+             const res = await addCityApi({
+                name: newCity.name.trim(),
+                countryId: Number(newCity.countryId),
+                stateId: Number(newCity.stateId),
+                userId: 1,
+              });
+              created = res?.data?.record || res?.data || null;
+        }
+
+        if(!created) created = { id: `t_${Date.now()}`, CityName: newCity.name.trim(), CountryId: newCity.countryId, StateId: newCity.stateId };
+
+        // Normalize
+        created = {
+          ...created,
+          CityName: created.CityName ?? created.name ?? newCity.name.trim(),
+          name: created.name ?? created.CityName ?? newCity.name.trim(),
+          CountryId: created.CountryId ?? newCity.countryId,
+          StateId: created.StateId ?? newCity.stateId,
+        };
+
+        setCities(prev => [created, ...prev]);
+        setCitiesMaster(prev => [created, ...prev]);
+
+        if (String(created.StateId) === String(form.stateId)) {
+            update("cityId", created.Id ?? created.id);
+        }
+
+        setNewCity({ name: "", countryId: "", stateId: "" });
+        setAddCityModalOpen(false);
+        toast.success("City added successfully");
+    } catch (error) {
+        console.error("Failed to add city", error);
+        toast.error("Failed to add city");
+    }
+  };
+
+  const handleSaveSupplierGroup = () => {
+      if(!newGroupName.trim()) return toast.error("Group name required");
+      // Mock API call or Real API if available (not imported but pattern suggests it exists or we mock)
+      // The original code mocked it:
+      const createdLocal = { id: `t_${Date.now()}`, GroupName: newGroupName.trim(), name: newGroupName.trim() };
+      setSupplierGroups(prev => [createdLocal, ...prev]);
+      update("supplierGroupId", createdLocal.id);
+      
+      setNewGroupName("");
+      setAddSupplierGroupModalOpen(false);
+      toast.success("Group added");
+  };
+
+  const handleSaveRegion = () => {
+      if(!newRegionName.trim()) return toast.error("Region name required");
+      // Mock
+      const createdLocal = { id: `t_${Date.now()}`, regionName: newRegionName.trim(), name: newRegionName.trim() };
+      setRegions(prev => [createdLocal, ...prev]);
+      update("regionId", createdLocal.id);
+
+      setNewRegionName("");
+      setAddRegionModalOpen(false);
+      toast.success("Region added");
   };
 
   const validate = () => {
@@ -799,7 +676,9 @@ const handleRestore = async () => {
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <button onClick={() => {
-                  if (location.state?.returnTo) {
+                  if (location.state?.from) {
+                      navigate(location.state.from);
+                  } else if (location.state?.returnTo) {
                       navigate(location.state.returnTo);
                   } else {
                       navigate("/app/businesspartners/suppliers");
@@ -860,7 +739,7 @@ const handleRestore = async () => {
                 }}
               showStar={!isEditMode && hasPermission(PERMISSIONS.COUNTRIES.CREATE)}
               showPencil={isEditMode}
-              onAddClick={() => openQuickAdd("country", "Country")}
+              onAddClick={() => setAddCountryModalOpen(true)}
               />
             </div>
 
@@ -876,7 +755,7 @@ const handleRestore = async () => {
                 }}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)}
                 showPencil={isEditMode}
-              onAddClick={() => openQuickAdd("state", "State")}
+              onAddClick={() => setAddStateModalOpen(true)}
               />
             </div>
             <div className="col-span-12 md:col-span-6">
@@ -887,7 +766,7 @@ const handleRestore = async () => {
                 onSelect={(item) => update("cityId", item?.id ?? null)}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)}
                 showPencil={isEditMode}
-              onAddClick={() => openQuickAdd("city", "City")}
+              onAddClick={() => setAddCityModalOpen(true)}
               />
             </div>
 
@@ -908,7 +787,7 @@ const handleRestore = async () => {
                 onSelect={(it) => update("supplierGroupId", it?.id ?? null)}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.SUPPLIER_GROUPS.CREATE)}
                 showPencil={isEditMode}
-                onAddClick={() => openQuickAdd("supplierGroup", "Supplier Group")}
+                onAddClick={() => setAddSupplierGroupModalOpen(true)}
                 disabled={isInactive}
               />
             </div>
@@ -931,7 +810,7 @@ const handleRestore = async () => {
                 onSelect={(it) => update("regionId", it?.id ?? null)}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.REGIONS.CREATE)}
                 showPencil={isEditMode}
-                onAddClick={() => openQuickAdd("region", "Region")}
+                onAddClick={() => setAddRegionModalOpen(true)}
                 disabled={isInactive}
               />
             </div>
@@ -1046,7 +925,7 @@ const handleRestore = async () => {
                 onSelect={(item) => update("orderBookerId", item?.id ?? null)}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
                 showPencil={isEditMode}
-                onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker" } })}
+                onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname } })}
                 direction="up"
                 disabled={isInactive}
               />
@@ -1054,144 +933,156 @@ const handleRestore = async () => {
           </div>
         </div>
 
-        {showLookup && (
-          <LookupCreateModal
-            open={showLookup}
-            contexts={lookupContexts}
-            onClose={() => setShowLookup(false)}
-            onCreated={handleLookupCreated}
-            initialMode={lookupMode}
-            initialCountryId={lookupDefaults.countryId}
-            initialStateId={lookupDefaults.stateId}
-          />
-        )}
-{showQuickAdd &&
-  ReactDOM.createPortal(
-    <div className="fixed inset-0 z-[12000] flex items-center justify-center">
-      {/* BACKDROP */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={() => setShowQuickAdd(false)}
-      />
-
-      {/* MODAL */}
-      <div className="relative  w-[700px] mx-4 bg-gradient-to-b from-gray-900 to-gray-800 text-white border border-gray-700 rounded-lg shadow-xl">
-        
-        {/* HEADER */}
-        <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-          <h3 className="text-lg font-semibold">
-            Add new {quickAddLabel}
-          </h3>
-          <button
-            onClick={() => setShowQuickAdd(false)}
-            className="text-gray-400 hover:text-white"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* BODY */}
-        <div className="p-5 space-y-4">
-
-          {/* STATE → COUNTRY */}
-          {quickAddKey === "state" && (
-            <CustomDropdown
-              label="Country"
-              list={countries.map(c => ({
-                id: c.Id ?? c.id,
-                label: c.CountryName || c.name || c.label,
-              }))}
-              valueId={quickAddCountryId}
-              onSelect={(item) => {
-                setQuickAddCountryId(item?.id ?? "");
-                setQuickAddStateId("");
-              }}
-              showStar={false}
-              showPencil={false}
-            />
-          )}
-
-          {/* CITY → COUNTRY + STATE */}
-          {quickAddKey === "city" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <CustomDropdown
-                label="Country"
-                list={countries.map(c => ({
-                  id: c.Id ?? c.id,
-                  label: c.CountryName || c.name || c.label,
-                }))}
-                valueId={quickAddCountryId}
-                onSelect={(item) => {
-                  setQuickAddCountryId(item?.id ?? "");
-                  setQuickAddStateId("");
-                }}
-                showStar={false}
-                showPencil={false}
-              />
-
-              <CustomDropdown
-                label="State"
-                list={(statesMaster || [])
-                  .filter(
-                    s =>
-                      !quickAddCountryId ||
-                      String(s.CountryId ?? s.countryId) ===
-                        String(quickAddCountryId)
-                  )
-                  .map(s => ({
-                    id: s.Id ?? s.id,
-                    label: s.StateName || s.name || s.label,
-                  }))
-                }
-                valueId={quickAddStateId}
-                onSelect={(item) =>
-                  setQuickAddStateId(item?.id ?? "")
-                }
-                showStar={false}
-                showPencil={false}
-              />
-            </div>
-          )}
-
-          {/* NAME */}
-          <div>
-            <label className="text-sm text-gray-300 mb-1 block">
-              Name
-            </label>
-            <input
-              value={quickAddName}
-              onChange={(e) => setQuickAddName(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              placeholder={`Enter ${quickAddLabel} name`}
-            />
+        {/* =============================
+            ADD COUNTRY MODAL 
+        ============================== */}
+        <AddModal
+          isOpen={addCountryModalOpen}
+          onClose={() => setAddCountryModalOpen(false)}
+          onSave={handleSaveCountry}
+          title="Add Country"
+          width="600px"
+        >
+          <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300 mb-1 block">Country Name *</label>
+                  <input
+                      type="text"
+                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                      value={newCountryName}
+                      onChange={(e) => setNewCountryName(e.target.value)}
+                      placeholder="Enter Country Name"
+                  />
+              </div>
           </div>
-        </div>
+        </AddModal>
 
-        {/* FOOTER */}
-        <div className="flex justify-end gap-3 px-5 py-3 border-t border-gray-700">
-          <button
-            onClick={() => setShowQuickAdd(false)}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-            disabled={quickAddLoading}
-          >
-            Cancel
-          </button>
+        {/* =============================
+            ADD STATE MODAL 
+        ============================== */}
+        <AddModal
+          isOpen={addStateModalOpen}
+          onClose={() => setAddStateModalOpen(false)}
+          onSave={handleSaveState}
+          title="Add State"
+          width="600px"
+        >
+          <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300 mb-1 block">Country *</label>
+                  <SearchableSelect
+                      options={countries.map(c => ({ id: c.Id ?? c.id, name: c.CountryName || c.name }))}
+                      value={newState.countryId}
+                      onChange={(val) => setNewState({ ...newState, countryId: val })}
+                      placeholder="Select Country"
+                  />
+              </div>
+              <div>
+                  <label className="text-sm text-gray-300 mb-1 block">State Name *</label>
+                  <input
+                      type="text"
+                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                      value={newState.name}
+                      onChange={(e) => setNewState({ ...newState, name: e.target.value })}
+                      placeholder="Enter State Name"
+                  />
+              </div>
+          </div>
+        </AddModal>
 
-          {/* SAME SAVE BUTTON THEME */}
-          <button
-            onClick={saveQuickAdd}
-            disabled={quickAddLoading}
-            className="px-4 py-2 bg-gray-800 border border-gray-600 rounded
-                       text-blue-200 hover:bg-gray-700
-                       disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {quickAddLoading ? "Saving..." : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  )}
+        {/* =============================
+            ADD CITY MODAL 
+        ============================== */}
+        <AddModal
+          isOpen={addCityModalOpen}
+          onClose={() => setAddCityModalOpen(false)}
+          onSave={handleSaveCity}
+          title="Add City"
+          width="600px"
+        >
+          <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="text-sm text-gray-300 mb-1 block">Country *</label>
+                      <SearchableSelect
+                          options={countries.map(c => ({ id: c.Id ?? c.id, name: c.CountryName || c.name }))}
+                          value={newCity.countryId}
+                          onChange={(val) => setNewCity({ ...newCity, countryId: val, stateId: "" })}
+                          placeholder="Select Country"
+                      />
+                  </div>
+                  <div>
+                      <label className="text-sm text-gray-300 mb-1 block">State *</label>
+                      <SearchableSelect
+                           options={(statesMaster || [])
+                              .filter(s => !newCity.countryId || String(s.CountryId ?? s.countryId) === String(newCity.countryId))
+                              .map(s => ({ id: s.Id ?? s.id, name: s.StateName || s.name }))}
+                          value={newCity.stateId}
+                          onChange={(val) => setNewCity({ ...newCity, stateId: val })}
+                          placeholder="Select State"
+                      />
+                  </div>
+              </div>
+              <div>
+                  <label className="text-sm text-gray-300 mb-1 block">City Name *</label>
+                  <input
+                      type="text"
+                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                      value={newCity.name}
+                      onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
+                      placeholder="Enter City Name"
+                  />
+              </div>
+          </div>
+        </AddModal>
+
+        {/* =============================
+            ADD SUPPLIER GROUP MODAL 
+        ============================== */}
+        <AddModal
+          isOpen={addSupplierGroupModalOpen}
+          onClose={() => setAddSupplierGroupModalOpen(false)}
+          onSave={handleSaveSupplierGroup}
+          title="Add Supplier Group"
+          width="600px"
+        >
+          <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300 mb-1 block">Group Name *</label>
+                  <input
+                      type="text"
+                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="Enter Group Name"
+                  />
+              </div>
+          </div>
+        </AddModal>
+
+        {/* =============================
+            ADD REGION MODAL 
+        ============================== */}
+        <AddModal
+          isOpen={addRegionModalOpen}
+          onClose={() => setAddRegionModalOpen(false)}
+          onSave={handleSaveRegion}
+          title="Add Region"
+          width="600px"
+        >
+          <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300 mb-1 block">Region Name *</label>
+                  <input
+                      type="text"
+                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                      value={newRegionName}
+                      onChange={(e) => setNewRegionName(e.target.value)}
+                      placeholder="Enter Region Name"
+                  />
+              </div>
+          </div>
+        </AddModal>
   
 
       </div>

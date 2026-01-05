@@ -46,6 +46,7 @@ import Swal from "sweetalert2";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import AddModal from "../../components/modals/AddModal";
 
 const EmpSearchableSelect = ({
   label,
@@ -273,10 +274,102 @@ const loadEmployeeForEdit = async () => {
     typedName: ""
   });
   
+  const [lookupName, setLookupName] = useState("");
+
   const lookupSetters = {
       setCountries, setStates, setCities, setRegions, setTerritories,
       setDesignations, setDepartments, setIncomeTypes, setDeductionTypes, setBanks
   };
+
+  // Lifted Logic for Lookup Save
+  const handleLookupSave = async () => {
+    const { key, callback, mode } = lookupCreateContext;
+    if (!lookupName || !lookupName.trim()) return toast.error("Name required");
+
+    try {
+      let created = null;
+      if (!mode || mode === "add") {
+        const userId = form.userId || 1;
+        
+        if (key === "country") {
+          const res = await addCountryApi({ name: lookupName.trim(), userId });
+          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
+        } else if (key === "state") {
+          const res = await addStateApi({ name: lookupName.trim(), countryId: Number(form.countryId), userId });
+          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
+        } else if (key === "city") {
+           const res = await addCityApi({ name: lookupName.trim(), countryId: Number(form.countryId), stateId: Number(form.stateId), userId });
+           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
+        } else if (key === "region") {
+          const res = await addRegionApi({ name: lookupName.trim(), userId });
+          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
+        } else if (key === "territory") {
+           const res = await addTerritoryApi({ name: lookupName.trim(), regionId: Number(form.regionId), userId });
+           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
+        } else {
+           created = { id: `t_${Date.now()}`, name: lookupName.trim() };
+        }
+      }
+
+      if (!created) created = { id: `t_${Date.now()}`, name: lookupName.trim() };
+
+      switch (key) {
+        case "country": setCountries((p) => [created, ...p]); break;
+        case "state": setStates((p) => [created, ...p]); break;
+        case "city": setCities((p) => [created, ...p]); break;
+        case "region": setRegions((p) => [created, ...p]); break;
+        case "territory": setTerritories((p) => [created, ...p]); break;
+        case "designation": setDesignations((p) => [created, ...p]); break;
+        case "department": setDepartments((p) => [created, ...p]); break;
+        case "incomeType": setIncomeTypes((p) => [created, ...p]); break;
+        case "deductionType": setDeductionTypes((p) => [created, ...p]); break;
+        case "bank": setBanks((p) => [created, ...p]); break;
+        default: break;
+      }
+
+      if (typeof callback === "function") callback(created);
+      setShowLookupCreateModal(false);
+      setLookupName("");
+      toast.success(`${mode === "edit" ? "Updated" : "Added"} ${key}`);
+    } catch (err) {
+      console.error("lookup create error:", err);
+      toast.error("Save failed");
+    }
+  };
+
+  // Lifted Logic for Income Save
+  const handleIncomeSave = () => {
+      if (!incomeForm.typeId) return toast.error("Income required");
+      if (!incomeForm.amount) return toast.error("Amount required");
+
+      const typeName = incomeTypes.find(t => String(t.id) === String(incomeForm.typeId))?.name || "";
+
+      if (editingIncomeId) {
+        setIncomes(prev => prev.map(r => r.id === editingIncomeId ? { ...r, ...incomeForm, typeName } : r));
+      } else {
+        setIncomes(prev => [{ id: `i_${Date.now()}`, ...incomeForm, typeName }, ...prev]);
+      }
+      setEditingIncomeId(null);
+      setIncomeForm({ typeId: null, amount: "", description: "" });
+      setShowIncomeModal(false);
+  };
+
+  // Lifted Logic for Deduction Save
+   const handleDeductionSave = () => {
+      if (!deductionForm.typeId) return toast.error("Deduction required");
+      if (!deductionForm.amount) return toast.error("Amount required");
+
+      const typeName = deductionTypes.find(t => String(t.id) === String(deductionForm.typeId))?.name || "";
+
+      if (editingDeductionId) {
+        setDeductions(prev => prev.map(r => r.id === editingDeductionId ? { ...r, ...deductionForm, typeName } : r));
+      } else {
+        setDeductions(prev => [{ id: `d_${Date.now()}`, ...deductionForm, typeName }, ...prev]);
+      }
+      setEditingDeductionId(null);
+      setDeductionForm({ typeId: null, amount: "", description: "" });
+      setShowDeductionModal(false);
+   };
 
   // load initial lookups
   useEffect(() => {
@@ -680,7 +773,13 @@ const handleDelete = async () => {
           <div className="flex items-center justify-between mb-3">
            <div className="flex items-center gap-3">
               <button 
-                onClick={() => navigate("/app/hr/employees")} 
+                onClick={() => {
+                  if (location.state?.from) {
+                      navigate(location.state.from);
+                  } else {
+                      navigate("/app/hr/employees");
+                  }
+                }} 
                 className="text-white hover:text-white-400"
               >
             <ArrowLeft size={24} />
@@ -1159,255 +1258,111 @@ const handleDelete = async () => {
         </div>
       </div>
 
-      {/* MODALS rendered via Portal to avoid stacking context issues */}
-      {showIncomeModal && <Portal><IncomeModal onClose={() => setShowIncomeModal(false)} initialForm={incomeForm} editingId={editingIncomeId} setEditingId={setEditingIncomeId} setIncomes={setIncomes} types={incomeTypes} /></Portal>}
-      {showDeductionModal && <Portal><DeductionModal onClose={() => setShowDeductionModal(false)} initialForm={deductionForm} editingId={editingDeductionId} setEditingId={setEditingDeductionId} setDeductions={setDeductions} types={deductionTypes} /></Portal>}
-      {showLookupCreateModal && <Portal><LookupCreateModal context={lookupCreateContext} onClose={() => setShowLookupCreateModal(false)} setters={lookupSetters} form={form} /></Portal>}
-    </PageLayout>
-  );
-};
 
-// ==========================================
-// EXTRACTED COMPONENTS (MOVED OUTSIDE)
-// ==========================================
+      {/* MODALS rendered via AddModal */}
+      
+      {/* INCOME MODAL */}
+      <AddModal
+        isOpen={showIncomeModal}
+        onClose={() => setShowIncomeModal(false)}
+        onSave={handleIncomeSave}
+        title={editingIncomeId ? "Edit Income" : "Add Income"}
+        width="500px"
+      >
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm block mb-1 text-gray-300">Income *</label>
+              <SearchableSelect
+                options={incomeTypes}
+                value={incomeForm.typeId}
+                onChange={(val) => setIncomeForm({ ...incomeForm, typeId: val })}
+                placeholder="Select Income Type"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-sm text-gray-300">Amount *</label>
+                <input 
+                  type="number" 
+                  value={incomeForm.amount} 
+                  onChange={(e) => setIncomeForm(p => ({ ...p, amount: e.target.value }))} 
+                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
+                  autoFocus 
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm text-gray-300">Description</label>
+                <input 
+                  type="text" 
+                  value={incomeForm.description} 
+                  onChange={(e) => setIncomeForm(p => ({ ...p, description: e.target.value }))} 
+                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
+                />
+              </div>
+            </div>
+          </div>
+      </AddModal>
 
-const Portal = ({ children }) => {
-  if (typeof document === "undefined") return null;
-  return ReactDOM.createPortal(children, document.body);
-};
+      {/* DEDUCTION MODAL */}
+       <AddModal
+        isOpen={showDeductionModal}
+        onClose={() => setShowDeductionModal(false)}
+        onSave={handleDeductionSave}
+        title={editingDeductionId ? "Edit Deduction" : "Add Deduction"}
+        width="500px"
+      >
+         <div className="space-y-3">
+            <div>
+              <label className="text-sm block mb-1 text-gray-300">Deduction *</label>
+              <SearchableSelect
+                options={deductionTypes}
+                value={deductionForm.typeId}
+                onChange={(val) => setDeductionForm({ ...deductionForm, typeId: val })}
+                placeholder="Select Deduction Type"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-sm text-gray-300">Amount *</label>
+                <input 
+                  type="number" 
+                  value={deductionForm.amount} 
+                  onChange={(e) => setDeductionForm(p => ({ ...p, amount: e.target.value }))} 
+                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
+                  autoFocus
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm text-gray-300">Description</label>
+                <input 
+                  type="text" 
+                  value={deductionForm.description} 
+                  onChange={(e) => setDeductionForm(p => ({ ...p, description: e.target.value }))} 
+                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
+                />
+              </div>
+            </div>
+         </div>
+      </AddModal>
 
-
-
-const LookupCreateModal = ({ context, onClose, setters, form }) => {
-  const { key, callback, item, mode, typedName } = context || {};
-  const [name, setName] = useState(item?.name || item?.designation || item?.department || typedName || "");
-  const [countryIdLocal, setCountryIdLocal] = useState(item?.countryId || form.countryId || "");
-  const [stateIdLocal, setStateIdLocal] = useState(item?.stateId || form.stateId || "");
-
-  const countryRefModal = useRef(null);
-  const stateRefModal = useRef(null);
-  
-  const [countrySearchLocal, setCountrySearchLocal] = useState("");
-  const [countryOpenLocal, setCountryOpenLocal] = useState(false);
-  const [stateSearchLocal, setStateSearchLocal] = useState("");
-  const [stateOpenLocal, setStateOpenLocal] = useState(false);
-
-  const {
-      setCountries, setStates, setCities, setRegions, setTerritories,
-      setDesignations, setDepartments, setIncomeTypes, setDeductionTypes, setBanks
-  } = setters;
-
-  const save = async () => {
-    if (!name || !name.trim()) return toast.error("Name required");
-    try {
-      let created = null;
-      if (!mode || mode === "add") {
-        if (key === "country") {
-          const res = await addCountryApi({ name: name.trim(), userId: form.userId || 1 });
-          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
-        } else if (key === "state") {
-          const res = await addStateApi({ name: name.trim(), countryId: Number(countryIdLocal || form.countryId), userId: form.userId || 1 });
-          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
-        } else if (key === "city") {
-          const res = await addCityApi({ name: name.trim(), countryId: Number(countryIdLocal || form.countryId), stateId: Number(stateIdLocal || form.stateId), userId: form.userId || 1 });
-          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
-        } else if (key === "region") {
-          const res = await addRegionApi({ name: name.trim(), userId: form.userId || 1 });
-          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
-        } else if (key === "territory") {
-          const res = await addTerritoryApi({ name: name.trim(), regionId: Number(context.regionId || form.regionId), userId: form.userId || 1 });
-          created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
-        } else {
-           created = { id: `t_${Date.now()}`, name: name.trim() };
-        }
-      }
-
-      if (!created) created = { id: `t_${Date.now()}`, name: name.trim() };
-
-      switch (key) {
-        case "country": setCountries((p) => [created, ...p]); break;
-        case "state": setStates((p) => [created, ...p]); break;
-        case "city": setCities((p) => [created, ...p]); break;
-        case "region": setRegions((p) => [created, ...p]); break;
-        case "territory": setTerritories((p) => [created, ...p]); break;
-        case "designation": setDesignations((p) => [created, ...p]); break;
-        case "department": setDepartments((p) => [created, ...p]); break;
-        case "incomeType": setIncomeTypes((p) => [created, ...p]); break;
-        case "deductionType": setDeductionTypes((p) => [created, ...p]); break;
-        case "bank": setBanks((p) => [created, ...p]); break;
-        default: break;
-      }
-
-      if (typeof callback === "function") callback(created);
-      onClose();
-      toast.success(`${mode === "edit" ? "Updated" : "Added"} ${key}`);
-    } catch (err) {
-      console.error("lookup create error:", err);
-      toast.error("Save failed");
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[11000]">
-      <div className="w-[520px] bg-gray-900 text-white rounded-lg border border-gray-700 shadow-xl relative z-[11001]">
-        <div className="flex justify-between px-4 py-2 border-b border-gray-700 ">
-          <h2 className="text-lg font-semibold">{(mode === "edit" ? "Edit" : "Create")} {key}</h2>
-          <button onClick={onClose} className="p-1"><X size={18} /></button>
-        </div>
-        <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+      {/* LOOKUP CREATE MODAL */}
+      <AddModal
+        isOpen={showLookupCreateModal}
+        onClose={() => setShowLookupCreateModal(false)}
+        onSave={handleLookupSave}
+        title={`${lookupCreateContext.mode === "edit" ? "Edit" : "Create"} ${lookupCreateContext.key}`}
+        width="500px"
+      >
+        <div className="space-y-3">
            <label className="text-sm text-gray-300">Name *</label>
-           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" />
+           <input 
+             value={lookupName} 
+             onChange={(e) => setLookupName(e.target.value)} 
+             className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
+           />
         </div>
-        <div className="px-4 py-2 border-t border-gray-700 flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Cancel</button>
-          <button onClick={save} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-blue-300 text-sm"><Save size={14} /> Save</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const IncomeModal = ({ 
-  onClose, 
-  initialForm, // Receive initial data instead of shared state
-  editingId, 
-  setEditingId, 
-  setIncomes,
-  types,
-}) => {
-  // INTERNAL STATE: Prevent parent re-renders on keystroke
-  const [localForm, setLocalForm] = React.useState(initialForm || { typeId: "", amount: "", description: "" });
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[10400]">
-      <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-        <div className="flex justify-between px-4 py-2 border-b border-gray-700">
-          <h2 className="text-lg font-semibold">{editingId ? "Edit Income" : "Add Income"}</h2>
-          <button onClick={onClose} className="p-1"><X size={18} /></button>
-        </div>
-        <div className="p-4 space-y-3">
-          <div>
-            <label className="text-sm block mb-1 text-gray-300">Income *</label>
-            <SearchableSelect
-              options={types}
-              value={localForm.typeId}
-              onChange={(val) => setLocalForm({ ...localForm, typeId: val })}
-              placeholder="Select Income Type"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-sm text-gray-300">Amount *</label>
-              <input 
-                type="number" 
-                value={localForm.amount} 
-                onChange={(e) => setLocalForm(p => ({ ...p, amount: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-                autoFocus 
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="text-sm text-gray-300">Description</label>
-              <input 
-                type="text" 
-                value={localForm.description} 
-                onChange={(e) => setLocalForm(p => ({ ...p, description: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-             <button onClick={onClose} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Cancel</button>
-             <button onClick={() => {
-                if (!localForm.typeId) return toast.error("Income required");
-                if (!localForm.amount) return toast.error("Amount required");
-                
-                const typeName = types.find(t => String(t.id) === String(localForm.typeId))?.name || "";
-                
-                if (editingId) {
-                  setIncomes(prev => prev.map(r => r.id === editingId ? { ...r, ...localForm, typeName } : r));
-                } else {
-                  setIncomes(prev => [{ id: `i_${Date.now()}`, ...localForm, typeName }, ...prev]);
-                }
-                setEditingId(null);
-                onClose();
-             }} className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-700 transition-colors"><Save size={16} /> Save</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const DeductionModal = ({ 
-  onClose, 
-  initialForm, 
-  editingId, 
-  setEditingId, 
-  setDeductions,
-  types,
-}) => {
-  // INTERNAL STATE: Prevent parent re-renders on keystroke
-  const [localForm, setLocalForm] = React.useState(initialForm || { typeId: "", amount: "", description: "" });
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[10400]">
-      <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-        <div className="flex justify-between px-4 py-2 border-b border-gray-700">
-          <h2 className="text-lg font-semibold">{editingId ? "Edit Deduction" : "Add Deduction"}</h2>
-          <button onClick={onClose} className="p-1"><X size={18} /></button>
-        </div>
-        <div className="p-4 space-y-3">
-          <div>
-            <label className="text-sm block mb-1 text-gray-300">Deduction *</label>
-            <SearchableSelect
-              options={types}
-              value={localForm.typeId}
-              onChange={(val) => setLocalForm({ ...localForm, typeId: val })}
-              placeholder="Select Deduction Type"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-sm text-gray-300">Amount *</label>
-              <input 
-                type="number" 
-                value={localForm.amount} 
-                onChange={(e) => setLocalForm(p => ({ ...p, amount: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-                autoFocus
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="text-sm text-gray-300">Description</label>
-              <input 
-                type="text" 
-                value={localForm.description} 
-                onChange={(e) => setLocalForm(p => ({ ...p, description: e.target.value }))} 
-                className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-             <button onClick={onClose} className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">Cancel</button>
-             <button onClick={() => {
-                if (!localForm.typeId) return toast.error("Deduction required");
-                if (!localForm.amount) return toast.error("Amount required");
-                
-                const typeName = types.find(t => String(t.id) === String(localForm.typeId))?.name || "";
-                
-                if (editingId) {
-                  setDeductions(prev => prev.map(r => r.id === editingId ? { ...r, ...localForm, typeName } : r));
-                } else {
-                  setDeductions(prev => [{ id: `d_${Date.now()}`, ...localForm, typeName }, ...prev]);
-                }
-                setEditingId(null);
-                onClose();
-             }} className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-700 transition-colors"><Save size={16} /> Save</button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </AddModal>
+    </PageLayout>
   );
 };
 

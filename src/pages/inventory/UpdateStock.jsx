@@ -37,6 +37,9 @@ import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const UpdateStocks = () => {
   // UI states
@@ -538,430 +541,216 @@ const UpdateStocks = () => {
   return (
     <>
       {/* ADD MODAL */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setModalOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative w-[700px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl"
-          >
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Stock</h2>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="text-gray-300 hover:text-white"
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAdd}
+        title="New Stock"
+        width="700px"
+      >
+        <div className="p-0 space-y-4">
+          {/* Product (Add modal) */}
+          <div>
+            <label className="text-sm">Product *</label>
+            <SearchableSelect 
+                options={products.map(p => ({ id: p.id, name: p.name }))}
+                value={newItem.productId}
+                onChange={(v) => setNewItem((p) => ({ ...p, productId: v }))}
+                placeholder="Select Product"
+                className="mt-1"
+            />
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="text-sm">Quantity *</label>
+            <input
+              type="text"
+              value={newItem.quantity}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || /^[0-9]*$/.test(v))
+                  setNewItem((p) => ({ ...p, quantity: v }));
+              }}
+              placeholder="0"
+              className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
+
+          {/* Warehouse (Add modal) */}
+          <div>
+            <label className="text-sm">Warehouse (optional)</label>
+            <SearchableSelect
+                options={warehouses.map(w => ({ id: w.id, name: w.name }))}
+                value={newItem.warehouseId}
+                onChange={(v) => setNewItem((p) => ({ ...p, warehouseId: v }))}
+                placeholder="Select Warehouse"
+                className="mt-1"
+            />
+          </div>
+
+          {/* Mode & Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm">Mode *</label>
+              <select
+                value={newItem.mode}
+                onChange={(e) =>
+                  setNewItem((p) => ({ ...p, mode: e.target.value }))
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
-                <X />
-              </button>
+                <option value="IN">IN</option>
+                <option value="OUT">OUT</option>
+              </select>
             </div>
 
-            <div className="p-6 space-y-4">
-              {/* Product (Add modal) */}
-              <div>
-                <label className="text-sm">Product *</label>
-                <SearchableSelect 
-                    options={products.map(p => ({ id: p.id, name: p.name }))}
-                    value={newItem.productId}
-                    onChange={(v) => setNewItem((p) => ({ ...p, productId: v }))}
-                    placeholder="Select Product"
-                    className="mt-1"
-                />
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label className="text-sm">Quantity *</label>
-                <input
-                  type="text"
-                  value={newItem.quantity}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "" || /^[0-9]*$/.test(v))
-                      setNewItem((p) => ({ ...p, quantity: v }));
-                  }}
-                  placeholder="0"
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-
-              {/* Warehouse (Add modal) */}
-              <div>
-                <label className="text-sm">Warehouse (optional)</label>
-                <SearchableSelect
-                    options={warehouses.map(w => ({ id: w.id, name: w.name }))}
-                    value={newItem.warehouseId}
-                    onChange={(v) => setNewItem((p) => ({ ...p, warehouseId: v }))}
-                    placeholder="Select Warehouse"
-                    className="mt-1"
-                />
-              </div>
-
-              {/* Mode & Status */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm">Mode *</label>
-                  <select
-                    value={newItem.mode}
-                    onChange={(e) =>
-                      setNewItem((p) => ({ ...p, mode: e.target.value }))
-                    }
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                  >
-                    <option value="IN">IN</option>
-                    <option value="OUT">OUT</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm">Status *</label>
-                  <select
-                    value={newItem.status}
-                    onChange={(e) =>
-                      setNewItem((p) => ({ ...p, status: e.target.value }))
-                    }
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Complete">Complete</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* VNo */}
-              {/* <div>
-                <label className="text-sm">VNo</label>
-                <input
-                  value={newItem.vNo}
-                  onChange={(e) => setNewItem((p) => ({ ...p, vNo: e.target.value }))}
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div> */}
-
-              {/* Note */}
-              <div>
-                <label className="text-sm">Note</label>
-                <textarea
-                  value={newItem.note}
-                  onChange={(e) =>
-                    setNewItem((p) => ({ ...p, note: e.target.value }))
-                  }
-                  className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+            <div>
+              <label className="text-sm">Status *</label>
+              <select
+                value={newItem.status}
+                onChange={(e) =>
+                  setNewItem((p) => ({ ...p, status: e.target.value }))
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
               >
-                Cancel
-              </button>
-              {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
-              <button
-                onClick={handleAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
+                <option value="Pending">Pending</option>
+                <option value="Complete">Complete</option>
+              </select>
             </div>
           </div>
+
+          {/* Note */}
+          <div>
+            <label className="text-sm">Note</label>
+            <textarea
+              value={newItem.note}
+              onChange={(e) =>
+                setNewItem((p) => ({ ...p, note: e.target.value }))
+              }
+              className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            />
+          </div>
         </div>
-      )}
+      </AddModal>
 
       {/* EDIT MODAL */}
-      {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setEditModalOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative w-[700px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl"
-          >
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">
-                {editItem.isInactive ? "Restore Stock" : "Edit Stock"}
-              </h2>
-              <button
-                onClick={() => setEditModalOpen(false)}
-                className="text-gray-300 hover:text-white"
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdate}
+        onDelete={handleDelete}
+        onRestore={handleRestore}
+        isInactive={editItem.isInactive}
+        title={`${editItem.isInactive ? "Restore Stock" : "Edit Stock"}`}
+        permissionDelete={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT)}
+        width="700px"
+      >
+        <div className="p-0 space-y-4">
+          {/* Product (Edit modal) */}
+          <div>
+            <label className="text-sm">Product *</label>
+             <SearchableSelect 
+                options={products.map(p => ({ id: p.id, name: p.name }))}
+                value={editItem.productId}
+                onChange={(v) => setEditItem((p) => ({ ...p, productId: v }))}
+                placeholder="Select Product"
+                disabled={editItem.isInactive}
+                className="mt-1"
+            />
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="text-sm">Quantity *</label>
+            <input
+              type="text"
+              value={editItem.quantity}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || /^[0-9]*$/.test(v))
+                  setEditItem((p) => ({ ...p, quantity: v }));
+              }}
+              placeholder="0"
+              className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+              disabled={editItem.isInactive}
+            />
+          </div>
+
+          {/* Warehouse (Edit modal) */}
+          <div>
+            <label className="text-sm">Warehouse (optional)</label>
+            <SearchableSelect
+                options={warehouses.map(w => ({ id: w.id, name: w.name }))}
+                value={editItem.warehouseId}
+                onChange={(v) => setEditItem((p) => ({ ...p, warehouseId: v }))}
+                placeholder="Select Warehouse"
+                disabled={editItem.isInactive}
+                className="mt-1"
+            />
+          </div>
+
+          {/* Mode & Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm">Mode *</label>
+              <select
+                value={editItem.mode}
+                onChange={(e) =>
+                  setEditItem((p) => ({ ...p, mode: e.target.value }))
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                disabled={editItem.isInactive}
               >
-                <X />
-              </button>
+                <option value="IN">IN</option>
+                <option value="OUT">OUT</option>
+              </select>
             </div>
 
-            <div className="p-6 space-y-4">
-              {/* Product (Edit modal) */}
-              <div>
-                <label className="text-sm">Product *</label>
-                 <SearchableSelect 
-                    options={products.map(p => ({ id: p.id, name: p.name }))}
-                    value={editItem.productId}
-                    onChange={(v) => setEditItem((p) => ({ ...p, productId: v }))}
-                    placeholder="Select Product"
-                    disabled={editItem.isInactive}
-                    className="mt-1"
-                />
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label className="text-sm">Quantity *</label>
-                <input
-                  type="text"
-                  value={editItem.quantity}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "" || /^[0-9]*$/.test(v))
-                      setEditItem((p) => ({ ...p, quantity: v }));
-                  }}
-                  placeholder="0"
-                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
-                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                  disabled={editItem.isInactive}
-                />
-              </div>
-
-              {/* Warehouse (Edit modal) */}
-              <div>
-                <label className="text-sm">Warehouse (optional)</label>
-                <SearchableSelect
-                    options={warehouses.map(w => ({ id: w.id, name: w.name }))}
-                    value={editItem.warehouseId}
-                    onChange={(v) => setEditItem((p) => ({ ...p, warehouseId: v }))}
-                    placeholder="Select Warehouse"
-                    disabled={editItem.isInactive}
-                    className="mt-1"
-                />
-              </div>
-
-              {/* Mode & Status */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm">Mode *</label>
-                  <select
-                    value={editItem.mode}
-                    onChange={(e) =>
-                      setEditItem((p) => ({ ...p, mode: e.target.value }))
-                    }
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                    disabled={editItem.isInactive}
-                  >
-                    <option value="IN">IN</option>
-                    <option value="OUT">OUT</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm">Status *</label>
-                  <select
-                    value={editItem.status}
-                    onChange={(e) =>
-                      setEditItem((p) => ({ ...p, status: e.target.value }))
-                    }
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-                    disabled={editItem.isInactive}
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Complete">Complete</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* VNo */}
-              {/* <div>
-                <label className="text-sm">VNo</label>
-                <input
-                  value={editItem.vNo}
-                  onChange={(e) => setEditItem((p) => ({ ...p, vNo: e.target.value }))}
-                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
-                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                  disabled={editItem.isInactive}
-                />
-              </div> */}
-
-              {/* Note */}
-              <div>
-                <label className="text-sm">Note</label>
-                <textarea
-                  value={editItem.note}
-                  onChange={(e) =>
-                    setEditItem((p) => ({ ...p, note: e.target.value }))
-                  }
-                  className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
-                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                  disabled={editItem.isInactive}
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              {editItem.isInactive ? (
-                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
-                <button
-                  onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-                )
-              ) : (
-                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-                )
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEditModalOpen(false)}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  Cancel
-                </button>
-                {!editItem.isInactive && hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT) && (
-                  <button
-                    onClick={handleUpdate}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-                  >
-                    <Save size={16} /> Save
-                  </button>
-                )}
-              </div>
+            <div>
+              <label className="text-sm">Status *</label>
+              <select
+                value={editItem.status}
+                onChange={(e) =>
+                  setEditItem((p) => ({ ...p, status: e.target.value }))
+                }
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                disabled={editItem.isInactive}
+              >
+                <option value="Pending">Pending</option>
+                <option value="Complete">Complete</option>
+              </select>
             </div>
           </div>
+
+          {/* Note */}
+          <div>
+            <label className="text-sm">Note</label>
+            <textarea
+              value={editItem.note}
+              onChange={(e) =>
+                setEditItem((p) => ({ ...p, note: e.target.value }))
+              }
+              className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
+                editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+              disabled={editItem.isInactive}
+            />
+          </div>
         </div>
-      )}
+      </EditModal>
 
       {/* COLUMN PICKER */}
-      {columnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setColumnModalOpen(false)}
-          />
-          <div className="relative w-[700px] max-h-[80vh] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-lg text-white">
-            <div className="sticky top-0 bg-gray-900 flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModalOpen(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X />
-              </button>
-            </div>
-
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="Search column..."
-                value={columnSearch}
-                onChange={(e) => setColumnSearch(e.target.value.toLowerCase())}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Visible Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns)
-                    .filter((col) => tempVisibleColumns[col])
-                    .filter((col) => col.includes(columnSearch))
-                    .map((col) => (
-                      <div
-                        className="bg-gray-800 px-3 py-2 rounded flex justify-between"
-                        key={col}
-                      >
-                        <span>{col.toUpperCase()}</span>
-                        <button
-                          className="text-red-400"
-                          onClick={() =>
-                            setTempVisibleColumns((p) => ({
-                              ...p,
-                              [col]: false,
-                            }))
-                          }
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              <div className="bg-gray-900/30 p-4 border border-gray-700 rounded max-h-[50vh] overflow-y-auto">
-                <h3 className="font-semibold mb-2">Hidden Columns</h3>
-                <div className="space-y-2">
-                  {Object.keys(tempVisibleColumns)
-                    .filter((col) => !tempVisibleColumns[col])
-                    .filter((col) => col.includes(columnSearch))
-                    .map((col) => (
-                      <div
-                        className="bg-gray-800 px-3 py-2 rounded flex justify-between"
-                        key={col}
-                      >
-                        <span>{col.toUpperCase()}</span>
-                        <button
-                          className="text-green-400"
-                          onClick={() =>
-                            setTempVisibleColumns((p) => ({
-                              ...p,
-                              [col]: true,
-                            }))
-                          }
-                        >
-                          ➕
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="sticky bottom-5 bg-gray-900 px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={() => setTempVisibleColumns(defaultColumns)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setColumnModalOpen(false)}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setVisibleColumns(tempVisibleColumns);
-                    setColumnModalOpen(false);
-                  }}
-                  className="px-3 py-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  OK
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       {/* MAIN PAGE */}
       <PageLayout>

@@ -4,9 +4,6 @@ import {
   Plus,
   RefreshCw,
   List,
-  X,
-  Save,
-  Trash2,
   ArchiveRestore,
   Star,
 } from "lucide-react";
@@ -23,7 +20,6 @@ import {
   searchWarehouseApi,
   getInactiveWarehousesApi,
   restoreWarehouseApi,
-  getLocationsApi,
   getCountriesApi,
   getStatesApi,
   getCitiesApi,
@@ -36,13 +32,17 @@ import FilterBar from "../../components/FilterBar";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions"; 
 
+// MODALS
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const Warehouses = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
-  const [warehouses, setWarehouses] = useState([]);
-  const [inactiveWarehouses, setInactiveWarehouses] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
 
   // Dropdown data
@@ -110,16 +110,7 @@ const Warehouses = () => {
     phone: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
-
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
-
+  
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
   const handleSort = (key) => {
@@ -132,9 +123,9 @@ const Warehouses = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedWarehouses = [...warehouses];
+  const sortedRows = [...rows];
   if (sortConfig.key) {
-    sortedWarehouses.sort((a, b) => {
+    sortedRows.sort((a, b) => {
       let valA = a[sortConfig.key] || "";
       let valB = b[sortConfig.key] || "";
       if (typeof valA === "string") valA = valA.toLowerCase();
@@ -178,7 +169,7 @@ const Warehouses = () => {
   }, []);
 
   // LOAD WAREHOUSES
-  const loadWarehouses = async () => {
+  const loadRows = async () => {
     try {
       const res = await getWarehousesApi(page, limit, filters);
       if (res?.status === 200) {
@@ -196,7 +187,7 @@ const Warehouses = () => {
             phone: r.Phone || r.phone,
             address: r.Address || r.address,
         }));
-        setWarehouses(normalized);
+        setRows(normalized);
         const total = res.data.total || normalized.length;
         setTotalRecords(total);
       } else {
@@ -209,12 +200,12 @@ const Warehouses = () => {
   };
 
   useEffect(() => {
-    loadWarehouses();
+    loadRows();
   }, [page, limit, filters]);
 
   const loadInactive = async () => {
     try {
-      if (getActiveWarehousesApi) {
+      if (getInactiveWarehousesApi) {
           const res = await getInactiveWarehousesApi();
           if (res?.status === 200) {
             const rows = res.data.records || res.data || [];
@@ -231,7 +222,7 @@ const Warehouses = () => {
                 phone: r.Phone || r.phone,
                 address: r.Address || r.address,
             }));
-            setInactiveWarehouses(normalized);
+            setInactiveRows(normalized);
           }
       }
     } catch (err) {
@@ -268,7 +259,7 @@ const Warehouses = () => {
     setSearchText(text);
     if (!text.trim()) {
         setPage(1);
-        return loadWarehouses();
+        return loadRows();
     }
     try {
       const res = await searchWarehouseApi(text);
@@ -287,7 +278,7 @@ const Warehouses = () => {
             phone: r.Phone || r.phone,
             address: r.Address || r.address,
         }));
-        setWarehouses(normalized);
+        setRows(normalized);
         setTotalRecords(rows.length);
       }
     } catch (err) {
@@ -316,7 +307,7 @@ const Warehouses = () => {
         });
         setModalOpen(false);
         setPage(1); 
-        loadWarehouses();
+        loadRows();
       } else {
         toast.error("Failed to add");
       }
@@ -324,6 +315,21 @@ const Warehouses = () => {
         console.error(err);
         toast.error("Server error");
     }
+  };
+
+  const openEdit = (row, inactive = false) => {
+      setEditData({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        countryId: row.countryId,
+        stateId: row.stateId,
+        cityId: row.cityId,
+        phone: row.phone,
+        address: row.address,
+        isInactive: inactive,
+      });
+      setEditModalOpen(true);
   };
 
   const handleUpdate = async () => {
@@ -346,7 +352,7 @@ const Warehouses = () => {
       if (res?.status === 200) {
         toast.success("Updated");
         setEditModalOpen(false);
-        loadWarehouses();
+        loadRows();
         if (showInactive) loadInactive();
       } else {
         toast.error("Update failed");
@@ -363,7 +369,7 @@ const Warehouses = () => {
       if (res?.status === 200) {
         toast.success("Deleted");
         setEditModalOpen(false);
-        loadWarehouses();
+        loadRows();
         if (showInactive) loadInactive();
       } else {
         toast.error("Delete failed");
@@ -380,7 +386,7 @@ const Warehouses = () => {
       if (res?.status === 200) {
         toast.success("Restored");
         setEditModalOpen(false);
-        loadWarehouses();
+        loadRows();
         loadInactive();
       } else {
         toast.error("Restore failed");
@@ -489,7 +495,6 @@ const Warehouses = () => {
       }
   };
 
-
   return (
     <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
@@ -507,7 +512,7 @@ const Warehouses = () => {
                 />
               </div>
               {hasPermission(PERMISSIONS.WAREHOUSES.CREATE) && (
-              <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
+              <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <Plus size={16} /> New Warehouse
               </button>
               )}
@@ -515,13 +520,13 @@ const Warehouses = () => {
                 onClick={() => {
                   setSearchText("");
                   setPage(1);
-                  loadWarehouses();
+                  loadRows();
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
+                className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
               >
                 <RefreshCw size={16} className="text-blue-400" />
               </button>
-              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded">
+              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
                 <List size={16} className="text-blue-300" />
               </button>
               <button
@@ -529,7 +534,9 @@ const Warehouses = () => {
                   if (!showInactive) await loadInactive();
                   setShowInactive((s) => !s);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1"
+                className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
+                  showInactive ? "ring-1 ring-yellow-300" : ""
+                }`}
               >
                 <ArchiveRestore size={16} className="text-yellow-300" />
                 <span className="text-xs opacity-80">Inactive</span>
@@ -554,25 +561,12 @@ const Warehouses = () => {
                         {visibleColumns.phone && <SortableHeader label="Phone" sortOrder={sortConfig.key === "phone" ? sortConfig.direction : null} onClick={() => handleSort("phone")} />}
                     </tr>
                 </thead>
-                <tbody>
-                    {!sortedWarehouses.length && !showInactive && (
-                         <tr><td colSpan="2" className="text-center py-4 text-gray-400">No records found</td></tr>
+                <tbody className="text-center">
+                    {!rows.length && !showInactive && (
+                         <tr><td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-6 text-gray-400">No records found</td></tr>
                     )}
-                    {!showInactive && sortedWarehouses.map(r => (
-                        <tr key={r.id} onClick={() => {
-                            setEditData({ 
-                                id: r.id, 
-                                name: r.name, 
-                                description: r.description,
-                                countryId: r.countryId,
-                                stateId: r.stateId,
-                                cityId: r.cityId,
-                                phone: r.phone,
-                                address: r.address,
-                                isInactive: false 
-                            });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 hover:bg-gray-700 cursor-pointer text-center">
+                    {!showInactive && sortedRows.map(r => (
+                        <tr key={r.id} onClick={() => openEdit(r, false)} className="bg-gray-900 hover:bg-gray-700 cursor-pointer">
                             {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
                             {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
                             {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
@@ -581,21 +575,8 @@ const Warehouses = () => {
                             {visibleColumns.phone && <td className="px-2 py-1">{r.phone}</td>}
                         </tr>
                     ))}
-                    {showInactive && inactiveWarehouses.map(r => (
-                        <tr key={`inactive-${r.id}`} onClick={() => {
-                            setEditData({ 
-                                id: r.id, 
-                                name: r.name, 
-                                description: r.description,
-                                countryId: r.countryId,
-                                stateId: r.stateId,
-                                cityId: r.cityId,
-                                phone: r.phone,
-                                address: r.address,
-                                isInactive: true 
-                            });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer text-center">
+                    {showInactive && inactiveRows.map(r => (
+                        <tr key={`inactive-${r.id}`} onClick={() => openEdit(r, true)} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer">
                             {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
                             {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
                             {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
@@ -608,345 +589,216 @@ const Warehouses = () => {
             </table>
           </div>
 
-              <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={totalRecords}
-                onRefresh={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadWarehouses();
-                }}
-              />
+          <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={totalRecords}
+            onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadRows();
+            }}
+            />
         </div>
       </div>
 
-       {/* MODALS */}
-       {modalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">New Warehouse</h2>
-                  <button onClick={() => setModalOpen(false)}><X size={20}/></button>
+       {/* ADD MODAL */}
+       <AddModal
+         isOpen={modalOpen}
+         onClose={() => setModalOpen(false)}
+         onSave={handleAdd}
+         title="New Warehouse"
+       >
+          <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300">Name *</label>
+                  <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
                </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm">Name *</label>
-                      <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
-                   </div>
+               <div>
+                   <label className="text-sm text-gray-300">Description</label>
+                   <textarea value={newData.description} onChange={e => setNewData({...newData, description: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
+               </div>
+               <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm">Description</label>
-                       <textarea value={newData.description} onChange={e => setNewData({...newData, description: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">Country *</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={countries}
-                                   value={newData.countryId}
-                                   onChange={(val) => setNewData({...newData, countryId: val, stateId: "", cityId: ""})}
-                                   className="w-full"
-                               />
-                               {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                                   <Star size={18} className="text-yellow-400" />
-                               </button>)}
-                           </div>
-                       </div>
-                       <div>
-                           <label className="text-sm">State *</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={states.filter(s => s.countryId == newData.countryId)}
-                                   value={newData.stateId}
-                                   onChange={(val) => setNewData({...newData, stateId: val, cityId: ""})}
-                                   disabled={!newData.countryId}
-                                   className="w-full"
-                               />
-                               {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                   <Star size={18} className="text-yellow-400" />
-                               </button>)}
-                           </div>
-                       </div>
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">City *</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={cities.filter(c => c.stateId == newData.stateId)}
-                                   value={newData.cityId}
-                                   onChange={(val) => setNewData({...newData, cityId: val})}
-                                   disabled={!newData.stateId}
-                                   className="w-full"
-                               />
-                               {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                   <Star size={18} className="text-yellow-400" />
-                               </button>)}
-                           </div>
-                       </div>
-                       <div>
-                           <label className="text-sm">Phone</label>
-                           <input value={newData.phone} onChange={e => setNewData({...newData, phone: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
+                       <label className="text-sm text-gray-300">Country *</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={countries}
+                               value={newData.countryId}
+                               onChange={(val) => setNewData({...newData, countryId: val, stateId: "", cityId: ""})}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                               <Star size={18} className="text-yellow-400" />
+                           </button>)}
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm">Address</label>
-                       <textarea value={newData.address} onChange={e => setNewData({...newData, address: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
+                       <label className="text-sm text-gray-300">State *</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={states.filter(s => s.countryId == newData.countryId)}
+                               value={newData.stateId}
+                               onChange={(val) => setNewData({...newData, stateId: val, cityId: ""})}
+                               disabled={!newData.countryId}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               <Star size={18} className="text-yellow-400" />
+                           </button>)}
+                       </div>
                    </div>
                </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                   {hasPermission(PERMISSIONS.WAREHOUSES.CREATE) && (<button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>)}
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">City *</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={cities.filter(c => c.stateId == newData.stateId)}
+                               value={newData.cityId}
+                               onChange={(val) => setNewData({...newData, cityId: val})}
+                               disabled={!newData.stateId}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                               <Star size={18} className="text-yellow-400" />
+                           </button>)}
+                       </div>
+                   </div>
+                   <div>
+                       <label className="text-sm text-gray-300">Phone</label>
+                       <input value={newData.phone} onChange={e => setNewData({...newData, phone: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
+                   </div>
                </div>
-            </div>
+               <div>
+                   <label className="text-sm text-gray-300">Address</label>
+                   <textarea value={newData.address} onChange={e => setNewData({...newData, address: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
+               </div>
           </div>
+       </AddModal>
+
+       {/* EDIT MODAL */}
+       <EditModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdate}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          isInactive={editData.isInactive}
+          title={editData.isInactive ? "Restore Warehouse" : "Edit Warehouse"}
+          permissionDelete={hasPermission(PERMISSIONS.WAREHOUSES.DELETE)}
+          permissionEdit={hasPermission(PERMISSIONS.WAREHOUSES.EDIT)}
+       >
+          <div className="space-y-4">
+              <div>
+                  <label className="text-sm text-gray-300">Name *</label>
+                  <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
+               </div>
+               <div>
+                   <label className="text-sm text-gray-300">Description</label>
+                   <textarea value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">Country *</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={countries}
+                               value={editData.countryId}
+                               onChange={(val) => setEditData({...editData, countryId: val, stateId: "", cityId: ""})}
+                               disabled={editData.isInactive}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {!editData.isInactive && hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
+                               <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                                   <Star size={18} className="text-yellow-400" />
+                               </button>
+                           )}
+                       </div>
+                   </div>
+                   <div>
+                       <label className="text-sm text-gray-300">State *</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={states.filter(s => s.countryId == editData.countryId)}
+                               value={editData.stateId}
+                               onChange={(val) => setEditData({...editData, stateId: val, cityId: ""})}
+                               disabled={!editData.countryId || editData.isInactive}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {!editData.isInactive && hasPermission(PERMISSIONS.STATES.CREATE) && (
+                               <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                                   <Star size={18} className="text-yellow-400" />
+                               </button>
+                           )}
+                       </div>
+                   </div>
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                       <label className="text-sm text-gray-300">City *</label>
+                       <div className="flex items-center gap-2 mt-1">
+                           <SearchableSelect 
+                               options={cities.filter(c => c.stateId == editData.stateId)}
+                               value={editData.cityId}
+                               onChange={(val) => setEditData({...editData, cityId: val})}
+                               disabled={!editData.stateId || editData.isInactive}
+                               className="w-full"
+                               direction="down"
+                           />
+                           {!editData.isInactive && hasPermission(PERMISSIONS.CITIES.CREATE) && (
+                               <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
+                                   <Star size={18} className="text-yellow-400" />
+                               </button>
+                           )}
+                       </div>
+                   </div>
+                   <div>
+                       <label className="text-sm text-gray-300">Phone</label>
+                       <input value={editData.phone} onChange={e => setEditData({...editData, phone: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
+                   </div>
+               </div>
+               <div>
+                   <label className="text-sm text-gray-300">Address</label>
+                   <textarea value={editData.address} onChange={e => setEditData({...editData, address: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
+               </div>
+          </div>
+       </EditModal>
+
+       {/* COLUMN PICKER */}
+       <ColumnPickerModal
+          isOpen={columnModal}
+          onClose={() => setColumnModal(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+       />
+
+       {/* --- QUICK ADD SUB-MODALS --- */}
+       {addCountryModalOpen && (
+           <AddModal isOpen={true} onClose={() => setAddCountryModalOpen(false)} onSave={handleAddCountry} title="Quick Add Country">
+               <label className="text-sm text-gray-300">Country Name *</label>
+               <input value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+           </AddModal>
        )}
-
-       {editModalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">{editData.isInactive ? "Restore Warehouse" : "Edit Warehouse"}</h2>
-                  <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
-               </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm">Name *</label>
-                      <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                   </div>
-                   <div>
-                       <label className="text-sm">Description</label>
-                       <textarea value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">Country *</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={countries}
-                                   value={editData.countryId}
-                                   onChange={(val) => setEditData({...editData, countryId: val, stateId: "", cityId: ""})}
-                                   disabled={editData.isInactive}
-                                   className="w-full"
-                               />
-                               {!editData.isInactive && hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
-                                   <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                                       <Star size={18} className="text-yellow-400" />
-                                   </button>
-                               )}
-                           </div>
-                       </div>
-                       <div>
-                           <label className="text-sm">State *</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={states.filter(s => s.countryId == editData.countryId)}
-                                   value={editData.stateId}
-                                   onChange={(val) => setEditData({...editData, stateId: val, cityId: ""})}
-                                   disabled={!editData.countryId || editData.isInactive}
-                                   className="w-full"
-                               />
-                               {!editData.isInactive && hasPermission(PERMISSIONS.STATES.CREATE) && (
-                                   <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                       <Star size={18} className="text-yellow-400" />
-                                   </button>
-                               )}
-                           </div>
-                       </div>
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                       <div>
-                           <label className="text-sm">City *</label>
-                           <div className="flex items-center gap-2">
-                               <SearchableSelect 
-                                   options={cities.filter(c => c.stateId == editData.stateId)}
-                                   value={editData.cityId}
-                                   onChange={(val) => setEditData({...editData, cityId: val})}
-                                   disabled={!editData.stateId || editData.isInactive}
-                                   className="w-full"
-                               />
-                               {!editData.isInactive && hasPermission(PERMISSIONS.CITIES.CREATE) && (
-                                   <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                       <Star size={18} className="text-yellow-400" />
-                                   </button>
-                               )}
-                           </div>
-                       </div>
-                       <div>
-                           <label className="text-sm">Phone</label>
-                           <input value={editData.phone} onChange={e => setEditData({...editData, phone: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                       </div>
-                   </div>
-                   <div>
-                       <label className="text-sm">Address</label>
-                       <textarea value={editData.address} onChange={e => setEditData({...editData, address: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
-                   </div>
-               </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-                   {editData.isInactive ? (
-                       <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
-                   ) : (
-                       hasPermission(PERMISSIONS.WAREHOUSES.DELETE) && (<button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>)
-                   )}
-                   {!editData.isInactive && hasPermission(PERMISSIONS.WAREHOUSES.EDIT) && (
-                       <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                   )}
-               </div>
-            </div>
-          </div>
+       {addStateModalOpen && (
+           <AddModal isOpen={true} onClose={() => setAddStateModalOpen(false)} onSave={handleAddState} title="Quick Add State">
+               <label className="text-sm text-gray-300">State Name *</label>
+               <input value={newStateName} onChange={e => setNewStateName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+           </AddModal>
        )}
-
-        {/* --- QUICK ADD MODALS --- */}
-        {addCountryModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add Country</h2>
-                        <button onClick={() => setAddCountryModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                       <label className="text-sm">Country Name *</label>
-                       <input value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={handleAddCountry} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>)}
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {addStateModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add State</h2>
-                        <button onClick={() => setAddStateModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                       <label className="text-sm">State Name *</label>
-                       <input value={newStateName} onChange={e => setNewStateName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={handleAddState} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>)}
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {addCityModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add City</h2>
-                        <button onClick={() => setAddCityModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                       <label className="text-sm">City Name *</label>
-                       <input value={newCityName} onChange={e => setNewCityName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1" autoFocus />
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={handleAddCity} className="bg-gray-600 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-500"><Save size={16}/> Save</button>)}
-                    </div>
-                </div>
-            </div>
-        )}
-
-       {/* columnModal */}
-       {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* VISIBLE / HIDDEN COLUMNS */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter(
-                  (col) => !visibleColumns[col]
-                ).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
+       {addCityModalOpen && (
+           <AddModal isOpen={true} onClose={() => setAddCityModalOpen(false)} onSave={handleAddCity} title="Quick Add City">
+               <label className="text-sm text-gray-300">City Name *</label>
+               <input value={newCityName} onChange={e => setNewCityName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+           </AddModal>
        )}
 
     </PageLayout>

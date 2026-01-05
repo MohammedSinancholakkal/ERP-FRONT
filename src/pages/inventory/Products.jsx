@@ -14,7 +14,8 @@ import {
   ArchiveRestore,
   Star,
   FileSpreadsheet,
-  FileText
+  FileText,
+  Pencil
 } from "lucide-react";
 import Swal from "sweetalert2";
 import SortableHeader from "../../components/SortableHeader";
@@ -40,11 +41,20 @@ import {
   getUnitsApi,
   getBrandsApi,
   addBrandApi,
-  addUnitApi
+  addUnitApi,
+  getCountriesApi,
+  addCountryApi,
+  updateCountryApi,
+  deleteCountryApi,
+  restoreCountryApi,
+  searchCountryApi
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 /* ------------------------------
    Small components
@@ -98,7 +108,15 @@ const Products = () => {
 
   // quick-add brand/unit names
   const [newBrandName, setNewBrandName] = useState("");
+
   const [newUnitName, setNewUnitName] = useState("");
+
+  // Country Management
+  const [countries, setCountries] = useState([]);
+  const [countryAddModal, setCountryAddModal] = useState(false);
+  const [countryEditModal, setCountryEditModal] = useState(false);
+  const [newCountry, setNewCountry] = useState("");
+  const [editCountryData, setEditCountryData] = useState({ id: null, name: "", isInactive: false });
 
   // pagination
   const [page, setPage] = useState(1);
@@ -143,6 +161,7 @@ const Products = () => {
     brandName: true
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [searchColumn, setSearchColumn] = useState("");
 
   // form states
@@ -155,6 +174,9 @@ const Products = () => {
     ReorderLevel: "10.00",
     CategoryId: "",
     UnitId: "",
+
+    CountryId: "",
+
     BrandId: "",
     Image: "",
     ProductDetails: ""
@@ -170,6 +192,9 @@ const Products = () => {
     ReorderLevel: "10.00",
     CategoryId: "",
     UnitId: "",
+
+    CountryId: "",
+
     BrandId: "",
     Image: "",
     ProductDetails: "",
@@ -235,6 +260,13 @@ const Products = () => {
       console.error("LOAD BRANDS ERR", err);
       setBrands([]);
     }
+    try {
+      const co = await getCountriesApi(1, 1000);
+      if (co.status === 200) setCountries(co.data.records || co.data || []);
+    } catch (err) {
+      console.error("LOAD COUNTRIES ERR", err);
+      setCountries([]);
+    }
   };
 
   useEffect(() => {
@@ -289,6 +321,9 @@ const Products = () => {
       ReorderLevel: "10.00",
       CategoryId: "",
       UnitId: "",
+      CategoryId: "",
+      CountryId: "",
+      UnitId: "",
       BrandId: "",
       Image: "",
       ProductDetails: ""
@@ -320,7 +355,9 @@ const Products = () => {
     if (newProduct.ReorderLevel === "" || isNaN(Number(newProduct.ReorderLevel))) return toast.error("Reorder Level required");
     if (!newProduct.CategoryId) return toast.error("Category required");
     if (!newProduct.UnitId) return toast.error("Unit required");
+
     if (!newProduct.BrandId) return toast.error("Brand required");
+    // Country not strictly required? Assuming optional or add check if needed.
 
     const payload = {
       Barcode: newProduct.productCode || null,
@@ -334,6 +371,7 @@ const Products = () => {
       CategoryId: newProduct.CategoryId || null,
       UnitId: newProduct.UnitId || null,
       BrandId: newProduct.BrandId || null,
+      CountryId: newProduct.CountryId || null,
       Image: newProduct.Image,
       ProductDetails: newProduct.ProductDetails,
       userId: currentUserId
@@ -369,7 +407,9 @@ const Products = () => {
       ReorderLevel: p.ReorderLevel != null ? String(p.ReorderLevel) : "10.00",
       CategoryId: p.CategoryId || "",
       UnitId: p.UnitId || "",
+
       BrandId: p.BrandId || "",
+      CountryId: p.CountryId || "",
       Image: p.Image || "",
       ProductDetails: p.ProductDetails || "",
       isInactive: inactive
@@ -394,7 +434,9 @@ const Products = () => {
       ReorderLevel: parseFloat(editProduct.ReorderLevel),
       CategoryId: editProduct.CategoryId || null,
       UnitId: editProduct.UnitId || null,
+
       BrandId: editProduct.BrandId || null,
+      CountryId: editProduct.CountryId || null,
       Image: editProduct.Image,
       ProductDetails: editProduct.ProductDetails,
       userId: currentUserId
@@ -495,6 +537,122 @@ const Products = () => {
       console.error("ADD UNIT ERR", err);
       toast.error("Server error");
     }
+  };
+
+  /* --------------------
+     Country Handlers (Adapted from Countries.jsx)
+     -------------------- */
+  const handleAddCountry = async () => {
+    if (!newCountry.trim()) return toast.error("Country name required");
+    try {
+      // Check duplicate
+      const searchRes = await searchCountryApi(newCountry);
+      if (searchRes?.status === 200) {
+        const existing = (searchRes.data.records || searchRes.data || []).find(
+          c => c.name.toLowerCase() === newCountry.trim().toLowerCase()
+        );
+        if (existing) return toast.error("Country already exists");
+      }
+
+      const res = await addCountryApi({ name: newCountry, userId: currentUserId });
+      if (res?.status === 200) {
+        toast.success("Country added");
+        setNewCountry("");
+        setCountryAddModal(false);
+        // Reload global countries
+        const c = await getCountriesApi(1, 1000);
+        if (c.status === 200) setCountries(c.data.records || c.data || []);
+      } else {
+        toast.error("Failed to add");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error adding country");
+    }
+  };
+
+  const handleUpdateCountry = async () => {
+    if (!editCountryData.name.trim()) return toast.error("Name cannot be empty");
+    try {
+      // Check duplicate
+      const searchRes = await searchCountryApi(editCountryData.name);
+      if (searchRes?.status === 200) {
+        const existing = (searchRes.data.records || searchRes.data || []).find(
+          c => c.name.toLowerCase() === editCountryData.name.trim().toLowerCase() && c.id !== editCountryData.id
+        );
+        if (existing) return toast.error("Name already exists");
+      }
+      
+      const res = await updateCountryApi(editCountryData.id, {
+        name: editCountryData.name,
+        userId: currentUserId
+      });
+      if (res?.status === 200) {
+        toast.success("Country updated");
+        setCountryEditModal(false);
+        const c = await getCountriesApi(1, 1000);
+        if (c.status === 200) setCountries(c.data.records || c.data || []);
+      } else {
+        toast.error("Update failed");
+      }
+    } catch(err) {
+      console.error(err);
+      toast.error("Error updating country");
+    }
+  };
+
+  const handleDeleteCountry = async () => {
+    Swal.fire({
+      title: "Delete Country?",
+      text: "Irreversible action!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Delete"
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const res = await deleteCountryApi(editCountryData.id, { userId: currentUserId });
+          if (res?.status === 200) {
+            toast.success("Country deleted");
+            setCountryEditModal(false);
+            const c = await getCountriesApi(1, 1000);
+            if (c.status === 200) setCountries(c.data.records || c.data || []);
+          } else {
+             toast.error("Delete failed");
+          }
+        } catch(err) {
+           toast.error("Error deleting");
+        }
+      }
+    });
+  };
+
+  const handleRestoreCountry = async () => {
+     try {
+        const res = await restoreCountryApi(editCountryData.id, { userId: currentUserId });
+        if (res?.status === 200) {
+           toast.success("Country restored");
+           setCountryEditModal(false);
+           const c = await getCountriesApi(1, 1000);
+           if (c.status === 200) setCountries(c.data.records || c.data || []);
+        } else {
+           toast.error("Restore failed");
+        }
+     } catch(err) {
+        toast.error("Error restoring");
+     }
+  };
+
+  const openCountryEditModal = (countryId) => {
+    const c = countries.find(x => x.id === countryId);
+    if (!c) return;
+    setEditCountryData({
+      id: c.id,
+      name: c.name,
+      isInactive: c.status === 'Inactive' || c.isInactive // Check your API response for status field
+    });
+    setCountryEditModal(true);
   };
 
   /* --------------------
@@ -842,6 +1000,38 @@ const Products = () => {
                   </button>
                 </div>
 
+                <div className="flex gap-2 items-end mt-3">
+                  <div className="flex-1">
+                    <label className="font-semibold">Country</label>
+                    <SearchableSelect
+                      options={countries}
+                      value={newProduct.CountryId}
+                      onChange={(v) => setNewProduct((p) => ({ ...p, CountryId: v }))}
+                      placeholder="Search / select country"
+                      className="w-full"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    title="Add Country"
+                    onClick={() => setCountryAddModal(true)}
+                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
+                  >
+                    {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && <Plus size={16} />}
+                  </button>
+                  {/* Edit Selected Country */}
+                  {newProduct.CountryId && (
+                    <button
+                      type="button"
+                      title="Edit Country"
+                      onClick={() => openCountryEditModal(newProduct.CountryId)}
+                      className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
+                    >
+                      {hasPermission(PERMISSIONS.COUNTRIES.EDIT) && <Pencil size={16} />}
+                    </button>
+                  )}
+                </div>
+
               <label className="mt-3">Image</label>
 
               {/* HIDDEN INPUT */}
@@ -1000,6 +1190,40 @@ const Products = () => {
                   </button>
                 </div>
 
+                <div className="flex gap-2 items-end mt-3">
+                  <div className="flex-1">
+                    <label className="font-semibold">Country</label>
+                    <SearchableSelect
+                      options={countries}
+                      value={editProduct.CountryId}
+                      onChange={(v) => setEditProduct((p) => ({ ...p, CountryId: v }))}
+                      placeholder="Search / select country"
+                      className="w-full"
+                      disabled={editProduct.isInactive}
+                    />
+                  </div>
+                   <button
+                    type="button"
+                    title="Add Country"
+                    disabled={editProduct.isInactive}
+                    onClick={() => setCountryAddModal(true)}
+                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && <Plus size={16} />}
+                  </button>
+                   {editProduct.CountryId && (
+                    <button
+                      type="button"
+                      title="Edit Country"
+                      disabled={editProduct.isInactive}
+                      onClick={() => openCountryEditModal(editProduct.CountryId)}
+                      className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {hasPermission(PERMISSIONS.COUNTRIES.EDIT) && <Pencil size={16} />}
+                    </button>
+                  )}
+                </div>
+
                 <label className="mt-3">Image</label>
 
 {/* HIDDEN INPUT */}
@@ -1117,53 +1341,63 @@ const Products = () => {
         </div>
       )}
 
+      {/* COUNTRY ADD MODAL */}
+      <AddModal
+        isOpen={countryAddModal}
+        onClose={() => setCountryAddModal(false)}
+        onSave={handleAddCountry}
+        title="New Country"
+        zIndex={60}
+      >
+        <label className="block text-sm mb-1">Name *</label>
+        <input
+          type="text"
+          value={newCountry}
+          onChange={(e) => setNewCountry(e.target.value)}
+          placeholder="Enter country name"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+        />
+      </AddModal>
+
+      {/* COUNTRY EDIT MODAL */}
+      <EditModal
+        isOpen={countryEditModal}
+        onClose={() => setCountryEditModal(false)}
+        onSave={handleUpdateCountry}
+        onDelete={handleDeleteCountry}
+        onRestore={handleRestoreCountry}
+        isInactive={editCountryData.isInactive}
+        title={`${editCountryData.isInactive ? "Restore Country" : "Edit Country"} (${editCountryData.name})`}
+        permissionDelete={hasPermission(PERMISSIONS.COUNTRIES.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.COUNTRIES.EDIT)}
+        zIndex={60}
+      >
+        <label className="block text-sm mb-1">Name *</label>
+        <input
+          type="text"
+          value={editCountryData.name}
+          onChange={(e) =>
+            setEditCountryData((prev) => ({
+              ...prev,
+              name: e.target.value,
+            }))
+          }
+          disabled={editCountryData.isInactive}
+          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none ${
+            editCountryData.isInactive ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+        />
+      </EditModal>
+
       {/* -------------------------
          COLUMN PICKER (scrollable)
          ------------------------- */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)}><X size={20} /></button>
-            </div>
-
-            <div className="px-5 py-3">
-              <input type="text" placeholder="search columns..." value={searchColumn} onChange={(e) => setSearchColumn(e.target.value.toLowerCase())} className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm" />
-            </div>
-
-            <div className="px-5 pb-5">
-              <div className="grid grid-cols-2 gap-4 max-h-64 overflow-auto">
-                <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                  <h3 className="font-semibold mb-3">Visible Columns</h3>
-                  {Object.keys(visibleColumns).filter((col) => visibleColumns[col]).filter((col) => col.includes(searchColumn)).map((col) => (
-                    <div key={col} className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2">
-                      <span>{col.toUpperCase()}</span>
-                      <button className="text-red-400" onClick={() => setVisibleColumns((p) => ({ ...p, [col]: false }))}>✖</button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                  <h3 className="font-semibold mb-3">Hidden Columns</h3>
-                  {Object.keys(visibleColumns).filter((col) => !visibleColumns[col]).filter((col) => col.includes(searchColumn)).map((col) => (
-                    <div key={col} className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2">
-                      <span>{col.toUpperCase()}</span>
-                      <button className="text-green-400" onClick={() => setVisibleColumns((p) => ({ ...p, [col]: true }))}>➕</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button onClick={() => setVisibleColumns(defaultColumns)} className="px-4 py-2 bg-gray-800 border border-gray-600 rounded">Restore Defaults</button>
-              <button onClick={() => setColumnModal(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 rounded">OK</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+        <ColumnPickerModal
+          isOpen={columnModalOpen}
+          onClose={() => setColumnModalOpen(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+        />
       {/* -------------------------
          MAIN PAGE
          ------------------------- */}
@@ -1195,7 +1429,7 @@ const Products = () => {
             {/* REFRESH */}
             <button onClick={refreshAll} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"><RefreshCw size={16} className="text-blue-400" /></button>
 
-            <button onClick={() => setColumnModal(true)} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"><List size={16} className="text-blue-300" /></button>
+            <button onClick={() => setColumnModalOpen(true)} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"><List size={16} className="text-blue-300" /></button>
 
             <button onClick={async () => { 
                 // if (!showInactive) await loadInactive(); // Handled by useEffect

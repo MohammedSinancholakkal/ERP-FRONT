@@ -27,10 +27,13 @@ import {
 import PageLayout from "../../layout/PageLayout";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Units = () => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const [units, setUnits] = useState([]);
   const [inactiveUnits, setInactiveUnits] = useState([]);
@@ -272,220 +275,95 @@ const Units = () => {
       {/* ======================================================
           ADD UNIT MODAL
       ======================================================= */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+      {/* ======================================================
+          ADD UNIT MODAL
+      ======================================================= */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAddUnit}
+        title="New Unit"
+      >
+        {/* NAME */}
+        <label className="block text-sm mb-1">Name *</label>
+        <input
+          type="text"
+          value={newUnit.name}
+          onChange={(e) =>
+            setNewUnit((prev) => ({ ...prev, name: e.target.value }))
+          }
+          placeholder="Enter unit name"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none"
+        />
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Unit</h2>
-              <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* NAME */}
-              <label className="block text-sm mb-1">Name *</label>
-              <input
-                type="text"
-                value={newUnit.name}
-                onChange={(e) =>
-                  setNewUnit((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="Enter unit name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
-              />
-
-              {/* DESCRIPTION */}
-              <label className="block text-sm mb-1">Description</label>
-              <textarea
-                value={newUnit.description}
-                onChange={(e) =>
-                  setNewUnit((prev) => ({ ...prev, description: e.target.value }))
-                }
-                placeholder="Enter description"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
-              <button
-                onClick={handleAddUnit}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
+        {/* DESCRIPTION */}
+        <label className="block text-sm mb-1">Description</label>
+        <textarea
+          value={newUnit.description}
+          onChange={(e) =>
+            setNewUnit((prev) => ({ ...prev, description: e.target.value }))
+          }
+          placeholder="Enter description"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none"
+        />
+      </AddModal>
 
       {/* ======================================================
           EDIT UNIT MODAL
       ======================================================= */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+      {/* ======================================================
+          EDIT UNIT MODAL
+      ======================================================= */}
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdateUnit}
+        onDelete={handleDeleteUnit}
+        onRestore={handleRestoreUnit}
+        isInactive={editUnit.isInactive}
+        title={`${editUnit.isInactive ? "Restore Unit" : "Edit Unit"} (${editUnit.name})`}
+        permissionDelete={hasPermission(PERMISSIONS.INVENTORY.UNITS.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.INVENTORY.UNITS.EDIT)}
+      >
+        {/* NAME */}
+        <label className="block text-sm mb-1">Name *</label>
+        <input
+          type="text"
+          value={editUnit.name}
+          onChange={(e) =>
+            setEditUnit((prev) => ({ ...prev, name: e.target.value }))
+          }
+          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none ${
+            editUnit.isInactive ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+          disabled={editUnit.isInactive}
+        />
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">{editUnit.isInactive ? "Restore Unit" : "Edit Unit"} ({editUnit.name})</h2>
-              <button onClick={() => setEditModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* NAME */}
-              <label className="block text-sm mb-1">Name *</label>
-              <input
-                type="text"
-                value={editUnit.name}
-                onChange={(e) =>
-                  setEditUnit((prev) => ({ ...prev, name: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
-              />
-
-              {/* DESCRIPTION */}
-              <label className="block text-sm mb-1">Description</label>
-              <textarea
-                value={editUnit.description}
-                onChange={(e) =>
-                  setEditUnit((prev) => ({ ...prev, description: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24"
-              />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              
-              
-              {/* DELETE / RESTORE */}
-              {editUnit.isInactive ? (
-                hasPermission(PERMISSIONS.INVENTORY.UNITS.DELETE) && (
-                <button
-                  onClick={handleRestoreUnit}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-                )
-              ) : (
-                hasPermission(PERMISSIONS.INVENTORY.UNITS.DELETE) && (
-                <button
-                  onClick={handleDeleteUnit}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-                )
-              )}
-
-              {/* UPDATE (only if active) */}
-              {!editUnit.isInactive && hasPermission(PERMISSIONS.INVENTORY.UNITS.EDIT) && (
-                <button
-                  onClick={handleUpdateUnit}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
-                >
-                  <Save size={16} /> Save
-                </button>
-              )}
-
-            </div>
-          </div>
-        </div>
-      )}
+        {/* DESCRIPTION */}
+        <label className="block text-sm mb-1">Description</label>
+        <textarea
+          value={editUnit.description}
+          onChange={(e) =>
+            setEditUnit((prev) => ({ ...prev, description: e.target.value }))
+          }
+          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none ${
+            editUnit.isInactive ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+          disabled={editUnit.isInactive}
+        />
+      </EditModal>
 
       {/* ======================================================
           COLUMN PICKER
       ======================================================= */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* COLUMNS */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-
-              {/* VISIBLE */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button className="text-red-400" onClick={() => toggleColumn(col)}>
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* HIDDEN */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button className="text-green-400" onClick={() => toggleColumn(col)}>
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+         {/* COLUMN PICKER MODAL */}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       {/* ======================================================
           MAIN PAGE
@@ -535,7 +413,7 @@ const Units = () => {
 
             {/* COLUMN PICKER */}
             <button
-              onClick={() => setColumnModal(true)}
+              onClick={() => setColumnModalOpen(true)}
               className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
             >
               <List size={16} className="text-blue-300" />
@@ -554,7 +432,6 @@ const Units = () => {
                  Inactive
               </span>
             </button>
-
           </div>
 
           {/* TABLE */}

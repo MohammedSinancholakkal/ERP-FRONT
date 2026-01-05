@@ -29,10 +29,13 @@ import PageLayout from "../../layout/PageLayout";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
 
 const Brands = () => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const [brands, setBrands] = useState([]);
 
@@ -282,218 +285,94 @@ const Brands = () => {
       {/* ======================================================
           ADD BRAND MODAL
       ======================================================= */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+      {/* ======================================================
+          ADD BRAND MODAL
+      ======================================================= */}
+      <AddModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleAddBrand}
+        title="New Brand"
+      >
+        {/* NAME */}
+        <label className="block text-sm mb-1">Name *</label>
+        <input
+          type="text"
+          value={newBrand.name}
+          onChange={(e) =>
+            setNewBrand((prev) => ({ ...prev, name: e.target.value }))
+          }
+          placeholder="Enter brand name"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none"
+        />
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">New Brand</h2>
-              <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* NAME */}
-              <label className="block text-sm mb-1">Name *</label>
-              <input
-                type="text"
-                value={newBrand.name}
-                onChange={(e) =>
-                  setNewBrand((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="Enter brand name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
-              />
-
-              {/* DESCRIPTION */}
-              <label className="block text-sm mb-1">Description</label>
-              <textarea
-                value={newBrand.description}
-                onChange={(e) =>
-                  setNewBrand((prev) => ({ ...prev, description: e.target.value }))
-                }
-                placeholder="Enter description"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-              {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
-              <button
-                onClick={handleAddBrand}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
-              >
-                <Save size={16} /> Save
-              </button>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
+        {/* DESCRIPTION */}
+        <label className="block text-sm mb-1">Description</label>
+        <textarea
+          value={newBrand.description}
+          onChange={(e) =>
+            setNewBrand((prev) => ({ ...prev, description: e.target.value }))
+          }
+          placeholder="Enter description"
+          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none"
+        />
+      </AddModal>
 
       {/* ======================================================
           EDIT BRAND MODAL
       ======================================================= */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+      {/* ======================================================
+          EDIT BRAND MODAL
+      ======================================================= */}
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdateBrand}
+        onDelete={handleDeleteBrand}
+        onRestore={handleRestoreBrand}
+        isInactive={editBrand.isInactive}
+        title={`${editBrand.isInactive ? "Restore Brand" : "Edit Brand"} (${editBrand.name})`}
+        permissionDelete={hasPermission(PERMISSIONS.INVENTORY.BRANDS.DELETE)}
+        permissionEdit={hasPermission(PERMISSIONS.INVENTORY.BRANDS.EDIT)}
+      >
+        {/* NAME */}
+        <label className="block text-sm mb-1">Name *</label>
+        <input
+          type="text"
+          value={editBrand.name}
+          onChange={(e) =>
+            setEditBrand((prev) => ({ ...prev, name: e.target.value }))
+          }
+          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none ${
+            editBrand.isInactive ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+          disabled={editBrand.isInactive}
+        />
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">{editBrand.isInactive ? "Restore Brand" : "Edit Brand"} ({editBrand.name})</h2>
-              <button onClick={() => setEditModalOpen(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* NAME */}
-              <label className="block text-sm mb-1">Name *</label>
-              <input
-                type="text"
-                value={editBrand.name}
-                onChange={(e) =>
-                  setEditBrand((prev) => ({ ...prev, name: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-blue-500 focus:outline-none"
-              />
-
-              {/* DESCRIPTION */}
-              <label className="block text-sm mb-1">Description</label>
-              <textarea
-                value={editBrand.description}
-                onChange={(e) =>
-                  setEditBrand((prev) => ({ ...prev, description: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              
-              {/* DELETE / RESTORE */}
-              {editBrand.isInactive ? (
-                hasPermission(PERMISSIONS.INVENTORY.BRANDS.DELETE) && (
-                <button
-                  onClick={handleRestoreBrand}
-                  className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded hover:bg-green-700"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-                )
-              ) : (
-                hasPermission(PERMISSIONS.INVENTORY.BRANDS.DELETE) && (
-                <button
-                  onClick={handleDeleteBrand}
-                  className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded hover:bg-red-700"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-                )
-              )}
-
-              {/* UPDATE (only if active) */}
-              {!editBrand.isInactive && hasPermission(PERMISSIONS.INVENTORY.BRANDS.EDIT) && (
-                <button
-                  onClick={handleUpdateBrand}
-                  className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
-                >
-                  <Save size={16} /> Save
-                </button>
-              )}
-
-            </div>
-          </div>
-        </div>
-      )}
+        {/* DESCRIPTION */}
+        <label className="block text-sm mb-1">Description</label>
+        <textarea
+          value={editBrand.description}
+          onChange={(e) =>
+            setEditBrand((prev) => ({ ...prev, description: e.target.value }))
+          }
+          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none ${
+            editBrand.isInactive ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+          disabled={editBrand.isInactive}
+        />
+      </EditModal>
 
       {/* ======================================================
           COLUMN PICKER
       ======================================================= */}
-      {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button onClick={() => setColumnModal(false)} className="text-gray-300 hover:text-white">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-
-              {/* VISIBLE */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button className="text-red-400" onClick={() => toggleColumn(col)}>
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              {/* HIDDEN */}
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button className="text-green-400" onClick={() => toggleColumn(col)}>
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
-              >
-                Restore Defaults
-              </button>
-
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
-              >
-                OK
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
 
       {/* ======================================================
           MAIN PAGE
@@ -543,7 +422,7 @@ const Brands = () => {
 
               {/* COLUMN PICKER */}
               <button
-                onClick={() => setColumnModal(true)}
+                onClick={() => setColumnModalOpen(true)}
                 className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
               >
                 <List size={16} className="text-blue-300" />

@@ -4,33 +4,47 @@ import {
   Plus,
   RefreshCw,
   List,
-  X,
-  Save,
-  Trash2,
   ArchiveRestore,
   Star,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
-import SortableHeader from "../../components/SortableHeader";
+// import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import MasterTable from "../../components/MasterTable";
+import Swal from "sweetalert2";
+import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import {
   addStateApi,
-  getStatesApi,
+//   getStatesApi,
   updateStateApi,
   deleteStateApi,
-  searchStateApi,
-  getInactiveStatesApi,
+//   searchStateApi,
+//   getInactiveStatesApi,
   restoreStateApi,
   getCountriesApi,
   addCountryApi,
 } from "../../services/allAPI";
 
+// MODALS
+import AddModal from "../../components/modals/AddModal";
+import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+
 const States = () => {
+  const { theme } = useTheme();
+  const { 
+    loadStates: loadStatesCtx, 
+    // refreshStates, 
+    loadInactiveStates: loadInactiveCtx, 
+    refreshInactiveStates 
+  } = useMasters();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -72,15 +86,10 @@ const States = () => {
     country: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
+  // const [searchColumn, setSearchColumn] = useState(""); // Moved to Modal
 
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
+  // const toggleColumn = (col) => { ... } // Moved to Modal
+  // const restoreDefaultColumns = () => { ... } // Moved to Modal
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
@@ -126,27 +135,10 @@ const States = () => {
   }, []);
 
   // LOAD STATES
-  const loadStates = async () => {
-    try {
-      const res = await getStatesApi(page, limit);
-      if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.Country?.Name || r.countryName || "N/A"
-        }));
-        setStates(normalized);
-        const total = res.data.total || normalized.length;
-        setTotalRecords(total);
-      } else {
-        toast.error("Failed to load states");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load states");
-    }
+  const loadStates = async (forceRefresh = false) => {
+    const { data, total } = await loadStatesCtx(page, limit, searchText, forceRefresh);
+    setStates(data || []);
+    setTotalRecords(total || 0);
   };
 
   useEffect(() => {
@@ -154,46 +146,21 @@ const States = () => {
   }, [page, limit]);
 
   const loadInactive = async () => {
-    try {
-      const res = await getInactiveStatesApi();
-      if (res?.status === 200) {
-        const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.Country?.Name || r.countryName || "N/A"
-        }));
-        setInactiveStates(normalized);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load inactive");
-    }
+    const data = await loadInactiveCtx();
+    setInactiveStates(data || []);
   };
 
   const handleSearch = async (text) => {
     setSearchText(text);
     if (!text.trim()) {
-      setPage(1);
-      return loadStates();
+        const { data, total } = await loadStatesCtx(1, limit, "");
+        setStates(data || []);
+        setTotalRecords(total || 0);
+        return;
     }
-    try {
-      const res = await searchStateApi(text);
-      if (res?.status === 200) {
-        const rows = res.data || [];
-        const normalized = rows.map(r => ({
-             id: r.Id || r.id,
-            name: r.Name || r.name,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.Country?.Name || r.countryName || "N/A"
-        }));
-        setStates(normalized);
-        setTotalRecords(rows.length);
-      }
-    } catch (err) {
-        console.error(err);
-    }
+    const { data, total } = await loadStatesCtx(1, limit, text);
+    setStates(data || []);
+    setTotalRecords(total || 0);
   };
 
   const handleAdd = async () => {
@@ -207,7 +174,8 @@ const States = () => {
         setNewData({ name: "", countryId: "" });
         setModalOpen(false);
         setPage(1); 
-        loadStates();
+        // refreshStates();
+        loadStates(true);
       } else {
         toast.error("Failed to add");
       }
@@ -230,8 +198,12 @@ const States = () => {
       if (res?.status === 200) {
         toast.success("Updated");
         setEditModalOpen(false);
-        loadStates();
-        if (showInactive) loadInactive();
+        // refreshStates();
+        loadStates(true);
+        if (showInactive) {
+            refreshInactiveStates();
+            loadInactive();
+        }
       } else {
         toast.error("Update failed");
       }
@@ -242,37 +214,68 @@ const States = () => {
   };
 
   const handleDelete = async () => {
-    try {
-      const res = await deleteStateApi(editData.id, { userId });
-      if (res?.status === 200) {
-        toast.success("Deleted");
-        setEditModalOpen(false);
-        loadStates();
-        if (showInactive) loadInactive();
-      } else {
-        toast.error("Delete failed");
-      }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
-    }
+    Swal.fire({
+        title: "Are you sure?",
+        text: "You won't be able to revert this!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it!",
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            const res = await deleteStateApi(editData.id, { userId });
+            if (res?.status === 200) {
+              toast.success("Deleted");
+              setEditModalOpen(false);
+              // refreshStates();
+              loadStates(true);
+              if (showInactive) {
+                  refreshInactiveStates();
+                  loadInactive();
+              }
+            } else {
+              toast.error("Delete failed");
+            }
+          } catch (err) {
+              console.error(err);
+              toast.error("Server error");
+          }
+        }
+      });
   };
 
   const handleRestore = async () => {
-    try {
-      const res = await restoreStateApi(editData.id, { userId });
-      if (res?.status === 200) {
-        toast.success("Restored");
-        setEditModalOpen(false);
-        loadStates();
-        loadInactive();
-      } else {
-        toast.error("Restore failed");
+    Swal.fire({
+      title: "Are you sure?",
+      text: "Do you want to restore this state?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, restore it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const res = await restoreStateApi(editData.id, { userId });
+          if (res?.status === 200) {
+            toast.success("Restored");
+            setEditModalOpen(false);
+            // refreshStates();
+            loadStates(true);
+            refreshInactiveStates();
+            loadInactive();
+          } else {
+            toast.error("Restore failed");
+          }
+        } catch (err) {
+            console.error(err);
+            toast.error("Server error");
+        }
       }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
-    }
+    });
+
   };
 
   // --- QUICK ADD HANDLER ---
@@ -306,24 +309,30 @@ const States = () => {
       }
   };
 
+  const tableColumns = [
+    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+    visibleColumns.name && { key: "name", label: "Name", sortable: true },
+    visibleColumns.country && { key: "countryName", label: "Country", sortable: true },
+  ].filter(Boolean);
+
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+      <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">States</h2>
 
           <div className="flex flex-wrap items-center gap-1 mb-4">
-             <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-                <Search size={16} className="text-gray-300" />
+             <div className={`flex items-center px-3 py-1.5 rounded border w-full sm:w-60 ${theme === 'emerald' ? 'bg-gray-100 border-emerald-500' : 'bg-gray-700 border-gray-600'}`}>
+                <Search size={16} className={theme === 'emerald' ? 'text-gray-500' : 'text-gray-300'} />
                 <input
                   value={searchText}
                   onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Search..."
-                  className="bg-transparent pl-2 text-sm w-full outline-none"
+                  className={`bg-transparent pl-2 text-sm w-full outline-none ${theme === 'emerald' ? 'text-gray-900 placeholder-gray-500' : 'text-gray-200 placeholder-gray-500'}`}
                 />
               </div>
               {hasPermission(PERMISSIONS.STATES.CREATE) && (
-              <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded">
+              <button onClick={() => setModalOpen(true)} className={`flex items-center gap-2 px-3 py-1.5 rounded border ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
                 <Plus size={16} /> New State
               </button>
               )}
@@ -333,283 +342,154 @@ const States = () => {
                   setPage(1);
                   loadStates();
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
+                className={`p-2 rounded border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
               >
-                <RefreshCw size={16} className="text-blue-400" />
+                <RefreshCw size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-400'} />
               </button>
-              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded">
-                <List size={16} className="text-blue-300" />
+              <button onClick={() => setColumnModal(true)} className={`p-2 rounded border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
+                <List size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-300'} />
               </button>
               <button
                 onClick={async () => {
                   if (!showInactive) await loadInactive();
                   setShowInactive((s) => !s);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1"
+                className={`p-2 rounded border flex items-center gap-1 ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
               >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
+                <ArchiveRestore size={16} className={theme === 'emerald' ? 'text-white' : 'text-yellow-300'} />
+                <span className={`text-xs opacity-80 ${theme === 'emerald' ? 'text-white' : ''}`}>Inactive</span>
               </button>
           </div>
 
-          <div className="flex-grow overflow-auto min-h-0">
-            <table className="w-[600px] border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white text-center">
-                        {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                        {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
-                        {visibleColumns.country && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
-                    </tr>
-                </thead>
-                <tbody>
-                    {!sortedStates.length && !showInactive && (
-                         <tr><td colSpan="3" className="text-center py-4 text-gray-400">No records found</td></tr>
-                    )}
-                    {!showInactive && sortedStates.map(r => (
-                        <tr key={r.id} onClick={() => {
-                            setEditData({ id: r.id, name: r.name, countryId: r.countryId, isInactive: false });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 hover:bg-gray-700 cursor-pointer text-center">
-                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
-                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
-                        </tr>
-                    ))}
-                    {showInactive && inactiveStates.map(r => (
-                        <tr key={`inactive-${r.id}`} onClick={() => {
-                            setEditData({ id: r.id, name: r.name, countryId: r.countryId, isInactive: true });
-                            setEditModalOpen(true);
-                        }} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer text-center">
-                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
-                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-          </div>
+          <MasterTable
+            columns={tableColumns}
+            data={sortedStates}
+            inactiveData={inactiveStates}
+            showInactive={showInactive}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            onRowClick={(item, isInactive) => {
+              setEditData({
+                id: item.id,
+                name: item.name,
+                countryId: item.countryId,
+                isInactive: isInactive,
+              });
+              setEditModalOpen(true);
+            }}
+          />
 
-              <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={totalRecords}
-                onRefresh={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadStates();
-                }}
-              />
+          <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={totalRecords}
+            onRefresh={() => {
+              setSearchText("");
+              setPage(1);
+              loadStates();
+            }}
+          />
         </div>
       </div>
 
-       {/* MODALS */}
-       {modalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">New State</h2>
-                  <button onClick={() => setModalOpen(false)}><X size={20}/></button>
-               </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm">Name *</label>
-                      <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
+       {/* ADD STATE MODAL */}
+       <AddModal
+         isOpen={modalOpen}
+         onClose={() => setModalOpen(false)}
+         onSave={handleAdd}
+         title="New State"
+       >
+          <div className="space-y-4">
+              <div>
+                  <label className="text-sm">Name *</label>
+                  <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
+              </div>
+              <div>
+                  <label className="text-sm">Country *</label>
+                  <div className="flex items-center gap-2">
+                      <SearchableSelect
+                        options={countries.map(c => ({ id: c.id, name: c.name }))}
+                        value={newData.countryId}
+                        onChange={(val) => setNewData({...newData, countryId: val})}
+                        placeholder="Select Country"
+                        className="w-full"
+                        direction="up"
+                      />
+                      {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                            <Star size={18} className="text-yellow-400" />
+                        </button>)}
                   </div>
-                  <div>
-                      <label className="text-sm">Country *</label>
-                      <div className="flex items-center gap-2">
-                          <SearchableSelect
-                            options={countries.map(c => ({ id: c.id, name: c.name }))}
-                            value={newData.countryId}
-                            onChange={(val) => setNewData({...newData, countryId: val})}
-                            placeholder="Select Country"
-                            className="w-full"
-                            direction="up"
-                          />
-                          {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                               <Star size={18} className="text-yellow-400" />
-                           </button>)}
-                      </div>
-                  </div>
-               </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                   {hasPermission(PERMISSIONS.STATES.CREATE) && (
-                   <button onClick={handleAdd} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                   )}
-               </div>
-            </div>
+              </div>
           </div>
-       )}
+       </AddModal>
 
-       {editModalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-            <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-               <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                  <h2 className="font-semibold">{editData.isInactive ? "Restore State" : "Edit State"}</h2>
-                  <button onClick={() => setEditModalOpen(false)}><X size={20}/></button>
-               </div>
-               <div className="p-5 space-y-4">
-                  <div>
-                      <label className="text-sm">Name *</label>
-                      <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
+       {/* EDIT STATE MODAL */}
+       <EditModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdate}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          isInactive={editData.isInactive}
+          title={editData.isInactive ? "Restore State" : "Edit State"}
+          permissionDelete={hasPermission(PERMISSIONS.STATES.DELETE)}
+          permissionEdit={hasPermission(PERMISSIONS.STATES.EDIT)}
+       >
+           <div className="space-y-4">
+              <div>
+                  <label className="text-sm">Name *</label>
+                  <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
+              </div>
+               <div>
+                  <label className="text-sm">Country *</label>
+                  <div className="flex items-center gap-2">
+                      <SearchableSelect
+                        options={countries.map(c => ({ id: c.id, name: c.name }))}
+                        value={editData.countryId}
+                        onChange={(val) => setEditData({...editData, countryId: val})}
+                        placeholder="Select Country"
+                        disabled={editData.isInactive}
+                        className="w-full"
+                        direction="up"
+                      />
+                      {!editData.isInactive && (
+                          <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
+                               <Star size={18} className="text-yellow-400" />
+                           </button>
+                      )}
                   </div>
-                   <div>
-                      <label className="text-sm">Country *</label>
-                      <div className="flex items-center gap-2">
-                          <SearchableSelect
-                            options={countries.map(c => ({ id: c.id, name: c.name }))}
-                            value={editData.countryId}
-                            onChange={(val) => setEditData({...editData, countryId: val})}
-                            placeholder="Select Country"
-                            disabled={editData.isInactive}
-                            className="w-full"
-                            direction="up"
-                          />
-                          {!editData.isInactive && (
-                              <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                                   <Star size={18} className="text-yellow-400" />
-                               </button>
-                          )}
-                      </div>
-                  </div>
-               </div>
-               <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-                   {editData.isInactive ? (
-                       <button onClick={handleRestore} className="bg-green-600 px-4 py-2 rounded flex items-center gap-2"><ArchiveRestore size={16}/> Restore</button>
-                   ) : (
-                       hasPermission(PERMISSIONS.STATES.DELETE) && (
-                       <button onClick={handleDelete} className="bg-red-600 px-4 py-2 rounded flex items-center gap-2"><Trash2 size={16}/> Delete</button>
-                       )
-                   )}
-                   {!editData.isInactive && hasPermission(PERMISSIONS.STATES.EDIT) && (
-                       <button onClick={handleUpdate} className="bg-gray-700 px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-600"><Save size={16}/> Save</button>
-                   )}
-               </div>
-            </div>
-          </div>
-       )}
+              </div>
+           </div>
+       </EditModal>
 
        {/* QUICK ADD COUNTRY MODAL */}
-       {addCountryModalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-                    <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-                        <h2 className="font-semibold">Add Country</h2>
-                        <button onClick={() => setAddCountryModalOpen(false)}><X size={20}/></button>
-                    </div>
-                    <div className="p-5">
-                        <label className="text-sm">Country Name *</label>
-                        <input 
-                            value={newCountryName} 
-                            onChange={e => setNewCountryName(e.target.value)} 
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
-                            autoFocus
-                        />
-                    </div>
-                    <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                        <button onClick={handleAddCountry} className="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600">Save</button>
-                    </div>
-                </div>
+       <AddModal
+          isOpen={addCountryModalOpen}
+          onClose={() => setAddCountryModalOpen(false)}
+          onSave={handleAddCountry}
+          title="Add Country"
+       >
+            <div className="">
+                <label className="text-sm">Country Name *</label>
+                <input 
+                    value={newCountryName} 
+                    onChange={e => setNewCountryName(e.target.value)} 
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
+                    autoFocus
+                />
             </div>
-       )}
+       </AddModal>
 
-       {/* columnModal */}
-       {columnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex justify-center items-center">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-              <h2 className="text-lg font-semibold">Column Picker</h2>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* SEARCH */}
-            <div className="px-5 py-3">
-              <input
-                type="text"
-                placeholder="search columns..."
-                value={searchColumn}
-                onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-                className="w-60 bg-gray-900 border border-gray-700 px-3 py-2 rounded text-sm"
-              />
-            </div>
-
-            {/* VISIBLE / HIDDEN COLUMNS */}
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-red-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="border border-gray-700 rounded p-3 bg-gray-800/40">
-                <h3 className="font-semibold mb-3">📋 Hidden Columns</h3>
-
-                {Object.keys(visibleColumns)
-                  .filter((col) => !visibleColumns[col])
-                  .filter((col) => col.includes(searchColumn))
-                  .map((col) => (
-                    <div
-                      key={col}
-                      className="flex justify-between bg-gray-900 px-3 py-2 rounded mb-2"
-                    >
-                      <span>☰ {col.toUpperCase()}</span>
-                      <button
-                        className="text-green-400"
-                        onClick={() => toggleColumn(col)}
-                      >
-                        ➕
-                      </button>
-                    </div>
-                  ))}
-
-                {Object.keys(visibleColumns).filter(
-                  (col) => !visibleColumns[col]
-                ).length === 0 && (
-                  <p className="text-gray-400 text-sm">No hidden columns</p>
-                )}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between">
-              <button
-                onClick={restoreDefaultColumns}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                Restore Defaults
-              </button>
-              <button
-                onClick={() => setColumnModal(false)}
-                className="px-4 py-2 bg-gray-800 border border-gray-600 rounded"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-       )}
+       {/* COLUMN PICKER MODAL */}
+       <ColumnPickerModal
+          isOpen={columnModal}
+          onClose={() => setColumnModal(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+       />
 
     </PageLayout>
   );
