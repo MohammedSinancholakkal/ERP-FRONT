@@ -42,6 +42,30 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import MasterTable from "../../components/MasterTable"; // ADDED
+import { useTheme } from "../../context/ThemeContext"; // ADDED
+
+const ExportButtons = ({ onExcel, onPDF }) => (
+  <div className="flex items-center gap-2">
+    <button
+      onClick={onExcel}
+      title="Export to Excel"
+      className="p-1.5 bg-green-700/10 border border-green-700 rounded hover:bg-green-700/20 flex items-center gap-2"
+    >
+      <FileSpreadsheet size={16} className="text-green-300" />
+      <span className="hidden sm:inline text-sm">Excel</span>
+    </button>
+
+    <button
+      onClick={onPDF}
+      title="Export to PDF"
+      className="p-1.5 bg-red-700/10 border border-red-700 rounded hover:bg-red-700/20 flex items-center gap-2"
+    >
+      <FileText size={16} className="text-red-300" />
+      <span className="hidden sm:inline text-sm">PDF</span>
+    </button>
+  </div>
+);
 
 
 
@@ -52,11 +76,12 @@ import EditModal from "../../components/modals/EditModal";
    MAIN COMPONENT
    ========================================================= */
 const DamagedProducts = () => {
+  const { theme } = useTheme(); // ADDED
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const [damaged, setDamaged] = useState([]);
-  const [inactive, setInactive] = useState([]);
+  const [inactive, setInactive] = useState([]); // MasterTable uses inactiveData prop
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -450,7 +475,7 @@ const DamagedProducts = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [damaged, searchText, filterCategory]);
 
-    // --- SORTING LOGIC ---
+  // --- SORTING LOGIC ---
   const sortedList = React.useMemo(() => {
     let sortableItems = [...displayed];
     if (sortConfig.key !== null) {
@@ -459,7 +484,7 @@ const DamagedProducts = () => {
         let bValue = b[sortConfig.key];
 
         // Handle numeric values
-        if (['PurchasePrice', 'Quantity', 'Id'].includes(sortConfig.key)) {
+        if (['PurchasePrice', 'Quantity', 'Id', 'id', 'purchasePrice', 'quantity'].includes(sortConfig.key)) {
             aValue = parseFloat(aValue) || 0;
             bValue = parseFloat(bValue) || 0;
         } else {
@@ -830,164 +855,73 @@ const DamagedProducts = () => {
       />
 
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
-          <h2 className="text-2xl font-semibold mb-4">Damaged Products</h2>
-
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-52">
-              <Search size={16} className="text-gray-300" />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-              />
-            </div>
-            {/* ADD */}
-            {hasPermission(PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.CREATE) && (
-            <button
-              onClick={openAdd}
-              className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
-            >
-              <Plus size={16} /> New Entry
-            </button>
-            )}
-
-            {/* REFRESH */}
-            <button
-               onClick={() => {
-                setSearchText("");
-                loadDamaged(1, limit);
-              }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            <button
-              onClick={() => setColumnModalOpen(true)}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            <button
-              onClick={async () => {
-                if (!showInactive) await loadInactive();
-                setShowInactive(!showInactive);
-              }}
-              className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
-            >
-              <ArchiveRestore size={16} className="text-yellow-400" />
-              <span className="text-xs text-gray-300">
-               Inactive
-              </span>
-            </button>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exportToExcel}
-                className="p-1.5 bg-green-700/10 border border-green-700 rounded hover:bg-green-700/20 flex items-center gap-2"
-              >
-                <FileSpreadsheet size={16} className="text-green-300" />
-                <span className="hidden sm:inline text-sm">Excel</span>
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="p-1.5 bg-red-700/10 border border-red-700 rounded hover:bg-red-700/20 flex items-center gap-2"
-              >
-                <FileText size={16} className="text-red-300" />
-                <span className="hidden sm:inline text-sm">PDF</span>
-              </button>
-            </div>
-          </div>
-
-            {/* FILTER BAR - Replaced custom manual filters with FilterBar */}
-            <div className="mb-4">
-               <FilterBar filters={filters} onClear={handleClearFilters} />
-            </div>
-
-          {/* TABLE */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <table className="min-w-[1300px] text-left border-separate border-spacing-y-1 text-sm">
-              <thead className="sticky top-0 bg-gray-900 z-10">
-                <tr>
-                  {visibleColumns.id && <SortableHeader label="ID" sortKey="Id" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.code && <SortableHeader label="Code" sortKey="Code" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.name && <SortableHeader label="Name" sortKey="Name" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.category && <SortableHeader label="Category" sortKey="CategoryName" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.purchasePrice && <SortableHeader label="Purchase Price" sortKey="PurchasePrice" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.quantity && <SortableHeader label="Qty" sortKey="Quantity" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.date && <SortableHeader label="Date" sortKey="Date" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.note && <th className="border-b border-white pb-1 text-center">Note</th>}
-                </tr>
-              </thead>
-
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan="9" className="text-center py-6 text-gray-400">
-                      Loading...
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  sortedList.map((r) => (
-                    <tr
-                      key={r.Id ?? r.id}
-                      className={`bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm ${r.isInactive ? 'opacity-40 line-through' : ''}`}
-                      onClick={() => openEditModalFn(r, r.isInactive)}
-                    >
-                      {visibleColumns.id && (<td className="px-2 py-2 text-center">{r.Id ?? r.id}</td>)}
-                      {visibleColumns.code && (<td className="px-2 py-2 text-center">{r.Code ?? r.code}</td>)}
-                      {visibleColumns.name && (<td className="px-2 py-2 text-center">{r.Name ?? r.name}</td>)}
-                      {visibleColumns.category && (<td className="px-2 py-2 text-center">{(r.CategoryName ?? r.categoryName) || "-"}</td>)}
-                      {visibleColumns.purchasePrice && (<td className="px-2 py-2 text-center">{r.PurchasePrice ?? r.purchasePrice}</td>)}
-                      {visibleColumns.quantity && (<td className="px-2 py-2 text-center">{r.Quantity ?? r.quantity}</td>)}
-                      {visibleColumns.date && (<td className="px-2 py-2 text-center">{String((r.Date ?? r.date) || "").split("T")[0]}</td>)}
-                      {visibleColumns.note && (<td className="px-2 py-2 text-center">{(r.Note ?? r.note) || "-"}</td>)}
-                    </tr>
-                  ))}
-                  
-                   {!loading && sortedList.length === 0 && !showInactive && (
-                     <tr>
-                        <td colSpan={9} className="text-center py-6 text-gray-400">No records found</td>
-                     </tr>
-                   )}
-
-                   {/* INACTIVE ROWS APPENDED */}
-                   {showInactive && inactive.map((r) => (
-                     <tr
-                       key={`inactive-${r.Id ?? r.id}`}
-                       className="bg-gray-900 cursor-pointer opacity-50 line-through hover:bg-gray-800"
-                       onClick={() => openEditModalFn(r, true)}
-                     >
-                       {visibleColumns.id && (<td className="px-2 py-2 text-center">{r.Id ?? r.id}</td>)}
-                       {visibleColumns.code && (<td className="px-2 py-2 text-center">{r.Code ?? r.code}</td>)}
-                       {visibleColumns.name && (<td className="px-2 py-2 text-center">{r.Name ?? r.name}</td>)}
-                       {visibleColumns.category && (<td className="px-2 py-2 text-center">{(r.CategoryName ?? r.categoryName) || "-"}</td>)}
-                       {visibleColumns.purchasePrice && (<td className="px-2 py-2 text-center">{r.PurchasePrice ?? r.purchasePrice}</td>)}
-                       {visibleColumns.quantity && (<td className="px-2 py-2 text-center">{r.Quantity ?? r.quantity}</td>)}
-                       {visibleColumns.date && (<td className="px-2 py-2 text-center">{String((r.Date ?? r.date) || "").split("T")[0]}</td>)}
-                       {visibleColumns.note && (<td className="px-2 py-2 text-center">{(r.Note ?? r.note) || "-"}</td>)}
-                     </tr>
-                   ))}
-                </tbody>
-            </table>
-          </div>
-
-          <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={total}
-                onRefresh={() => loadDamaged(1, limit)}
-              />
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
             
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Damaged Products</h2>
+            </div>
+
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.code && { key: "Code", label: "Code", sortable: true },
+                    visibleColumns.name && { key: "Name", label: "Name", sortable: true },
+                    visibleColumns.category && { key: "CategoryName", label: "Category", sortable: true, render: (r) => r.CategoryName || r.categoryName || "-" },
+                    visibleColumns.purchasePrice && { key: "PurchasePrice", label: "Price", sortable: true },
+                    visibleColumns.quantity && { key: "Quantity", label: "Qty", sortable: true },
+                    visibleColumns.date && { key: "Date", label: "Date", sortable: true, render: (r) => r.Date ? String(r.Date).split("T")[0] : "" },
+                    visibleColumns.note && { key: "Note", label: "Note", sortable: true },
+                ].filter(Boolean)}
+                data={sortedList}
+                inactiveData={inactive}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(r, isInactive) => openEditModalFn(r, isInactive)}
+                
+                // Action Barprops
+                search={searchText}
+                onSearch={(val) => setSearchText(val)}
+                
+                onCreate={() => openAdd()}
+                createLabel="New Entry"
+                permissionCreate={hasPermission(PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.CREATE)}
+                
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    loadDamaged(1, limit);
+                }}
+                
+                onColumnSelector={() => setColumnModalOpen(true)}
+                
+                onToggleInactive={async () => {
+                   if (!showInactive) await loadInactive();
+                   setShowInactive(!showInactive);
+                }}
+                
+                customActions={<ExportButtons onExcel={exportToExcel} onPDF={exportToPDF} />}
+            >
+               {/* FILTER BAR - as child */}
+               <div className="">
+                  <FilterBar filters={filters} onClear={handleClearFilters} />
+               </div>
+            </MasterTable>
+
+          {/* pagination */}
+          <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={total}
+            onRefresh={() => {
+               setSearchText("");
+               setPage(1);
+               loadDamaged(1, limit);
+            }}
+          />
         </div>
       </div>
       </PageLayout>

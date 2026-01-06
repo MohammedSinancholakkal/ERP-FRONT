@@ -1,12 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-} from "lucide-react";
-import SortableHeader from "../../components/SortableHeader";
+import MasterTable from "../../components/MasterTable";
 import FilterBar from "../../components/FilterBar";
 import Pagination from "../../components/Pagination";
 import PageLayout from "../../layout/PageLayout";
@@ -20,9 +12,8 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import toast from "react-hot-toast";
-
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
-
+import { useEffect, useState } from "react";
 
 
 const Meetings = () => {
@@ -261,194 +252,49 @@ const Meetings = () => {
           <div className="flex flex-col h-full overflow-hidden">
             <h2 className="text-2xl font-semibold mb-4">Meetings</h2>
 
-            {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              {/* Search */}
-              <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-56">
-                <Search size={16} className="text-gray-300" />
-                <input
-                  type="text"
-                  placeholder="search..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="bg-transparent outline-none pl-2 text-sm w-full text-white"
-                />
-              </div>
-
-              {hasPermission(PERMISSIONS.MEETINGS.CREATE) && (
-              <button
-                className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600 text-white"
-                onClick={() => navigate("/app/meeting/meetings/new")}
-              >
-                <Plus size={16} /> New Meeting
-              </button>
-              )}
-
-              <button
-                className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-                onClick={loadMeetings}
-              >
-                <RefreshCw size={16} className="text-blue-300" />
-              </button>
-
-              <button 
-                className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-                onClick={() => setColumnModalOpen(true)}
-              >
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              <button 
-                onClick={async () => {
-                  if (!showInactive) await loadInactiveMeetings();
-                  setShowInactive(!showInactive);
-                }}
-                className={`p-1.5 rounded-md border flex items-center gap-1 ${showInactive ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
-              </button>
-            </div>
-
-            {/* FILTER BAR - Always Visible */}
-            <div className="mb-4">
+            {/* MASTER TABLE */}
+            <MasterTable
+              columns={[
+                visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                visibleColumns.meetingName && { key: "meetingName", label: "Meeting Name", sortable: true },
+                visibleColumns.meetingType && { key: "meetingType", label: "Meeting Type", sortable: true },
+                visibleColumns.startDate && { key: "startDate", label: "Start Date", sortable: true },
+                visibleColumns.endDate && { key: "endDate", label: "End Date", sortable: true },
+                visibleColumns.department && { key: "department", label: "Department", sortable: true },
+                visibleColumns.location && { key: "location", label: "Location", sortable: true },
+                visibleColumns.organizedBy && { key: "organizedBy", label: "Organized By", sortable: true },
+                visibleColumns.reporter && { key: "reporter", label: "Reporter", sortable: true },
+              ].filter(Boolean)}
+              data={paginatedData}
+              inactiveData={inactiveMeetings}
+              showInactive={showInactive}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(item, isInactive) => {
+                 if(isInactive) {
+                    handleRestore(item.id);
+                 } else {
+                    navigate(`/app/meeting/meetings/edit/${item.id}`);
+                 }
+              }}
+              // Action Props
+              search={searchText}
+              onSearch={setSearchText}
+              onCreate={() => navigate("/app/meeting/meetings/new")}
+              createLabel="New Meeting"
+              permissionCreate={hasPermission(PERMISSIONS.MEETINGS.CREATE)}
+              onRefresh={loadMeetings}
+              onColumnSelector={() => setColumnModalOpen(true)}
+              onToggleInactive={async () => {
+                if (!showInactive) await loadInactiveMeetings();
+                setShowInactive(!showInactive);
+              }}
+            >
+              {/* FILTER BAR as Child */}
+              <div className="">
                  <FilterBar filters={filterFilters} onClear={handleClearFilters} />
-            </div>
-
-            {/* TABLE */}
-            <div className="flex-grow overflow-auto min-h-0 w-full">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[1600px] text-center border-separate border-spacing-y-1 text-sm w-full">
-                  <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white">
-                      {visibleColumns.id && (
-                        <SortableHeader
-                          label="ID"
-                          sortKey="id"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.meetingName && (
-                        <SortableHeader
-                          label="Meeting Name"
-                          sortKey="meetingName"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.meetingType && (
-                        <SortableHeader
-                          label="Meeting Type"
-                          sortKey="meetingType"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.startDate && (
-                        <SortableHeader
-                          label="Start Date"
-                          sortKey="startDate"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.endDate && (
-                        <SortableHeader
-                          label="End Date"
-                          sortKey="endDate"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.department && (
-                        <SortableHeader
-                          label="Department"
-                          sortKey="department"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.location && (
-                        <SortableHeader
-                          label="Location"
-                          sortKey="location"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.organizedBy && (
-                        <SortableHeader
-                          label="Organized By"
-                          sortKey="organizedBy"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                      {visibleColumns.reporter && (
-                        <SortableHeader
-                          label="Reporter"
-                          sortKey="reporter"
-                          currentSort={sortConfig}
-                          onSort={handleSort}
-                        />
-                      )}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                     {loading ? (
-                        <tr><td colSpan="9" className="py-8 text-gray-400">Loading meetings...</td></tr>
-                     ) : (
-                        <>
-                          {paginatedData.length === 0 ? (
-                            (!showInactive || inactiveMeetings.length === 0) && (
-                              <tr><td colSpan="9" className="py-8 text-gray-400">No meetings found</td></tr>
-                            )
-                          ) : (
-                            paginatedData.map((m) => (
-                              <tr
-                                key={m.id}
-                                onClick={() => navigate(`/app/meeting/meetings/edit/${m.id}`)}
-                                className="bg-gray-900 hover:bg-gray-700 cursor-pointer text-gray-200"
-                              >
-                                {visibleColumns.id && <td className="px-2 py-2">{m.id}</td>}
-                                {visibleColumns.meetingName && <td className="px-2 py-2">{m.meetingName}</td>}
-                                {visibleColumns.meetingType && <td className="px-2 py-2">{m.meetingType}</td>}
-                                {visibleColumns.startDate && <td className="px-2 py-2">{m.startDate}</td>}
-                                {visibleColumns.endDate && <td className="px-2 py-2">{m.endDate}</td>}
-                                {visibleColumns.department && <td className="px-2 py-2">{m.department}</td>}
-                                {visibleColumns.location && <td className="px-2 py-2">{m.location}</td>}
-                                {visibleColumns.organizedBy && <td className="px-2 py-2">{m.organizedBy}</td>}
-                                {visibleColumns.reporter && <td className="px-2 py-2">{m.reporter}</td>}
-                              </tr>
-                            ))
-                          )}
-
-                          {/* INACTIVE MEETINGS */}
-                          {showInactive && inactiveMeetings.map((m) => (
-                             <tr
-                               key={`inactive-${m.id}`}
-                               onClick={() => handleRestore(m.id)}
-                               className="bg-gray-900/50 opacity-60 line-through hover:bg-gray-800 cursor-pointer text-gray-200"
-                             >
-                               {visibleColumns.id && <td className="px-2 py-2">{m.id}</td>}
-                               {visibleColumns.meetingName && <td className="px-2 py-2">{m.meetingName}</td>}
-                               {visibleColumns.meetingType && <td className="px-2 py-2">{m.meetingType}</td>}
-                               {visibleColumns.startDate && <td className="px-2 py-2">{m.startDate}</td>}
-                               {visibleColumns.endDate && <td className="px-2 py-2">{m.endDate || "-"}</td>}
-                               {visibleColumns.department && <td className="px-2 py-2">{m.department || "-"}</td>}
-                               {visibleColumns.location && <td className="px-2 py-2">{m.location || "-"}</td>}
-                               {visibleColumns.organizedBy && <td className="px-2 py-2">{m.organizedBy || "-"}</td>}
-                               {visibleColumns.reporter && <td className="px-2 py-2">{m.reporter || "-"}</td>}
-                             </tr>
-                          ))}
-                        </>
-                     )}
-                  </tbody>
-                </table>
               </div>
-            </div>
+            </MasterTable>
 
             {/* PAGINATION */}
             <Pagination

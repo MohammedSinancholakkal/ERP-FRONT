@@ -1,22 +1,11 @@
 // src/pages/masters/UpdateStocks.jsx
 import React, { useEffect, useState, useRef } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  Save,
-  Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
-  ArchiveRestore,
-} from "lucide-react";
+
+import MasterTable from "../../components/MasterTable";
+import { useTheme } from "../../context/ThemeContext";
+
 import toast from "react-hot-toast";
 
-// APIs (make sure these exist in your services/allAPI)
 import {
   getStocksApi,
   addStockApi,
@@ -31,7 +20,6 @@ import {
   getWarehousesApi,
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
-import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
@@ -42,6 +30,8 @@ import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 
 const UpdateStocks = () => {
+  const { theme } = useTheme();
+
   // UI states
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -754,250 +744,68 @@ const UpdateStocks = () => {
 
       {/* MAIN PAGE */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
-        <h2 className="text-2xl font-semibold mb-4">Update Stocks</h2>
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <h2 className="text-2xl font-semibold mb-4">Update Stocks</h2>
 
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search stocks..."
-              className="bg-transparent pl-2 text-sm w-full outline-none"
+            <MasterTable
+              columns={[
+                visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                visibleColumns.product && { key: "productName", label: "Product", sortable: true },
+                visibleColumns.quantity && { key: "quantity", label: "Qty", sortable: true },
+                visibleColumns.warehouse && { key: "warehouseName", label: "Warehouse", sortable: true },
+                visibleColumns.mode && { key: "mode", label: "Mode", sortable: true },
+                visibleColumns.status && { key: "status", label: "Status", sortable: true },
+                visibleColumns.vNo && { key: "vNo", label: "VNo", sortable: true },
+                visibleColumns.note && { key: "note", label: "Note", sortable: true },
+              ].filter(Boolean)}
+              data={sortedList}
+              inactiveData={inactiveRows}
+              showInactive={showInactive}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(r, isInactive) => openEdit(r, isInactive)}
+              // Action Bar Props
+              search={searchText}
+              onSearch={handleSearch}
+              onCreate={() => {
+                setModalOpen(true);
+                refreshDropdowns();
+              }}
+              createLabel="New Stock"
+              permissionCreate={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE)}
+              onRefresh={() => {
+                setSearchText("");
+                setFilterProduct("");
+                setFilterWarehouse("");
+                loadRows();
+                if (showInactive) loadInactiveRows();
+              }}
+              onColumnSelector={openColumnPicker}
+              onToggleInactive={async () => {
+                if (!showInactive) await loadInactiveRows();
+                setShowInactive((s) => !s);
+              }}
+            >
+              <div className="">
+                <FilterBar filters={filters} onClear={handleClearFilters} />
+              </div>
+            </MasterTable>
+
+            {/* PAGINATION */}
+            <Pagination
+              page={page}
+              setPage={setPage}
+              limit={limit}
+              setLimit={setLimit}
+              total={totalRecords}
+              onRefresh={() => loadRows()}
             />
           </div>
-
-          {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
-          <button
-            onClick={() => {
-              setModalOpen(true);
-              refreshDropdowns();
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-          >
-            <Plus size={16} /> New Stock
-          </button>
-          )}
-
-          <button
-            onClick={() => {
-              setSearchText("");
-              loadRows();
-              if (showInactive) loadInactiveRows();
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          <button
-            onClick={openColumnPicker}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          <button
-            onClick={async () => {
-              if (!showInactive) await loadInactiveRows();
-              setShowInactive((s) => !s);
-            }}
-            className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
         </div>
-
-        {/* FILTER BAR */}
-        <div className="mb-4">
-          <FilterBar filters={filters} onClear={handleClearFilters} />
-        </div>
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto w-full min-h-0">
-          <div className="w-full overflow-x-auto">
-          <table className="min-w-[900px] border-separate border-spacing-y-1 text-sm table-fixed">
-
-              <colgroup>
-                {visibleColumns.id && <col className="w-[80px]" />}
-                {visibleColumns.product && <col className="w-[240px]" />}
-                {visibleColumns.quantity && <col className="w-[100px]" />}
-                {visibleColumns.warehouse && <col className="w-[200px]" />}
-                {visibleColumns.mode && <col className="w-[80px]" />}
-                {visibleColumns.status && <col className="w-[120px]" />}
-                {visibleColumns.vNo && <col className="w-[120px]" />}
-                {visibleColumns.note && <col className="w-[260px]" />}
-              </colgroup>
-
-              <thead className="sticky top-0 bg-gray-900 z-10">
-                <tr className="text-white text-center">
-                   {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                   {visibleColumns.product && <SortableHeader label="Product" sortKey="productName" currentSort={sortConfig} onSort={handleSort} />}
-                   {visibleColumns.quantity && <SortableHeader label="Qty" sortKey="quantity" currentSort={sortConfig} onSort={handleSort} />}
-                   {visibleColumns.warehouse && <SortableHeader label="Warehouse" sortKey="warehouseName" currentSort={sortConfig} onSort={handleSort} />}
-                   {visibleColumns.mode && <SortableHeader label="Mode" sortKey="mode" currentSort={sortConfig} onSort={handleSort} />}
-                   {visibleColumns.status && <SortableHeader label="Status" sortKey="status" currentSort={sortConfig} onSort={handleSort} />}
-                   {visibleColumns.vNo && <SortableHeader label="VNo" sortKey="vNo" currentSort={sortConfig} onSort={handleSort} />}
-                   {visibleColumns.note && <SortableHeader label="Note" sortKey="note" currentSort={sortConfig} onSort={handleSort} />}
-                </tr>
-              </thead>
-
-              <tbody className="text-center">
-                {/* NO RECORDS */}
-                {sortedList.length === 0 &&
-                  (!showInactive || inactiveRows.length === 0) && (
-                    <tr >
-                      <td
-                        colSpan={
-                          Object.values(visibleColumns).filter(Boolean).length
-                        }
-                        className="px-4 py-6 text-center text-gray-400"
-                      >
-                        No records found
-                      </td>
-                    </tr>
-                  )}
-
-                {/* ACTIVE ROWS */}
-                {sortedList.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                    onClick={() => openEdit(row, false)}
-                  >
-                    {visibleColumns.id && (
-                      <td className="px-2 py-3 align-middle text-center">
-                        {row.id}
-                      </td>
-                    )}
-
-                    {visibleColumns.product && (
-                      <td className="px-2 py-3 align-middle text-left pl-4 text-center">
-                        {row.productName}
-                      </td>
-                    )}
-
-                    {visibleColumns.quantity && (
-                      <td className="px-2 py-3 align-middle text-center">
-                        {row.quantity}
-                      </td>
-                    )}
-
-                    {visibleColumns.warehouse && (
-                      <td className="px-2 py-3 align-middle text-center">
-                        {row.warehouseName}
-                      </td>
-                    )}
-
-                    {visibleColumns.mode && (
-                      <td className="px-2 py-3 align-middle text-center">
-                        {row.mode}
-                      </td>
-                    )}
-
-                    {visibleColumns.status && (
-                      <td className="px-2 py-3 align-middle text-center">
-                        {row.status}
-                      </td>
-                    )}
-
-                    {visibleColumns.vNo && (
-                      <td className="px-2 py-3 align-middle text-center">
-                        {row.vNo}
-                      </td>
-                    )}
-
-                    {visibleColumns.note && (
-                      <td className="px-2 py-3 align-middle text-left pl-4 text-center">
-                        {row.note}
-                      </td>
-                    )}
-                  </tr>
-                ))}
-
-                {/* INACTIVE ROWS */}
-                {showInactive &&
-                  inactiveRows.map((row) => (
-                    <tr
-                      key={`inactive-${row.id}`}
-                      className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
-                      onClick={() => openEdit(row, true)}
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-3 align-middle text-center">
-                          {row.id}
-                        </td>
-                      )}
-
-                      {visibleColumns.product && (
-                        <td className="px-2 py-3 align-middle text-left pl-4  text-center">
-                          {row.productName}
-                        </td>
-                      )}
-
-                      {visibleColumns.quantity && (
-                        <td className="px-2 py-3 align-middle text-center">
-                          {row.quantity}
-                        </td>
-                      )}
-
-                      {visibleColumns.warehouse && (
-                        <td className="px-2 py-3 align-middle text-center">
-                          {row.warehouseName}
-                        </td>
-                      )}
-
-                      {visibleColumns.mode && (
-                        <td className="px-2 py-3 align-middle text-center">
-                          {row.mode}
-                        </td>
-                      )}
-
-                      {visibleColumns.status && (
-                        <td className="px-2 py-3 align-middle text-center">
-                          {row.status}
-                        </td>
-                      )}
-
-                      {visibleColumns.vNo && (
-                        <td className="px-2 py-3 align-middle text-center">
-                          {row.vNo}
-                        </td>
-                      )}
-
-                      {visibleColumns.note && (
-                        <td className="px-2 py-3 align-middle text-left pl-4  text-center">
-                          {row.note}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* PAGINATION */}
-          <Pagination
-            page={page}
-            setPage={setPage}
-            limit={limit}
-            setLimit={setLimit}
-            total={totalRecords}
-            onRefresh={() => loadRows()}
-          />
-      </div>
-    </div>
-    </PageLayout>
+      </PageLayout>
     </>
   );
 };
 
 export default UpdateStocks;
-
-
-

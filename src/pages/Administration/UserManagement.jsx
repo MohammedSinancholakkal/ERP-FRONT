@@ -1,13 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  Save,
-  Trash2,
-  ArchiveRestore,
   Users,
   Lock,
   Paperclip,
@@ -16,6 +8,8 @@ import {
   Check,
   Ban
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import { useTheme } from "../../context/ThemeContext";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 
@@ -91,7 +85,6 @@ const PermissionItem = ({ item, level = 0, onToggle }) => {
 };
  
 
-import SortableHeader from "../../components/SortableHeader";
 import { serverURL } from "../../services/serverURL";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
@@ -107,6 +100,7 @@ const fileToBase64 = (file) =>
   });
 
 const UserManagement = () => {
+  const { theme } = useTheme();
   // Modals & UI
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -377,12 +371,48 @@ const handleEditRoles = async () => {
   const restoreDefaultColumns = () => setVisibleColumns(defaultColumns);
 
   // Sorting (simple by userId asc/desc)
-  const [sortOrder, setSortOrder] = useState("desc");
+  // Sorting (simple by userId asc/desc)
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const sortedUsers = [...users];
-  if (sortOrder === "asc") {
-    sortedUsers.sort((a, b) => (a.userId ?? a.UserId) - (b.userId ?? b.UserId));
+  if (sortConfig.key) {
+    sortedUsers.sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      // Handle ID specifically if needed (assuming userId/UserId)
+      if (sortConfig.key === 'userId') {
+         aValue = a.userId ?? a.UserId;
+         bValue = b.userId ?? b.UserId;
+      }
+        
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
   } else {
-    sortedUsers.sort((a, b) => (b.userId ?? b.UserId) - (a.userId ?? a.UserId));
+     // Default sort by ID desc if no sort selected (preserving original logic somewhat, or default to asc)
+     // Original logic was toggling sortOrder 'desc' initially.
+     // Let's default to ID desc if nothing set? Or just rely on API order?
+     // The original code had: const [sortOrder, setSortOrder] = useState("desc");
+     if (!sortConfig.key) {
+        sortedUsers.sort((a, b) => (b.userId ?? b.UserId) - (a.userId ?? a.UserId));
+     }
   }
 
   // Assets base for image URLs (same logic as Banks)
@@ -1121,205 +1151,44 @@ const handleEditRoles = async () => {
 
       {/* MAIN PAGE */}
          <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden"> 
-
-          <h2 className="text-xl sm:text-2xl font-semibold mb-4">
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <h2 className="text-xl sm:text-2xl font-semibold mb-4">
             User Management
-          </h2>
+            </h2>
 
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 w-full sm:w-60 rounded border border-gray-600">
-              <Search size={16} className="text-gray-300" />
-              <input
-                className="bg-transparent pl-2 w-full text-sm text-gray-200 outline-none"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-              />
-            </div>
-
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 border border-gray-600 rounded text-sm"
-            >
-              <Plus size={16} /> New User
-            </button>
-
-            <button
-              onClick={() => {
-                setSearchText("");
-                setPage(1);
-                loadUsers();
-                if (showInactive) loadInactiveUsers();
-              }}
-              className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-            >
-              <RefreshCw className="text-blue-400" size={16} />
-            </button>
-
-            <button
-              onClick={() => setColumnModalOpen(true)}
-              className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-            >
-              <List className="text-blue-300" size={16} />
-            </button>
-
-            <button
-              onClick={async () => {
-                if (!showInactive) await loadInactiveUsers();
-                setShowInactive((s) => !s);
-              }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1"
-            >
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
-            </button>
-          </div>
-
-          {/* TABLE */}
-        <div className="flex-grow overflow-auto min-h-0">
-          <div className="w-full overflow-auto">
-            <table className="w-[700px] text-left border-separate border-spacing-y-1 text-sm">
-              <thead className="sticky top-0 bg-gray-900 z-10 text-center">
-                <tr className="text-white">
-                  {visibleColumns.userId && (
-                    <SortableHeader
-                      label="ID"
-                      sortOrder={sortOrder}
-                      onClick={() =>
-                        setSortOrder((prev) =>
-                          prev === "asc" ? "desc" : "asc"
-                        )
-                      }
-                    />
-                  )}
-
-                  {visibleColumns.username && (
-                    <th className="pb-1 border-b border-white text-center">
-                      Username
-                    </th>
-                  )}
-
-                  {visibleColumns.displayName && (
-                    <th className="pb-1 border-b border-white text-center">
-                      Display Name
-                    </th>
-                  )}
-
-                  {visibleColumns.email && (
-                    <th className="pb-1 border-b border-white text-center">
-                      Email
-                    </th>
-                  )}
-
-                  {visibleColumns.source && (
-                    <th className="pb-1 border-b border-white text-center">
-                      Source
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              {/* ✅ BODY NOW ALL CENTERED */}
-              <tbody className="text-center">
-                {sortedUsers.length === 0 && !showInactive && (
-                  <tr>
-                    <td
-                      colSpan={
-                        Object.values(visibleColumns).filter(Boolean).length
-                      }
-                      className="px-4 py-6 text-center text-gray-400"
-                    >
-                      No records found
-                    </td>
-                  </tr>
-                )}
-
-                {sortedUsers.map((item) => {
-                  const id = item.userId ?? item.UserId;
-                  return (
-                    <tr
-                      key={id}
-                      onClick={() => openEditModal(item, false)}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                    >
-                      {visibleColumns.userId && (
-                        <td className="px-2 py-2 text-center">{id}</td>
-                      )}
-
-                      {visibleColumns.username && (
-                        <td className="px-2 py-2 text-center">
-                          {item.username}
-                        </td>
-                      )}
-
-                      {visibleColumns.displayName && (
-                        <td className="px-2 py-2 text-center">
-                          {item.displayName}
-                        </td>
-                      )}
-
-                      {visibleColumns.email && (
-                        <td className="px-2 py-2 text-center">
-                          {item.email}
-                        </td>
-                      )}
-
-                      {visibleColumns.source && (
-                        <td className="px-2 py-2 text-center">
-                          {item.source}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-
-                {showInactive &&
-                  inactiveUsers.map((item) => {
-                    const id = item.userId ?? item.UserId;
-                    return (
-                      <tr
-                        key={`inactive-${id}`}
-                        onClick={() => openEditModal(item, true)}
-                        className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
-                      >
-                        {visibleColumns.userId && (
-                          <td className="px-2 py-2 text-center">{id}</td>
-                        )}
-
-                        {visibleColumns.username && (
-                          <td className="px-2 py-2 text-center">
-                            {item.username}
-                          </td>
-                        )}
-
-                        {visibleColumns.displayName && (
-                          <td className="px-2 py-2 text-center">
-                            {item.displayName}
-                          </td>
-                        )}
-
-                        {visibleColumns.email && (
-                          <td className="px-2 py-2 text-center">
-                            {item.email}
-                          </td>
-                        )}
-
-                        {visibleColumns.source && (
-                          <td className="px-2 py-2 text-center">
-                            {item.source}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+            <MasterTable
+                columns={[
+                    visibleColumns.userId && { key: "userId", label: "ID", sortable: true, render: (r) => r.userId ?? r.UserId },
+                    visibleColumns.username && { key: "username", label: "Username", sortable: true },
+                    visibleColumns.displayName && { key: "displayName", label: "Display Name", sortable: true },
+                    visibleColumns.email && { key: "email", label: "Email", sortable: true },
+                    visibleColumns.source && { key: "source", label: "Source", sortable: true },
+                ].filter(Boolean)}
+                data={sortedUsers}
+                inactiveData={inactiveUsers}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(r, isInactive) => openEditModal(r, isInactive)}
+                // Action Bar
+                search={searchText}
+                onSearch={handleSearch}
+                onCreate={() => setModalOpen(true)}
+                createLabel="New User"
+                permissionCreate={hasPermission(PERMISSIONS.USER.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    loadUsers();
+                    if (showInactive) loadInactiveUsers();
+                }}
+                onColumnSelector={() => setColumnModalOpen(true)}
+                onToggleInactive={async () => {
+                    if (!showInactive) await loadInactiveUsers();
+                    setShowInactive((s) => !s);
+                }}
+            />
            
               <Pagination
                 page={page}
@@ -1327,10 +1196,10 @@ const handleEditRoles = async () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
               />
         </div>
       </div>
+      </PageLayout>
       {/* ROLES MODAL */}
       {rolesModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[60]">
@@ -1423,7 +1292,6 @@ const handleEditRoles = async () => {
           </div>
         </div>
       )}
-    </PageLayout>
       {/* PERMISSIONS MODAL (MATCHING ROLES STYLE) */}
       {permissionsModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[70]">

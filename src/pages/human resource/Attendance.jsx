@@ -1,15 +1,11 @@
 // src/pages/attendance/Attendance.jsx
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  Save,
-  Trash2,
-  ArchiveRestore,
   X,
+  // Other icons handled by MasterTable
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import { useTheme } from "../../context/ThemeContext";
 
 import {
   getEmployeesApi,
@@ -29,12 +25,13 @@ import { PERMISSIONS } from "../../constants/permissions";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import SearchableSelect from "../../components/SearchableSelect";
-import SortableHeader from "../../components/SortableHeader";
+// import SortableHeader from "../../components/SortableHeader"; // REMOVED
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 
 const Attendance = () => {
+  const { theme } = useTheme();
   const defaultColumns = {
     id: true,
     employee: true,
@@ -590,151 +587,53 @@ const Attendance = () => {
       </EditModal>
 
       <PageLayout>
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
             <h2 className="text-2xl font-semibold mb-4">Attendance</h2>
 
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-                <Search size={16} className="text-gray-300" />
-                <input
-                  placeholder="Search attendance..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="bg-transparent pl-2 text-sm w-full outline-none"
-                />
-              </div>
-
-              {hasPermission(PERMISSIONS.HR.ATTENDANCE.CREATE) && (
-              <button
-                onClick={() => setModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-              >
-                <Plus size={16} /> Add Attendance
-              </button>
-              )}
-
-              <button
-                onClick={() => loadAttendance()}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
-              >
-                <RefreshCw size={16} className="text-blue-400" />
-              </button>
-
-              <button
-                onClick={() => {
-                  setTempVisibleColumns(visibleColumns);
-                  setColumnModalOpen(true);
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.employee && { key: "employee", label: "Employee", sortable: true },
+                    visibleColumns.checkIn && { key: "checkIn", label: "Check In", sortable: true },
+                    visibleColumns.checkOut && { key: "checkOut", label: "Check Out", sortable: true },
+                    visibleColumns.stayTime && { key: "stayTime", label: "Stay Time", sortable: true },
+                ].filter(Boolean)}
+                data={sortedRows}
+                inactiveData={inactiveRows}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={handleRowClick}
+                // Action Bar
+                search={searchText}
+                onSearch={setSearchText}
+                onCreate={() => setModalOpen(true)}
+                createLabel="Add Attendance"
+                permissionCreate={hasPermission(PERMISSIONS.HR.ATTENDANCE.CREATE)}
+                onRefresh={() => loadAttendance()}
+                onColumnSelector={() => {
+                    setTempVisibleColumns(visibleColumns);
+                    setColumnModalOpen(true);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
-              >
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              <button
-                onClick={async () => {
-                  if (!showInactive) await loadInactiveAttendance();
-                  setShowInactive(!showInactive);
+                onToggleInactive={async () => {
+                    if (!showInactive) await loadInactiveAttendance();
+                    setShowInactive(!showInactive);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
-              >
-                <ArchiveRestore size={16} className="text-yellow-400" />
-                <span className="text-xs text-gray-300">
-                  {showInactive ? "Mask" : "Show"} Inactive
-                </span>
-              </button>
-            </div>
+            />
 
-            <div className="flex-grow overflow-auto w-full min-h-0">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[800px] border-separate border-spacing-y-1 text-sm table-fixed">
-                  <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white text-center">
-                      {visibleColumns.id && (
-                        <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-                      {visibleColumns.employee && (
-                         <SortableHeader label="Employee" sortKey="employee" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-                      {visibleColumns.checkIn && (
-                        <SortableHeader label="Check In" sortKey="checkIn" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-                      {visibleColumns.checkOut && (
-                         <SortableHeader label="Check Out" sortKey="checkOut" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-                      {visibleColumns.stayTime && (
-                         <SortableHeader label="Stay Time" sortKey="stayTime" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-                    </tr>
-                  </thead>
-
-                  <tbody className="text-center">
-                    {sortedRows.map((r) => (
-                      <tr
-                        key={r.id}
-                        onClick={() => handleRowClick(r)}
-                        className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                      >
-                        {visibleColumns.id && (
-                          <td className="py-2">{r.id}</td>
-                        )}
-                        {visibleColumns.employee && (
-                          <td className="py-2">{r.employee}</td>
-                        )}
-                        {visibleColumns.checkIn && (
-                          <td className="py-2">{r.checkIn}</td>
-                        )}
-                        {visibleColumns.checkOut && (
-                          <td className="py-2">{r.checkOut}</td>
-                        )}
-                        {visibleColumns.stayTime && (
-                          <td className="py-2">{r.stayTime}</td>
-                        )}
-                      </tr>
-                    ))}
-
-                    {/* INACTIVE ROWS */}
-                    {showInactive && inactiveRows.map((r) => (
-                      <tr
-                        key={`inactive-${r.id}`}
-                        onClick={() => handleRowClick(r)}
-                        className="bg-gray-900 opacity-50 line-through cursor-pointer hover:bg-gray-800"
-                      >
-                        {visibleColumns.id && (
-                          <td className="py-2">{r.id}</td>
-                        )}
-                        {visibleColumns.employee && (
-                          <td className="py-2">{r.employee}</td>
-                        )}
-                        {visibleColumns.checkIn && (
-                          <td className="py-2">{r.checkIn}</td>
-                        )}
-                        {visibleColumns.checkOut && (
-                          <td className="py-2">{r.checkOut}</td>
-                        )}
-                        {visibleColumns.stayTime && (
-                          <td className="py-2">{r.stayTime}</td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-   {/* PAGINATION */}
-           
+             {/* PAGINATION */}
               <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
               />
           </div>
         </div>
       </PageLayout>
+
     </>
   );
 };

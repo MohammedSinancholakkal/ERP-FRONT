@@ -1682,3 +1682,37 @@ export const getInactivePayrollsApi = () =>
 // RESTORE
 export const restorePayrollApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/payrolls/restore/${id}`, data);
+
+// ======================= Stock Updates APIs =======================
+
+// LIST (paginated)
+export const getStockUpdatesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/stock-updates?page=${page}&limit=${limit}`);
+
+// GET BY ID
+export const getStockUpdateByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/stock-updates/${id}`);
+
+// ADD
+export const addStockUpdateApi = (data) =>
+  commonAPI("POST", `${serverURL}/stock-updates/add`, data);
+
+// UPDATE
+export const updateStockUpdateApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/stock-updates/update/${id}`, data);
+
+// DELETE (Soft Delete)
+export const deleteStockUpdateApi = (id, data) =>
+  commonAPI("DELETE", `${serverURL}/stock-updates/delete/${id}`, data);
+
+// GET INACTIVE
+export const getInactiveStockUpdatesApi = () =>
+  commonAPI("GET", `${serverURL}/stock-updates/inactive`);
+
+// RESTORE
+export const restoreStockUpdateApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/stock-updates/restore/${id}`, data);
+
+// SEARCH
+export const searchStockUpdateApi = (query) =>
+  commonAPI("GET", `${serverURL}/stock-updates/search?q=${encodeURIComponent(query)}`);

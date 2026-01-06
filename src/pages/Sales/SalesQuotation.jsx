@@ -24,34 +24,21 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
+// import { hasPermission } from "../../utils/permissionUtils";
+// import { PERMISSIONS } from "../../constants/permissions";
+// import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+
+
+
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
-
-
-
-/* Export Buttons Icons */
-const ExportButtons = ({ onExcel, onPdf }) => (
-  <div className="flex items-center gap-2">
-    <button
-      onClick={onExcel}
-      className="p-1.5 bg-green-700/10 border border-green-700 rounded hover:bg-green-700/20"
-      title="Export to Excel"
-    >
-      <FileSpreadsheet size={18} className="text-green-300" />
-    </button>
-
-    <button
-      onClick={onPdf}
-      className="p-1.5 bg-red-700/10 border border-red-700 rounded hover:bg-red-700/20"
-      title="Export to PDF"
-    >
-      <FileText size={18} className="text-red-300" />
-    </button>
-  </div>
-);
+import MasterTable from "../../components/MasterTable"; 
+import { useTheme } from "../../context/ThemeContext"; 
+import ExportButtons from "../../components/ExportButtons"; 
 
 const SalesQuotation = () => {
+  const { theme } = useTheme(); 
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [tempVisibleColumns, setTempVisibleColumns] = useState(null);
@@ -346,8 +333,8 @@ const SalesQuotation = () => {
             bValue = parseFloat(bValue) || 0;
         } else {
              // String comparison
-             aValue = String(aValue).toLowerCase();
-             bValue = String(bValue).toLowerCase();
+             aValue = String(aValue || "").toLowerCase();
+             bValue = String(bValue || "").toLowerCase();
         }
 
         if (aValue < bValue) {
@@ -398,116 +385,31 @@ const SalesQuotation = () => {
   return (
     <>
       {/* COLUMN PICKER MODAL */}
-      <ColumnPickerModal
+      {/* <ColumnPickerModal
         isOpen={columnModalOpen} 
         onClose={() => setColumnModalOpen(false)} 
         visibleColumns={visibleColumns} 
         setVisibleColumns={setVisibleColumns} 
         defaultColumns={defaultColumns} 
-      />
+      /> */}
       {/* ===========================
           MAIN PAGE
         ============================ */}
       <PageLayout> 
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
 
-          <h2 className="text-2xl font-semibold mb-4">Sales Quotation</h2>
-
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-52">
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-sm w-full"
-              />
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Sales Quotation</h2>
             </div>
-
-            {hasPermission(PERMISSIONS.SALES.CREATE) && (
-            <button
-              onClick={() => navigate('/app/sales/newsalequotation')}
-              className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600"
-            >
-              <Plus size={16} /> New Quotation
-            </button>
-            )}
-
-            <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
-              <RefreshCw size={16} className="text-blue-300" />
-            </button>
-
-            <button
-              onClick={() => { setTempVisibleColumns(visibleColumns); setColumnModalOpen(true); }}
-              className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            <ExportButtons onExcel={handleExportExcel} onPdf={handleExportPDF} />
-
-            {/* Inactive Toggle */}
-             <button
-                onClick={toggleInactive}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-md border text-sm transition-colors ${
-                  showInactive
-                    ? "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                    : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                }`}
-                title={showInactive ? " Inactive" : " Inactive"}
-              >
-                <ArchiveRestore size={16} />
-                {showInactive ? " Inactive" : "Inactive"}
-              </button>
-          </div>
-
-            {/* FILTER BAR */}
-            <div className="mb-4">
-                 <FilterBar filters={filters} onClear={handleClearFilters} />
-            </div>
-
-          {/* TABLE SCROLL */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-x-auto">
-              <table className="min-w-[1800px] text-center border-separate border-spacing-y-1 text-sm w-full">
-                <thead className="sticky top-0 bg-gray-900">
-                  <tr>
-                    {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.customerName && <SortableHeader label="Customer" sortKey="customerName" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.discount && <SortableHeader label="Disc" sortKey="discount" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.totalDiscount && <SortableHeader label="Total Disc" sortKey="totalDiscount" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.vat && <SortableHeader label="VAT" sortKey="vat" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.totalTax && <SortableHeader label="Total Tax" sortKey="totalTax" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.shippingCost && <SortableHeader label="Shipping" sortKey="shippingCost" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.grandTotal && <SortableHeader label="Grand Total" sortKey="grandTotal" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.netTotal && <SortableHeader label="Net Total" sortKey="netTotal" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.details && <th className="pb-1 border-b">Details</th>}
-                    {visibleColumns.expiryDate && <SortableHeader label="Expiry" sortKey="expiryDate" currentSort={sortConfig} onSort={handleSort} />}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {sortedList.map((q) => (
-                    <tr
-                      key={q.id}
-                      onClick={() => navigate(`/app/sales/newsalequotation/${q.id}`, { state: { isInactive: q.isInactive } })}
-                      className={`hover:bg-gray-700 cursor-pointer ${
-                          q.isInactive 
-                            ? "bg-gray-800/50 opacity-60 line-through grayscale text-gray-500" 
-                            : "bg-gray-900"
-                        }`}
-                    >
-                      {visibleColumns.id && <td className="px-2 py-2">{q.id}</td>}
-
-                      {visibleColumns.customerName && (
-                        <td className="px-2 py-2 flex items-center justify-center gap-2">
-                          {/* PDF icon */}
+          
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (q) => (
+                        <div className="flex items-center justify-center gap-2">
                           <button
-                            className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${q.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
+                            className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${q.isInactive || isNaN(q.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
                             title="Download PDF"
                             disabled={q.isInactive}
                             onClick={(e) => { e.stopPropagation(); handleDownloadPdf(q.id); }}
@@ -515,9 +417,8 @@ const SalesQuotation = () => {
                             <FileText size={14} className="text-red-300" />
                           </button>
 
-                          {/* Preview */}
                           <button
-                            className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${q.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
+                            className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${q.isInactive || isNaN(q.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
                             title="Preview"
                             disabled={q.isInactive}
                             onClick={(e) => { e.stopPropagation(); window.open(`${window.location.origin}/app/sales/preview/${q.id}`, '_blank'); }}
@@ -525,55 +426,51 @@ const SalesQuotation = () => {
                             <Eye size={14} className="text-blue-300" />
                           </button>
 
-                          {q.customerName || q.customer || "-"}
-                        </td>
-                      )}
-
-                      {visibleColumns.date && (
-                        <td className="px-2 py-2">{q.date ? new Date(q.date).toLocaleDateString() : "-"}</td>
-                      )}
-
-                      {visibleColumns.discount && (
-                        <td className="px-2 py-2">{parseFloat(q.discount || 0).toFixed(2)}</td>
-                      )}
-
-                      {visibleColumns.totalDiscount && (
-                        <td className="px-2 py-2">{parseFloat(q.totalDiscount || 0).toFixed(2)}</td>
-                      )}
-
-                      {visibleColumns.vat && (
-                        <td className="px-2 py-2">{parseFloat(q.vat || 0).toFixed(2)}</td>
-                      )}
-
-                      {visibleColumns.totalTax && (
-                        <td className="px-2 py-2">{parseFloat(q.totalTax || 0).toFixed(2)}</td>
-                      )}
-
-                      {visibleColumns.shippingCost && (
-                        <td className="px-2 py-2">{parseFloat(q.shippingCost || 0).toFixed(2)}</td>
-                      )}
-
-                      {visibleColumns.grandTotal && (
-                        <td className="px-2 py-2">{parseFloat(q.grandTotal || 0).toFixed(2)}</td>
-                      )}
-
-                      {visibleColumns.netTotal && (
-                        <td className="px-2 py-2 font-semibold">{parseFloat(q.netTotal || 0).toFixed(2)}</td>
-                      )}
-
-                      {visibleColumns.details && (
-                        <td className="px-2 py-2 max-w-xs truncate">{q.details || "-"}</td>
-                      )}
-
-                      {visibleColumns.expiryDate && (
-                        <td className="px-2 py-2">{q.expiryDate ? new Date(q.expiryDate).toLocaleDateString() : "-"}</td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                          <span className={theme === 'emerald' ? "text-gray-900" : "text-gray-300"}>{q.customerName || q.customer || "-"}</span>
+                        </div>
+                    )},
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (q) => q.date ? new Date(q.date).toLocaleDateString() : "-" },
+                    visibleColumns.discount && { key: "discount", label: "Disc", sortable: true, render: (q) => parseFloat(q.discount || 0).toFixed(2) },
+                    visibleColumns.totalDiscount && { key: "totalDiscount", label: "Total Disc", sortable: true, render: (q) => parseFloat(q.totalDiscount || 0).toFixed(2) },
+                    visibleColumns.vat && { key: "vat", label: "VAT", sortable: true, render: (q) => parseFloat(q.vat || 0).toFixed(2) },
+                    visibleColumns.totalTax && { key: "totalTax", label: "Total Tax", sortable: true, render: (q) => parseFloat(q.totalTax || 0).toFixed(2) },
+                    visibleColumns.shippingCost && { key: "shippingCost", label: "Shipping", sortable: true, render: (q) => parseFloat(q.shippingCost || 0).toFixed(2) },
+                    visibleColumns.grandTotal && { key: "grandTotal", label: "Grand Total", sortable: true, render: (q) => parseFloat(q.grandTotal || 0).toFixed(2) },
+                    visibleColumns.netTotal && { key: "netTotal", label: "Net Total", sortable: true, render: (q) => <span className="font-semibold">{parseFloat(q.netTotal || 0).toFixed(2)}</span> },
+                    visibleColumns.details && { key: "details", label: "Details", sortable: true, render: (q) => <div className="max-w-xs truncate">{q.details || "-"}</div> },
+                    visibleColumns.expiryDate && { key: "expiryDate", label: "Expiry", sortable: true, render: (q) => q.expiryDate ? new Date(q.expiryDate).toLocaleDateString() : "-" },
+                ].filter(Boolean)}
+                data={sortedList}
+                inactiveData={inactiveRows}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(q, isInactive) => navigate(`/app/sales/newsalequotation/${q.id}`, { state: { isInactive } })}
+                
+                // Action Bar
+                search={searchText}
+                onSearch={(val) => setSearchText(val)}
+                
+                onCreate={() => navigate('/app/sales/newsalequotation')}
+                createLabel="New Quotation"
+                permissionCreate={hasPermission(PERMISSIONS.SALES.CREATE)}
+                
+                onRefresh={handleRefresh}
+                
+                onColumnSelector={() => {
+                     setTempVisibleColumns(visibleColumns);
+                     setColumnModalOpen(true);
+                }}
+                
+                onToggleInactive={toggleInactive}
+                
+                customActions={<ExportButtons onExcel={handleExportExcel} onPDF={handleExportPDF} />}
+            >
+               {/* FILTER BAR - as child */}
+               <div className="">
+                  <FilterBar filters={filters} onClear={handleClearFilters} />
+               </div>
+            </MasterTable>
 
             {/* PAGINATION */}
               <Pagination

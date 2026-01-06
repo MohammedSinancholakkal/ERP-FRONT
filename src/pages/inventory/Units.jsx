@@ -1,20 +1,6 @@
 import React, { useState, useEffect } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  Save,
-  Trash2,
-  ArchiveRestore,
-} from "lucide-react";
-import SortableHeader from "../../components/SortableHeader";
-import Pagination from "../../components/Pagination";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
-
-// API
 import {
   getUnitsApi,
   addUnitApi,
@@ -30,8 +16,12 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import MasterTable from "../../components/MasterTable";
+import Pagination from "../../components/Pagination";
+import { useTheme } from "../../context/ThemeContext";
 
 const Units = () => {
+    const { theme } = useTheme();
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
@@ -55,10 +45,6 @@ const Units = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
-
   // search
   const [searchText, setSearchText] = useState("");
 
@@ -72,16 +58,6 @@ const Units = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
-
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
-
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
   const handleSort = (key) => {
@@ -269,15 +245,30 @@ const Units = () => {
     }
   };
 
+  const toggleInactive = async () => {
+    if (!showInactive) await loadInactive();
+    setShowInactive(!showInactive);
+  };
+
+  const handleRowClick = (u) => {
+    setEditUnit({
+        id: u.id,
+        name: u.name,
+        description: u.description,
+        isInactive: showInactive
+      });
+      setEditModalOpen(true);
+  };
+
+  const columns = [
+    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+    visibleColumns.name && { key: "name", label: "Name", sortable: true },
+    visibleColumns.description && { key: "description", label: "Description", sortable: true },
+  ].filter(Boolean);
+
 
   return (
     <>
-      {/* ======================================================
-          ADD UNIT MODAL
-      ======================================================= */}
-      {/* ======================================================
-          ADD UNIT MODAL
-      ======================================================= */}
       <AddModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -308,12 +299,6 @@ const Units = () => {
         />
       </AddModal>
 
-      {/* ======================================================
-          EDIT UNIT MODAL
-      ======================================================= */}
-      {/* ======================================================
-          EDIT UNIT MODAL
-      ======================================================= */}
       <EditModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
@@ -353,10 +338,6 @@ const Units = () => {
         />
       </EditModal>
 
-      {/* ======================================================
-          COLUMN PICKER
-      ======================================================= */}
-         {/* COLUMN PICKER MODAL */}
       <ColumnPickerModal
         isOpen={columnModalOpen} 
         onClose={() => setColumnModalOpen(false)} 
@@ -365,178 +346,50 @@ const Units = () => {
         defaultColumns={defaultColumns} 
       />
 
-      {/* ======================================================
-          MAIN PAGE
-      ======================================================= */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
+        <div className={`p-4 text-white h-full ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <h2 className="text-2xl font-semibold mb-4">Units</h2>
+            
+            <MasterTable
+                columns={columns}
+                data={sortedUnits}
+                inactiveData={inactiveUnits}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={handleRowClick}
+                // Action Bar Props
+                search={searchText}
+                onSearch={handleSearch}
+                onCreate={() => setModalOpen(true)}
+                createLabel="New Unit"
+                permissionCreate={hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    loadUnits();
+                }}
+                onColumnSelector={() => setColumnModalOpen(true)}
+                onToggleInactive={toggleInactive}
+            />
 
-          <h2 className="text-2xl font-semibold mb-4">Units</h2>
-
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
-
-            {/* SEARCH */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-              <Search size={16} className="text-gray-300" />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-              />
-            </div>
-
-            {/* ADD */}
-            {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
-            >
-              <Plus size={16} /> New Unit
-            </button>
-            )}
-
-            {/* REFRESH */}
-            <button
-              onClick={() => {
+            <Pagination
+              page={page}
+              setPage={setPage}
+              limit={limit}
+              setLimit={setLimit}
+              total={totalRecords}
+              onRefresh={() => {
                 setSearchText("");
                 setPage(1);
                 loadUnits();
               }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            {/* COLUMN PICKER */}
-            <button
-              onClick={() => setColumnModalOpen(true)}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            {/* INACTIVE TOGGLE */}
-            <button
-              onClick={async () => {
-                if (!showInactive) await loadInactive();
-                setShowInactive(!showInactive);
-              }}
-              className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
-            >
-              <ArchiveRestore size={16} className="text-yellow-400" />
-              <span className="text-xs text-gray-300">
-                 Inactive
-              </span>
-            </button>
+            />
           </div>
-
-          {/* TABLE */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-auto">
-              <table className="w-[500px] text-left border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr className="text-white">
-
-                    {visibleColumns.id && (
-                      <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-
-                    {visibleColumns.name && (
-                      <SortableHeader label="Name" sortKey="name" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-
-                    {visibleColumns.description && (
-                      <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {sortedUnits.map((u) => (
-                    <tr
-                      key={u.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm"
-                      onClick={() => {
-                        setEditUnit({
-                          id: u.id,
-                          name: u.name,
-                          description: u.description,
-                          isInactive: false
-                        });
-                        setEditModalOpen(true);
-                      }}
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{u.id}</td>
-                      )}
-                      {visibleColumns.name && (
-                        <td className="px-2 py-1 text-center">{u.name}</td>
-                      )}
-                      {visibleColumns.description && (
-                        <td className="px-2 py-1 text-center">{u.description}</td>
-                      )}
-                    </tr>
-                  ))}
-
-                  {/* INACTIVE UNITS */}
-                  {showInactive && inactiveUnits.map((u) => (
-                    <tr
-                      key={`inactive-${u.id}`}
-                      className="bg-gray-900 cursor-pointer opacity-50 line-through hover:bg-gray-800 rounded shadow-sm"
-                      onClick={() => {
-                        setEditUnit({
-                          id: u.id,
-                          name: u.name,
-                          description: u.description,
-                          isInactive: true
-                        });
-                        setEditModalOpen(true);
-                      }}
-                    >
-                       {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{u.id}</td>
-                      )}
-                      {visibleColumns.name && (
-                        <td className="px-2 py-1 text-center">{u.name}</td>
-                      )}
-                      {visibleColumns.description && (
-                        <td className="px-2 py-1 text-center">{u.description}</td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-
-              </table>
-            </div>
-          </div>
-
-        {/* PAGINATION */}
-        <Pagination
-            page={page}
-            setPage={setPage}
-            limit={limit}
-            setLimit={setLimit}
-            total={totalRecords}
-            onRefresh={() => {
-              setSearchText("");
-              setPage(1);
-              loadUnits();
-            }}
-          />
-
         </div>
-      </div>
       </PageLayout>
-
     </>
   );
 };
 export default Units;
-
-
-

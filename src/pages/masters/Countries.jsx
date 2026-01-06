@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-} from "lucide-react";
+// Icons removed as they are now in MasterTable
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 // import SortableHeader from "../../components/SortableHeader"; // Unused?
@@ -348,59 +342,7 @@ const Countries = () => {
           <div className="flex flex-col h-full overflow-hidden">
             <h2 className="text-2xl font-semibold mb-4">Countries</h2>
 
-            {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
-              <div className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${theme === 'emerald' ? 'bg-gray-100 border-emerald-500' : 'bg-gray-700 border-gray-600'}`}>
-                <Search size={16} className={theme === 'emerald' ? 'text-gray-500' : 'text-gray-300'} />
-                <input
-                  type="text"
-                  placeholder="search..."
-                  value={searchText}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className={`bg-transparent outline-none pl-2 w-full text-sm ${theme === 'emerald' ? 'text-gray-900 placeholder-gray-500' : 'text-gray-200 placeholder-gray-500'}`}
-                />
-              </div>
-
-              {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
-              <button
-                onClick={() => setModalOpen(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}
-              >
-                <Plus size={16} /> New Country
-              </button>
-              )}
-
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadCountries();
-                }}
-                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <RefreshCw size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-400'} />
-              </button>
-
-              <button
-                onClick={() => setColumnModal(true)}
-                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <List size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-300'} />
-              </button>
-
-              <button
-                onClick={async () => {
-                  if (!showInactive) await loadInactive();
-                  setShowInactive(!showInactive);
-                }}
-                className={`p-1.5 rounded-md border flex items-center gap-1 ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <ArchiveRestore size={16} className={theme === 'emerald' ? 'text-white' : 'text-yellow-300'} />
-                <span className={`text-xs opacity-80 ${theme === 'emerald' ? 'text-white' : ''}`}>Inactive</span>
-              </button>
-            </div>
-
-            {/* TABLE SECTION */}
+            {/* TABLE SECTION - Action Bar is now inside MasterTable */}
             <MasterTable
               columns={tableColumns}
               data={sortedCountries}
@@ -415,6 +357,22 @@ const Countries = () => {
                   isInactive,
                 });
                 setEditModalOpen(true);
+              }}
+              // Action Bar Props
+              search={searchText}
+              onSearch={handleSearch}
+              onCreate={() => setModalOpen(true)}
+              createLabel="New Country"
+              permissionCreate={hasPermission(PERMISSIONS.COUNTRIES.CREATE)}
+              onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadCountries();
+              }}
+              onColumnSelector={() => setColumnModal(true)}
+              onToggleInactive={async () => {
+                if (!showInactive) await loadInactive();
+                setShowInactive(!showInactive);
               }}
             />
           

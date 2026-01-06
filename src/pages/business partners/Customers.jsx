@@ -1,16 +1,7 @@
-// src/pages/customers/Customers.jsx
-import React, { useEffect, useState, useRef } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-} from "lucide-react";
+import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
-import SortableHeader from "../../components/SortableHeader";
 import FilterBar from "../../components/FilterBar";
 import toast from "react-hot-toast";
 import {
@@ -28,6 +19,8 @@ import Swal from "sweetalert2";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import { useEffect, useState } from "react";
+
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -485,247 +478,93 @@ const Customers = () => {
         <div className="flex flex-col h-full overflow-hidden">
         <h2 className="text-2xl font-semibold mb-4">Customers</h2>
 
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              placeholder="Search customers..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="bg-transparent pl-2 text-sm w-full outline-none"
-            />
-          </div>
-
-          {hasPermission(PERMISSIONS.CUSTOMERS.CREATE) && (
-          <button
-            onClick={() => navigate("/app/businesspartners/newcustomer")}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-          >
-            <Plus size={16} /> New Customer
-          </button>
-          )}
-
-          <button
-            onClick={() => {
+        <MasterTable
+          columns={[
+             visibleColumns.id && { key: "id", label: "ID", sortable: true },
+             visibleColumns.companyName && { key: "companyName", label: "Company Name", sortable: true },
+             visibleColumns.contactName && { key: "contactName", label: "Contact Name", sortable: true },
+             visibleColumns.contactTitle && { key: "contactTitle", label: "Contact Title", sortable: true },
+             visibleColumns.countryName && { 
+                 key: "countryName", 
+                 label: "Country", 
+                 sortable: true,
+                 render: (r) => lookupMaps.countries[String(r.countryId)] || r.countryName || "" 
+             },
+             visibleColumns.stateName && { 
+                 key: "stateName", 
+                 label: "State", 
+                 sortable: true,
+                 render: (r) => lookupMaps.states[String(r.stateId)] || r.stateName || "" 
+             },
+             visibleColumns.cityName && { 
+                 key: "cityName", 
+                 label: "City", 
+                 sortable: true,
+                 render: (r) => lookupMaps.cities[String(r.cityId)] || r.cityName || "" 
+             },
+             visibleColumns.regionName && { 
+                 key: "regionName", 
+                 label: "Region", 
+                 sortable: true,
+                 render: (r) => lookupMaps.regions[String(r.regionId)] || r.regionName || "" 
+             },
+             visibleColumns.customerGroupName && { 
+                 key: "customerGroupName", 
+                 label: "Group", 
+                 sortable: true,
+                 render: (r) => lookupMaps.groups[String(r.customerGroupId)] || r.customerGroupName || "" 
+             },
+             visibleColumns.postalCode && { key: "postalCode", label: "Postal Code", sortable: true },
+             visibleColumns.phone && { key: "phone", label: "Phone", sortable: true },
+             visibleColumns.fax && { key: "fax", label: "Fax", sortable: true },
+             visibleColumns.website && { key: "website", label: "Website", sortable: true, className: "truncate max-w-[150px]" },
+             visibleColumns.email && { key: "email", label: "Email", sortable: true, className: "truncate max-w-[150px]" },
+             visibleColumns.emailAddress && { key: "emailAddress", label: "Email Address", sortable: true, className: "truncate max-w-[150px]" },
+             visibleColumns.previousCreditBalance && { key: "previousCreditBalance", label: "Prev. Credit", sortable: true },
+             visibleColumns.cnic && { key: "cnic", label: "CNIC", sortable: true },
+             visibleColumns.ntn && { key: "ntn", label: "NTN", sortable: true },
+             visibleColumns.strn && { key: "strn", label: "STRN", sortable: true },
+             visibleColumns.salesMan && { key: "salesMan", label: "Sales Man", sortable: true },
+             visibleColumns.orderBooker && { key: "orderBooker", label: "Order Booker", sortable: true },
+          ].filter(Boolean)}
+          data={paginatedData}
+          inactiveData={inactiveRows}
+          showInactive={showInactive}
+          sortConfig={sortConfig}
+          onSort={handleSort}
+          onRowClick={(item, isInactive) => {
+               if (isInactive) {
+                 handleRestore(item);
+               } else {
+                 navigate(
+                   item.id
+                     ? `/app/businesspartners/newcustomer/${item.id}`
+                     : "/app/businesspartners/newcustomer",
+                   { state: { customer: item, isInactive: false } }
+                 );
+               }
+          }}
+          // Action Props
+          search={searchText}
+          onSearch={setSearchText}
+          onCreate={() => navigate("/app/businesspartners/newcustomer")}
+          createLabel="New Customer"
+          permissionCreate={hasPermission(PERMISSIONS.CUSTOMERS.CREATE)}
+          onRefresh={() => {
               setSearchText("");
               setPage(1);
               loadCustomers();
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          <button
-            onClick={() => {
+          }}
+          onColumnSelector={() => {
               setTempVisibleColumns(visibleColumns);
               setColumnModalOpen(true);
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          <button 
-             onClick={toggleInactive}
-             className={`p-2 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? 'bg-gray-700' : 'bg-gray-700'}`}
-           >
-             <ArchiveRestore size={16} className={showInactive ? "text-yellow-400" : "text-yellow-300"} />
-             <span className={`text-xs ${showInactive ? "opacity-100 font-bold text-yellow-100" : "opacity-80"}`}>
-               {showInactive ? " Inactive" : " Inactive"}
-             </span>
-           </button>
-        </div>
-
-        {/* FILTER BAR */}
-        <div className="mb-4">
-          <FilterBar filters={filterFilters} onClear={handleResetFilters} />
-        </div>
-
-      {/* TABLE */}
-        <div className="flex-grow overflow-auto w-full min-h-0">
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[3300px] border-separate border-spacing-y-1 text-sm table-fixed">
-              <thead className="sticky top-0 bg-gray-900 z-10 h-10">
-                <tr className="text-white text-center">
-                  {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                  {visibleColumns.companyName && <SortableHeader label="Company Name" sortOrder={sortConfig.key === "companyName" ? sortConfig.direction : null} onClick={() => handleSort("companyName")} />}
-                  {visibleColumns.contactName && <SortableHeader label="Contact Name" sortOrder={sortConfig.key === "contactName" ? sortConfig.direction : null} onClick={() => handleSort("contactName")} />}
-                  {visibleColumns.contactTitle && <SortableHeader label="Contact Title" sortOrder={sortConfig.key === "contactTitle" ? sortConfig.direction : null} onClick={() => handleSort("contactTitle")} />}
-                  {visibleColumns.countryName && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
-                  {visibleColumns.stateName && <SortableHeader label="State" sortOrder={sortConfig.key === "stateName" ? sortConfig.direction : null} onClick={() => handleSort("stateName")} />}
-                  {visibleColumns.cityName && <SortableHeader label="City" sortOrder={sortConfig.key === "cityName" ? sortConfig.direction : null} onClick={() => handleSort("cityName")} />}
-                  {visibleColumns.regionName && <SortableHeader label="Region" sortOrder={sortConfig.key === "regionName" ? sortConfig.direction : null} onClick={() => handleSort("regionName")} />}
-                  {visibleColumns.customerGroupName && <SortableHeader label="Group" sortOrder={sortConfig.key === "customerGroupName" ? sortConfig.direction : null} onClick={() => handleSort("customerGroupName")} />}
-                  {visibleColumns.postalCode && <SortableHeader label="Postal Code" sortOrder={sortConfig.key === "postalCode" ? sortConfig.direction : null} onClick={() => handleSort("postalCode")} />}
-                  {visibleColumns.phone && <SortableHeader label="Phone" sortOrder={sortConfig.key === "phone" ? sortConfig.direction : null} onClick={() => handleSort("phone")} />}
-                  {visibleColumns.fax && <SortableHeader label="Fax" sortOrder={sortConfig.key === "fax" ? sortConfig.direction : null} onClick={() => handleSort("fax")} />}
-                  {visibleColumns.website && <SortableHeader label="Website" sortOrder={sortConfig.key === "website" ? sortConfig.direction : null} onClick={() => handleSort("website")} />}
-                  {visibleColumns.email && <SortableHeader label="Email" sortOrder={sortConfig.key === "email" ? sortConfig.direction : null} onClick={() => handleSort("email")} />}
-                  {visibleColumns.emailAddress && <SortableHeader label="Email Address" sortOrder={sortConfig.key === "emailAddress" ? sortConfig.direction : null} onClick={() => handleSort("emailAddress")} />}
-                  {visibleColumns.previousCreditBalance && <SortableHeader label="Prev. Credit" sortOrder={sortConfig.key === "previousCreditBalance" ? sortConfig.direction : null} onClick={() => handleSort("previousCreditBalance")} />}
-                  {visibleColumns.cnic && <SortableHeader label="CNIC" sortOrder={sortConfig.key === "cnic" ? sortConfig.direction : null} onClick={() => handleSort("cnic")} />}
-                  {visibleColumns.ntn && <SortableHeader label="NTN" sortOrder={sortConfig.key === "ntn" ? sortConfig.direction : null} onClick={() => handleSort("ntn")} />}
-                  {visibleColumns.strn && <SortableHeader label="STRN" sortOrder={sortConfig.key === "strn" ? sortConfig.direction : null} onClick={() => handleSort("strn")} />}
-                  {visibleColumns.salesMan && <SortableHeader label="Sales Man" sortOrder={sortConfig.key === "salesMan" ? sortConfig.direction : null} onClick={() => handleSort("salesMan")} />}
-                  {visibleColumns.orderBooker && <SortableHeader label="Order Booker" sortOrder={sortConfig.key === "orderBooker" ? sortConfig.direction : null} onClick={() => handleSort("orderBooker")} />}
-                </tr>
-              </thead>
-
-              <tbody className="text-center h-14">
-                {loading ? (
-                  <tr>
-                    <td colSpan={20} className="py-6 text-center text-gray-300">
-                      Loading...
-                    </td>
-                  </tr>
-                ) : (
-                  <>
-                  {/* ACTIVE DATA */}
-                  {paginatedData.length === 0 ? (
-                     (!showInactive || inactiveRows.length === 0) && (
-                        <tr>
-                          <td colSpan={20} className="py-6 text-center text-gray-400">
-                            No customers found
-                          </td>
-                        </tr>
-                     )
-                  ) : (
-                    paginatedData.map((r) => (
-                    <tr
-                      key={r.id ?? Math.random()}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                      onClick={() =>
-                        navigate(
-                          r.id
-                            ? `/app/businesspartners/newcustomer/${r.id}`
-                            : "/app/businesspartners/newcustomer",
-                          { state: { customer: r, isInactive: false } }
-                        )
-                      }
-                    >
-                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                      {visibleColumns.companyName && <td className="py-2">{r.companyName}</td>}
-                      {visibleColumns.contactName && <td className="py-2">{r.contactName}</td>}
-                      {visibleColumns.contactTitle && <td className="py-2">{r.contactTitle}</td>}
-                      {visibleColumns.countryName && (
-                        <td className="py-2">
-                          {lookupMaps.countries[String(r.countryId)] || r.countryName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.stateName && (
-                        <td className="py-2">
-                          {lookupMaps.states[String(r.stateId)] || r.stateName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.cityName && (
-                        <td className="py-2">
-                          {lookupMaps.cities[String(r.cityId)] || r.cityName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.regionName && (
-                        <td className="py-2">
-                          {lookupMaps.regions[String(r.regionId)] || r.regionName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.customerGroupName && (
-                        <td className="py-2">
-                          {lookupMaps.groups[String(r.customerGroupId)] ||
-                            r.customerGroupName ||
-                            ""}
-                        </td>
-                      )}
-                      {visibleColumns.postalCode && <td className="py-2">{r.postalCode}</td>}
-                      {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
-                      {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
-                      {visibleColumns.website && (
-                        <td className="py-2 truncate max-w-[150px]">{r.website}</td>
-                      )}
-                      {visibleColumns.email && (
-                        <td className="py-2 truncate max-w-[150px]">{r.email}</td>
-                      )}
-                      {visibleColumns.emailAddress && (
-                        <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
-                      )}
-                      {visibleColumns.previousCreditBalance && (
-                        <td className="py-2">{r.previousCreditBalance}</td>
-                      )}
-                      {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
-                      {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
-                      {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
-                      {visibleColumns.salesMan && <td className="py-2">{r.salesMan}</td>}
-                      {visibleColumns.orderBooker && <td className="py-2">{r.orderBooker}</td>}
-                    </tr>
-                  ))
-                  )}
-
-                  {/* INACTIVE DATA (APPENDED) */}
-                  {showInactive && inactiveRows.map((r) => (
-                    <tr
-                      key={`inactive-${r.id}`}
-                      className="bg-gray-700/50 opacity-60 line-through grayscale cursor-pointer"
-                      onClick={() => handleRestore(r)}
-                    >
-                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                      {visibleColumns.companyName && <td className="py-2">{r.companyName}</td>}
-                      {visibleColumns.contactName && <td className="py-2">{r.contactName}</td>}
-                      {visibleColumns.contactTitle && <td className="py-2">{r.contactTitle}</td>}
-                      {visibleColumns.countryName && (
-                        <td className="py-2">
-                          {lookupMaps.countries[String(r.countryId)] || r.countryName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.stateName && (
-                        <td className="py-2">
-                          {lookupMaps.states[String(r.stateId)] || r.stateName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.cityName && (
-                        <td className="py-2">
-                          {lookupMaps.cities[String(r.cityId)] || r.cityName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.regionName && (
-                        <td className="py-2">
-                          {lookupMaps.regions[String(r.regionId)] || r.regionName || ""}
-                        </td>
-                      )}
-                      {visibleColumns.customerGroupName && (
-                        <td className="py-2">
-                          {lookupMaps.groups[String(r.customerGroupId)] ||
-                            r.customerGroupName ||
-                            ""}
-                        </td>
-                      )}
-                      {visibleColumns.postalCode && <td className="py-2">{r.postalCode}</td>}
-                      {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
-                      {visibleColumns.fax && <td className="py-2">{r.fax}</td>}
-                      {visibleColumns.website && (
-                        <td className="py-2 truncate max-w-[150px]">{r.website}</td>
-                      )}
-                      {visibleColumns.email && (
-                        <td className="py-2 truncate max-w-[150px]">{r.email}</td>
-                      )}
-                      {visibleColumns.emailAddress && (
-                        <td className="py-2 truncate max-w-[150px]">{r.emailAddress}</td>
-                      )}
-                      {visibleColumns.previousCreditBalance && (
-                        <td className="py-2">{r.previousCreditBalance}</td>
-                      )}
-                      {visibleColumns.cnic && <td className="py-2">{r.cnic}</td>}
-                      {visibleColumns.ntn && <td className="py-2">{r.ntn}</td>}
-                      {visibleColumns.strn && <td className="py-2">{r.strn}</td>}
-                      {visibleColumns.salesMan && <td className="py-2">{r.salesMan}</td>}
-                      {visibleColumns.orderBooker && <td className="py-2">{r.orderBooker}</td>}
-                    </tr>
-                  ))}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          }}
+          onToggleInactive={toggleInactive}
+        >
+             <div className="">
+               <FilterBar filters={filterFilters} onClear={handleResetFilters} />
+             </div>
+        </MasterTable>
         {/* PAGINATION */}
           <Pagination
             page={page}

@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
   X,
-  Save,
-  Trash2,
-  ArchiveRestore,
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import { useTheme } from "../../context/ThemeContext";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -29,8 +25,10 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const Languages = () => {
+  const { theme } = useTheme();
   if (!hasPermission(PERMISSIONS.LANGUAGES.VIEW)) {
     return (
       <div className="flex items-center justify-center h-full text-white">
@@ -42,7 +40,7 @@ const Languages = () => {
     );
   }
   const [modalOpen, setModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const [languages, setLanguages] = useState([]);
   const [inactiveLanguages, setInactiveLanguages] = useState([]);
@@ -65,13 +63,7 @@ const Languages = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
-
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
-
   const [searchText, setSearchText] = useState("");
-
   const user = JSON.parse(localStorage.getItem("user"));
 
   // Column Picker
@@ -82,23 +74,39 @@ const Languages = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
-
-  const toggleColumn = (col) => {
-    setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
-
-  const [sortOrder, setSortOrder] = useState("asc");
 
   // Sorted active rows
-  const sortedLanguages = [...languages];
-  if (sortOrder === "asc") {
-    sortedLanguages.sort((a, b) => a.id - b.id);
-  }
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedLanguages = React.useMemo(() => {
+    let sortableItems = [...languages];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+        
+         if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+         if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [languages, sortConfig]);
 
   // LOAD ACTIVE LANGUAGES
   const loadLanguages = async () => {
@@ -436,183 +444,76 @@ const Languages = () => {
         </div>
       </EditModal>
 
+
+      <ColumnPickerModal
+        isOpen={columnModalOpen} 
+        onClose={() => setColumnModalOpen(false)} 
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
+      />
+
       {/* =============================
               MAIN PAGE
       ============================== */}
+
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden"> 
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <h2 className="text-2xl font-semibold mb-4">Languages</h2>
 
-          <h2 className="text-2xl font-semibold mb-4">Languages</h2>
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.languageId && { key: "languageId", label: "Language ID", sortable: true },
+                    visibleColumns.languageName && { key: "languageName", label: "Language Name", sortable: true },
+                ].filter(Boolean)}
+                data={sortedLanguages}
+                inactiveData={inactiveLanguages}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(r, isInactive) => {
+                    setEditLanguage({
+                        id: r.id,
+                        languageId: r.languageId,
+                        languageName: r.languageName,
+                        isInactive: isInactive,
+                    });
+                    setEditModalOpen(true);
+                }}
+                // Action Bar
+                search={searchText}
+                onSearch={handleSearch}
+                onCreate={() => setModalOpen(true)}
+                createLabel="New Language"
+                permissionCreate={hasPermission(PERMISSIONS.LANGUAGES.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    loadLanguages();
+                }}
+                onColumnSelector={() => {
+                    setColumnModalOpen(true); 
+                }}
+                onToggleInactive={async () => {
+                    if (!showInactive) await loadInactive();
+                    setShowInactive(!showInactive);
+                }}
+            />
 
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
-
-            {/* SEARCH */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-              <Search size={16} className="text-gray-300" />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-              />
-            </div>
-
-            {/* ADD */}
-            {hasPermission(PERMISSIONS.LANGUAGES.CREATE) && (
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
-            >
-              <Plus size={16} /> New Language
-            </button>
-            )}
-
-            {/* REFRESH */}
-            <button
-              onClick={() => {
-                setSearchText("");
-                setPage(1);
-                loadLanguages();
-              }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            {/* INACTIVE */}
-            <button
-              onClick={async () => {
-                if (!showInactive) await loadInactive();
-                setShowInactive(!showInactive);
-              }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1"
-            >
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
-            </button>
-
-          </div>
-
-          {/* ==========================
-                  TABLE
-          =========================== */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-auto">
-
-              <table className="w-[500px] text-left border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr className="text-white">
-
-                    {/* ID */}
-                    {visibleColumns.id && (
-                      <th
-                        className="pb-1 border-b border-white text-center cursor-pointer select-none"
-                        onClick={() => setSortOrder(sortOrder === "asc" ? null : "asc")}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          {sortOrder === "asc" && <span>▲</span>}
-                          {sortOrder === null && <span className="opacity-40">⬍</span>}
-                          <span>ID</span>
-                        </div>
-                      </th>
-                    )}
-
-                    {/* LANGUAGE ID */}
-                    {visibleColumns.languageId && (
-                      <th className="pb-1 border-b border-white text-center">Language ID</th>
-                    )}
-
-                    {/* LANGUAGE NAME */}
-                    {visibleColumns.languageName && (
-                      <th className="pb-1 border-b border-white text-center">Language Name</th>
-                    )}
-
-                  </tr>
-                </thead>
-
-                <tbody>
-
-                  {/* ACTIVE ROWS */}
-                  {sortedLanguages.map((l) => (
-                    <tr
-                      key={l.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm"
-                      onClick={() => {
-                        setEditLanguage({
-                          id: l.id,
-                          languageId: l.languageId,
-                          languageName: l.languageName,
-                          isInactive: false,
-                        });
-                        setEditModalOpen(true);
-                      }}
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{l.id}</td>
-                      )}
-
-                      {visibleColumns.languageId && (
-                        <td className="px-2 py-1 text-center">{l.languageId}</td>
-                      )}
-
-                      {visibleColumns.languageName && (
-                        <td className="px-2 py-1 text-center">{l.languageName}</td>
-                      )}
-                    </tr>
-                  ))}
-
-                  {/* INACTIVE ROWS */}
-                  {showInactive &&
-                    inactiveLanguages.map((l) => (
-                      <tr
-                        key={`inactive-${l.id}`}
-                        className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
-                        onClick={() => {
-                          setEditLanguage({
-                            id: l.id,
-                            languageId: l.languageId,
-                            languageName: l.languageName,
-                            isInactive: true,
-                          });
-                          setEditModalOpen(true);
-                        }}
-                      >
-                        {visibleColumns.id && (
-                          <td className="px-2 py-1 text-center">{l.id}</td>
-                        )}
-
-                        {visibleColumns.languageId && (
-                          <td className="px-2 py-1 text-center">{l.languageId}</td>
-                        )}
-
-                        {visibleColumns.languageName && (
-                          <td className="px-2 py-1 text-center">{l.languageName}</td>
-                        )}
-                      </tr>
-                    ))}
-
-                </tbody>
-              </table>
-
-            </div>
-          </div>
-
- {/* PAGINATION */}
-           
+             {/* PAGINATION */}
               <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
               />
+          </div>
         </div>
-        </div>
-</PageLayout>
+      </PageLayout>
+
         
     </>
   );

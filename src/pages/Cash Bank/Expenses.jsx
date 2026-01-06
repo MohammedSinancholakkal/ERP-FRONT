@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
+//   Search,
+//   Plus,
+//   RefreshCw,
+//   List,
   X,
   Save,
-  Trash2,
+//   Trash2,
   ArchiveRestore,
   Star,
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import FilterBar from "../../components/FilterBar";
+import { useTheme } from "../../context/ThemeContext";
+
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { hasPermission } from "../../utils/permissionUtils";
@@ -34,6 +38,8 @@ import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 
 const Expenses = () => {
+    const { theme } = useTheme();
+
   // ====================
   // STATES
   // ====================
@@ -47,6 +53,20 @@ const Expenses = () => {
   const [showInactive, setShowInactive] = useState(false);
 
   const [searchText, setSearchText] = useState("");
+  const [filterExpenseType, setFilterExpenseType] = useState("");
+  const [filterPaymentAccount, setFilterPaymentAccount] = useState("");
+
+  // SORT
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   
   // local UI for add modal expense type dropdown
   const [expenseTypeOpen, setExpenseTypeOpen] = useState(false);
@@ -99,15 +119,8 @@ const Expenses = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
+  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
 
-  const toggleColumn = (c) => {
-    setVisibleColumns((prev) => ({ ...prev, [c]: !prev[c] }));
-  };
-
-  const restoreDefaultColumns = () => {
-    setVisibleColumns(defaultColumns);
-  };
 
   // ==========================
   // LOAD EXPENSE TYPES
@@ -196,17 +209,95 @@ const Expenses = () => {
   // ==========================
   // SEARCH
   // ==========================
+  // ==========================
+  // SEARCH
+  // ==========================
   const handleSearch = async (txt) => {
     setSearchText(txt);
-
     if (!txt.trim()) return loadExpenses();
 
     const res = await searchExpenseApi(txt);
     if (res?.status === 200) {
       setExpenses(res.data);
-      setTotalRecords(res.data.length);
+      // setTotalRecords(res.data.length); // API might return different shape for search
     }
   };
+
+  // --- FILTERED & SORTED LIST (Client-side for current page/search results) ---
+  const filteredRows = React.useMemo(() => {
+    let list = expenses;
+
+    // We already have searchText handled by API or logic above, 
+    // but if we want strictly client-side filtering on the current FETCHED set:
+    if (filterExpenseType) {
+        list = list.filter(e => e.expenseTypeId === filterExpenseType || (expenseTypes.find(t => (t.typeId ?? t.id) === e.expenseTypeId)?.typeName === filterExpenseType));
+    }
+    if (filterPaymentAccount) {
+        list = list.filter(e => e.paymentAccount === filterPaymentAccount);
+    }
+    
+    return list;
+  }, [expenses, filterExpenseType, filterPaymentAccount, expenseTypes]);
+
+  const sortedList = React.useMemo(() => {
+    let sortableItems = [...filteredRows];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Derived values for sorting
+        if (sortConfig.key === 'expenseType') {
+            aValue = expenseTypes.find((t) => (t.typeId ?? t.id) === a.expenseTypeId)?.typeName || "";
+            bValue = expenseTypes.find((t) => (t.typeId ?? t.id) === b.expenseTypeId)?.typeName || "";
+        }
+
+        if (['id', 'amount'].includes(sortConfig.key)) {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else {
+             aValue = String(aValue || "").toLowerCase();
+             bValue = String(bValue || "").toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredRows, sortConfig, expenseTypes]);
+
+  // --- FILTER BAR CONFIG ---
+   const filters = [
+      {
+          type: 'select',
+          value: filterExpenseType,
+          onChange: setFilterExpenseType,
+          options: expenseTypes.map(t => ({ id: t.typeId ?? t.id, name: t.typeName })), // Map for consistency if needed, or just use string matching
+          placeholder: "All Expense Types"
+      },
+      {
+          type: 'select',
+          value: filterPaymentAccount,
+          onChange: setFilterPaymentAccount,
+          options: [{id: "Cash at Hand", name: "Cash at Hand"}, {id: "Cash at Bank", name: "Cash at Bank"}],
+          placeholder: "All Accounts"
+      }
+  ];
+
+  const handleClearFilters = () => {
+    setSearchText("");
+    setFilterExpenseType("");
+    setFilterPaymentAccount("");
+    setSortConfig({ key: null, direction: 'asc' });
+    loadExpenses();
+  };
+
 
   // ==========================
   // ADD
@@ -672,182 +763,70 @@ const Expenses = () => {
         defaultColumns={defaultColumns} 
       />
 
+
       {/* ---------------- MAIN PAGE ---------------- */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden"> 
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden"> 
 
-          <h2 className="text-2xl font-semibold mb-4">Expenses</h2>
+            <h2 className="text-2xl font-semibold mb-4">Expenses</h2>
 
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            {/* SEARCH */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-              <Search size={16} className="text-gray-300" />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-              />
-            </div>
-
-            {/* ADD */}
-            {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-            <button
-              onClick={() => { setNewExpense((p) => ({ ...p, date: todayStr })); setModalOpen(true); }}
-              className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
-            >
-              <Plus size={16} /> New Expense
-            </button>
-            )}
-
-            {/* REFRESH */}
-            <button
-              onClick={() => {
+            <MasterTable
+              columns={[
+                visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                visibleColumns.expenseType && { key: "expenseType", label: "Expense Type", sortable: true, render: (r) => expenseTypes.find((t) => (t.typeId ?? t.id) === r.expenseTypeId)?.typeName || "-" },
+                visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (r) => r.date?.split("T")[0] },
+                visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment Account", sortable: true },
+                visibleColumns.amount && { key: "amount", label: "Amount", sortable: true },
+              ].filter(Boolean)}
+              data={sortedList}
+              inactiveData={inactiveExpenses}
+              showInactive={showInactive}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(e, isInactive) => openEditModal(e, isInactive)}
+              // Action Bar Props
+              search={searchText}
+              onSearch={handleSearch}
+              onCreate={() => { setNewExpense((p) => ({ ...p, date: todayStr })); setModalOpen(true); }}
+              createLabel="New Expense"
+              permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+              onRefresh={() => {
                 setSearchText("");
-                if (page === 1) {
-                  loadExpenses();
-                } else {
-                  setPage(1);
-                }
+                if (page === 1) loadExpenses();
+                else setPage(1);
               }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            {/* COLUMN PICKER */}
-            <button
-              onClick={() => setColumnModalOpen(true)}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            {/* INACTIVE */}
-            <button
-              onClick={async () => {
+              onColumnSelector={() => {
+                  setTempVisibleColumns(visibleColumns);
+                  setColumnModalOpen(true);
+              }}
+              onToggleInactive={async () => {
                 if (!showInactive) await loadInactive();
                 setShowInactive(!showInactive);
               }}
-              className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
             >
-              <ArchiveRestore size={16} className="text-yellow-400" />
-              <span className="text-xs text-gray-300">
-                {showInactive ? "Mask" : "Show"} Inactive
-              </span>
-            </button>
+              <div className="">
+                <FilterBar filters={filters} onClear={handleClearFilters} />
+              </div>
+            </MasterTable>
+
+            {/* PAGINATION */}
+             <Pagination
+                  page={page}
+                  setPage={setPage}
+                  limit={limit}
+                  setLimit={setLimit}
+                  total={totalRecords}
+                  onRefresh={() => {
+                      if(page === 1) loadExpenses();
+                      else setPage(1);
+                  }}
+                />
+
           </div>
-
-          {/* TABLE */}
-          <div className="flex-grow overflow-auto">
-            <table className="min-w-[800px] w-max text-sm border-separate border-spacing-y-1">
-              <thead className="sticky top-0 bg-gray-900 text-white z-10">
-                <tr>
-                  {visibleColumns.id && (
-                    <th className="pb-1 border-b border-white text-center">ID</th>
-                  )}
-                  {visibleColumns.expenseType && (
-                    <th className="pb-1 border-b border-white text-center">Expense Type</th>
-                  )}
-                  {visibleColumns.date && (
-                    <th className="pb-1 border-b border-white text-center">Date</th>
-                  )}
-                  {visibleColumns.paymentAccount && (
-                    <th className="pb-1 border-b border-white text-center">Payment Account</th>
-                  )}
-                  {visibleColumns.amount && (
-                    <th className="pb-1 border-b border-white text-center">Amount</th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {expenses.map((e) => (
-                    <tr
-                      key={e.id}
-                      onClick={() => openEditModal(e, false)}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{e.id}</td>
-                      )}
-                      {visibleColumns.expenseType && (
-                                <td className="px-2 py-1 text-center">
-                                  {
-                                    expenseTypes.find((t) => (t.typeId ?? t.id) === e.expenseTypeId)
-                                      ?.typeName
-                                  }
-                                </td>
-                      )}
-                      {visibleColumns.date && (
-                        <td className="px-2 py-1 text-center">
-                          {e.date?.split("T")[0]}
-                        </td>
-                      )}
-                      {visibleColumns.paymentAccount && (
-                        <td className="px-2 py-1 text-center">
-                          {e.paymentAccount}
-                        </td>
-                      )}
-                      {visibleColumns.amount && (
-                        <td className="px-2 py-1 text-center">{e.amount}</td>
-                      )}
-                    </tr>
-                  ))}
-
-                {showInactive &&
-                  inactiveExpenses.map((e) => (
-                    <tr
-                      key={`inactive-${e.id}`}
-                      onClick={() => openEditModal(e, true)}
-                      className="bg-gray-900 opacity-50 line-through hover:bg-gray-800 cursor-pointer"
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{e.id}</td>
-                      )}
-                      {visibleColumns.expenseType && (
-                                <td className="px-2 py-1 text-center">
-                                  {
-                                    expenseTypes.find((t) => (t.typeId ?? t.id) === e.expenseTypeId)
-                                      ?.typeName
-                                  }
-                                </td>
-                      )}
-                      {visibleColumns.date && (
-                        <td className="px-2 py-1 text-center">
-                          {e.date?.split("T")[0]}
-                        </td>
-                      )}
-                      {visibleColumns.paymentAccount && (
-                        <td className="px-2 py-1 text-center">
-                          {e.paymentAccount}
-                        </td>
-                      )}
-                      {visibleColumns.amount && (
-                        <td className="px-2 py-1 text-center">{e.amount}</td>
-                      )}
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* PAGINATION */}
-           <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={totalRecords}
-                // onRefresh={handleRefresh}
-              />
-
         </div>
-      </div>
       </PageLayout>
+
     </>
   );
 };

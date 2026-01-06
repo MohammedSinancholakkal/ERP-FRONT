@@ -7,18 +7,16 @@ import {
   X,
   Save,
   Trash2,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   ArchiveRestore,
   Star,
-  FileSpreadsheet,
-  FileText,
+  FileSpreadsheet, // Keep for ExportButtons
+  FileText,        // Keep for ExportButtons
   Pencil
 } from "lucide-react";
 import Swal from "sweetalert2";
-import SortableHeader from "../../components/SortableHeader";
+import MasterTable from "../../components/MasterTable"; // ADDED
+import { useTheme } from "../../context/ThemeContext"; // ADDED
+// Removed SortableHeader
 import Pagination from "../../components/Pagination";
 import toast from "react-hot-toast";
 
@@ -89,6 +87,7 @@ const ExportButtons = ({ onExcel, onPDF }) => (
    ------------------------------ */
 
 const Products = () => {
+  const { theme } = useTheme(); // ADDED
   // UI state
   const [modalOpen, setModalOpen] = useState(false); // add modal
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -320,14 +319,12 @@ const Products = () => {
       UnitPrice: "0.00",
       ReorderLevel: "10.00",
       CategoryId: "",
-      UnitId: "",
-      CategoryId: "",
       CountryId: "",
       UnitId: "",
       BrandId: "",
       Image: "",
       ProductDetails: ""
-    });
+    });       
     setModalOpen(true);
     // load dropdowns in background
     loadDropdowns();
@@ -1401,127 +1398,75 @@ const Products = () => {
       {/* -------------------------
          MAIN PAGE
          ------------------------- */}
+      {/* -------------------------
+         MAIN PAGE
+         ------------------------- */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
-          <h2 className="text-2xl font-semibold mb-4">Products</h2>
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+             
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Products</h2>
+            </div>
 
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-          <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-52">
-            <Search size={16} className="text-gray-300" />
-            <input
-              type="text"
-              placeholder="search..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-            />
-          </div>
-
-            {/* ADD */}
-            {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
-            <button onClick={() => openAddModal()} className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600">
-              <Plus size={16} /> New Product
-            </button>
-            )}
-
-            {/* REFRESH */}
-            <button onClick={refreshAll} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"><RefreshCw size={16} className="text-blue-400" /></button>
-
-            <button onClick={() => setColumnModalOpen(true)} className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"><List size={16} className="text-blue-300" /></button>
-
-            <button onClick={async () => { 
-                // if (!showInactive) await loadInactive(); // Handled by useEffect
-                setShowInactive((s) => !s); 
-              }} 
-              className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.barcode && { key: "Barcode", label: "Code", sortable: true },
+                    visibleColumns.sn && { key: "SN", label: "SN", sortable: true },
+                    visibleColumns.productName && { key: "ProductName", label: "Product", sortable: true },
+                    visibleColumns.model && { key: "Model", label: "Model", sortable: true },
+                    visibleColumns.unitPrice && { key: "UnitPrice", label: "Price", sortable: true },
+                    visibleColumns.unitsInStock && { key: "UnitsInStock", label: "Stock", sortable: true },
+                    visibleColumns.reorderLevel && { key: "ReorderLevel", label: "Reorder", sortable: true },
+                    visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true, render: (r) => r.categoryName || "-" },
+                    visibleColumns.unitName && { key: "unitName", label: "Unit", sortable: true, render: (r) => r.unitName || "-" },
+                    visibleColumns.brandName && { key: "brandName", label: "Brand", sortable: true, render: (r) => r.brandName || "-" },
+                ].filter(Boolean)}
+                data={sortedList} // Use sortedList which is computed from displayedProducts (filtered)
+                inactiveData={inactiveProducts} // MasterTable might not need this if we handle displaying mixed content or handled via showInactive prop logic in MasterTable depending on implementation. 
+                // Wait, original Products.jsx appends inactive rows to displayed list if showInactive is true.
+                // MasterTable usually handles displaying active vs inactive. 
+                // But here Products.jsx has specific client-side filtering logic `computeDisplayed`.
+                // If we pass `sortedList` as `data`, it contains CURRENTLY VISIBLE items (filtered & sorted).
+                // If `showInactive` is true, `sortedList` SHOULD contain both?
+                // `computeDisplayed` filters `products`. `products` usually only has active ones loaded via `loadProducts`.
+                // `loadInactive` loads into `inactiveProducts`.
+                // `getExportRows` manually concats them.
+                // Original render (lines 1497) manually maps `inactiveProducts` if `showInactive` is true.
+                // So `sortedList` ONLY contains active products (based on `products` state).
+                // So we need to pass `inactiveData={inactiveProducts}` to MasterTable.
+                
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(p, isInactive) => openEditModal(p, isInactive)}
+                
+                // Action Bar
+                search={searchText}
+                onSearch={(val) => setSearchText(val)} // MasterTable usually debounces or handles this. Current Products.jsx uses local state `searchText`.
+                
+                onCreate={() => openAddModal()}
+                createLabel="New Product"
+                permissionCreate={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE)}
+                
+                onRefresh={refreshAll}
+                
+                onColumnSelector={() => setColumnModalOpen(true)}
+                
+                onToggleInactive={async () => { 
+                    // if (!showInactive) await loadInactive(); // Handled by useEffect in original code
+                    setShowInactive((s) => !s); 
+                }}
+                customActions={<ExportButtons onExcel={exportToExcel} onPDF={exportToPDF} />}
             >
-              <ArchiveRestore size={16} className="text-yellow-400" />
-              <span className="text-xs text-gray-300">{showInactive ? "Mask" : "Show"} Inactive</span>
-            </button>
+               {/* FILTER BAR - Replaced custom manual filters with FilterBar */}
+               <div className="">
+                  <FilterBar filters={filters} onClear={handleClearFilters} />
+               </div>
+            </MasterTable>
+         
 
-            <ExportButtons onExcel={exportToExcel} onPDF={exportToPDF} />
-          </div>
-
-            {/* FILTER BAR - Replaced custom manual filters with FilterBar */}
-            <div className="mb-4">
-               <FilterBar filters={filters} onClear={handleClearFilters} />
-            </div>
-          {/* TABLE (increased height, wider) */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-auto">
-              <table className="min-w-[1400px] text-left border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr className="text-white">
-                    {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.barcode && <SortableHeader label="Code" sortKey="barcode" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.sn && <SortableHeader label="SN" sortKey="sn" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.productName && <SortableHeader label="Product" sortKey="productName" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.model && <SortableHeader label="Model" sortKey="model" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.unitPrice && <SortableHeader label="Price" sortKey="unitPrice" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.unitsInStock && <SortableHeader label="Stock" sortKey="unitsInStock" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.reorderLevel && <SortableHeader label="Reorder" sortKey="reorderLevel" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.categoryName && <SortableHeader label="Category" sortKey="categoryName" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.unitName && <SortableHeader label="Unit" sortKey="unitName" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.brandName && <SortableHeader label="Brand" sortKey="brandName" currentSort={sortConfig} onSort={handleSort} />}
-
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {loading && (
-                    <tr>
-                      <td colSpan={12} className="text-center py-6 text-gray-400">Loading...</td>
-                    </tr>
-                  )}
-
-                  {!loading && sortedList.slice(start - 1, end).map((p) => (
-                    <tr key={p.id} className={`bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm ${p.isInactive ? 'opacity-40 line-through' : ''}`} onClick={() => openEditModal(p, p.isInactive)}>
-                      {visibleColumns.id && <td className="px-2 py-2 text-center">{p.id}</td>}
-                      {visibleColumns.barcode && <td className="px-2 py-2 text-center">{p.Barcode}</td>}
-                      {visibleColumns.sn && <td className="px-2 py-2 text-center">{p.SN}</td>}
-                      {visibleColumns.productName && <td className="px-2 py-2 text-center">{p.ProductName}</td>}
-                      {visibleColumns.model && <td className="px-2 py-2 text-center">{p.Model}</td>}
-                      {visibleColumns.unitPrice && <td className="px-2 py-2 text-center">{p.UnitPrice}</td>}
-                      {visibleColumns.unitsInStock && <td className="px-2 py-2 text-center">{p.UnitsInStock}</td>}
-                      {visibleColumns.reorderLevel && <td className="px-2 py-2 text-center">{p.ReorderLevel}</td>}
-                      {visibleColumns.categoryName && <td className="px-2 py-2 text-center">{p.categoryName || "-"}</td>}
-                      {visibleColumns.unitName && <td className="px-2 py-2 text-center">{p.unitName || "-"}</td>}
-                      {visibleColumns.brandName && <td className="px-2 py-2 text-center">{p.brandName || "-"}</td>}
-
-                    </tr>
-                  ))}
-
-                  {!loading && sortedList.length === 0 && !showInactive && (
-                    <tr>
-                      <td colSpan={12} className="text-center py-6 text-gray-400">No records found</td>
-                    </tr>
-                  )}
-
-                  {/* INACTIVE ROWS APPENDED */}
-                  {showInactive && inactiveProducts.map((p) => (
-                    <tr key={`inactive-${p.id}`} className="bg-gray-900 opacity-50 line-through cursor-pointer hover:bg-gray-800" onClick={() => openEditModal(p, true)}>
-                      {visibleColumns.id && <td className="px-2 py-2 text-center">{p.id}</td>}
-                      {visibleColumns.barcode && <td className="px-2 py-2 text-center">{p.Barcode}</td>}
-                      {visibleColumns.sn && <td className="px-2 py-2 text-center">{p.SN}</td>}
-                      {visibleColumns.productName && <td className="px-2 py-2 text-center">{p.ProductName}</td>}
-                      {visibleColumns.model && <td className="px-2 py-2 text-center">{p.Model}</td>}
-                      {visibleColumns.unitPrice && <td className="px-2 py-2 text-center">{p.UnitPrice}</td>}
-                      {visibleColumns.unitsInStock && <td className="px-2 py-2 text-center">{p.UnitsInStock}</td>}
-                      {visibleColumns.reorderLevel && <td className="px-2 py-2 text-center">{p.ReorderLevel}</td>}
-                      {visibleColumns.categoryName && <td className="px-2 py-2 text-center">{p.categoryName || "-"}</td>}
-                      {visibleColumns.unitName && <td className="px-2 py-2 text-center">{p.unitName || "-"}</td>}
-                      {visibleColumns.brandName && <td className="px-2 py-2 text-center">{p.brandName || "-"}</td>}
-                    </tr>
-                  ))}
-
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* pagination */}
           {/* pagination */}
           <Pagination
             page={page}

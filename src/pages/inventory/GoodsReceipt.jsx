@@ -1,5 +1,6 @@
 // src/pages/purchase/GoodsReceipt.jsx
 import React, { useEffect, useState, useRef } from "react";
+import { useTheme } from "../../context/ThemeContext";
 import {
   Search,
   Plus,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
-import SortableHeader from "../../components/SortableHeader";
+import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
@@ -32,6 +33,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const GoodsReceipt = () => {
+    const { theme } = useTheme();
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem("user"))
   const userId = userData?.userId || userData?.id || userData?.Id
@@ -707,159 +709,84 @@ const GoodsReceipt = () => {
         </div>
       )}
 
-      {/* ---------- MAIN PAGE ---------- */}
+       {/* ---------- MAIN PAGE ---------- */}
       <PageLayout>
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-          <div className="flex flex-col h-full overflow-hidden">
-            <h2 className="text-2xl font-semibold mb-4">Goods Receipt</h2>
-
-            {/* action bar */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-64">
-                <Search size={16} className="text-gray-300" />
-                <input
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="Search goods receipts..."
-                  className="bg-transparent pl-2 text-sm w-full outline-none"
-                />
-              </div>
-              
-              {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.CREATE) && (
-              <button
-                onClick={() => navigate('/app/inventory/goodsreceipts/newgoodsreceipts')}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-              >
-                <Plus size={16} /> New Receipt
-              </button>
-              )}
-
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  // optionally reset filters
+         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+           <div className="flex flex-col h-full overflow-hidden">
+             <h2 className="text-2xl font-semibold mb-4">Goods Receipt</h2>
+            
+             <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "Number", sortable: true },
+                    visibleColumns.supplier && { key: "supplierName", label: "Supplier", sortable: true },
+                    visibleColumns.purchaseBill && { key: "purchaseBill", label: "Bill", sortable: true },
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true },
+                    visibleColumns.totalQuantity && { key: "totalQuantity", label: "Total Qty", sortable: true },
+                    visibleColumns.employee && { key: "employeeName", label: "Employee", sortable: true },
+                    visibleColumns.remarks && { key: "remarks", label: "Remarks", sortable: true },
+                    visibleColumns.reference && { key: "reference", label: "Reference", sortable: true },
+                ].filter(Boolean)}
+                data={showAll ? sortedList.slice(start - 1, end) : sortedList}
+                inactiveData={inactiveRows}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(r, isInactive) => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`, { state: { mode: isInactive ? 'restore' : 'edit' } })}
+                // Action Bar Props
+                search={searchText}
+                onSearch={setSearchText}
+                onCreate={() => navigate('/app/inventory/goodsreceipts/newgoodsreceipts')}
+                createLabel="New Receipt"
+                permissionCreate={hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setFilterSupplier("");
+                    setFilterPurchaseBill("");
+                    setFilterEmployee("");
+                    if(showAll) fetchAll();
+                    else {
+                        setPage(1);
+                        fetchActive();
+                    }
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
-              >
-                <RefreshCw size={16} className="text-blue-400" />
-              </button>
-
-              <button
-                onClick={() => {
-                  setTempVisibleColumns(visibleColumns);
-                  setColumnModalOpen(true); 
+                onColumnSelector={() => {
+                    setTempVisibleColumns(visibleColumns);
+                    setColumnModalOpen(true);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
-              >
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              <button
-                onClick={async () => {
-                  if (!showInactive) await fetchInactive();
-                  setShowInactive((s) => !s);
+                onToggleInactive={async () => {
+                    if (!showInactive) await fetchInactive();
+                    setShowInactive((s) => !s);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
-              >
-                <ArchiveRestore size={16} className="text-yellow-400" />
-                <span className="text-xs text-gray-300">
-                 Inactive
-                </span>
-              </button>
-            </div>
-            {/* filters */}
-            {/* FILTER BAR */}
-            <div className="mb-4">
-               <FilterBar filters={filters} onClear={handleClearFilters} />
-            </div>
-            {/* table (scroll behavior same as Bank Transactions) */}
-            <div className="flex-grow overflow-auto w-full min-h-0">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[1200px] border-separate border-spacing-y-1 text-sm table-fixed">
-                  <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr>
-                       {visibleColumns.id && <SortableHeader label="Number" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.supplier && <SortableHeader label="Supplier" sortKey="supplierName" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.purchaseBill && <SortableHeader label="Bill" sortKey="purchaseBill" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.totalQuantity && <SortableHeader label="Total Qty" sortKey="totalQuantity" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.employee && <SortableHeader label="Employee" sortKey="employeeName" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.remarks && <th className="px-4 py-2 font-semibold">Remarks</th>}
-                       {visibleColumns.reference && <SortableHeader label="Reference" sortKey="reference" currentSort={sortConfig} onSort={handleSort} />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedList.length > 0 ? (
-                        sortedList.slice(start - 1, end).map((r) => (
-                          <tr
-                            key={r.id}
-                            className={`border-b border-gray-800 bg-gray-900 cursor-pointer transition-colors ${!r.isActive ? 'opacity-40 line-through' : ''}`}
-                            onClick={() => navigate(`/app/inventory/goodsreceipts/edit/${r.id}`, { state: { mode: !r.isActive ? 'restore' : 'edit' } })}
-                          >
-                           {visibleColumns.id && <td className="px-2 py-3 text-center">{r.id}</td>}
-                           {visibleColumns.supplier && <td className="px-2 py-3 text-center">{r.supplierName}</td>}
-                           {visibleColumns.purchaseBill && <td className="px-2 py-3 text-center">{r.purchaseBill}</td>}
-                           {visibleColumns.date && <td className="px-2 py-3 text-center">{r.date || "-"}</td>}
-                           {visibleColumns.totalQuantity && <td className="px-2 py-3 text-center">{r.totalQuantity}</td>}
-                           {visibleColumns.employee && <td className="px-2 py-3 text-center">{r.employeeName || "-"}</td>}
-                           {visibleColumns.remarks && <td className="px-2 py-3 text-center">{r.remarks || "-"}</td>}
-                           {visibleColumns.reference && <td className="px-2 py-3 text-center">{r.reference || "-"}</td>}
-                          </tr>
-                        ))
-                    ) : (
-                      !showInactive && (
-                        <tr>
-                          <td colSpan={10} className="px-4 py-6 text-center text-gray-400">
-                            No records found
-                          </td>
-                        </tr>
-                      )
-                    )}
-                    {/* INACTIVE ROWS APPENDED */}
-                    {showInactive && inactiveRows.map((r) => (
-                      <tr
-                        key={`inactive-${r.id}`}
-                        className="bg-gray-900 cursor-pointer opacity-50 line-through hover:bg-gray-800"
-                        onClick={() => handleRestore(r.id)}
-                      >
-                           {visibleColumns.id && <td className="px-2 py-3 text-center">{r.id}</td>}
-                           {visibleColumns.supplier && <td className="px-2 py-3 text-center">{r.supplierName}</td>}
-                           {visibleColumns.purchaseBill && <td className="px-2 py-3 text-center">{r.purchaseBill}</td>}
-                           {visibleColumns.date && <td className="px-2 py-3 text-center">{r.date || "-"}</td>}
-                           {visibleColumns.totalQuantity && <td className="px-2 py-3 text-center">{r.totalQuantity}</td>}
-                           {visibleColumns.employee && <td className="px-2 py-3 text-center">{r.employeeName || "-"}</td>}
-                           {visibleColumns.remarks && <td className="px-2 py-3 text-center">{r.remarks || "-"}</td>}
-                           {visibleColumns.reference && <td className="px-2 py-3 text-center">{r.reference || "-"}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+             >
+                <div className="">
+                  <FilterBar filters={filters} onClear={handleClearFilters} />
+                </div>
+             </MasterTable>
 
+             <Pagination
+               page={page}
+               setPage={setPage}
+               limit={limit}
+               setLimit={setLimit}
+               total={totalRecords}
+               onRefresh={() => {
+                   if(showAll) fetchAll()
+                   else fetchActive()
+               }}
+             />
+           </div>
+         </div>
 
-            {/* PAGINATION */}
-              <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={serverTotal}
-                onRefresh={fetchActive}
-              />
-          </div>
-
-          {/* column picker modal */}
-
-          <ColumnPickerModal
-            isOpen={columnModalOpen}
-            onClose={() => setColumnModalOpen(false)}
-            visibleColumns={visibleColumns}
-            setVisibleColumns={setVisibleColumns}
-          />
-
-        </div>
+         {/* COLUMN TYPE */}
+         <ColumnPickerModal
+           isOpen={columnModalOpen}
+           onClose={() => setColumnModalOpen(false)}
+           visibleColumns={visibleColumns}
+           setVisibleColumns={setVisibleColumns}
+           defaultColumns={defaultColumns}
+         />
       </PageLayout>
+
     </>
   );
 };

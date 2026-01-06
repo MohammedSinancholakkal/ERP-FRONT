@@ -1,10 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
   Star,
   Pencil,
 } from "lucide-react";
@@ -602,52 +597,6 @@ const Cities = () => {
           <div className="flex flex-col h-[calc(100vh-113px)] overflow-hidden">
             <h2 className="text-xl sm:text-2xl font-semibold mb-4">Cities</h2>
 
-            {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
-              <div className={`flex items-center px-2 py-1.5 w-full sm:w-60 rounded border ${theme === 'emerald' ? 'bg-gray-100 border-emerald-500' : 'bg-gray-700 border-gray-600'}`}>
-                <Search size={16} className={theme === 'emerald' ? 'text-gray-500' : 'text-gray-300'} />
-                <input 
-                  className={`bg-transparent pl-2 w-full text-sm outline-none ${theme === 'emerald' ? 'text-gray-900 placeholder-gray-500' : 'text-gray-200 placeholder-gray-500'}`} 
-                  placeholder="search..." 
-                  value={searchText} 
-                  onChange={(e) => handleSearch(e.target.value)} 
-                />
-              </div>
-
-              {hasPermission(PERMISSIONS.CITIES.CREATE) && (
-              <button 
-                onClick={openAddModal} 
-                className={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-sm ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <Plus size={16} /> New City
-              </button>
-              )}
-
-              <button 
-                onClick={() => { setSearchText(""); setPage(1); loadCities(); }} 
-                className={`p-1.5 border rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`} 
-                aria-label="Refresh"
-              >
-                <RefreshCw size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-400'} />
-              </button>
-
-              <button 
-                onClick={() => setColumnModal(true)} 
-                className={`p-1.5 border rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`} 
-                aria-label="Columns"
-              >
-                <List size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-300'} />
-              </button>
-
-              <button 
-                onClick={async () => { if (!showInactive) await loadInactiveCities(); setShowInactive(!showInactive); }} 
-                className={`flex items-center gap-1 px-3 py-1.5 border rounded text-sm ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <ArchiveRestore size={16} className={theme === 'emerald' ? 'text-white' : 'text-yellow-300'} />
-                {showInactive ? "Hide Inactive" : "Inactive"}
-              </button>
-            </div>
-
             {/* TABLE */}
             <MasterTable
               columns={tableColumns}
@@ -657,6 +606,22 @@ const Cities = () => {
               sortConfig={sortConfig}
               onSort={handleSort}
               onRowClick={(item, isInactive) => openEditModal({ ...item, isInactive })}
+              // Action Bar Props
+              search={searchText}
+              onSearch={handleSearch}
+              onCreate={openAddModal}
+              createLabel="New City"
+              permissionCreate={hasPermission(PERMISSIONS.CITIES.CREATE)}
+              onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadCities();
+              }}
+              onColumnSelector={() => setColumnModal(true)}
+              onToggleInactive={async () => {
+                if (!showInactive) await loadInactiveCities();
+                setShowInactive(!showInactive);
+              }}
             />
 
             {/* PAGINATION */}

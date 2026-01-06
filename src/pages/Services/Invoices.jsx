@@ -30,6 +30,9 @@ import {
   restoreServiceInvoiceApi
 } from "../../services/allAPI";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import MasterTable from "../../components/MasterTable"; // ADDED
+import { useTheme } from "../../context/ThemeContext"; // ADDED
+import ExportButtons from "../../components/ExportButtons"; // ADDED
 
 const defaultColumns = {
   id: true,
@@ -51,6 +54,7 @@ const defaultColumns = {
 };
 
 const Invoices = () => {
+  const { theme } = useTheme(); // ADDED
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -382,160 +386,29 @@ const Invoices = () => {
           />
 
       <PageLayout> 
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
-            <h2 className="text-2xl font-semibold mb-4">Invoices</h2>
-
-            {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-52">
-                <Search size={16} />
-                <input
-                  type="text"
-                  placeholder="search..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="bg-transparent outline-none pl-2 text-sm w-full text-white"
-                />
-              </div>
-
-              {hasPermission(PERMISSIONS.SERVICES.CREATE) && (
-              <button
-                onClick={() => navigate("/app/services/newinvoice")}
-                className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600"
-              >
-                <Plus size={16} /> New Invoice
-              </button>
-              )}
-
-              <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
-                <RefreshCw size={16} className="text-blue-300" />
-              </button>
-
-              <button onClick={() => { setTempVisibleColumns(visibleColumns); setColumnModalOpen(true); }} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              <button 
-                 onClick={toggleInactive}
-                 className={`p-2 border border-gray-600 rounded flex items-center gap-1 ${showInactive ? 'bg-gray-700' : 'bg-gray-700'}`}
-               >
-                 <ArchiveRestore size={16} className={showInactive ? "text-yellow-400" : "text-yellow-300"} />
-                 <span className={`text-xs ${showInactive ? "opacity-100 font-bold text-yellow-100" : "opacity-80"}`}>
-                   {showInactive ? " Inactive" : " Inactive"}
-                 </span>
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button onClick={handleExportExcel} className="p-1.5 bg-green-700/10 border border-green-700 rounded hover:bg-green-700/20" title="Export to Excel">
-                  <FileSpreadsheet size={18} className="text-green-300" />
-                </button>
-                <button onClick={handleExportPDF} className="p-1.5 bg-red-700/10 border border-red-700 rounded hover:bg-red-700/20" title="Export to PDF">
-                  <FileText size={18} className="text-red-300" />
-                </button>
-              </div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Invoices</h2>
             </div>
-
-            {/* FILTER BAR */}
-            <div className="mb-4">
-              <FilterBar filters={filters} onClear={clearFilters} />
-            </div>
-
-            {/* TABLE */}
-            <div className="flex-grow overflow-auto min-h-0 w-full">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[2000px] text-center border-separate border-spacing-y-1 text-sm w-full">
-                  <thead className="sticky top-0 bg-gray-900">
-                    <tr>
-                      {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.customerName && <SortableHeader label="Customer" sortKey="customerName" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.employee && <SortableHeader label="Employee" sortKey="employeeName" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.paymentAccount && <SortableHeader label="Payment" sortKey="paymentAccount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.discount && <SortableHeader label="Discount" sortKey="discount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.totalDiscount && <SortableHeader label="Total Disc" sortKey="totalDiscount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.vat && <SortableHeader label="VAT" sortKey="vat" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.totalTax && <SortableHeader label="Total Tax" sortKey="totalTax" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.shippingCost && <SortableHeader label="Shipping" sortKey="shippingCost" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.grandTotal && <SortableHeader label="Grand Total" sortKey="grandTotal" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.netTotal && <SortableHeader label="Net Total" sortKey="netTotal" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.paidAmount && <SortableHeader label="Paid" sortKey="paidAmount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.due && <SortableHeader label="Due" sortKey="due" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.change && <SortableHeader label="Change" sortKey="change" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.details && <SortableHeader label="Details" sortKey="details" currentSort={sortConfig} onSort={handleSort} />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* ACTIVE ROWS */}
-                    {sortedList.length === 0 ? (
-                      <tr>
-                        <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-center text-gray-400">
-                          {isLoading ? "Loading..." : "No active invoices found"}
-                        </td>
-                      </tr>
-                    ) : (
-                      sortedList.map((p) => (
-                      <tr
-                        key={p.id}
-                        onClick={() => navigate(`/app/services/edit/${p.id}`, { state: { isInactive: false } })}
-                        className="hover:bg-gray-700 cursor-pointer bg-gray-900"
-                      >
-                        {visibleColumns.id && <td className="px-2 py-2">{p.id}</td>}
-                        {visibleColumns.customerName && (
-                          <td className="px-2 py-2 flex items-center justify-center gap-2">
-                            <button className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700" title="Download PDF" onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}>
-                              <FileText size={14} className="text-red-300" />
-                            </button>
-                            <button
-                              className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700"
-                              title="Preview Invoice"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(
-                                  `${window.location.origin}/app/services/preview/${p.id}`,
-                                  "_blank"
-                                );
-                              }}
-                            >
-                              <Eye size={14} className="text-blue-300" />
-                            </button>
-                            {p.customerName || p.customer || "-"}
-                          </td>
-                        )}
-                        {visibleColumns.date && <td className="px-2 py-2">{p.date ? new Date(p.date).toLocaleDateString() : "-"}</td>}
-                        {visibleColumns.employee && <td className="px-2 py-2">{p.employeeName || p.employee || "-"}</td>}
-                        {visibleColumns.paymentAccount && <td className="px-2 py-2">{p.paymentAccount || "-"}</td>}
-                        {visibleColumns.discount && <td className="px-2 py-2">{parseFloat(p.discount || 0).toFixed(2)}</td>}
-                        {visibleColumns.totalDiscount && <td className="px-2 py-2">{parseFloat(p.totalDiscount || 0).toFixed(2)}</td>}
-                        {visibleColumns.vat && <td className="px-2 py-2">{parseFloat(p.vat || 0).toFixed(2)}</td>}
-                        {visibleColumns.totalTax && <td className="px-2 py-2">{parseFloat(p.totalTax || 0).toFixed(2)}</td>}
-                        {visibleColumns.shippingCost && <td className="px-2 py-2">{parseFloat(p.shippingCost || 0).toFixed(2)}</td>}
-                        {visibleColumns.grandTotal && <td className="px-2 py-2">{parseFloat(p.grandTotal || 0).toFixed(2)}</td>}
-                        {visibleColumns.netTotal && <td className="px-2 py-2 font-semibold">{parseFloat(p.netTotal || 0).toFixed(2)}</td>}
-                        {visibleColumns.paidAmount && <td className="px-2 py-2">{parseFloat(p.paidAmount || 0).toFixed(2)}</td>}
-                        {visibleColumns.due && <td className="px-2 py-2">{parseFloat(p.due || 0).toFixed(2)}</td>}
-                        {visibleColumns.change && <td className="px-2 py-2">{parseFloat(p.change || 0).toFixed(2)}</td>}
-                        {visibleColumns.details && <td className="px-2 py-2 max-w-xs truncate">{p.details || "-"}</td>}
-                      </tr>
-                    ))
-                    )}
-
-                    {/* INACTIVE ROWS (APPENDED AT BOTTOM) */}
-                    {showInactive && inactiveRows.map((p) => (
-                      <tr
-                        key={`inactive-${p.id}`}
-                        onClick={() => handleRestore(p)}
-                        className="hover:bg-gray-700 cursor-pointer bg-gray-700/50 opacity-60 line-through grayscale"
-                      >
-                         {visibleColumns.id && <td className="px-2 py-2">{p.id}</td>}
-                        {visibleColumns.customerName && (
-                          <td className="px-2 py-2 flex items-center justify-center gap-2">
-                             <button className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 opacity-50" title="Download PDF" onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}>
+            
+             <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (p) => (
+                        <div className="flex items-center justify-center gap-2">
+                             <button
+                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${p.isInactive ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
+                               title="Download PDF"
+                               disabled={p.isInactive}
+                               onClick={(e) => { e.stopPropagation(); handleExportPDF(); }}
+                             >
                                <FileText size={14} className="text-red-300" />
                              </button>
                              <button
-                               className="p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 opacity-50"
+                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${p.isInactive ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
                                title="Preview Invoice"
+                               disabled={p.isInactive}
                                onClick={(e) => {
                                  e.stopPropagation();
                                  window.open(
@@ -546,29 +419,61 @@ const Invoices = () => {
                              >
                                <Eye size={14} className="text-blue-300" />
                              </button>
-                             {p.customerName || p.customer || "-"}
-                          </td>
-                        )}
-                        {visibleColumns.date && <td className="px-2 py-2">{p.date ? new Date(p.date).toLocaleDateString() : "-"}</td>}
-                        {visibleColumns.employee && <td className="px-2 py-2">{p.employeeName || p.employee || "-"}</td>}
-                        {visibleColumns.paymentAccount && <td className="px-2 py-2">{p.paymentAccount || "-"}</td>}
-                        {visibleColumns.discount && <td className="px-2 py-2">{parseFloat(p.discount || 0).toFixed(2)}</td>}
-                        {visibleColumns.totalDiscount && <td className="px-2 py-2">{parseFloat(p.totalDiscount || 0).toFixed(2)}</td>}
-                        {visibleColumns.vat && <td className="px-2 py-2">{parseFloat(p.vat || 0).toFixed(2)}</td>}
-                        {visibleColumns.totalTax && <td className="px-2 py-2">{parseFloat(p.totalTax || 0).toFixed(2)}</td>}
-                        {visibleColumns.shippingCost && <td className="px-2 py-2">{parseFloat(p.shippingCost || 0).toFixed(2)}</td>}
-                        {visibleColumns.grandTotal && <td className="px-2 py-2">{parseFloat(p.grandTotal || 0).toFixed(2)}</td>}
-                        {visibleColumns.netTotal && <td className="px-2 py-2 font-semibold">{parseFloat(p.netTotal || 0).toFixed(2)}</td>}
-                        {visibleColumns.paidAmount && <td className="px-2 py-2">{parseFloat(p.paidAmount || 0).toFixed(2)}</td>}
-                        {visibleColumns.due && <td className="px-2 py-2">{parseFloat(p.due || 0).toFixed(2)}</td>}
-                        {visibleColumns.change && <td className="px-2 py-2">{parseFloat(p.change || 0).toFixed(2)}</td>}
-                        {visibleColumns.details && <td className="px-2 py-2 max-w-xs truncate">{p.details || "-"}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                             <span className={theme === 'emerald' ? "text-gray-900" : "text-gray-300"}>{p.customerName || p.customer || "-"}</span>
+                        </div>
+                    )},
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (p) => p.date ? new Date(p.date).toLocaleDateString() : "-" },
+                    visibleColumns.employee && { key: "employeeName", label: "Employee", sortable: true, render: (p) => p.employeeName || p.employee || "-" },
+                    visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment", sortable: true },
+                    visibleColumns.discount && { key: "discount", label: "Discount", sortable: true, render: (p) => parseFloat(p.discount || 0).toFixed(2) },
+                    visibleColumns.totalDiscount && { key: "totalDiscount", label: "Total Disc", sortable: true, render: (p) => parseFloat(p.totalDiscount || 0).toFixed(2) },
+                    visibleColumns.vat && { key: "vat", label: "VAT", sortable: true, render: (p) => parseFloat(p.vat || 0).toFixed(2) },
+                    visibleColumns.totalTax && { key: "totalTax", label: "Total Tax", sortable: true, render: (p) => parseFloat(p.totalTax || 0).toFixed(2) },
+                    visibleColumns.shippingCost && { key: "shippingCost", label: "Shipping", sortable: true, render: (p) => parseFloat(p.shippingCost || 0).toFixed(2) },
+                    visibleColumns.grandTotal && { key: "grandTotal", label: "Grand Total", sortable: true, render: (p) => parseFloat(p.grandTotal || 0).toFixed(2) },
+                    visibleColumns.netTotal && { key: "netTotal", label: "Net Total", sortable: true, render: (p) => <span className="font-semibold">{parseFloat(p.netTotal || 0).toFixed(2)}</span> },
+                    visibleColumns.paidAmount && { key: "paidAmount", label: "Paid", sortable: true, render: (p) => parseFloat(p.paidAmount || 0).toFixed(2) },
+                    visibleColumns.due && { key: "due", label: "Due", sortable: true, render: (p) => parseFloat(p.due || 0).toFixed(2) },
+                    visibleColumns.change && { key: "change", label: "Change", sortable: true, render: (p) => parseFloat(p.change || 0).toFixed(2) },
+                    visibleColumns.details && { key: "details", label: "Details", sortable: true, render: (p) => <div className="max-w-xs truncate">{p.details || "-"}</div> },
+                ].filter(Boolean)}
+                data={sortedList}
+                inactiveData={inactiveRows}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(p, isInactive) => {
+                     if (isInactive) {
+                         handleRestore(p);
+                     } else {
+                         navigate(`/app/services/edit/${p.id}`, { state: { isInactive: false } });
+                     }
+                }}
+                
+                // Action Bar
+                search={searchText}
+                onSearch={(val) => setSearchText(val)}
+                
+                onCreate={() => navigate("/app/services/newinvoice")}
+                createLabel="New Invoice"
+                permissionCreate={hasPermission(PERMISSIONS.SERVICES.CREATE)}
+                
+                onRefresh={handleRefresh}
+                
+                onColumnSelector={() => {
+                     setTempVisibleColumns(visibleColumns);
+                     setColumnModalOpen(true);
+                }}
+                
+                onToggleInactive={toggleInactive}
+                
+                customActions={<ExportButtons onExcel={handleExportExcel} onPDF={handleExportPDF} />}
+            >
+               {/* FILTER BAR - as child */}
+               <div className="">
+                  <FilterBar filters={filters} onClear={clearFilters} />
+               </div>
+            </MasterTable>
             
              <Pagination
                 page={page}

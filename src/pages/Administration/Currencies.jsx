@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
+  Search, // Keeping for modals if needed, or remove if unused. Most seem unused in MasterTable, but Modals might use them.
   X,
-  Save,
-  Trash2,
-  ArchiveRestore,
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import { useTheme } from "../../context/ThemeContext";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -29,8 +26,10 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const Currencies = () => {
+  const { theme } = useTheme();
   if (!hasPermission(PERMISSIONS.CURRENCIES.VIEW)) {
     return (
       <div className="flex items-center justify-center h-full text-white">
@@ -42,7 +41,7 @@ const Currencies = () => {
     );
   }
   const [modalOpen, setModalOpen] = useState(false);
-  const [columnModal, setColumnModal] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   const [currencies, setCurrencies] = useState([]);
   const [inactiveCurrencies, setInactiveCurrencies] = useState([]);
@@ -93,13 +92,38 @@ const Currencies = () => {
     setVisibleColumns(defaultColumns);
   };
 
-  const [sortOrder, setSortOrder] = useState("asc");
+  // Sorting
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  // Sorted rows
-  const sortedCurrencies = [...currencies];
-  if (sortOrder === "asc") {
-    sortedCurrencies.sort((a, b) => a.id - b.id);
-  }
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedCurrencies = React.useMemo(() => {
+    let sortableItems = [...currencies];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+        
+         if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+         if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [currencies, sortConfig]);
 
   // Load active records
   const loadCurrencies = async () => {
@@ -374,181 +398,74 @@ const Currencies = () => {
         </div>
       </EditModal>
 
+      <ColumnPickerModal
+        isOpen={columnModalOpen}
+        onClose={() => setColumnModalOpen(false)}
+        visibleColumns={visibleColumns}
+        setVisibleColumns={setVisibleColumns}
+        defaultColumns={defaultColumns}
+      />
+
+      {/* =============================
+              MAIN PAGE
+      ============================== */}
       {/* =============================
               MAIN PAGE
       ============================== */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden"> 
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <h2 className="text-2xl font-semibold mb-4">Currencies</h2>
 
-
-          <h2 className="text-2xl font-semibold mb-4">Currencies</h2>
-
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
-
-            {/* SEARCH */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
-              <Search size={16} className="text-gray-300" />
-              <input
-                type="text"
-                placeholder="search..."
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-              />
-            </div>
-
-            {/* ADD */}
-            {hasPermission(PERMISSIONS.CURRENCIES.CREATE) && (
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm hover:bg-gray-600"
-            >
-              <Plus size={16} /> New Currency
-            </button>
-            )}
-
-            {/* REFRESH */}
-            <button
-              onClick={() => {
-                setSearchText("");
-                setPage(1);
-                loadCurrencies();
-              }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600"
-            >
-              <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            {/* INACTIVE */}
-            <button
-              onClick={async () => {
-                if (!showInactive) await loadInactive();
-                setShowInactive(!showInactive);
-              }}
-              className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-1"
-            >
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-80">Inactive</span>
-            </button>
-          </div>
-
-          {/* ==========================
-                  TABLE
-          =========================== */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-auto">
-              <table className="w-[600px] text-left border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr className="text-white">
-
-                    {visibleColumns.id && (
-                      <th
-                        className="pb-1 border-b border-white text-center cursor-pointer select-none"
-                        onClick={() => setSortOrder((prev) => (prev === "asc" ? null : "asc"))}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          {sortOrder === "asc" && <span>▲</span>}
-                          {sortOrder === null && <span className="opacity-40">⬍</span>}
-                          <span>ID</span>
-                        </div>
-                      </th>
-                    )}
-
-                    {visibleColumns.currencyName && (
-                      <th className="pb-1 border-b border-white text-center">
-                        Currency Name
-                      </th>
-                    )}
-
-                    {visibleColumns.currencySymbol && (
-                      <th className="pb-1 border-b border-white text-center">
-                        Symbol
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-
-                <tbody>
-
-                  {/* ACTIVE */}
-                  {sortedCurrencies.map((c) => (
-                    <tr
-                      key={c.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer rounded shadow-sm"
-                      onClick={() => {
-                        setEditCurrency({
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.currencyName && { key: "currencyName", label: "Currency Name", sortable: true },
+                    visibleColumns.currencySymbol && { key: "currencySymbol", label: "Symbol", sortable: true },
+                ].filter(Boolean)}
+                data={sortedCurrencies}
+                inactiveData={inactiveCurrencies}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(c, isInactive) => {
+                     setEditCurrency({
                           id: c.id,
                           currencyName: c.currencyName,
                           currencySymbol: c.currencySymbol,
-                          isInactive: false,
+                          isInactive: isInactive,
                         });
                         setEditModalOpen(true);
-                      }}
-                    >
-                      {visibleColumns.id && (
-                        <td className="px-2 py-1 text-center">{c.id}</td>
-                      )}
+                }}
+                // Action Bar
+                search={searchText}
+                onSearch={handleSearch}
+                onCreate={() => setModalOpen(true)}
+                createLabel="New Currency"
+                permissionCreate={hasPermission(PERMISSIONS.CURRENCIES.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    loadCurrencies();
+                }}
+                onColumnSelector={() => setColumnModalOpen(true)}
+                onToggleInactive={async () => {
+                    if (!showInactive) await loadInactive();
+                    setShowInactive(!showInactive);
+                }}
+            />
 
-                      {visibleColumns.currencyName && (
-                        <td className="px-2 py-1 text-center">{c.currencyName}</td>
-                      )}
-
-                      {visibleColumns.currencySymbol && (
-                        <td className="px-2 py-1 text-center">{c.currencySymbol}</td>
-                      )}
-                    </tr>
-                  ))}
-
-                  {/* INACTIVE */}
-                  {showInactive &&
-                    inactiveCurrencies.map((c) => (
-                      <tr
-                        key={`inactive-${c.id}`}
-                        className="bg-gray-900 cursor-pointer opacity-40 line-through hover:bg-gray-700 rounded shadow-sm"
-                        onClick={() => {
-                          setEditCurrency({
-                            id: c.id,
-                            currencyName: c.currencyName,
-                            currencySymbol: c.currencySymbol,
-                            isInactive: true,
-                          });
-                          setEditModalOpen(true);
-                        }}
-                      >
-                        {visibleColumns.id && (
-                          <td className="px-2 py-1 text-center">{c.id}</td>
-                        )}
-
-                        {visibleColumns.currencyName && (
-                          <td className="px-2 py-1 text-center">{c.currencyName}</td>
-                        )}
-
-                        {visibleColumns.currencySymbol && (
-                          <td className="px-2 py-1 text-center">{c.currencySymbol}</td>
-                        )}
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
- {/* PAGINATION */}
-           
+             {/* PAGINATION */}
               <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
               />
-
+          </div>
         </div>
-      </div>
-    </PageLayout>
+      </PageLayout>
     </>
   );
 };

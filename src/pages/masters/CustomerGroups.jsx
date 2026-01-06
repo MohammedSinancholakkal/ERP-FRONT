@@ -1,11 +1,4 @@
 import React, { useEffect, useState } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-} from "lucide-react";
 import toast from "react-hot-toast";
 
 import {
@@ -20,7 +13,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
-import SortableHeader from "../../components/SortableHeader";
+import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 
@@ -277,144 +270,34 @@ const CustomerGroups = () => {
 
         <h2 className="text-2xl font-semibold mb-4">Customer Groups</h2>
 
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-
-          {/* SEARCH */}
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search..."
-              className="bg-transparent pl-2 text-sm w-full outline-none"
-            />
-          </div>
-
-          {/* ADD */}
-          {hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE) && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-          >
-            <Plus size={16} /> New Group
-          </button>
-          )}
-
-          {/* REFRESH */}
-          <button
-            onClick={() => {
-              setSearchText("");
-              setPage(1);
-              loadRows();
+        <MasterTable
+            columns={[
+                visibleColumns.id && { key: 'id', label: 'ID', sortable: true },
+                visibleColumns.name && { key: 'name', label: 'Name', sortable: true },
+            ].filter(Boolean)}
+            data={sortedRows}
+            inactiveData={inactiveRows}
+            showInactive={showInactive}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            onRowClick={(item, isInactive) => openEdit(item, isInactive)}
+            // Action Props
+            search={searchText}
+            onSearch={handleSearch}
+            onCreate={() => setModalOpen(true)}
+            createLabel="New Group"
+            permissionCreate={hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE)}
+            onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadRows();
             }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          {/* COLUMNS */}
-          <button
-            onClick={() => setColumnModalOpen(true)}
-            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          {/* INACTIVE TOGGLE */}
-          <button
-            onClick={async () => {
-              if (!showInactive) await loadInactive();
-              setShowInactive((s) => !s);
+            onColumnSelector={() => setColumnModalOpen(true)}
+            onToggleInactive={async () => {
+                if (!showInactive) await loadInactive();
+                setShowInactive((s) => !s);
             }}
-            className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
-              showInactive ? "ring-1 ring-yellow-300" : ""
-            }`}
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
-        </div>
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto min-h-0">
-          <table className="w-[500px] border-separate border-spacing-y-1 text-sm">
-
-            {/* HEADER */}
-            <thead className="sticky top-0 bg-gray-900 z-10">
-              <tr className="text-white text-center">
-
-                {visibleColumns.id && (
-                  <SortableHeader
-                    label="ID"
-                    sortOrder={sortConfig.key === "id" ? sortConfig.direction : null}
-                    onClick={() => handleSort("id")}
-                  />
-                )}
-
-                {visibleColumns.name && (
-                  <SortableHeader
-                    label="Name"
-                    sortOrder={sortConfig.key === "name" ? sortConfig.direction : null}
-                    onClick={() => handleSort("name")}
-                  />
-                )}
-              </tr>
-            </thead>
-
-            {/* BODY */}
-            <tbody className="text-center">
-
-              {/* No Records */}
-              {sortedRows.length === 0 && inactiveRows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={Object.values(visibleColumns).filter(Boolean).length}
-                    className="px-4 py-6 text-center text-gray-400"
-                  >
-                    No records found
-                  </td>
-                </tr>
-              )}
-
-              {/* ACTIVE ROWS */}
-              {sortedRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                  onClick={() => openEdit(row, false)}
-                >
-                  {visibleColumns.id && (
-                    <td className="px-2 py-1 align-middle">{row.id}</td>
-                  )}
-                  {visibleColumns.name && (
-                    <td className="px-2 py-1 align-middle">{row.name}</td>
-                  )}
-                </tr>
-              ))}
-
-              {/* INACTIVE ROWS */}
-              {showInactive &&
-                inactiveRows.map((row) => (
-                  <tr
-                    key={`inactive-${row.id}`}
-                    className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer"
-                    onClick={() => openEdit(row, true)}
-                  >
-                    {visibleColumns.id && (
-                      <td className="px-2 py-1 align-middle">{row.id}</td>
-                    )}
-                    {visibleColumns.name && (
-                      <td className="px-2 py-1 align-middle">{row.name}</td>
-                    )}
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-        
-
-        {/* PAGINATION */}
+        />
         <Pagination
           page={page}
           setPage={setPage}

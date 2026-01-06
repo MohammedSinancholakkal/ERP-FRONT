@@ -1,23 +1,10 @@
 import React, { useEffect, useState } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
-  FileSpreadsheet,
   FileText,
   Eye,
-  Download,
-  ArchiveRestore
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import { getSalesApi, getCustomersApi, searchSaleApi, getInactiveSalesApi } from "../../services/allAPI";
-import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import { useNavigate } from "react-router-dom";
@@ -28,9 +15,12 @@ import toast from "react-hot-toast";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import MasterTable from "../../components/MasterTable"; // ADDED
+import { useTheme } from "../../context/ThemeContext"; // ADDED
+import ExportButtons from "../../components/ExportButtons"; // ADDED
 
 const Sales = () => {
-  const [open, setOpen] = useState(false);
+  const { theme } = useTheme(); // ADDED
 
   const navigate = useNavigate();
 
@@ -55,9 +45,7 @@ const Sales = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
-  const [columnSearch, setColumnSearch] = useState("");
 
   // --- INACTIVE STATE ---
   const [showInactive, setShowInactive] = useState(false);
@@ -320,8 +308,8 @@ const Sales = () => {
             bValue = parseFloat(bValue) || 0;
         } else {
              // String comparison
-             aValue = String(aValue).toLowerCase();
-             bValue = String(bValue).toLowerCase();
+             aValue = String(aValue || "").toLowerCase();
+             bValue = String(bValue || "").toLowerCase();
         }
 
         if (aValue < bValue) {
@@ -380,154 +368,86 @@ const Sales = () => {
       />
 
       <PageLayout>
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
-            <h2 className="text-2xl font-semibold mb-4">Sales</h2>
-
-            {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-52">
-                <Search size={16} />
-                <input
-                  type="text"
-                  placeholder="search..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="bg-transparent outline-none pl-2 text-sm w-full text-white"
-                />
-              </div>
-
-              {hasPermission(PERMISSIONS.SALES.CREATE) && (
-              <button
-                onClick={() => navigate("/app/sales/newsale")}
-                className="flex items-center gap-1 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 hover:bg-gray-600"
-              >
-                <Plus size={16} /> New Sale
-              </button>
-              )}
-
-              <button onClick={handleRefresh} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
-                <RefreshCw size={16} className="text-blue-300" />
-              </button>
-
-              <button onClick={() => { setTempVisibleColumns(visibleColumns); setColumnModalOpen(true); }} className="p-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button onClick={handleExportExcel} className="p-1.5 bg-green-700/10 border border-green-700 rounded hover:bg-green-700/20" title="Export to Excel">
-                  <FileSpreadsheet size={18} className="text-green-300" />
-                </button>
-                <button onClick={handleExportPDF} className="p-1.5 bg-red-700/10 border border-red-700 rounded hover:bg-red-700/20" title="Export to PDF">
-                  <FileText size={18} className="text-red-300" />
-                </button>
-              </div>
-
-              {/* Inactive Toggle */}
-               <button
-                  onClick={toggleInactive}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md border text-sm transition-colors ${
-                    showInactive
-                      ? "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                      : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                  }`}
-                  title={showInactive ? "Inactive" : "Inactive"}
-                >
-                  <ArchiveRestore size={16} />
-                  {showInactive ? "Inactive" : "Inactive"}
-                </button>
+            
+            <div className="flex justify-between items-center mb-4">
+               <h2 className="text-2xl font-semibold">Sales</h2>
             </div>
-
-            {/* FILTER BAR */}
-            <div className="mb-4">
-               <FilterBar filters={filters} onClear={handleClearFilters} />
-            </div>
-
-            {/* TABLE */}
-            <div className="flex-grow overflow-auto min-h-0 w-full">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[1800px] text-center border-separate border-spacing-y-1 text-sm w-full">
-                  <thead className="sticky top-0 bg-gray-900">
-                    <tr>
-                      {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.customerName && <SortableHeader label="Customer" sortKey="customerName" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.invoiceNo && <SortableHeader label="Invoice No" sortKey="invoiceNo" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.paymentAccount && <SortableHeader label="Payment" sortKey="paymentAccount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.discount && <SortableHeader label="Discount" sortKey="discount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.totalDiscount && <SortableHeader label="Total Disc" sortKey="totalDiscount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.vat && <SortableHeader label="Vat" sortKey="vat" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.totalTax && <SortableHeader label="Total Tax" sortKey="totalTax" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.shippingCost && <SortableHeader label="Shipping" sortKey="shippingCost" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.grandTotal && <SortableHeader label="Grand Total" sortKey="grandTotal" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.netTotal && <SortableHeader label="Net Total" sortKey="netTotal" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.paidAmount && <SortableHeader label="Paid" sortKey="paidAmount" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.due && <SortableHeader label="Due" sortKey="due" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.change && <SortableHeader label="Change" sortKey="change" currentSort={sortConfig} onSort={handleSort} />}
-                      {visibleColumns.details && <th className="pb-1 border-b text-gray-300">Details</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedList.map((s) => (
-                      <tr
-                        key={s.id}
-                        onClick={() => navigate(`/app/sales/edit/${s.id}`, { state: { isInactive: s.isInactive } })}
-                        className={`hover:bg-gray-700 cursor-pointer ${
-                          s.isInactive 
-                            ? "bg-gray-800/50 opacity-60 line-through grayscale text-gray-500" 
-                            : "bg-gray-900"
-                        }`}
-                      >
-                        {visibleColumns.id && <td className="px-2 py-2 text-gray-300">{s.id}</td>}
-                        {visibleColumns.customerName && (
-                          <td className="px-2 py-2 flex items-center justify-center gap-2">
-                            <button 
-                              className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
-                              title="Download PDF" 
-                              disabled={s.isInactive}
-                              onClick={(e) => { e.stopPropagation(); handleExportRowPDF(s); }}
-                            >
-                              <FileText size={14} className="text-red-300" />
-                            </button>
-                            <button 
-                              className={`p-1 bg-gray-800 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive ? "opacity-30 cursor-not-allowed" : ""}`}
-                              title="View Sale" 
-                              disabled={s.isInactive}
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                navigate(`/app/sales/invoice/preview/${s.id}`); 
-                              }}
-                            >
-                              <Eye size={14} className="text-blue-300" />
-                            </button>
-                            <span className="text-gray-300">{s.customerName || ""}</span>
-                          </td>
-                        )}
-                        {visibleColumns.invoiceNo && <td className="px-2 py-2 text-gray-300">{s.invoiceNo || s.VNo || ""}</td>}
-                        {visibleColumns.date && <td className="px-2 py-2 text-gray-300">{s.date || ""}</td>}
-                        {visibleColumns.paymentAccount && <td className="px-2 py-2 text-gray-300">{s.paymentAccount || ""}</td>}
-                        {visibleColumns.discount && <td className="px-2 py-2 text-gray-300">{parseFloat(s.discount || 0).toFixed(2)}</td>}
-                        {visibleColumns.totalDiscount && <td className="px-2 py-2 text-gray-300">{parseFloat(s.totalDiscount || 0).toFixed(2)}</td>}
-                        {visibleColumns.vat && <td className="px-2 py-2 text-gray-300">{parseFloat(s.vat || 0).toFixed(2)}</td>}
-                        {visibleColumns.totalTax && <td className="px-2 py-2 text-gray-300">{parseFloat(s.totalTax || 0).toFixed(2)}</td>}
-                        {visibleColumns.shippingCost && <td className="px-2 py-2 text-gray-300">{parseFloat(s.shippingCost || 0).toFixed(2)}</td>}
-                        {visibleColumns.grandTotal && <td className="px-2 py-2 text-gray-300">{parseFloat(s.grandTotal || 0).toFixed(2)}</td>}
-                        {visibleColumns.netTotal && <td className="px-2 py-2 text-gray-300 font-semibold">{parseFloat(s.netTotal || 0).toFixed(2)}</td>}
-                        {visibleColumns.paidAmount && <td className="px-2 py-2 text-gray-300">{parseFloat(s.paidAmount || 0).toFixed(2)}</td>}
-                        {visibleColumns.due && <td className="px-2 py-2 text-gray-300">{parseFloat(s.due || 0).toFixed(2)}</td>}
-                        {visibleColumns.change && <td className="px-2 py-2 text-gray-300">{parseFloat(s.change || 0).toFixed(2)}</td>}
-                        {visibleColumns.details && <td className="px-2 py-2 text-gray-300 max-w-xs truncate">{s.details || "-"}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {sortedList.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
-                    No sales found
-                  </div>
-                )}
-              </div>
-            </div>
+            
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (s) => (
+                        <div className="flex items-center justify-center gap-2">
+                             <button
+                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`} // Fixed: Accessing isInactive from row data `s`
+                               title="Download PDF"
+                               disabled={s.isInactive}
+                               onClick={(e) => { e.stopPropagation(); handleExportRowPDF(s); }}
+                             >
+                               <FileText size={14} className="text-red-300" />
+                             </button>
+                             <button
+                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
+                               title="View Sale"
+                               disabled={s.isInactive}
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 navigate(`/app/sales/invoice/preview/${s.id}`);
+                               }}
+                             >
+                               <Eye size={14} className="text-blue-300" />
+                             </button>
+                             <span className={theme === 'emerald' ? 'text-gray-900' : 'text-gray-300'}>{s.customerName || "-"}</span>
+                        </div>
+                    )},
+                    visibleColumns.invoiceNo && { key: "invoiceNo", label: "Invoice No", sortable: true, render: (s) => s.invoiceNo || s.VNo || "" },
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (s) => s.date || "" },
+                    visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment", sortable: true, render: (s) => s.paymentAccount || "" },
+                    visibleColumns.discount && { key: "discount", label: "Discount", sortable: true, render: (s) => parseFloat(s.discount || 0).toFixed(2) },
+                    visibleColumns.totalDiscount && { key: "totalDiscount", label: "Total Disc", sortable: true, render: (s) => parseFloat(s.totalDiscount || 0).toFixed(2) },
+                    visibleColumns.vat && { key: "vat", label: "VAT", sortable: true, render: (s) => parseFloat(s.vat || 0).toFixed(2) },
+                    visibleColumns.totalTax && { key: "totalTax", label: "Total Tax", sortable: true, render: (s) => parseFloat(s.totalTax || 0).toFixed(2) },
+                    visibleColumns.shippingCost && { key: "shippingCost", label: "Shipping", sortable: true, render: (s) => parseFloat(s.shippingCost || 0).toFixed(2) },
+                    visibleColumns.grandTotal && { key: "grandTotal", label: "Grand Total", sortable: true, render: (s) => parseFloat(s.grandTotal || 0).toFixed(2) },
+                    visibleColumns.netTotal && { key: "netTotal", label: "Net Total", sortable: true, render: (s) => <span className="font-semibold">{parseFloat(s.netTotal || 0).toFixed(2)}</span> },
+                    visibleColumns.paidAmount && { key: "paidAmount", label: "Paid", sortable: true, render: (s) => parseFloat(s.paidAmount || 0).toFixed(2) },
+                    visibleColumns.due && { key: "due", label: "Due", sortable: true, render: (s) => parseFloat(s.due || 0).toFixed(2) },
+                    visibleColumns.change && { key: "change", label: "Change", sortable: true, render: (s) => parseFloat(s.change || 0).toFixed(2) },
+                    visibleColumns.details && { key: "details", label: "Details", sortable: true, render: (s) => <div className="max-w-xs truncate">{s.details || "-"}</div> },
+                ].filter(Boolean)}
+                data={sortedList}
+                inactiveData={inactiveRows}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(s, isInactive) => navigate(`/app/sales/edit/${s.id}`, { state: { isInactive } })}
+                
+                // Action Bar
+                search={searchText}
+                onSearch={(val) => setSearchText(val)}
+                
+                onCreate={() => navigate("/app/sales/newsale")}
+                createLabel="New Sale"
+                permissionCreate={hasPermission(PERMISSIONS.SALES.CREATE)}
+                
+                onRefresh={handleRefresh}
+                
+                onColumnSelector={() => {
+                     setTempVisibleColumns(visibleColumns);
+                     setColumnModalOpen(true);
+                }}
+                
+                onToggleInactive={toggleInactive}
+                
+                customActions={<ExportButtons onExcel={handleExportExcel} onPDF={handleExportPDF} />}
+            >
+               {/* FILTER BAR - as child */}
+               <div className="">
+                  <FilterBar filters={filters} onClear={handleClearFilters} />
+               </div>
+            </MasterTable>
 
             {/* PAGINATION */}
               <Pagination

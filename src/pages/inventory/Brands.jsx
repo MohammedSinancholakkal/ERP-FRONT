@@ -1,25 +1,18 @@
 import React, { useState, useEffect } from "react";
 import {
-  Search,
   Plus,
-  RefreshCw,
-  List,
-  X,
-  Save,
-  Trash2,
 } from "lucide-react";
-import SortableHeader from "../../components/SortableHeader";
-import Pagination from "../../components/Pagination";
+import MasterTable from "../../components/MasterTable";
 
 import toast from "react-hot-toast";
-import { ArchiveRestore } from "lucide-react";
 import Swal from "sweetalert2";
+import Pagination from "../../components/Pagination";
 
 // API
 import {
   getBrandsApi,
   addBrandApi,
-  updateBrandApi,
+  updateBrandApi, 
   deleteBrandApi,
   searchBrandApi,
   restoreBrandApi,
@@ -280,6 +273,12 @@ const Brands = () => {
   ====================================================== */
   const { theme } = useTheme();
 
+  const tableColumns = [
+    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+    visibleColumns.name && { key: "name", label: "Name", sortable: true },
+    visibleColumns.description && { key: "description", label: "Description", sortable: true },
+  ].filter(Boolean);
+
   return (
     <>
       {/* ======================================================
@@ -383,147 +382,40 @@ const Brands = () => {
 
             <h2 className="text-2xl font-semibold mb-4">Brands</h2>
 
-            {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-1 mb-4">
-
-              {/* SEARCH */}
-              <div className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600' : 'bg-gray-700 border-gray-600'}`}>
-                <Search size={16} className="text-gray-300" />
-                <input
-                  type="text"
-                  placeholder="search..."
-                  value={searchText}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-                />
-              </div>
-
-              {/* ADD */}
-              {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
-              <button
-                onClick={() => setModalOpen(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <Plus size={16} /> New Brand
-              </button>
-              )}
-
-              {/* REFRESH */}
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadBrands();
-                }}
-                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <RefreshCw size={16} className="text-blue-400" />
-              </button>
-
-              {/* COLUMN PICKER */}
-              <button
-                onClick={() => setColumnModalOpen(true)}
-                className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              {/* INACTIVE TOGGLE */}
-              <button
-                onClick={async () => {
-                  if (!showInactive) await loadInactive();
-                  setShowInactive(!showInactive);
-                }}
-                className={`p-2 border rounded flex items-center gap-2 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <ArchiveRestore size={16} className="text-yellow-400" />
-                <span className="text-xs text-gray-300">
-                 Inactive
-                </span>
-              </button>
-
-            </div>
-
-            {/* TABLE */}
-            <div className="flex-grow overflow-auto min-h-0 w-full">
-              <div className="w-full overflow-auto">
-                <table className="w-[500px] text-left border-separate border-spacing-y-1 text-sm">
-                  <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white">
-
-                      {visibleColumns.id && (
-                        <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-
-                      {visibleColumns.name && (
-                        <SortableHeader label="Name" sortKey="name" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-
-                      {visibleColumns.description && (
-                        <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
-                      )}
-
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {sortedBrands.map((b) => (
-                      <tr
-                        key={b.id}
-                        className={`${theme === 'emerald' ? 'bg-emerald-800 hover:bg-emerald-700' : 'bg-gray-900 hover:bg-gray-700'} cursor-pointer rounded shadow-sm`}
-                        onClick={() => {
-                          setEditBrand({
-                            id: b.id,
-                            name: b.name,
-                            description: b.description,
-                            isInactive: false
-                          });
-                          setEditModalOpen(true);
-                        }}
-                      >
-                        {visibleColumns.id && (
-                          <td className="px-2 py-1 text-center">{b.id}</td>
-                        )}
-                        {visibleColumns.name && (
-                          <td className="px-2 py-1 text-center">{b.name}</td>
-                        )}
-                        {visibleColumns.description && (
-                          <td className="px-2 py-1 text-center">{b.description}</td>
-                        )}
-                      </tr>
-                    ))}
-
-                    {/* INACTIVE BRANDS */}
-                    {showInactive && inactiveBrands.map((b) => (
-                      <tr
-                        key={`inactive-${b.id}`}
-                        className={`${theme === 'emerald' ? 'bg-emerald-900 hover:bg-emerald-800' : 'bg-gray-900 hover:bg-gray-800'} cursor-pointer opacity-50 line-through rounded shadow-sm`}
-                        onClick={() => {
-                          setEditBrand({
-                            id: b.id,
-                            name: b.name,
-                            description: b.description,
-                            isInactive: true
-                          });
-                          setEditModalOpen(true);
-                        }}
-                      >
-                         {visibleColumns.id && (
-                          <td className="px-2 py-1 text-center">{b.id}</td>
-                        )}
-                        {visibleColumns.name && (
-                          <td className="px-2 py-1 text-center">{b.name}</td>
-                        )}
-                        {visibleColumns.description && (
-                          <td className="px-2 py-1 text-center">{b.description}</td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-
-                </table>
-              </div>
-            </div>
+            {/* TABLE SECTION - Action Bar is now inside MasterTable */}
+            <MasterTable
+              columns={tableColumns}
+              data={sortedBrands}
+              inactiveData={inactiveBrands}
+              showInactive={showInactive}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(item, isInactive) => {
+                setEditBrand({
+                    id: item.id,
+                    name: item.name,
+                    description: item.description,
+                    isInactive: isInactive
+                  });
+                  setEditModalOpen(true);
+              }}
+              // Action Bar Props
+              search={searchText}
+              onSearch={handleSearch}
+              onCreate={() => setModalOpen(true)}
+              createLabel="New Brand"
+              permissionCreate={hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE)}
+              onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadBrands();
+              }}
+              onColumnSelector={() => setColumnModalOpen(true)}
+              onToggleInactive={async () => {
+                if (!showInactive) await loadInactive();
+                setShowInactive(!showInactive);
+              }}
+            />
 
 
             {/* PAGINATION */}
@@ -549,6 +441,3 @@ const Brands = () => {
 };
 
 export default Brands;
-
-
-

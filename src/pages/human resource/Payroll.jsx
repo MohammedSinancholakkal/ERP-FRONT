@@ -1,15 +1,13 @@
 // src/pages/payroll/Payroll.jsx
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
+  // Icons handled by MasterTable
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/Pagination";
-import SortableHeader from "../../components/SortableHeader";
+// import SortableHeader from "../../components/SortableHeader"; // REMOVED
+import MasterTable from "../../components/MasterTable";
+import { useTheme } from "../../context/ThemeContext";
 import PageLayout from "../../layout/PageLayout";
 import {
   getPayrollsApi,
@@ -25,6 +23,7 @@ import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 
 const Payroll = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
 
   // -------------------------------
@@ -247,160 +246,56 @@ const fetchPayrolls = async () => {
 
       {/* MAIN PAGE */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700  h-full">
-  <div className="flex flex-col h-full overflow-hidden"> 
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden"> 
+            <h2 className="text-2xl font-semibold mb-4">Payroll</h2>
 
-        <h2 className="text-2xl font-semibold mb-4">Payroll</h2>
-
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded 
-              border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              placeholder="Search payroll..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)} 
-              className="bg-transparent pl-2 text-sm w-full outline-none"
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.number && { key: "number", label: "Number", sortable: true },
+                    visibleColumns.description && { key: "description", label: "Description", sortable: true },
+                    visibleColumns.paymentDate && { key: "paymentDate", label: "Payment Date", sortable: true, render: (r) => r.paymentDate ? format(new Date(r.paymentDate), "yyyy-MM-dd") : "" },
+                    visibleColumns.cashBank && { key: "cashBank", label: "Cash / Bank", sortable: true },
+                    visibleColumns.currency && { key: "currencyName", label: "Currency", sortable: true },
+                    visibleColumns.totalBasicSalary && { key: "totalBasicSalary", label: "Total Basic Salary", sortable: true, render: (r) => Number(r.totalBasicSalary || 0).toFixed(2) },
+                    visibleColumns.totalIncome && { key: "totalIncome", label: "Total Income", sortable: true, render: (r) => Number(r.totalIncome || 0).toFixed(2) },
+                    visibleColumns.totalDeduction && { key: "totalDeduction", label: "Total Deduction", sortable: true, render: (r) => Number(r.totalDeduction || 0).toFixed(2) },
+                    visibleColumns.totalTakeHomePay && { key: "totalTakeHomePay", label: "Take Home Pay", sortable: true, className: "font-semibold text-green-400", render: (r) => Number(r.totalTakeHomePay || 0).toFixed(2) },
+                    visibleColumns.totalPaymentAmount && { key: "totalPaymentAmount", label: "Total Payment", sortable: true, render: (r) => Number(r.totalPaymentAmount || 0).toFixed(2) },
+                ].filter(Boolean)}
+                data={paginatedRows}
+                inactiveData={inactiveRows}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(r, isInactive) => navigate(`/app/hr/editpayroll/${r.id}`, { state: isInactive ? { isInactive: true } : {} })}
+                // Action Bar
+                search={searchText}
+                onSearch={setSearchText}
+                onCreate={() => navigate("/app/hr/newpayroll")}
+                createLabel="New Payroll"
+                permissionCreate={hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)}
+                onRefresh={fetchPayrolls}
+                onColumnSelector={() => {
+                    setTempVisibleColumns(visibleColumns);
+                    setColumnModalOpen(true);
+                }}
+                onToggleInactive={handleToggleInactive}
             />
-          </div>
 
-          {hasPermission(PERMISSIONS.HR.PAYROLL.CREATE) && (
-          <button
-            onClick={() => navigate("/app/hr/newpayroll")}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 
-                border border-gray-600 rounded h-[35px]"
-          >
-            <Plus size={16} /> New Payroll
-          </button>
-          )}
-
-          <button 
-            onClick={fetchPayrolls}
-            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-          >
-            <RefreshCw size={16} className={`text-blue-400 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-
-          <button
-            onClick={() => {
-              setTempVisibleColumns(visibleColumns);
-              setColumnModalOpen(true);
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
-
-           <button
-                onClick={handleToggleInactive}
-                className="p-1.5 bg-gray-700 rounded-md border border-gray-600 hover:bg-gray-600 flex items-center gap-2 h-[35px]"
-              >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">{showInactive ? "Hide Inactive" : "Show Inactive"}</span>
-              </button>
-        </div>
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto">
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[1900px] border-separate border-spacing-y-1 
-                text-sm table-fixed">
-
-              <thead className="sticky top-0 bg-gray-900 z-10 text-center">
-                <tr className="text-center">
-                    {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.number && <SortableHeader label="Number" sortKey="number" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.description && <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.paymentDate && <SortableHeader label="Payment Date" sortKey="paymentDate" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.cashBank && <SortableHeader label="Cash / Bank" sortKey="cashBank" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.currency && <SortableHeader label="Currency" sortKey="currencyName" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.totalBasicSalary && <SortableHeader label="Total Basic Salary" sortKey="totalBasicSalary" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.totalIncome && <SortableHeader label="Total Income" sortKey="totalIncome" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.totalDeduction && <SortableHeader label="Total Deduction" sortKey="totalDeduction" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.totalTakeHomePay && <SortableHeader label="Take Home Pay" sortKey="totalTakeHomePay" currentSort={sortConfig} onSort={handleSort} />}
-                    {visibleColumns.totalPaymentAmount && <SortableHeader label="Total Payment" sortKey="totalPaymentAmount" currentSort={sortConfig} onSort={handleSort} />}
-                    
-                </tr>
-              </thead>
-
-              <tbody className="text-center">
-                {loading && rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
-                      Loading payrolls...
-                    </td>
-                  </tr>
-                ) : paginatedRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
-                      No payroll records found
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedRows.map((r) => (
-                    <tr
-                      key={r.id}
-                      onClick={() => navigate(`/app/hr/editpayroll/${r.id}`, { state: r.isInactive ? { isInactive: true } : {} })}
-                      className={`
-                        cursor-pointer
-                        ${r.isInactive 
-                            ? "bg-gray-900 opacity-50 line-through hover:bg-gray-800" 
-                            : "bg-gray-900 hover:bg-gray-700" 
-                        }
-                      `}
-                    >
-                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                      {visibleColumns.number && <td className="py-2">{r.number}</td>}
-                      {visibleColumns.description && (
-                        <td className="py-2">{r.description}</td>
-                      )}
-                      {visibleColumns.paymentDate && (
-                        <td className="py-2">{r.paymentDate ? format(new Date(r.paymentDate), "yyyy-MM-dd") : ""}</td>
-                      )}
-                      {visibleColumns.cashBank && (
-                        <td className="py-2">{r.cashBank}</td>
-                      )}
-                      {visibleColumns.currency && (
-                        <td className="py-2">{r.currencyName}</td>
-                      )}
-                      {visibleColumns.totalBasicSalary && (
-                        <td className="py-2">{Number(r.totalBasicSalary || 0).toFixed(2)}</td>
-                      )}
-                      {visibleColumns.totalIncome && (
-                        <td className="py-2">{Number(r.totalIncome || 0).toFixed(2)}</td>
-                      )}
-                      {visibleColumns.totalDeduction && (
-                        <td className="py-2">{Number(r.totalDeduction || 0).toFixed(2)}</td>
-                      )}
-                      {visibleColumns.totalTakeHomePay && (
-                        <td className="py-2 font-semibold text-green-400">{Number(r.totalTakeHomePay || 0).toFixed(2)}</td>
-                      )}
-                      {visibleColumns.totalPaymentAmount && (
-                        <td className="py-2">{Number(r.totalPaymentAmount || 0).toFixed(2)}</td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-
-            </table>
-          </div>
-        </div>
-
- {/* PAGINATION */}
-           
+             {/* PAGINATION */}
               <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
               />
-      </div>
-</div>
+          </div>
+        </div>
       </PageLayout>
+
     </>
   );
 };

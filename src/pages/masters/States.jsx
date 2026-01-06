@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
   Star,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
@@ -321,46 +316,6 @@ const States = () => {
         <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">States</h2>
 
-          <div className="flex flex-wrap items-center gap-1 mb-4">
-             <div className={`flex items-center px-3 py-1.5 rounded border w-full sm:w-60 ${theme === 'emerald' ? 'bg-gray-100 border-emerald-500' : 'bg-gray-700 border-gray-600'}`}>
-                <Search size={16} className={theme === 'emerald' ? 'text-gray-500' : 'text-gray-300'} />
-                <input
-                  value={searchText}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search..."
-                  className={`bg-transparent pl-2 text-sm w-full outline-none ${theme === 'emerald' ? 'text-gray-900 placeholder-gray-500' : 'text-gray-200 placeholder-gray-500'}`}
-                />
-              </div>
-              {hasPermission(PERMISSIONS.STATES.CREATE) && (
-              <button onClick={() => setModalOpen(true)} className={`flex items-center gap-2 px-3 py-1.5 rounded border ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
-                <Plus size={16} /> New State
-              </button>
-              )}
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadStates();
-                }}
-                className={`p-2 rounded border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <RefreshCw size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-400'} />
-              </button>
-              <button onClick={() => setColumnModal(true)} className={`p-2 rounded border ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
-                <List size={16} className={theme === 'emerald' ? 'text-white' : 'text-blue-300'} />
-              </button>
-              <button
-                onClick={async () => {
-                  if (!showInactive) await loadInactive();
-                  setShowInactive((s) => !s);
-                }}
-                className={`p-2 rounded border flex items-center gap-1 ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-              >
-                <ArchiveRestore size={16} className={theme === 'emerald' ? 'text-white' : 'text-yellow-300'} />
-                <span className={`text-xs opacity-80 ${theme === 'emerald' ? 'text-white' : ''}`}>Inactive</span>
-              </button>
-          </div>
-
           <MasterTable
             columns={tableColumns}
             data={sortedStates}
@@ -376,6 +331,22 @@ const States = () => {
                 isInactive: isInactive,
               });
               setEditModalOpen(true);
+            }}
+            // Action Bar Props
+            search={searchText}
+            onSearch={handleSearch}
+            onCreate={() => setModalOpen(true)}
+            createLabel="New State"
+            permissionCreate={hasPermission(PERMISSIONS.STATES.CREATE)}
+            onRefresh={() => {
+              setSearchText("");
+              setPage(1);
+              loadStates();
+            }}
+            onColumnSelector={() => setColumnModal(true)}
+            onToggleInactive={async () => {
+              if (!showInactive) await loadInactive();
+              setShowInactive((s) => !s);
             }}
           />
 

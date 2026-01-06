@@ -3,12 +3,15 @@ import React, { useEffect, useState, useRef } from "react";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
+//   Search,
+//   Plus,
+//   RefreshCw,
+//   List,
+  ArchiveRestore, // Keep specific icons if used elsewhere, but MasterTable handles standard ones
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import { useTheme } from "../../context/ThemeContext";
+
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import {
@@ -27,12 +30,15 @@ import {
 import toast from "react-hot-toast";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
-import SortableHeader from "../../components/SortableHeader";
+// import SortableHeader from "../../components/SortableHeader"; // REMOVED
+
 import Swal from "sweetalert2";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const Employees = () => {
+    const { theme } = useTheme();
   const navigate = useNavigate();
+
 
   // -----------------------------------
   // COLUMN VISIBILITY
@@ -140,6 +146,29 @@ const Employees = () => {
     }
     setSortConfig({ key, direction });
   };
+  
+  // MasterTable expects an array of objects for columns
+  const tableColumns = [
+    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+    visibleColumns.firstName && { key: "firstName", label: "First Name", sortable: true },
+    visibleColumns.lastName && { key: "lastName", label: "Last Name", sortable: true },
+    visibleColumns.designation && { key: "designation", label: "Designation", sortable: true },
+    visibleColumns.department && { key: "department", label: "Department", sortable: true },
+    visibleColumns.rateType && { key: "rateType", label: "Rate Type", sortable: true },
+    visibleColumns.phone && { key: "phone", label: "Phone", sortable: true },
+    visibleColumns.hourRateSalary && { key: "hourRateSalary", label: "Hour Rate Salary", sortable: true },
+    visibleColumns.email && { key: "email", label: "Email", sortable: true },
+    visibleColumns.bloodGroup && { key: "bloodGroup", label: "Blood Group", sortable: true },
+    visibleColumns.countryName && { key: "countryName", label: "Country", sortable: true },
+    visibleColumns.stateName && { key: "stateName", label: "State", sortable: true },
+    visibleColumns.cityName && { key: "cityName", label: "City", sortable: true },
+    visibleColumns.zipCode && { key: "zipCode", label: "Zip Code", sortable: true },
+    visibleColumns.address && { key: "address", label: "Address", sortable: true },
+    visibleColumns.userId && { key: "userId", label: "User ID", sortable: true },
+    visibleColumns.regionName && { key: "regionName", label: "Region", sortable: true },
+    visibleColumns.territory && { key: "territory", label: "Territory Description", sortable: true },
+  ].filter(Boolean);
+
 
   const totalRecords = sortedEmployees.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
@@ -508,323 +537,76 @@ const columnModalRef = useRef(null);
 
       {/* MAIN */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
-        <h2 className="text-2xl font-semibold mb-4">Employees</h2>
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <h2 className="text-2xl font-semibold mb-4">Employees</h2>
 
-        {/* ACTION BAR */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
-            <input
-              placeholder="Search employees..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="bg-transparent pl-2 text-sm w-full outline-none"
-            />
-          </div>
+            <MasterTable
+                columns={tableColumns}
+                data={paginatedEmployees}
+                inactiveData={inactiveEmployees}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(c, isInactive) => {
+                     // Navigate to Edit
+                     navigate(`/hr/employees/${c.id}`);
+                }}
+                // Action Bar
+                search={searchText}
+                onSearch={setSearchText}
+                onCreate={() => navigate("/hr/employees/new")}
+                createLabel="New Employee"
+                permissionCreate={hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
+                onRefresh={() => { fetchAllData(); }}
+                onColumnSelector={() => setColumnModalOpen(true)}
+                onToggleInactive={async () => {
+                    if (!showInactive) await loadInactiveEmployees();
+                    setShowInactive(!showInactive);
+                }}
+            >
+                {/* FILTER BAR as Children */}
+                {/* FILTER BAR as Children */}
+                <FilterBar
+                    filters={[
+                        { label: "Designation", value: filterDesignation, onChange: setFilterDesignation, options: filterDesignations, placeholder: "All Designations" },
+                        { label: "Department", value: filterDepartment, onChange: setFilterDepartment, options: filterDepartments, placeholder: "All Departments" },
+                        { label: "Rate Type", value: filterRateType, onChange: setFilterRateType, options: ["Hourly", "Salaried", "Commission"].map(r => ({ id: r, name: r })), placeholder: "Rate Type" },
+                        { label: "Blood Group", value: filterBloodGroup, onChange: setFilterBloodGroup, options: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(b => ({ id: b, name: b })), placeholder: "Blood Group" },
+                        { label: "Country", value: filterCountry, onChange: setFilterCountry, options: filterCountries, placeholder: "Country" },
+                        { label: "State", value: filterState, onChange: setFilterState, options: filterStates, placeholder: "State" },
+                        { label: "City", value: filterCity, onChange: setFilterCity, options: filterCities, placeholder: "City" },
+                        { label: "Region", value: filterRegion, onChange: setFilterRegion, options: filterRegions, placeholder: "Region" },
+                        { label: "Territory", value: filterTerritory, onChange: setFilterTerritory, options: filterTerritories, placeholder: "Territory" },
+                    ]}
+                    onClear={() => {
+                        setFilterDesignation("");
+                        setFilterDepartment("");
+                        setFilterRateType("");
+                        setFilterBloodGroup("");
+                        setFilterCountry("");
+                        setFilterState("");
+                        setFilterCity("");
+                        setFilterRegion("");
+                        setFilterTerritory("");
+                        setSearchText("");
+                    }}
+                />
 
-          {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
-          <button
-            type="button"
-            onClick={() => navigate("/app/hr/newemployee")}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[33px]"
-          >
-            <Plus size={16} /> New Employee
-          </button>
-          )}
+            </MasterTable>
 
-
-
-          <button
-            onClick={fetchAllData}
-            className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          <button
-            onClick={() => {
-              setTempVisibleColumns(visibleColumns);
-              setColumnModalOpen(true);
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          <button 
-            onClick={async () => {
-              if (!showInactive) await loadInactiveEmployees();
-              setShowInactive(!showInactive);
-            }}
-            className={`p-1.5 rounded-md border flex items-center gap-1 ${showInactive ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
-        </div>
-
-        {/* FILTER BAR */}
-        <FilterBar
-            className="mb-4 bg-gray-900 border-gray-700"
-            onClear={() => {
-                setFilterDesignation("");
-                setFilterDepartment("");
-                setFilterRateType("");
-                setFilterBloodGroup("");
-                setFilterCountry("");
-                setFilterState("");
-                setFilterCity("");
-                setFilterRegion("");
-                setFilterTerritory("");
-            }}
-            filters={[
-               {
-                   label: "Designation",
-                   value: filterDesignation,
-                   onChange: setFilterDesignation,
-                   options: filterDesignations.map(d => ({ id: d.name, name: d.name })), // ID IS NAME for filter
-                   placeholder: "All Designations"
-               },
-               {
-                   label: "Department",
-                   value: filterDepartment,
-                   onChange: setFilterDepartment,
-                   options: filterDepartments.map(d => ({ id: d.name, name: d.name })),
-                   placeholder: "All Departments"
-               },
-               {
-                   label: "Rate Type",
-                   value: filterRateType,
-                   onChange: setFilterRateType,
-                   options: [{id: "Hourly", name: "Hourly"}, {id: "Salary", name: "Salary"}],
-                   placeholder: "All Types"
-               },
-               {
-                   label: "Blood Group",
-                   value: filterBloodGroup,
-                   onChange: setFilterBloodGroup,
-                   options: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(g => ({ id: g, name: g })),
-                   placeholder: "All Groups"
-               },
-               {
-                   label: "Country",
-                   value: filterCountry,
-                   onChange: setFilterCountry,
-                   options: filterCountries.map(c => ({ id: c.name, name: c.name })),
-                   placeholder: "All Countries"
-               },
-               {
-                   label: "State",
-                   value: filterState,
-                   onChange: setFilterState,
-                   options: filterStates.map(s => ({ id: s.name, name: s.name })),
-                   placeholder: "All States"
-               },
-                {
-                   label: "City",
-                   value: filterCity,
-                   onChange: setFilterCity,
-                   options: filterCities.map(c => ({ id: c.name, name: c.name })),
-                   placeholder: "All Cities"
-               },
-                {
-                   label: "Region",
-                   value: filterRegion,
-                   onChange: setFilterRegion,
-                   options: filterRegions.map(r => ({ id: r.name, name: r.name })),
-                   placeholder: "All Regions"
-               },
-                {
-                   label: "Territory",
-                   value: filterTerritory,
-                   onChange: setFilterTerritory,
-                   options: filterTerritories.map(t => ({ id: t.name, name: t.name })),
-                   placeholder: "All Territories"
-               },
-            ]}
-        />
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto w-full min-h-0">
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[3500px] border-separate border-spacing-y-1 text-sm table-fixed">
-              <thead className="sticky top-0 bg-gray-900 z-10 h-10">
-                <tr className="text-white text-center">
-                  {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                  {visibleColumns.firstName && (
-                    <SortableHeader label="First Name" sortKey="firstName" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.lastName && (
-                    <SortableHeader label="Last Name" sortKey="lastName" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.designation && (
-                    <SortableHeader label="Designation" sortKey="designation" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.department && (
-                    <SortableHeader label="Department" sortKey="department" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.rateType && (
-                    <SortableHeader label="Rate Type" sortKey="rateType" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.phone && (
-                    <SortableHeader label="Phone" sortKey="phone" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.hourRateSalary && (
-                     <SortableHeader label="Hour Rate Salary" sortKey="hourRateSalary" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.email && (
-                    <SortableHeader label="Email" sortKey="email" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.bloodGroup && (
-                    <SortableHeader label="Blood Group" sortKey="bloodGroup" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.countryName && (
-                     <SortableHeader label="Country" sortKey="countryName" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.stateName && (
-                     <SortableHeader label="State" sortKey="stateName" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.cityName && (
-                     <SortableHeader label="City" sortKey="cityName" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.zipCode && (
-                     <SortableHeader label="Zip Code" sortKey="zipCode" currentSort={sortConfig} onSort={handleSort} />
-                  )} 
-                  {visibleColumns.address && (
-                     <SortableHeader label="Address" sortKey="address" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.userId && (
-                     <SortableHeader label="User ID" sortKey="userId" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.regionName && (
-                     <SortableHeader label="Region" sortKey="regionName" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                  {visibleColumns.territory && (
-                     <SortableHeader label="Territory Description" sortKey="territory" currentSort={sortConfig} onSort={handleSort} />
-                  )}
-                </tr>
-              </thead>
-
-              <tbody className="text-center h-10">
-                {loading ? (
-                  <tr>
-                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400">
-                      Loading employees...
-                    </td>
-                  </tr>
-                ) : paginatedEmployees.length === 0 ? (
-                  <tr>
-                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="py-8 text-gray-400 text-left">
-                      No employees found
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedEmployees.map((r) => (
-                   <tr
-                    key={r.id}
-                    onClick={() => navigate(`/app/hr/editemployee/${r.id}`)}
-                    className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                  >
-
-                      {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                      {visibleColumns.firstName && (
-                        <td className="py-2">{r.firstName}</td>
-                      )}
-                      {visibleColumns.lastName && (
-                        <td className="py-2">{r.lastName}</td>
-                      )}
-                      {visibleColumns.designation && (
-                        <td className="py-2">{r.designation}</td>
-                      )}
-                      {visibleColumns.department && (
-                        <td className="py-2">{r.department}</td>
-                      )}
-                      {visibleColumns.rateType && (
-                        <td className="py-2">{r.rateType}</td>
-                      )}
-                      {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
-                      {visibleColumns.hourRateSalary && (
-                        <td className="py-2">{r.hourRateSalary}</td>
-                      )}
-                      {visibleColumns.email && <td className="py-2">{r.email}</td>}
-                      {visibleColumns.bloodGroup && (
-                        <td className="py-2">{r.bloodGroup}</td>
-                      )}
-                      {visibleColumns.countryName && (
-                        <td className="py-2">{r.countryName}</td>
-                      )}
-                      {visibleColumns.stateName && (
-                        <td className="py-2">{r.stateName}</td>
-                      )}
-                      {visibleColumns.cityName && (
-                        <td className="py-2">{r.cityName}</td>
-                      )}
-                      {visibleColumns.zipCode && (
-                        <td className="py-2">{r.zipCode}</td>
-                      )} 
-                      {visibleColumns.address && (
-                        <td className="py-2">{r.address}</td>
-                      )}
-                      {visibleColumns.userId && (
-                        <td className="py-2">{r.userId}</td>
-                      )}
-                      {visibleColumns.regionName && (
-                        <td className="py-2">{r.regionName}</td>
-                      )}
-                      {visibleColumns.territory && (
-                        <td className="py-2">{r.territory}</td>
-                      )}
-                    </tr>
-                  ))
-                )}
-
-                {/* INACTIVE EMPLOYEES */}
-                {showInactive && inactiveEmployees.map((r) => (
-                  <tr
-                    key={`inactive-${r.id}`}
-                    className="bg-gray-900/50 opacity-60 line-through hover:bg-gray-800 cursor-pointer"
-                    onClick={() => handleRestore(r.id)}
-                  >
-                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                    {visibleColumns.firstName && <td className="py-2">{r.firstName}</td>}
-                    {visibleColumns.lastName && <td className="py-2">{r.lastName}</td>}
-                    {visibleColumns.designation && <td className="py-2">{r.designation}</td>}
-                    {visibleColumns.department && <td className="py-2">{r.department}</td>}
-                    {visibleColumns.rateType && <td className="py-2">{r.rateType}</td>}
-                    {visibleColumns.phone && <td className="py-2">{r.phone}</td>}
-                    {visibleColumns.hourRateSalary && <td className="py-2">{r.hourRateSalary}</td>}
-                    {visibleColumns.email && <td className="py-2">{r.email}</td>}
-                    {visibleColumns.bloodGroup && <td className="py-2">{r.bloodGroup}</td>}
-                    {visibleColumns.countryName && <td className="py-2">{r.countryName}</td>}
-                    {visibleColumns.stateName && <td className="py-2">{r.stateName}</td>}
-                    {visibleColumns.cityName && <td className="py-2">{r.cityName}</td>}
-                    {visibleColumns.zipCode && <td className="py-2">{r.zipCode}</td>}
-                    {visibleColumns.address && <td className="py-2">{r.address}</td>}
-                    {visibleColumns.userId && <td className="py-2">{r.userId}</td>}
-                    {visibleColumns.regionName && <td className="py-2">{r.regionName}</td>}
-                    {visibleColumns.territory && <td className="py-2">{r.territory}</td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
- {/* PAGINATION */}
-           
+             {/* PAGINATION */}
               <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
               />
-      </div>
-      </div>
+          </div>
+        </div>
       </PageLayout>
+
     </>
   );
 };

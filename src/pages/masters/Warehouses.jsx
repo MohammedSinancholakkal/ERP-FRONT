@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
   Star,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
-import SortableHeader from "../../components/SortableHeader";
 import toast from "react-hot-toast";
 
 import {
@@ -31,6 +25,7 @@ import SearchableSelect from "../../components/SearchableSelect";
 import FilterBar from "../../components/FilterBar";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions"; 
+import MasterTable from "../../components/MasterTable"; 
 
 // MODALS
 import AddModal from "../../components/modals/AddModal";
@@ -501,93 +496,43 @@ const Warehouses = () => {
         <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">Warehouses</h2>
 
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-             <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-                <Search size={16} className="text-gray-300" />
-                <input
-                  value={searchText}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="bg-transparent pl-2 text-sm w-full outline-none"
-                />
-              </div>
-              {hasPermission(PERMISSIONS.WAREHOUSES.CREATE) && (
-              <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
-                <Plus size={16} /> New Warehouse
-              </button>
-              )}
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  setPage(1);
-                  loadRows();
-                }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-              >
-                <RefreshCw size={16} className="text-blue-400" />
-              </button>
-              <button onClick={() => setColumnModal(true)} className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600">
-                <List size={16} className="text-blue-300" />
-              </button>
-              <button
-                onClick={async () => {
-                  if (!showInactive) await loadInactive();
-                  setShowInactive((s) => !s);
-                }}
-                className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
-                  showInactive ? "ring-1 ring-yellow-300" : ""
-                }`}
-              >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
-              </button>
-          </div>
-
-          <FilterBar 
-             filters={filterConfig} 
-             onClear={() => setFilters({ countryId: "", stateId: "", cityId: "" })} 
-             className="mb-4"
-          />
-
-          <div className="flex-grow overflow-auto min-h-0">
-            <table className="w-[1200px] border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white text-center">
-                        {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                        {visibleColumns.name && <SortableHeader label="Name" sortOrder={sortConfig.key === "name" ? sortConfig.direction : null} onClick={() => handleSort("name")} />}
-                        {visibleColumns.country && <SortableHeader label="Country" sortOrder={sortConfig.key === "countryName" ? sortConfig.direction : null} onClick={() => handleSort("countryName")} />}
-                        {visibleColumns.state && <SortableHeader label="State" sortOrder={sortConfig.key === "stateName" ? sortConfig.direction : null} onClick={() => handleSort("stateName")} />}
-                        {visibleColumns.city && <SortableHeader label="City" sortOrder={sortConfig.key === "cityName" ? sortConfig.direction : null} onClick={() => handleSort("cityName")} />}
-                        {visibleColumns.phone && <SortableHeader label="Phone" sortOrder={sortConfig.key === "phone" ? sortConfig.direction : null} onClick={() => handleSort("phone")} />}
-                    </tr>
-                </thead>
-                <tbody className="text-center">
-                    {!rows.length && !showInactive && (
-                         <tr><td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-6 text-gray-400">No records found</td></tr>
-                    )}
-                    {!showInactive && sortedRows.map(r => (
-                        <tr key={r.id} onClick={() => openEdit(r, false)} className="bg-gray-900 hover:bg-gray-700 cursor-pointer">
-                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
-                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
-                            {visibleColumns.state && <td className="px-2 py-1">{r.stateName}</td>}
-                            {visibleColumns.city && <td className="px-2 py-1">{r.cityName}</td>}
-                            {visibleColumns.phone && <td className="px-2 py-1">{r.phone}</td>}
-                        </tr>
-                    ))}
-                    {showInactive && inactiveRows.map(r => (
-                        <tr key={`inactive-${r.id}`} onClick={() => openEdit(r, true)} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer">
-                            {visibleColumns.id && <td className="px-2 py-1">{r.id}</td>}
-                            {visibleColumns.name && <td className="px-2 py-1">{r.name}</td>}
-                            {visibleColumns.country && <td className="px-2 py-1">{r.countryName}</td>}
-                            {visibleColumns.state && <td className="px-2 py-1">{r.stateName}</td>}
-                            {visibleColumns.city && <td className="px-2 py-1">{r.cityName}</td>}
-                            {visibleColumns.phone && <td className="px-2 py-1">{r.phone}</td>}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-          </div>
+          <MasterTable
+            columns={[
+                visibleColumns.id && { key: 'id', label: 'ID', sortable: true },
+                visibleColumns.name && { key: 'name', label: 'Name', sortable: true },
+                visibleColumns.country && { key: 'countryName', label: 'Country', sortable: true },
+                visibleColumns.state && { key: 'stateName', label: 'State', sortable: true },
+                visibleColumns.city && { key: 'cityName', label: 'City', sortable: true },
+                visibleColumns.phone && { key: 'phone', label: 'Phone', sortable: true },
+            ].filter(Boolean)}
+            data={sortedRows}
+            inactiveData={inactiveRows}
+            showInactive={showInactive}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            onRowClick={(item, isInactive) => openEdit(item, isInactive)}
+            // Action Props
+            search={searchText}
+            onSearch={handleSearch}
+            onCreate={() => setModalOpen(true)}
+            createLabel="New Warehouse"
+            permissionCreate={hasPermission(PERMISSIONS.WAREHOUSES.CREATE)}
+            onRefresh={() => {
+                setSearchText("");
+                setPage(1);
+                loadRows();
+            }}
+            onColumnSelector={() => setColumnModal(true)}
+            onToggleInactive={async () => {
+                if (!showInactive) await loadInactive();
+                setShowInactive((s) => !s);
+            }}
+          >
+             <FilterBar 
+                filters={filterConfig} 
+                onClear={() => setFilters({ countryId: "", stateId: "", cityId: "" })} 
+             />
+          </MasterTable>
 
           <Pagination
             page={page}

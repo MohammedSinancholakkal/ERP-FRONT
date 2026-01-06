@@ -1,22 +1,9 @@
 // src/pages/inventory/GoodsIssue.jsx
 import React, { useEffect, useState, useRef } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  Save,
-  Star,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
-  ArchiveRestore,
-} from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
-import SortableHeader from "../../components/SortableHeader";
+import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
@@ -36,6 +23,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
 const GoodsIssue = () => {
+    const { theme } = useTheme();
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem("user") || "{}");
   const userId = userData?.userId || userData?.id || userData?.Id;
@@ -414,163 +402,74 @@ const handleRestoreIssue = async (id) => {
   return (
     <>
       <PageLayout>
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-          <div className="flex flex-col h-full overflow-hidden">
-            <h2 className="text-2xl font-semibold mb-4">Goods Issue</h2>
-
-            {/* ACTION BAR (Same as Goods Receipt) */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              {/* Search */}
-              <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-64">
-                <Search size={16} className="text-gray-300" />
-                <input
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="Search goods issues..."
-                  className="bg-transparent pl-2 text-sm w-full outline-none"
-                />
-              </div>
-              
-              {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE) && (
-              <button
-                onClick={() => navigate("/app/inventory/goodsissue/newgoodsissue")}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-              >
-                <Plus size={16} /> New Issue
-              </button>
-              )}
-
-              {/* Refresh */}
-              <button
-                onClick={() => {
-                  setSearchText("");
-                  setFilterCustomer("");
-                  setFilterInvoice("");
-                  setFilterDate("");
-                  setFilterTime("");
-                  setFilterEmployee("");
-                  fetchGoodsIssues();
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+           <div className="flex flex-col h-full overflow-hidden">
+             <h2 className="text-2xl font-semibold mb-4">Goods Issue</h2>
+            
+             <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.customer && { key: "customer", label: "Customer", sortable: true },
+                    visibleColumns.saleInvoice && { key: "saleInvoice", label: "Sales Invoice", sortable: true },
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true },
+                    visibleColumns.time && { key: "time", label: "Time", sortable: true },
+                    visibleColumns.totalQuantity && { key: "totalQuantity", label: "Total Qty", sortable: true },
+                    visibleColumns.employee && { key: "employee", label: "Employee", sortable: true },
+                    visibleColumns.remarks && { key: "remarks", label: "Remarks", sortable: true },
+                ].filter(Boolean)}
+                data={sortedList}
+                inactiveData={inactiveRows}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(r, isInactive) => openEdit(r, isInactive)}
+                // Action Bar Props
+                search={searchText}
+                onSearch={setSearchText}
+                onCreate={() => navigate("/app/inventory/goodsissue/newgoodsissue")}
+                createLabel="New Issue"
+                permissionCreate={hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE)}
+                onRefresh={() => {
+                   setSearchText("");
+                   setFilterCustomer("");
+                   setFilterInvoice("");
+                   setFilterEmployee("");
+                   fetchGoodsIssues();
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
-              >
-                <RefreshCw size={16} className="text-blue-400" />
-              </button>
-
-              {/* Column Picker */}
-              <button
-                onClick={() => {
-                  setTempVisibleColumns(visibleColumns);
-                  setColumnModalOpen(true);
+                onColumnSelector={() => {
+                   setTempVisibleColumns(visibleColumns);
+                   setColumnModalOpen(true);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded"
-              >
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              {/* Show Inactive */}
-              <button
-                onClick={async () => {
-                  // if (!showInactive) await fetchInactiveGoodsIssues(); // Handled by useEffect
-                  setShowInactive((s) => !s);
+                onToggleInactive={async () => {
+                   setShowInactive((s) => !s);
                 }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-2 hover:bg-gray-600"
-              >
-                <ArchiveRestore size={16} className="text-yellow-400" />
-                <span className="text-xs text-gray-300">
-                Inactive
-                </span>
-              </button>
-            </div>
+             >
+                <div className="">
+                  <FilterBar filters={filters} onClear={handleClearFilters} />
+                </div>
+             </MasterTable>
 
-            {/* FILTER BAR */}
-            <div className="mb-4">
-               <FilterBar filters={filters} onClear={handleClearFilters} />
-            </div>
+             <Pagination
+               page={page}
+               setPage={setPage}
+               limit={limit}
+               setLimit={setLimit}
+               total={serverTotal}
+               onRefresh={() => {
+                   fetchGoodsIssues();
+               }}
+             />
+           </div>
+         </div>
 
-            {/* TABLE */}
-            <div className="flex-grow overflow-auto w-full min-h-0">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[1500px] border-separate border-spacing-y-1 text-sm table-fixed">
-                  <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr>
-                       {visibleColumns.id && <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.customer && <SortableHeader label="Customer" sortKey="customer" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.saleInvoice && <SortableHeader label="Sales Invoice" sortKey="saleInvoice" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.date && <SortableHeader label="Date" sortKey="date" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.time && <SortableHeader label="Time" sortKey="time" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.totalQuantity && <SortableHeader label="Total Qty" sortKey="totalQuantity" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.employee && <SortableHeader label="Employee" sortKey="employee" currentSort={sortConfig} onSort={handleSort} />}
-                       {visibleColumns.remarks && <th className="px-4 py-2 font-semibold">Remarks</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="text-center">
-                    {!loading && sortedList.length > 0 ? (
-                        sortedList.slice(start - 1, end).map((r) => (
-                          <tr
-                            key={r.id}
-                            className={`bg-gray-900 cursor-pointer transition-colors ${!r.isActive ? 'opacity-40 line-through' : 'hover:bg-gray-700'}`}
-                            onClick={() => openEdit(r, !r.isActive)}
-                          >
-                           {visibleColumns.id && <td className="px-2 py-3">{r.id}</td>}
-                           {visibleColumns.customer && <td>{r.customer}</td>}
-                           {visibleColumns.saleInvoice && <td>{r.saleInvoice}</td>}
-                           {visibleColumns.date && <td>{r.date}</td>}
-                           {visibleColumns.time && <td>{r.time}</td>}
-                           {visibleColumns.totalQuantity && <td>{String(r.totalQuantity)}</td>}
-                           {visibleColumns.employee && <td>{r.employee}</td>}
-                           {visibleColumns.remarks && <td>{r.remarks}</td>}
-                          </tr>
-                        ))
-                    ) : (
-                      !showInactive && (
-                        <tr>
-                          <td colSpan={10} className="px-4 py-6 text-center text-gray-400">
-                            No records found
-                          </td>
-                        </tr>
-                      )
-                    )}
-                    {/* INACTIVE ROWS APPENDED */}
-                    {showInactive && inactiveRows.map((r) => (
-                      <tr
-                        key={`inactive-${r.id}`}
-                        className="bg-gray-900 cursor-pointer opacity-50 line-through hover:bg-gray-800"
-                        onClick={() => handleRestoreIssue(r.id)}
-                      >
-                           {visibleColumns.id && <td className="px-2 py-3">{r.id}</td>}
-                           {visibleColumns.customer && <td>{r.customer}</td>}
-                           {visibleColumns.saleInvoice && <td>{r.saleInvoice}</td>}
-                           {visibleColumns.date && <td>{r.date}</td>}
-                           {visibleColumns.time && <td>{r.time}</td>}
-                           {visibleColumns.totalQuantity && <td>{String(r.totalQuantity)}</td>}
-                           {visibleColumns.employee && <td>{r.employee}</td>}
-                           {visibleColumns.remarks && <td>{r.remarks}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* PAGINATION */}
-              <Pagination
-                page={page}
-                setPage={setPage}
-                limit={limit}
-                setLimit={setLimit}
-                total={serverTotal}
-                onRefresh={fetchGoodsIssues}
-              />
-          </div>
-        </div>
-
-        {/* ---------------- COLUMN PICKER MODAL ---------------- */}
-          <ColumnPickerModal
-            isOpen={columnModalOpen}
-            onClose={() => setColumnModalOpen(false)}
-            visibleColumns={visibleColumns}
-            setVisibleColumns={setVisibleColumns}
-          />
+         {/* COLUMN TYPE */}
+         <ColumnPickerModal
+           isOpen={columnModalOpen}
+           onClose={() => setColumnModalOpen(false)}
+           visibleColumns={visibleColumns}
+           setVisibleColumns={setVisibleColumns}
+           defaultColumns={defaultColumns}
+         />
       </PageLayout>
     </>
   );

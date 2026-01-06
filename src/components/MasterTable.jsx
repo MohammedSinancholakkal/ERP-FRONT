@@ -1,6 +1,6 @@
-import React from "react";
 import SortableHeader from "./SortableHeader";
 import { useTheme } from "../context/ThemeContext";
+import { Search, Plus, RefreshCw, List, ArchiveRestore } from "lucide-react";
 
 const MasterTable = ({
   columns,
@@ -10,6 +10,17 @@ const MasterTable = ({
   sortConfig,
   onSort,
   onRowClick,
+  // Action Bar Props
+  search,
+  onSearch,
+  onCreate,
+  createLabel = "Create New",
+  onRefresh,
+  onColumnSelector,
+  onToggleInactive,
+  permissionCreate = true,
+  customActions,
+  children,
 }) => {
   const { theme } = useTheme();
 
@@ -48,7 +59,113 @@ const MasterTable = ({
   );
 
   return (
-    <div className="w-full overflow-auto h-[65vh] rounded-lg scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+    <div className="w-full flex flex-col gap-4">
+      {/* ACTION BAR */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-1">
+        {/* Search */}
+        <div
+          className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${
+            theme === "emerald"
+              ? "bg-gray-100 border-emerald-500"
+              : "bg-gray-700 border-gray-600"
+          }`}
+        >
+          <Search
+            size={16}
+            className={theme === "emerald" ? "text-gray-500" : "text-gray-300"}
+          />
+          <input
+            type="text"
+            placeholder="search..."
+            value={search || ""}
+            onChange={(e) => onSearch && onSearch(e.target.value)}
+            className={`bg-transparent outline-none pl-2 w-full text-sm ${
+              theme === "emerald"
+                ? "text-gray-900 placeholder-gray-500"
+                : "text-gray-200 placeholder-gray-500"
+            }`}
+          />
+        </div>
+
+        {/* Create Button */}
+        {onCreate && permissionCreate && (
+          <button
+            onClick={onCreate}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${
+              theme === "emerald"
+                ? "bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700"
+                : "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+            }`}
+          >
+            <Plus size={16} /> {createLabel}
+          </button>
+        )}
+
+        {/* Refresh Button */}
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className={`p-1.5 rounded-md border ${
+              theme === "emerald"
+                ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
+                : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+            }`}
+          >
+            <RefreshCw
+              size={16}
+              className={theme === "emerald" ? "text-white" : "text-blue-400"}
+            />
+          </button>
+        )}
+
+        {/* Column Selector */}
+        {onColumnSelector && (
+          <button
+            onClick={onColumnSelector}
+            className={`p-1.5 rounded-md border ${
+              theme === "emerald"
+                ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
+                : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+            }`}
+          >
+            <List
+              size={16}
+              className={theme === "emerald" ? "text-white" : "text-blue-300"}
+            />
+          </button>
+        )}
+
+        {/* Inactive Toggle */}
+        {onToggleInactive && (
+          <button
+            onClick={onToggleInactive}
+            className={`p-1.5 rounded-md border flex items-center gap-1 ${
+              theme === "emerald"
+                ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
+                : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+            }`}
+          >
+            <ArchiveRestore
+              size={16}
+              className={theme === "emerald" ? "text-white" : "text-yellow-300"}
+            />
+            <span
+              className={`text-xs opacity-80 ${
+                theme === "emerald" ? "text-white" : ""
+              }`}
+            >
+              Inactive
+            </span>
+          </button>
+        )}
+
+        {/* Custom Actions */}
+        {customActions}
+      </div>
+
+      {children}
+
+      <div className="w-full overflow-auto h-[65vh] rounded-lg scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
         <table 
           className="text-left border-separate border-spacing-y-1 text-sm"
           style={{ minWidth: `${300 + columns.length * 100}px` }}
@@ -90,6 +207,7 @@ const MasterTable = ({
             {showInactive && inactiveData?.map((item) => renderRow(item, true))}
           </tbody>
         </table>
+      </div>
     </div>
   );
 };

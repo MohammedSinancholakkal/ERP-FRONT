@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-  Upload,
-} from "lucide-react";
+import { Upload } from "lucide-react";
 import toast from "react-hot-toast";
 
 import {
@@ -21,7 +14,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
-import SortableHeader from "../../components/SortableHeader";
+import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 
@@ -360,113 +353,48 @@ const Banks = () => {
   // ===============================
   // Render UI
   // ===============================
+  const tableColumns = [
+    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+    visibleColumns.bankName && { key: "bankName", label: "Bank Name", sortable: true },
+    visibleColumns.acName && { key: "acName", label: "A/C Name", sortable: true },
+    visibleColumns.acNumber && { key: "acNumber", label: "A/C Number", sortable: true },
+    visibleColumns.branch && { key: "branch", label: "Branch", sortable: true },
+  ].filter(Boolean);
+
   return (
     <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
         <div className="flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl font-semibold mb-4">Banks</h2>
 
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-             {/* SEARCH */}
-             <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-                <Search size={16} className="text-gray-300" />
-                <input
-                  value={searchText}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="bg-transparent pl-2 text-sm w-full outline-none"
-                />
-              </div>
-
-            {/* ADD */}
-            {hasPermission(PERMISSIONS.BANKS.CREATE) && (
-              <button
-                onClick={() => {
-                    setPreview("");
-                    setModalOpen(true);
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-              >
-                <Plus size={16} /> New Bank
-              </button>
-            )}
-
-            {/* REFRESH */}
-            <button
-                onClick={() => {
+          <MasterTable
+            columns={tableColumns}
+            data={sortedRows}
+            inactiveData={inactiveRows}
+            showInactive={showInactive}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            onRowClick={(item, isInactive) => openEdit(item, isInactive)}
+            // Action Props
+            search={searchText}
+            onSearch={handleSearch}
+            onCreate={() => {
+                setPreview("");
+                setModalOpen(true);
+            }}
+            createLabel="New Bank"
+            permissionCreate={hasPermission(PERMISSIONS.BANKS.CREATE)}
+            onRefresh={() => {
                 setSearchText("");
                 setPage(1);
                 loadRows();
-                }}
-                className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-            >
-                <RefreshCw size={16} className="text-blue-400" />
-            </button>
-
-            {/* COLUMNS */}
-            <button
-                onClick={() => setColumnModalOpen(true)}
-                className="p-2 bg-gray-700 border border-gray-600 rounded hover:bg-gray-600"
-            >
-                <List size={16} className="text-blue-300" />
-            </button>
-
-             {/* INACTIVE TOGGLE */}
-             <button
-                onClick={async () => {
+            }}
+            onColumnSelector={() => setColumnModalOpen(true)}
+            onToggleInactive={async () => {
                 if (!showInactive) await loadInactive();
                 setShowInactive((s) => !s);
-                }}
-                className={`p-2 bg-gray-700 border border-gray-600 rounded flex items-center gap-1 hover:bg-gray-600 ${
-                showInactive ? "ring-1 ring-yellow-300" : ""
-                }`}
-            >
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
-            </button>
-          </div>
-
-          {/* TABLE */}
-          <div className="flex-grow overflow-auto min-h-0">
-            <table className="w-[800px] border-separate border-spacing-y-1 text-sm">
-                 {/* HEADER */}
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                    <tr className="text-white text-center">
-                        {visibleColumns.id && <SortableHeader label="ID" sortOrder={sortConfig.key === "id" ? sortConfig.direction : null} onClick={() => handleSort("id")} />}
-                        {visibleColumns.bankName && <SortableHeader label="Bank Name" sortOrder={sortConfig.key === "bankName" ? sortConfig.direction : null} onClick={() => handleSort("bankName")} />}
-                        {visibleColumns.acName && <SortableHeader label="A/C Name" sortOrder={sortConfig.key === "acName" ? sortConfig.direction : null} onClick={() => handleSort("acName")} />}
-                        {visibleColumns.acNumber && <SortableHeader label="A/C Number" sortOrder={sortConfig.key === "acNumber" ? sortConfig.direction : null} onClick={() => handleSort("acNumber")} />}
-                        {visibleColumns.branch && <SortableHeader label="Branch" sortOrder={sortConfig.key === "branch" ? sortConfig.direction : null} onClick={() => handleSort("branch")} />}
-                    </tr>
-                </thead>
-                <tbody className="text-center">
-                    {sortedRows.length === 0 && inactiveRows.length === 0 && (
-                        <tr><td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-6 text-gray-400">No records found</td></tr>
-                    )}
-
-                    {sortedRows.map((row) => (
-                        <tr key={row.id} className="bg-gray-900 hover:bg-gray-700 cursor-pointer" onClick={() => openEdit(row, false)}>
-                            {visibleColumns.id && <td className="px-2 py-1">{row.id}</td>}
-                            {visibleColumns.bankName && <td className="px-2 py-1">{row.bankName}</td>}
-                            {visibleColumns.acName && <td className="px-2 py-1">{row.acName}</td>}
-                            {visibleColumns.acNumber && <td className="px-2 py-1">{row.acNumber}</td>}
-                            {visibleColumns.branch && <td className="px-2 py-1">{row.branch}</td>}
-                        </tr>
-                    ))}
-                    
-                    {showInactive && inactiveRows.map((row) => (
-                        <tr key={`inactive-${row.id}`} className="bg-gray-900 opacity-40 line-through hover:bg-gray-700 cursor-pointer" onClick={() => openEdit(row, true)}>
-                            {visibleColumns.id && <td className="px-2 py-1">{row.id}</td>}
-                            {visibleColumns.bankName && <td className="px-2 py-1">{row.bankName}</td>}
-                            {visibleColumns.acName && <td className="px-2 py-1">{row.acName}</td>}
-                            {visibleColumns.acNumber && <td className="px-2 py-1">{row.acNumber}</td>}
-                            {visibleColumns.branch && <td className="px-2 py-1">{row.branch}</td>}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-          </div>
+            }}
+          />
 
           <Pagination
             page={page}

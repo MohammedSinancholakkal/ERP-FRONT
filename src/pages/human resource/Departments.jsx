@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
+//   Search,
+//   Plus,
+//   RefreshCw,
+//   List,
   X,
   Save,
   Trash2,
   ArchiveRestore
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+
 
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
@@ -25,7 +27,8 @@ import {
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import SearchableSelect from "../../components/SearchableSelect";
-import SortableHeader from "../../components/SortableHeader";
+// import SortableHeader from "../../components/SortableHeader"; // REMOVED
+
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
@@ -326,9 +329,7 @@ const Departments = () => {
 
   return (
     <>
-{/* =============================
-    ADD DEPARTMENT MODAL
-============================= */}
+
 {/* =============================
     ADD DEPARTMENT MODAL
 ============================= */}
@@ -383,9 +384,7 @@ const Departments = () => {
   </div>
 </AddModal>
 
-{/* =============================
-    EDIT DEPARTMENT MODAL
-============================= */}
+
 {/* =============================
     EDIT DEPARTMENT MODAL
 ============================= */}
@@ -446,7 +445,6 @@ const Departments = () => {
   </div>
 </EditModal>
 
-
       {/* =============================
           COLUMN PICKER
       ============================= */}
@@ -462,109 +460,59 @@ const Departments = () => {
               MAIN PAGE
       =================================== */}
       <PageLayout>
-        <div className={`p-4 text-white h-full ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
             <h2 className="text-2xl font-semibold mb-4">Departments</h2>
 
-            {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              {/* SEARCH */}
-              <div className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600' : 'bg-gray-700 border-gray-600'}`}>
-                <Search size={16} className="text-gray-300" />
-                <input
-                  type="text"
-                  placeholder="search..."
-                  value={searchText}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="bg-transparent outline-none pl-2 text-gray-200 w-full text-sm"
-                />
-              </div>
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.department && { key: "department", label: "Department", sortable: true },
+                    visibleColumns.description && { key: "description", label: "Description", sortable: true },
+                    visibleColumns.parentName && { key: "parentName", label: "Parent Department", sortable: true, render: (r) => r.parentName || "-" },
+                ].filter(Boolean)}
+                data={sortedDepartments}
+                inactiveData={inactiveDepartments}
+                showInactive={showInactive}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onRowClick={(c, isInactive) => {
+                     setEditDepartment({ 
+                        id: c.id, 
+                        department: c.department, 
+                        description: c.description, 
+                        parentDepartmentId: c.parentDepartmentId, 
+                        parentName: c.parentName, 
+                        isInactive: isInactive 
+                    }); 
+                    setEditModalOpen(true);
+                }}
+                // Action Bar
+                search={searchText}
+                onSearch={handleSearch}
+                onCreate={() => setModalOpen(true)}
+                createLabel="New Department"
+                permissionCreate={hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE)}
+                onRefresh={() => { setSearchText(""); setPage(1); loadDepartments(); }}
+                onColumnSelector={() => setColumnModalOpen(true)}
+                onToggleInactive={async () => {
+                    if (!showInactive) await loadInactive();
+                    setShowInactive(!showInactive);
+                }}
+            />
 
-              {/* ADD */}
-              {hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
-              <button onClick={() => setModalOpen(true)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
-                <Plus size={16} /> New Department
-              </button>
-              )}
-
-              {/* REFRESH */}
-              <button onClick={() => { setSearchText(""); setPage(1); loadDepartments(); }} className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
-                <RefreshCw size={16} className="text-blue-400" />
-              </button>
-
-              {/* COLUMN PICKER */}
-              <button onClick={() => setColumnModalOpen(true)} className={`p-1.5 rounded-md border ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
-                <List size={16} className="text-blue-300" />
-              </button>
-
-              {/* INACTIVE TOGGLE */}
-              <button onClick={async () => { if (!showInactive) await loadInactive(); setShowInactive(!showInactive); }} className={`p-1.5 rounded-md border flex items-center gap-1 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-600 hover:bg-emerald-600' : 'bg-gray-700 border-gray-600 hover:bg-gray-600'}`}>
-                <ArchiveRestore size={16} className="text-yellow-300" />
-                <span className="text-xs opacity-80">Inactive</span>
-              </button>
-            </div>
-
-          {/* ==========================
-                TABLE
-          =========================== */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-auto">
-              <table className="w-[800px] text-left border-separate border-spacing-y-1 text-sm">
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr className="text-white">
-                    {visibleColumns.id && (
-                       <SortableHeader label="ID" sortKey="id" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-                    {visibleColumns.department && (
-                        <SortableHeader label="Department" sortKey="department" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-                    {visibleColumns.description && (
-                         <SortableHeader label="Description" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-                    {visibleColumns.parentName && (
-                        <SortableHeader label="Parent Department" sortKey="parentName" currentSort={sortConfig} onSort={handleSort} />
-                    )}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {/* ACTIVE */}
-                  {sortedDepartments.map((c) => (
-                    <tr key={c.id} className={`${theme === 'emerald' ? 'bg-emerald-800 hover:bg-emerald-700' : 'bg-gray-900 hover:bg-gray-700'} cursor-pointer rounded shadow-sm`} onClick={() => { setEditDepartment({ id: c.id, department: c.department, description: c.description, parentDepartmentId: c.parentDepartmentId, parentName: c.parentName, isInactive: false }); setEditModalOpen(true); }}>
-                      {visibleColumns.id && <td className="px-2 py-1 text-center">{c.id}</td>}
-                      {visibleColumns.department && <td className="px-2 py-1 text-center">{c.department}</td>}
-                      {visibleColumns.description && <td className="px-2 py-1 text-center">{c.description}</td>}
-                      {visibleColumns.parentName && <td className="px-2 py-1 text-center">{c.parentName || "-"}</td>}
-                    </tr>
-                  ))}
-
-                  {/* INACTIVE */}
-                  {showInactive && inactiveDepartments.map((c) => (
-                    <tr key={`inactive-${c.id}`} className={`${theme === 'emerald' ? 'bg-emerald-900 hover:bg-emerald-800' : 'bg-gray-900 hover:bg-gray-800'} cursor-pointer opacity-40 line-through rounded shadow-sm`} onClick={() => { setEditDepartment({ id: c.id, department: c.department, description: c.description, parentDepartmentId: c.parentDepartmentId, parentName: c.parentName, isInactive: true }); setEditModalOpen(true); }}>
-                      {visibleColumns.id && <td className="px-2 py-1 text-center">{c.id}</td>}
-                      {visibleColumns.department && <td className="px-2 py-1 text-center">{c.department}</td>}
-                      {visibleColumns.description && <td className="px-2 py-1 text-center">{c.description}</td>}
-                      {visibleColumns.parentName && <td className="px-2 py-1 text-center">{c.parentName || "-"}</td>}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
- {/* PAGINATION */}
-           
+             {/* PAGINATION */}
               <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
               />
+          </div>
         </div>
-      </div>
       </PageLayout>
+
       
     </>
   );
