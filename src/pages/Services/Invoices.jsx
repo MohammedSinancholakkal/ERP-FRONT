@@ -42,8 +42,9 @@ const defaultColumns = {
   paymentAccount: true,
   discount: true,
   totalDiscount: true,
-  vat: true,
-  totalTax: true,
+  igst: true,
+  cgst: true,
+  sgst: true,
   shippingCost: true,
   grandTotal: true,
   netTotal: true,
@@ -59,13 +60,11 @@ const Invoices = () => {
   const location = useLocation();
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
-  const [columnSearch, setColumnSearch] = useState("");
 
   // Data State
-  const [invoicesList, setInvoicesList] = useState([]); // Active invoices
-  const [inactiveRows, setInactiveRows] = useState([]); // Inactive invoices (separate list)
+  const [invoicesList, setInvoicesList] = useState([]); 
+  const [inactiveRows, setInactiveRows] = useState([]); 
   const [showInactive, setShowInactive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -275,10 +274,22 @@ const Invoices = () => {
     toast.success("Refreshed");
   };
 
+  const calculateTaxAmount = (record, type) => {
+    const subTotal = parseFloat(record.grandTotal) || 0; 
+    const discount = parseFloat(record.discount) || 0; // global discount
+    const taxable = subTotal - discount;
+    if (taxable <= 0) return "0.00";
+
+    let rate = 0;
+    if (type === 'igst') rate = parseFloat(record.igstRate) || 0;
+    else if (type === 'cgst') rate = parseFloat(record.cgstRate) || 0;
+    else if (type === 'sgst') rate = parseFloat(record.sgstRate) || 0;
+
+    const val = (taxable * rate) / 100;
+    return val.toFixed(2);
+  };
+
   /* ================= FILTER & SORT (Client-side) ================= */
-  // Filter only applies to active list usually, but let's see requirements.
-  // Customers.jsx applies filter to `allCustomers` (active) only. Inactive are just appended.
-  // We will follow the same pattern.
 
   const filteredList = invoicesList.filter((p) => {
     let match = true;
@@ -297,7 +308,7 @@ const Invoices = () => {
         let aValue = a[sortConfig.key];
         let bValue = b[sortConfig.key];
 
-        const numericKeys = ['grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'shippingCost', 'discount', 'totalDiscount', 'vat', 'totalTax', 'id'];
+        const numericKeys = ['grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'shippingCost', 'discount', 'totalDiscount', 'igst', 'cgst', 'sgst', 'id'];
         if (numericKeys.includes(sortConfig.key)) {
             aValue = parseFloat(aValue) || 0;
             bValue = parseFloat(bValue) || 0;
@@ -427,8 +438,9 @@ const Invoices = () => {
                     visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment", sortable: true },
                     visibleColumns.discount && { key: "discount", label: "Discount", sortable: true, render: (p) => parseFloat(p.discount || 0).toFixed(2) },
                     visibleColumns.totalDiscount && { key: "totalDiscount", label: "Total Disc", sortable: true, render: (p) => parseFloat(p.totalDiscount || 0).toFixed(2) },
-                    visibleColumns.vat && { key: "vat", label: "VAT", sortable: true, render: (p) => parseFloat(p.vat || 0).toFixed(2) },
-                    visibleColumns.totalTax && { key: "totalTax", label: "Total Tax", sortable: true, render: (p) => parseFloat(p.totalTax || 0).toFixed(2) },
+                    visibleColumns.igst && { key: "igst", label: "IGST", sortable: true, render: (p) => calculateTaxAmount(p, 'igst') },
+                    visibleColumns.cgst && { key: "cgst", label: "CGST", sortable: true, render: (p) => calculateTaxAmount(p, 'cgst') },
+                    visibleColumns.sgst && { key: "sgst", label: "SGST", sortable: true, render: (p) => calculateTaxAmount(p, 'sgst') },
                     visibleColumns.shippingCost && { key: "shippingCost", label: "Shipping", sortable: true, render: (p) => parseFloat(p.shippingCost || 0).toFixed(2) },
                     visibleColumns.grandTotal && { key: "grandTotal", label: "Grand Total", sortable: true, render: (p) => parseFloat(p.grandTotal || 0).toFixed(2) },
                     visibleColumns.netTotal && { key: "netTotal", label: "Net Total", sortable: true, render: (p) => <span className="font-semibold">{parseFloat(p.netTotal || 0).toFixed(2)}</span> },

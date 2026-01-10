@@ -92,7 +92,10 @@ const SalesQuotation = () => {
     employee: true,
     discount: true,
     totalDiscount: true,
-    vat: true,
+    vat: false, // Legacy
+    igstRate: true,
+    cgstRate: true,
+    sgstRate: true,
     totalTax: true,
     shippingCost: true,
     grandTotal: true,
@@ -328,7 +331,7 @@ const SalesQuotation = () => {
         let bValue = b[sortConfig.key];
 
         // Handle numeric values
-        if (['discount', 'totalDiscount', 'vat', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'id'].includes(sortConfig.key)) {
+        if (['discount', 'totalDiscount', 'vat', 'igstRate', 'cgstRate', 'sgstRate', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'id'].includes(sortConfig.key)) {
             aValue = parseFloat(aValue) || 0;
             bValue = parseFloat(bValue) || 0;
         } else {
@@ -433,6 +436,9 @@ const SalesQuotation = () => {
                     visibleColumns.discount && { key: "discount", label: "Disc", sortable: true, render: (q) => parseFloat(q.discount || 0).toFixed(2) },
                     visibleColumns.totalDiscount && { key: "totalDiscount", label: "Total Disc", sortable: true, render: (q) => parseFloat(q.totalDiscount || 0).toFixed(2) },
                     visibleColumns.vat && { key: "vat", label: "VAT", sortable: true, render: (q) => parseFloat(q.vat || 0).toFixed(2) },
+                    visibleColumns.igstRate && { key: "igstRate", label: "IGST", sortable: true, render: (q) => parseFloat(q.igstRate || 0).toFixed(2) },
+                    visibleColumns.cgstRate && { key: "cgstRate", label: "CGST", sortable: true, render: (q) => parseFloat(q.cgstRate || 0).toFixed(2) },
+                    visibleColumns.sgstRate && { key: "sgstRate", label: "SGST", sortable: true, render: (q) => parseFloat(q.sgstRate || 0).toFixed(2) },
                     visibleColumns.totalTax && { key: "totalTax", label: "Total Tax", sortable: true, render: (q) => parseFloat(q.totalTax || 0).toFixed(2) },
                     visibleColumns.shippingCost && { key: "shippingCost", label: "Shipping", sortable: true, render: (q) => parseFloat(q.shippingCost || 0).toFixed(2) },
                     visibleColumns.grandTotal && { key: "grandTotal", label: "Grand Total", sortable: true, render: (q) => parseFloat(q.grandTotal || 0).toFixed(2) },

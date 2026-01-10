@@ -4,13 +4,11 @@ import {
   Eye,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
-import { getSalesApi, getCustomersApi, searchSaleApi, getInactiveSalesApi } from "../../services/allAPI";
+import { getSalesApi, getCustomersApi, searchSaleApi, getInactiveSalesApi, getSaleByIdApi } from "../../services/allAPI";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -18,9 +16,12 @@ import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import MasterTable from "../../components/MasterTable"; // ADDED
 import { useTheme } from "../../context/ThemeContext"; // ADDED
 import ExportButtons from "../../components/ExportButtons"; // ADDED
+import { useSettings } from "../../contexts/SettingsContext";
+import { generateSalesInvoicePDF } from "../../utils/salesPdfUtils";
 
 const Sales = () => {
   const { theme } = useTheme(); // ADDED
+  const { settings } = useSettings();
 
   const navigate = useNavigate();
 
@@ -33,7 +34,9 @@ const Sales = () => {
     paymentAccount: true,
     discount: true,
     totalDiscount: true,
-    vat: true,
+    igstRate: true,
+    cgstRate: true,
+    sgstRate: true,
     totalTax: true,
     shippingCost: true,
     grandTotal: true,
@@ -54,7 +57,7 @@ const Sales = () => {
   // --- DATA STATE ---
   const [salesList, setSalesList] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // NEW: Loading state
+  const [isLoading, setIsLoading] = useState(true); 
   const [searchText, setSearchText] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterDate, setFilterDate] = useState("");
@@ -99,7 +102,9 @@ const Sales = () => {
     paymentAccount: r.paymentAccount ?? r.PaymentAccount ?? r.payment ?? r.Payment ?? "",
     discount: parseFloat(r.discount ?? r.Discount ?? 0) || 0,
     totalDiscount: parseFloat(r.totalDiscount ?? r.TotalDiscount ?? r.total_discount ?? 0) || 0,
-    vat: parseFloat(r.vat ?? r.Vat ?? r.VAT ?? 0) || 0,
+    igstRate: parseFloat(r.igstRate ?? r.IGSTRate ?? 0) || 0,
+    cgstRate: parseFloat(r.cgstRate ?? r.CGSTRate ?? 0) || 0,
+    sgstRate: parseFloat(r.sgstRate ?? r.SGSTRate ?? 0) || 0,
     totalTax: parseFloat(r.totalTax ?? r.TotalTax ?? r.total_tax ?? 0) || 0,
     shippingCost: parseFloat(r.shippingCost ?? r.ShippingCost ?? 0) || 0,
     grandTotal: parseFloat(r.grandTotal ?? r.GrandTotal ?? r.total ?? 0) || 0,
@@ -165,8 +170,6 @@ const Sales = () => {
         const normalized = rows.map(r => {
              const norm = normalizeSale(r);
              norm.isInactive = true;
-             // Customer matching logic if needed, but we joined in backend
-             // If backend join returned CustomerName, normalizeSale picks it up
              return norm;
         });
         setInactiveRows(normalized);
@@ -228,33 +231,9 @@ const Sales = () => {
     toast.success("PDF exported");
   };
 
-  const handleExportRowPDF = (sale) => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Sales Invoice", 14, 10);
-    
-    doc.setFontSize(10);
-    doc.text(`Invoice: ${sale.invoiceNo || sale.VNo || ""}`, 14, 20);
-    doc.text(`Date: ${sale.date || ""}`, 14, 25);
-    doc.text(`Customer: ${sale.customerName || ""}`, 14, 30);
-    doc.text(`Payment Account: ${sale.paymentAccount || ""}`, 14, 35);
-    
-    doc.autoTable({
-      head: [["Description", "Amount"]],
-      body: [
-        ["Grand Total", `${parseFloat(sale.grandTotal || 0).toFixed(2)}`],
-        ["Discount", `${parseFloat(sale.totalDiscount || 0).toFixed(2)}`],
-        ["Shipping", `${parseFloat(sale.shippingCost || 0).toFixed(2)}`],
-        ["Net Total", `${parseFloat(sale.netTotal || 0).toFixed(2)}`],
-        ["Paid Amount", `${parseFloat(sale.paidAmount || 0).toFixed(2)}`],
-        ["Due", `${parseFloat(sale.due || 0).toFixed(2)}`],
-        ["Change", `${parseFloat(sale.change || 0).toFixed(2)}`]
-      ],
-      startY: 45
-    });
-    
-    doc.save(`sale-${sale.id}.pdf`);
-    toast.success(`PDF exported for Invoice ${sale.invoiceNo || sale.VNo}`);
+  // COZY SANITARYWARE STYLE PDF
+  const handleExportRowPDF = async (saleSummary) => {
+    await generateSalesInvoicePDF(saleSummary.id, settings);
   };
 
   const filteredList = salesList.filter(s => {
@@ -303,7 +282,7 @@ const Sales = () => {
         let bValue = b[sortConfig.key];
 
         // Handle numeric values
-        if (['discount', 'totalDiscount', 'vat', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'id'].includes(sortConfig.key)) {
+        if (['discount', 'totalDiscount', 'igstRate', 'cgstRate', 'sgstRate', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'id'].includes(sortConfig.key)) {
             aValue = parseFloat(aValue) || 0;
             bValue = parseFloat(bValue) || 0;
         } else {
@@ -407,7 +386,9 @@ const Sales = () => {
                     visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment", sortable: true, render: (s) => s.paymentAccount || "" },
                     visibleColumns.discount && { key: "discount", label: "Discount", sortable: true, render: (s) => parseFloat(s.discount || 0).toFixed(2) },
                     visibleColumns.totalDiscount && { key: "totalDiscount", label: "Total Disc", sortable: true, render: (s) => parseFloat(s.totalDiscount || 0).toFixed(2) },
-                    visibleColumns.vat && { key: "vat", label: "VAT", sortable: true, render: (s) => parseFloat(s.vat || 0).toFixed(2) },
+                    visibleColumns.igstRate && { key: "igstRate", label: "IGST %", sortable: true, render: (s) => parseFloat(s.igstRate || 0).toFixed(2) },
+                    visibleColumns.cgstRate && { key: "cgstRate", label: "CGST %", sortable: true, render: (s) => parseFloat(s.cgstRate || 0).toFixed(2) },
+                    visibleColumns.sgstRate && { key: "sgstRate", label: "SGST %", sortable: true, render: (s) => parseFloat(s.sgstRate || 0).toFixed(2) },
                     visibleColumns.totalTax && { key: "totalTax", label: "Total Tax", sortable: true, render: (s) => parseFloat(s.totalTax || 0).toFixed(2) },
                     visibleColumns.shippingCost && { key: "shippingCost", label: "Shipping", sortable: true, render: (s) => parseFloat(s.shippingCost || 0).toFixed(2) },
                     visibleColumns.grandTotal && { key: "grandTotal", label: "Grand Total", sortable: true, render: (s) => parseFloat(s.grandTotal || 0).toFixed(2) },

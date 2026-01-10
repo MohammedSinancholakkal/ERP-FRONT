@@ -864,7 +864,7 @@ const DamagedProducts = () => {
 
             <MasterTable
                 columns={[
-                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.id && { key: "Id", label: "ID", sortable: true },
                     visibleColumns.code && { key: "Code", label: "Code", sortable: true },
                     visibleColumns.name && { key: "Name", label: "Name", sortable: true },
                     visibleColumns.category && { key: "CategoryName", label: "Category", sortable: true, render: (r) => r.CategoryName || r.categoryName || "-" },

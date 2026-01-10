@@ -35,7 +35,8 @@ import {
   getPurchaseByIdApi,
   updatePurchaseApi,
   deletePurchaseApi,
-  restorePurchaseApi
+  restorePurchaseApi,
+  getTaxTypesApi
 } from "../../services/allAPI";
 import { useParams, useLocation } from "react-router-dom";
 
@@ -60,12 +61,14 @@ const NewPurchase = () => {
   const [paymentAccount, setPaymentAccount] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [taxTypeId, setTaxTypeId] = useState("");
 
   // --- DROPDOWN DATA ---
   const [suppliersList, setSuppliersList] = useState([]);
   const [banksList, setBanksList] = useState([]);
   const [brandsList, setBrandsList] = useState([]);
   const [productsList, setProductsList] = useState([]);
+  const [taxTypesList, setTaxTypesList] = useState([]);
 
   // --- LINE ITEMS STATE ---
   const [rows, setRows] = useState([]);
@@ -90,6 +93,7 @@ const NewPurchase = () => {
   // --- QUICK CREATE BRAND MODAL STATE ---
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
+  const [newBrandDescription, setNewBrandDescription] = useState("");
 
   // --- BOTTOM SECTION STATE ---
   const [globalDiscount, setGlobalDiscount] = useState(0);
@@ -97,6 +101,10 @@ const NewPurchase = () => {
   const [paidAmount, setPaidAmount] = useState(0);
   const [noTax, setNoTax] = useState(false);
   const [details, setDetails] = useState("");
+
+  const [igstRate, setIgstRate] = useState(0);
+  const [cgstRate, setCgstRate] = useState(0);
+  const [sgstRate, setSgstRate] = useState(0);
 
   // --- CALCULATED VALUES ---
   const [netTotal, setNetTotal] = useState(0);
@@ -112,6 +120,7 @@ const NewPurchase = () => {
     fetchBanks();
     fetchBrands();
     fetchProducts();
+    fetchTaxTypes();
   }, []);
 
   // --- HANDLE RETURN FROM NEW SUPPLIER ---
@@ -153,8 +162,14 @@ const NewPurchase = () => {
         setGlobalDiscount(purchase.Discount);
         setShippingCost(purchase.ShippingCost);
         setPaidAmount(purchase.PaidAmount);
+        setPaidAmount(purchase.PaidAmount);
         setNoTax(purchase.NoTax === 1);
         setDetails(purchase.Details);
+
+        setTaxTypeId(purchase.TaxTypeId || "");
+        setIgstRate(purchase.IGSTRate || 0);
+        setCgstRate(purchase.CGSTRate || 0);
+        setSgstRate(purchase.SGSTRate || 0);
 
         // Map details to rows
         const mappedRows = details.map(d => ({
@@ -209,6 +224,150 @@ const NewPurchase = () => {
       if (res.status === 200) setProductsList(res.data.records || []);
     } catch (error) {
       console.error("Error fetching products", error);
+    }
+  };
+
+  const fetchTaxTypes = async () => {
+    try {
+      const res = await getTaxTypesApi(1, 1000);
+      if (res.status === 200) {
+         // Normalize to match NewSales logic
+         const list = res.data.records.map(t => ({
+             id: t.typeId,
+             name: `${t.isInterState ? "IGST" : "CGST/SGST"} - ${t.percentage}%`,
+             isInterState: t.isInterState,
+             percentage: t.percentage
+         }));
+         setTaxTypesList(list);
+      }
+    } catch (error) {
+      console.error("Error fetching tax types", error);
+    }
+  };
+
+  // --- NAVIGATION & RESTORE STATE ---
+  const handleGoToNewProduct = () => {
+      if (!newItem.brandId) return toast.error("Please select a brand first");
+      
+      const currentFormState = {
+          supplier,
+          paymentAccount,
+          invoiceNo,
+          date,
+          taxTypeId,
+          rows,
+          globalDiscount,
+          shippingCost,
+          paidAmount,
+          noTax,
+          details,
+          newItem, // We preserve the modal state too
+          isItemModalOpen: true // We want the modal to be open when we return
+      };
+
+      navigate("/app/inventory/newproduct", { 
+          state: { 
+              returnTo: location.pathname, 
+              preserveState: currentFormState,
+              brandId: newItem.brandId
+          } 
+      });
+  };
+
+  useEffect(() => {
+    if (location.state?.preserveState) {
+        const ps = location.state.preserveState;
+        
+        // Restore Form Data
+        setSupplier(ps.supplier || "");
+        setPaymentAccount(ps.paymentAccount || "");
+        setInvoiceNo(ps.invoiceNo || "");
+        setDate(ps.date || new Date().toISOString().split("T")[0]);
+        setTaxTypeId(ps.taxTypeId || "");
+        setRows(ps.rows || []);
+        setGlobalDiscount(ps.globalDiscount || 0);
+        setShippingCost(ps.shippingCost || 0);
+        setPaidAmount(ps.paidAmount || 0);
+        setNoTax(ps.noTax || false);
+        setDetails(ps.details || "");
+        
+        // Restore Modal State
+        if (ps.isItemModalOpen) {
+            setIsItemModalOpen(true);
+            setNewItem(ps.newItem || {});
+        }
+
+        // Handle Created Product
+        if (location.state.createdProductId || location.state.createdProductName) {
+             // We need to fetch products to get the full object of the new product
+             getProductsApi(1, 1000).then(res => {
+                 if (res.status === 200) {
+                     setProductsList(res.data.records || []);
+                     
+                     // Try to find by ID first, then Name
+                     let found = null;
+                     if (location.state.createdProductId) {
+                        found = res.data.records.find(p => String(p.id) === String(location.state.createdProductId));
+                     }
+                     if (!found && location.state.createdProductName) {
+                        found = res.data.records.find(p => p.ProductName === location.state.createdProductName);
+                     }
+                     
+                     if (found) {
+                         // Update newItem with the new product
+                         setNewItem(prev => ({
+                            ...prev,
+                            // Ensure we keep the previous modal state if valuable, but overwrite product details
+                            productId: found.id,
+                            productName: found.ProductName,
+                            unitId: found.UnitId,
+                            unitName: found.unitName || found.UnitName, // API might return different casing
+                            unitPrice: found.UnitPrice,
+                            brandId: found.BrandId,
+                            brandName: found.brandName || found.BrandName, 
+                            quantity: 1
+                         }));
+                     }
+                 }
+             });
+        }
+    }
+  }, [location.state]);
+
+  // --- QUICK CREATE BRAND ---
+  const handleCreateBrand = async () => {
+    if (!newBrandName.trim()) return toast.error("Brand name required");
+    try {
+      const res = await addBrandApi({ 
+          name: newBrandName, 
+          description: newBrandDescription, 
+          userId 
+      });
+
+      if (res?.status === 200) {
+        toast.success("Brand added");
+        
+        // Refresh list
+        const updatedBrands = await getBrandsApi(1, 1000);
+        if(updatedBrands.status === 200) {
+            setBrandsList(updatedBrands.data.records);
+            const newBrand = updatedBrands.data.records.find(b => b.name === newBrandName);
+            if(newBrand) {
+                setNewItem(prev => ({ ...prev, brandId: newBrand.id, productId: "", productName: "" })); // Clear product on brand change
+            }
+        }
+
+        setIsBrandModalOpen(false);
+        setNewBrandName("");
+        setNewBrandDescription("");
+      } else if (res?.status === 409) {
+          toast.error(res.data.message || "Brand Name already exists");
+      } else {
+          toast.error("Failed to add brand");
+      }
+    } catch (error) {
+        console.error("Error adding brand", error);
+        toast.error("Server error adding brand");
     }
   };
 
@@ -296,45 +455,7 @@ const NewPurchase = () => {
     setRows(updated);
   };
 
-  // --- QUICK CREATE BRAND ---
-  const handleCreateBrand = async () => {
-    if (!newBrandName.trim()) return toast.error("Brand name required");
-    try {
-      const res = await addBrandApi({ name: newBrandName, description: "", userId });
-      if (res.status === 200) {
-        toast.success("Brand added");
-        await fetchBrands(); // Refresh list
-        
-        // Auto-select the new brand
-        // We need to find the new brand. Since API might not return the full object or ID directly in a standard way,
-        // we rely on fetching and finding the one with the name we just added. 
-        // Ideally API returns the ID. Assuming res.data.id or similar if available, but for now we fetch.
-        // A safer bet is to fetch and find by name if ID isn't returned.
-        // Let's assume we can find it by name for now or just refresh.
-        // To strictly follow "added one should be displayed", we try to find it.
-        
-        // Re-fetching is async. After await fetchBrands(), brandsList state might not be updated immediately in this closure.
-        // So we might need to call a separate function or use the response if it contains ID.
-        // For this codebase, let's try to find it in the fresh list if possible, or just rely on user selecting it if we can't.
-        // BUT user explicitly asked "added one should be displayed".
-        
-        // Hack: Fetch and set.
-        const updatedBrands = await getBrandsApi(1, 1000);
-        if(updatedBrands.status === 200) {
-            setBrandsList(updatedBrands.data.records);
-            const newBrand = updatedBrands.data.records.find(b => b.name === newBrandName);
-            if(newBrand) {
-                setNewItem(prev => ({ ...prev, brandId: newBrand.id, productId: "", productName: "" }));
-            }
-        }
 
-        setIsBrandModalOpen(false);
-        setNewBrandName("");
-      }
-    } catch (error) {
-      toast.error("Failed to add brand");
-    }
-  };
 
   // --- QUICK CREATE SUPPLIER ---
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
@@ -506,6 +627,31 @@ const NewPurchase = () => {
 
 
 
+  // --- UPDATE RATES WHEN TAX TYPE CHANGE ---
+  // --- UPDATE RATES WHEN TAX TYPE CHANGE ---
+  useEffect(() => {
+    if (!taxTypeId) {
+        setCgstRate(0);
+        setSgstRate(0);
+        setIgstRate(0);
+        return;
+    }
+    const selected = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+    if (selected) {
+        const pct = parseFloat(selected.percentage) || 0;
+        if (selected.isInterState) {
+            setIgstRate(pct);
+            setCgstRate(0);
+            setSgstRate(0);
+        } else {
+            const half = pct / 2;
+            setCgstRate(half);
+            setSgstRate(half);
+            setIgstRate(0);
+        }
+    }
+  }, [taxTypeId, taxTypesList]);
+
   useEffect(() => {
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -540,7 +686,13 @@ const NewPurchase = () => {
   taxableAmount = round2(taxableAmount);
 
   // 4️⃣ Tax
-  const tax = noTax ? 0 : round2(taxableAmount * 0.10);
+  let tax = 0;
+  if (!noTax) {
+      const igst = (taxableAmount * igstRate) / 100;
+      const cgst = (taxableAmount * cgstRate) / 100;
+      const sgst = (taxableAmount * sgstRate) / 100;
+      tax = round2(igst + cgst + sgst);
+  }
 
   // 5️⃣ Final payable (THIS is Net Total)
   const netPayable = round2(taxableAmount + tax + shipping);
@@ -563,7 +715,7 @@ const NewPurchase = () => {
   setDueAmount(due);
   setChangeAmount(change);
 
-}, [rows, globalDiscount, shippingCost, paidAmount, noTax]);
+}, [rows, globalDiscount, shippingCost, paidAmount, noTax, igstRate, cgstRate, sgstRate]);
 
 
 
@@ -580,6 +732,7 @@ const NewPurchase = () => {
 
     if (!supplier) return toast.error("Please select a supplier");
     if (!paymentAccount) return toast.error("Please select a payment account");
+    if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
@@ -600,9 +753,14 @@ const NewPurchase = () => {
       vno: "", // Optional
       vat: parseFloat(taxAmount) || 0,
       totalTax: parseFloat(taxAmount) || 0,
-      vatPercentage: noTax ? 0 : 10,
+      vatPercentage: 0,
       noTax: noTax ? 1 : 0,
-      vatType: "Percentage",
+      vatType: "GST",
+      
+      taxTypeId: taxTypeId || null,
+      igstRate: parseFloat(igstRate) || 0,
+      cgstRate: parseFloat(cgstRate) || 0,
+      sgstRate: parseFloat(sgstRate) || 0,
       items: rows.map(r => ({
         productId: r.productId,
         productName: r.productName,
@@ -635,6 +793,7 @@ const NewPurchase = () => {
   const handleUpdatePurchase = async () => {
     if (!supplier) return toast.error("Please select a supplier");
     if (!paymentAccount) return toast.error("Please select a payment account");
+    if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
@@ -655,9 +814,14 @@ const NewPurchase = () => {
       vno: "",
       vat: parseFloat(taxAmount) || 0,
       totalTax: parseFloat(taxAmount) || 0,
-      vatPercentage: noTax ? 0 : 10,
+      vatPercentage: 0,
       noTax: noTax ? 1 : 0,
-      vatType: "Percentage",
+      vatType: "GST",
+      
+      taxTypeId: taxTypeId || null,
+      igstRate: parseFloat(igstRate) || 0,
+      cgstRate: parseFloat(cgstRate) || 0,
+      sgstRate: parseFloat(sgstRate) || 0,
       items: rows.map(r => ({
         productId: r.productId,
         productName: r.productName,
@@ -784,11 +948,17 @@ const NewPurchase = () => {
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-[calc(100vh-80px)] overflow-y-auto">
+      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 overflow-y-auto">
         
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate(-1)} className="text-white-500 hover:text-white-400">
+          <button onClick={() => {
+            if (location.state?.returnTo) {
+                navigate(location.state.returnTo);
+            } else {
+                navigate("/app/purchasing/purchases");
+            }
+          }} className="text-white-500 hover:text-white-400">
             <ArrowLeft size={24} />
           </button>
           <h2 className="text-xl text-white-500 font-medium">
@@ -853,11 +1023,11 @@ const NewPurchase = () => {
               </div>
             </div>
 
-            <div className="flex items-center">
-              <label className="w-32 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Payment Account
-              </label>
+            <div className="flex items-center gap-4">
               <div className="flex-1">
+                <label className="text-sm text-gray-300 block mb-1">
+                  <span className="text-red-400">*</span> Payment Account
+                </label>
                 <select
                   value={paymentAccount}
                   onChange={(e) => setPaymentAccount(e.target.value)}
@@ -868,6 +1038,19 @@ const NewPurchase = () => {
                   <option value="Cash at Hand">Cash at Hand</option>
                   <option value="Cash at Bank">Cash at Bank</option>
                 </select>
+              </div>
+
+              <div className="flex-1">
+                <label className="text-sm text-gray-300 block mb-1">
+                  <span className="text-red-400">*</span> Tax Type
+                </label>
+                  <SearchableSelect
+                    options={taxTypesList}
+                    value={taxTypeId}
+                    onChange={(val) => setTaxTypeId(val)}
+                    placeholder="--select--"
+                    disabled={inactiveView || noTax}
+                  />
               </div>
             </div>
           </div>
@@ -980,12 +1163,6 @@ const NewPurchase = () => {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Vat (10%)</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {taxAmount.toFixed(2)}
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
               <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Paid Amount</label>
            <input
               type="number"
@@ -1019,12 +1196,39 @@ const NewPurchase = () => {
                 disabled={inactiveView}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Total Tax</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {taxAmount.toFixed(2)}
-              </div>
-            </div>
+            {/* TAX FIELDS */}
+            {!noTax && taxTypeId && (() => {
+               const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+               if(!selectedTax) return null;
+               
+               if(selectedTax.isInterState) {
+                   return (
+                     <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">IGST ({igstRate}%)</label>
+                       <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
+                         {taxAmount.toFixed(2)}
+                       </div>
+                     </div>
+                   );
+               } else {
+                   return (
+                     <>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">CGST ({cgstRate}%)</label>
+                       <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
+                         {(taxAmount / 2).toFixed(2)}
+                       </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">SGST ({sgstRate}%)</label>
+                       <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
+                         {(taxAmount / 2).toFixed(2)}
+                       </div>
+                      </div>
+                     </>
+                   );
+               }
+            })()}
             <div className="flex items-center justify-between">
               <label className="text-sm text-gray-300">Due</label>
               <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
@@ -1128,15 +1332,14 @@ const NewPurchase = () => {
                 />
               </div>
               {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
-              <Star
-                size={20}
-                className={`cursor-pointer hover:scale-110 ${!newItem.brandId ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-yellow-500'}`}
-                onClick={() => {
-                    if (!newItem.brandId) return;
-                    setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
-                    openProductModal();
-                }}
-              />
+              <button 
+                className={`flex items-center justify-center p-1 rounded-full transition-colors ${!newItem.brandId ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-gray-400 hover:text-yellow-400'}`}
+                onClick={handleGoToNewProduct}
+                disabled={!newItem.brandId}
+                title="Create New Product"
+              >
+                  <Star size={20} className={!newItem.brandId ? "" : "text-yellow-500"} />
+              </button>
               )}
             </div>
           </div>
@@ -1214,12 +1417,22 @@ const NewPurchase = () => {
         title="Add New Brand"
         width="400px"
       >
+        <label className="block text-sm text-gray-300 mb-1">Brand Name *</label>
         <input
           type="text"
           placeholder="Brand Name"
           value={newBrandName}
           onChange={(e) => setNewBrandName(e.target.value)}
           className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
+        />
+
+        <label className="block text-sm text-gray-300 mb-1">Description</label>
+        <textarea
+            rows={3}
+            placeholder="Description"
+            value={newBrandDescription}
+            onChange={(e) => setNewBrandDescription(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4 resize-none"
         />
       </AddModal>
 
@@ -1368,4 +1581,3 @@ const NewPurchase = () => {
 };
 
 export default NewPurchase;
-

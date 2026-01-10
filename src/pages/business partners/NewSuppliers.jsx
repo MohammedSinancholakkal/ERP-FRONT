@@ -158,11 +158,9 @@ const NewSupplier = () => {
     email: "",
     emailAddress: "",
     previousCredit: "",
-    cnic: "",
-    ntn: "",
-    strn: "",
+
     orderBookerId: null,
-    vat: "",
+
   });
 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -297,16 +295,14 @@ const NewSupplier = () => {
           email: s.Email || s.email || "",
           emailAddress: s.EmailAddress || s.emailAddress || "",
           previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
-          cnic: s.CNIC || s.cnic || "",
-          ntn: s.NTN || s.ntn || "",
-          strn: s.STRN || s.strn || "",
+
           orderBookerId:
             s.OrderBookerId ??
             s.orderBookerId ??
             s.OrderBooker ??
             s.orderBooker ??
             null,
-          vat: s.VAT ?? s.vat ?? "",
+
         }));
 
         if (s.CountryId ?? s.countryId) {
@@ -529,11 +525,9 @@ const NewSupplier = () => {
         emailAddress: form.emailAddress?.trim() || null,
         previousCreditBalance: Number(form.previousCredit || 0),
         supplierGroupId: form.supplierGroupId ? Number(form.supplierGroupId) : null,
-        cnic: form.cnic?.trim() || null,
-        ntn: form.ntn?.trim() || null,
-        strn: form.strn?.trim() || null,
+
         orderBooker: form.orderBookerId ? Number(form.orderBookerId) : null,
-        vat: form.vat ? Number(form.vat) : 0,
+
         userId: 1,
       };
 
@@ -879,43 +873,7 @@ const handleRestore = async () => {
                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
             </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">CNIC</label>
-              <input 
-                 value={form.cnic} 
-                 onChange={(e) => update("cnic", e.target.value)} 
-                 disabled={isInactive}
-                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
 
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">NTN</label>
-              <input 
-                 value={form.ntn} 
-                 onChange={(e) => update("ntn", e.target.value)} 
-                 disabled={isInactive}
-                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">STRN</label>
-              <input 
-                 value={form.strn} 
-                 onChange={(e) => update("strn", e.target.value)} 
-                 disabled={isInactive}
-                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Vat</label>
-              <input 
-                 value={form.vat} 
-                 onChange={(e) => update("vat", e.target.value)} 
-                 disabled={isInactive}
-                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
 
             <div className="col-span-12 mb-5 md:col-span-6">
               <CustomDropdown

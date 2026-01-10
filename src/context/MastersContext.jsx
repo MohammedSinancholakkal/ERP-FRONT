@@ -38,7 +38,9 @@ import {
   // Services
   getServicesApi, searchServiceApi, getInactiveServicesApi,
   // Shippers
-  getShippersApi, searchShipperApi, getInactiveShippersApi
+  getShippersApi, searchShipperApi, getInactiveShippersApi,
+  // Tax Types
+  getTaxTypesApi, searchTaxTypeApi, getInactiveTaxTypesApi
 
 } from "../services/allAPI";
 
@@ -71,6 +73,7 @@ export const MastersProvider = ({ children }) => {
   const [deductionsData, setDeductionsData] = createState();
   const [servicesData, setServicesData] = createState();
   const [shippersData, setShippersData] = createState();
+  const [taxTypesData, setTaxTypesData] = createState();
 
   // --- GENERIC LOADER HELPER ---
   const createLoadFunction = (state, setState, getApi, searchApi, name) => {
@@ -301,6 +304,12 @@ export const MastersProvider = ({ children }) => {
   const refreshShippers = createRefresh(setShippersData);
   const refreshInactiveShippers = createRefreshInactive(setShippersData);
 
+  // 21. Tax Types
+  const loadTaxTypes = createLoadFunction(taxTypesData, setTaxTypesData, getTaxTypesApi, searchTaxTypeApi, "TaxTypes");
+  const loadInactiveTaxTypes = createLoadInactiveFunction(taxTypesData, setTaxTypesData, getInactiveTaxTypesApi, "TaxTypes");
+  const refreshTaxTypes = createRefresh(setTaxTypesData);
+  const refreshInactiveTaxTypes = createRefreshInactive(setTaxTypesData);
+
 
   return (
     <MastersContext.Provider value={{
@@ -323,7 +332,9 @@ export const MastersProvider = ({ children }) => {
       incomesData, loadIncomes, refreshIncomes, loadInactiveIncomes, refreshInactiveIncomes,
       deductionsData, loadDeductions, refreshDeductions, loadInactiveDeductions, refreshInactiveDeductions,
       servicesData, loadServices, refreshServices, loadInactiveServices, refreshInactiveServices,
-      shippersData, loadShippers, refreshShippers, loadInactiveShippers, refreshInactiveShippers
+      servicesData, loadServices, refreshServices, loadInactiveServices, refreshInactiveServices,
+      shippersData, loadShippers, refreshShippers, loadInactiveShippers, refreshInactiveShippers,
+      taxTypesData, loadTaxTypes, refreshTaxTypes, loadInactiveTaxTypes, refreshInactiveTaxTypes
     }}>
       {children}
     </MastersContext.Provider>

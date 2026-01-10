@@ -27,6 +27,7 @@ const Settings = () => {
 
   const [vatPercent, setVatPercent] = useState("");
   const [vatNo, setVatNo] = useState("");
+  const [pan, setPan] = useState("");
   const [vatType, setVatType] = useState("");
 
   const [currencyPosition, setCurrencyPosition] = useState("");
@@ -82,6 +83,7 @@ const Settings = () => {
           setCurrencyPosition(data.currencyPosition || "");
           setVatPercent(String(data.vatPercent ?? ""));
           setVatNo(data.vatNo || "");
+          setPan(data.pan || "");
           setVatType(data.vatType || "");
           setFooterText(data.footerText || "");
 
@@ -109,6 +111,7 @@ const Settings = () => {
             currencyPosition: data.currencyPosition || "",
             vatPercent: data.vatPercent ?? "",
             vatNo: data.vatNo || "",
+            pan: data.pan || "",
             vatType: data.vatType || "",
             footerText: data.footerText || "",
             logoPath: data.logoPath || "",
@@ -161,8 +164,8 @@ const Settings = () => {
 
     if (!companyName.trim()) newErrors.companyName = "Company Name is required";
     if (!String(vatPercent).trim())
-      newErrors.vatPercent = "VAT Percentage is required";
-    if (!vatType.trim()) newErrors.vatType = "VAT Type is required";
+      newErrors.vatPercent = "Tax Percentage is required";
+    if (!vatType.trim()) newErrors.vatType = "Tax Type is required";
     if (!currencyPosition.trim())
       newErrors.currencyPosition = "Currency Position is required";
     if (!currency) newErrors.currency = "Currency is required";
@@ -196,6 +199,7 @@ const handleSave = async () => {
   formData.append("currencyPosition", currencyPosition);
   formData.append("vatPercent", vatPercent);
   formData.append("vatNo", vatNo);
+  formData.append("pan", pan);
   formData.append("vatType", vatType);
   formData.append("footerText", footerText);
   formData.append("userId", 1); // TODO: replace with auth user
@@ -366,10 +370,10 @@ if (response?.status === 200) {
             {!errors.currency && <div className="mb-6"></div>}
 
             {/* VAT ROW */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {/* VAT % */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {/* Tax % */}
               <div>
-                <label className="block mb-1">VAT Percentage *</label>
+                <label className="block mb-1">Tax Percentage *</label>
                 <input
                   className={`w-full bg-gray-900 border rounded px-3 py-2 ${
                     errors.vatPercent ? "border-red-500" : "border-gray-700"
@@ -384,9 +388,9 @@ if (response?.status === 200) {
                 )}
               </div>
 
-              {/* VAT # */}
+              {/* GSTIN */}
               <div>
-                <label className="block mb-1">VAT #</label>
+                <label className="block mb-1">GSTIN</label>
                 <input
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
                   value={vatNo}
@@ -394,9 +398,19 @@ if (response?.status === 200) {
                 />
               </div>
 
-              {/* VAT TYPE */}
+             {/* PAN No */}
+             <div>
+                <label className="block mb-1">PAN No</label>
+                <input
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  value={pan}
+                  onChange={(e) => setPan(e.target.value)}
+                />
+              </div>
+
+              {/* Tax TYPE */}
               <div>
-                <label className="block mb-1">VAT Type *</label>
+                <label className="block mb-1">Tax Type *</label>
                 <select
                   className={`w-full bg-gray-900 border rounded px-3 py-2 ${
                     errors.vatType ? "border-red-500" : "border-gray-700"
@@ -405,8 +419,8 @@ if (response?.status === 200) {
                   onChange={(e) => setVatType(e.target.value)}
                 >
                   <option value="">--select--</option>
-                  <option value="inclusive">Inclusive Vat</option>
-                  <option value="exclusive">Exclusive Vat</option>
+                  <option value="inclusive">Inclusive Tax</option>
+                  <option value="exclusive">Exclusive Tax</option>
                 </select>
                 {errors.vatType && (
                   <p className="text-red-400 text-sm mt-1">{errors.vatType}</p>

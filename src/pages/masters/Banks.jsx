@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Upload } from "lucide-react";
+import { Upload, X, Trash2, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 
 import {
@@ -40,7 +40,12 @@ const Banks = () => {
   const [searchText, setSearchText] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user")) || null;
+  const currentRole = localStorage.getItem("role"); 
   const currentUserId = user?.userId || 1;
+  
+  // PERMISSION CHECK
+  const canAssignCompanyBank = currentRole?.toLowerCase() === 'superadmin' && 
+    (user?.userId === 1 || user?.id === 1 || user?.username?.toLowerCase() === 'superadmin');
 
   // Add Item State
   const [newItem, setNewItem] = useState({
@@ -49,6 +54,7 @@ const Banks = () => {
     ACNumber: "",
     Branch: "",
     SignaturePicture: null,
+    isCompanyBank: false,
   });
 
   // Edit Item State
@@ -61,6 +67,7 @@ const Banks = () => {
     SignaturePicture: null,
     existingSignature: "",
     isInactive: false,
+    isCompanyBank: false,
   });
 
   // Preview
@@ -117,6 +124,7 @@ const Banks = () => {
         acNumber: r.ACNumber || r.acNumber,
         branch: r.Branch || r.branch,
         signature: r.SignaturePicture || r.signaturePicture,
+        isCompanyBank: !!(r.IsCompanyBank ?? r.isCompanyBank),
     }));
 
   // ===============================
@@ -247,7 +255,11 @@ const Banks = () => {
     if(dup) return toast.error(dup.error);
 
     try {
-      const payload = { ...newItem, userId: currentUserId };
+      const payload = { 
+          ...newItem, 
+          userId: currentUserId,
+          isCompanyBank: newItem.isCompanyBank 
+      };
       const res = await addBankApi(payload);
 
       if (res?.status === 200 || res?.status === 201) {
@@ -259,6 +271,7 @@ const Banks = () => {
             ACNumber: "",
             Branch: "",
             SignaturePicture: null,
+            isCompanyBank: false,
         });
         setPreview("");
         setPage(1);
@@ -285,8 +298,33 @@ const Banks = () => {
       existingSignature: row.signature,
       SignaturePicture: null,
       isInactive: inactive,
+      isCompanyBank: row.isCompanyBank,
     });
-    setPreview(row.signature ? `${serverURL}/uploads/${row.signature}` : "");
+    
+    if(row.signature) {
+        const baseUrl = serverURL.replace(/\/api\/?$/, "");
+        let sigPath = row.signature;
+        
+        // Remove leading slash to avoid double slash
+        if(sigPath.startsWith("/")) {
+            sigPath = sigPath.substring(1);
+        }
+        
+        if(sigPath.startsWith("http") || sigPath.startsWith("data:")) {
+            setPreview(sigPath);
+        } else {
+             // If path has 'uploads/', use it directly with baseUrl
+             // Otherwise assume it needs 'uploads/' prefix (safeguard)
+             if(sigPath.includes("uploads") || sigPath.includes("signature")) {
+                 setPreview(`${baseUrl}/${sigPath}`);
+             } else {
+                 setPreview(`${baseUrl}/uploads/${sigPath}`);
+             }
+        }
+    } else {
+        setPreview("");
+    }
+    
     setEditModalOpen(true);
   };
 
@@ -304,7 +342,8 @@ const Banks = () => {
           ACNumber: editItem.ACNumber,
           Branch: editItem.Branch,
           userId: currentUserId,
-          SignaturePicture: editItem.SignaturePicture
+          SignaturePicture: editItem.SignaturePicture,
+          isCompanyBank: editItem.isCompanyBank,
       }
       const res = await updateBankApi(editItem.id, payload);
 
@@ -436,16 +475,54 @@ const Banks = () => {
                  <input value={newItem.Branch} onChange={e => setNewItem({...newItem, Branch: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
              </div>
              <div className="col-span-2">
-                 <label className="text-sm text-gray-300">Signature</label>
-                 <div className="flex items-center gap-4 mt-2">
-                     <label className="flex items-center gap-2 cursor-pointer bg-gray-800 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600">
-                         <Upload size={16} /> Upload
-                         <input type="file" hidden onChange={(e) => handleFileChange(e)} />
+                  <label className="text-sm text-gray-300">Signature</label>
+                  <div className="mt-2 w-full">
+                       <div className="w-full border-2 border-dashed border-gray-700 rounded-lg bg-gray-900/50 flex flex-col items-center justify-center relative overflow-hidden h-[160px]">
+                            {preview ? (
+                                <>
+                                    <img 
+                                        src={preview} 
+                                        alt="Prev" 
+                                        className="absolute inset-0 w-full h-full object-contain p-2" 
+                                    />
+                                    <div className="absolute top-2 right-2 flex gap-1">
+                                        <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
+                                            <Pencil size={14} />
+                                            <input type="file" hidden onChange={(e) => handleFileChange(e)} accept="image/*" />
+                                        </label>
+                                        <button 
+                                            onClick={() => {
+                                                setNewItem(p => ({...p, SignaturePicture: null}));
+                                                setPreview("");
+                                            }}
+                                            className="p-1.5 bg-red-900/80 rounded hover:bg-red-800 text-white"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4 w-full h-full justify-center">
+                                    <Upload size={32} />
+                                    <span className="text-xs">Click to Upload Signature</span>
+                                    <input type="file" hidden onChange={(e) => handleFileChange(e)} accept="image/*" />
+                                </label>
+                            )}
+                       </div>
+                  </div>
+             </div>
+             <div className="col-span-2">
+                 {canAssignCompanyBank && (
+                     <label className="flex items-center gap-2 cursor-pointer bg-gray-800 p-2 rounded border border-gray-700 w-fit">
+                         <input 
+                            type="checkbox" 
+                            checked={newItem.isCompanyBank} 
+                            onChange={e => setNewItem({...newItem, isCompanyBank: e.target.checked})} 
+                            className="w-4 h-4"
+                         />
+                         <span className="text-sm text-gray-300">Apply as Company Bank Account</span>
                      </label>
-                     {preview && (
-                         <img src={preview} alt="Prev" className="h-10 border border-gray-600 rounded" />
-                     )}
-                 </div>
+                 )}
              </div>
           </div>
        </AddModal>
@@ -482,16 +559,55 @@ const Banks = () => {
              {!editItem.isInactive && (
                 <div className="col-span-2">
                     <label className="text-sm text-gray-300">Signature</label>
-                    <div className="flex items-center gap-4 mt-2">
-                        <label className="flex items-center gap-2 cursor-pointer bg-gray-800 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600">
-                            <Upload size={16} /> Change
-                            <input type="file" hidden onChange={(e) => handleFileChange(e, true)} />
-                        </label>
-                        {preview && (
-                            <img src={preview} alt="Prev" className="h-10 border border-gray-600 rounded" />
-                        )}
-                    </div>
+                     <div className="mt-2 w-full">
+                       <div className="w-full border-2 border-dashed border-gray-700 rounded-lg bg-gray-900/50 flex flex-col items-center justify-center relative overflow-hidden h-[160px]">
+                            {preview ? (
+                                <>
+                                    <img 
+                                        src={preview} 
+                                        alt="Prev" 
+                                        className="absolute inset-0 w-full h-full object-contain p-2" 
+                                    />
+                                    <div className="absolute top-2 right-2 flex gap-1">
+                                        <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
+                                            <Pencil size={14} />
+                                            <input type="file" hidden onChange={(e) => handleFileChange(e, true)} accept="image/*" />
+                                        </label>
+                                        <button 
+                                            onClick={() => {
+                                                setNewItem(p => ({...p, SignaturePicture: null, existingSignature: ""}));
+                                                setPreview("");
+                                            }}
+                                            className="p-1.5 bg-red-900/80 rounded hover:bg-red-800 text-white"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4 w-full h-full justify-center">
+                                    <Upload size={32} />
+                                    <span className="text-xs">Click to Update Signature</span>
+                                    <input type="file" hidden onChange={(e) => handleFileChange(e, true)} accept="image/*" />
+                                </label>
+                            )}
+                       </div>
+                  </div>
                 </div>
+             )}
+             
+             {!editItem.isInactive && canAssignCompanyBank && (
+                 <div className="col-span-2">
+                     <label className="flex items-center gap-2 cursor-pointer bg-gray-800 p-2 rounded border border-gray-700 w-fit">
+                         <input 
+                            type="checkbox" 
+                            checked={editItem.isCompanyBank} 
+                            onChange={e => setEditItem({...editItem, isCompanyBank: e.target.checked})} 
+                            className="w-4 h-4"
+                         />
+                         <span className="text-sm text-gray-300">Apply as Company Bank Account</span>
+                     </label>
+                 </div>
              )}
           </div>
        </EditModal>

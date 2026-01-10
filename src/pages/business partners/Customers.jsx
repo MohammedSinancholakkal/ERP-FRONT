@@ -37,6 +37,7 @@ const Customers = () => {
     stateName: true,
     cityName: true,
     regionName: true,
+    address: true,
     customerGroupName: true,
     postalCode: true,
     phone: true,
@@ -45,9 +46,9 @@ const Customers = () => {
     email: true,
     emailAddress: true,
     previousCreditBalance: true,
-    cnic: true,
-    ntn: true,
-    strn: true,
+    previousCreditBalance: true,
+    pan: true,
+    gstin: true,
     salesMan: true,
     orderBooker: true,
   };
@@ -191,13 +192,8 @@ const Customers = () => {
 
     if (!result.isConfirmed) return;
 
-    try {
-      // Show loading (optional, but good UX if api is slow)
-      // Swal.showLoading(); 
-      // User requested "avoid unusual loadings", so maybe just subtle or no global loader.
-      // But we need to know it finished.
-      
-      await restoreCustomerApi(customer.id, { userId: 1 }); // Assuming userId: 1 as per delete implementation
+    try {      
+      await restoreCustomerApi(customer.id, { userId: 1 }); 
       
       Swal.fire({
         icon: "success",
@@ -288,7 +284,8 @@ const Customers = () => {
     regionId: r.regionId ?? r.RegionId ?? r.region_id ?? (typeof r.region === 'object' ? r.region?.id : r.region) ?? "",
     customerGroupId:
       r.customerGroupId ?? r.CustomerGroupId ?? r.customer_group_id ?? r.groupId ?? r.GroupId ?? r.group_id ?? (typeof r.group === 'object' ? r.group?.id : r.group) ?? "",
-    address: r.address ?? r.Address ?? "",
+    addressLine1: r.addressLine1 ?? r.AddressLine1 ?? "",
+    addressLine2: r.addressLine2 ?? r.AddressLine2 ?? "",
     postalCode: r.postalCode ?? r.PostalCode ?? "",
     phone: r.phone ?? r.Phone ?? "",
     fax: r.fax ?? r.Fax ?? "",
@@ -318,6 +315,8 @@ const Customers = () => {
       r.OrderBookerId ??
       "",
     vat: r.vat ?? r.VAT ?? "",
+    pan: r.pan ?? r.PAN ?? "",
+    gstin: r.gstin ?? r.GSTTIN ?? r.GSTIN ?? "",
   });
 
   const parseArrayFromResponse = (res) => {
@@ -508,7 +507,13 @@ const Customers = () => {
                  sortable: true,
                  render: (r) => lookupMaps.regions[String(r.regionId)] || r.regionName || "" 
              },
-             visibleColumns.customerGroupName && { 
+             visibleColumns.address && { 
+                 key: "address", 
+                 label: "Address", 
+                 sortable: true,
+                 render: (r) => `${r.addressLine1 || ""} ${r.addressLine2 || ""}`.trim()
+             },
+              visibleColumns.customerGroupName && { 
                  key: "customerGroupName", 
                  label: "Group", 
                  sortable: true,
@@ -521,9 +526,9 @@ const Customers = () => {
              visibleColumns.email && { key: "email", label: "Email", sortable: true, className: "truncate max-w-[150px]" },
              visibleColumns.emailAddress && { key: "emailAddress", label: "Email Address", sortable: true, className: "truncate max-w-[150px]" },
              visibleColumns.previousCreditBalance && { key: "previousCreditBalance", label: "Prev. Credit", sortable: true },
-             visibleColumns.cnic && { key: "cnic", label: "CNIC", sortable: true },
-             visibleColumns.ntn && { key: "ntn", label: "NTN", sortable: true },
-             visibleColumns.strn && { key: "strn", label: "STRN", sortable: true },
+
+             visibleColumns.pan && { key: "pan", label: "PAN", sortable: true },
+             visibleColumns.gstin && { key: "gstin", label: "GSTIN", sortable: true },
              visibleColumns.salesMan && { key: "salesMan", label: "Sales Man", sortable: true },
              visibleColumns.orderBooker && { key: "orderBooker", label: "Order Booker", sortable: true },
           ].filter(Boolean)}

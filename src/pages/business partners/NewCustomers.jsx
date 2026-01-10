@@ -45,7 +45,6 @@ const CustomDropdown = ({
   onAddClick,
   direction = "down", // "down" | "up"
 }) => {
-  // Map list items to { id, name } for SearchableSelect
   const options = list.map(item => ({
     id: item.id ?? item.Id,
     name: item.label ||
@@ -154,7 +153,8 @@ const NewCustomers = () => {
           contactTitle: s.ContactTitle || s.contactTitle || "",
           customerGroupId: s.CustomerGroupId ?? s.customerGroupId ?? null,
           regionId: s.RegionId ?? s.regionId ?? null,
-          address: s.Address || s.address || "",
+          addressLine1: s.AddressLine1 || s.addressLine1 || "",
+          addressLine2: s.AddressLine2 || s.addressLine2 || "",
           postalCode: s.PostalCode || s.postalCode || "",
           phone: s.Phone || s.phone || "",
           website: s.Website || s.website || "",
@@ -162,12 +162,11 @@ const NewCustomers = () => {
           email: s.Email || s.email || "",
           emailAddress: s.EmailAddress || s.emailAddress || "",
           previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
-          cnic: s.CNIC || s.cnic || "",
-          ntn: s.NTN || s.ntn || "",
-          strn: s.STRN || s.strn || "",
-          vat: s.VAT ?? s.vat ?? "",
-          salesManId: s.SalesManId ?? s.salesManId ?? null,
+
+          salesManId: s.SalesMan ?? s.SalesManId ?? s.salesMan ?? s.salesManId ?? null,
           orderBookerId: s.OrderBooker ?? s.OrderBookerId ?? s.orderBooker ?? s.orderBookerId ?? null,
+          pan: s.PAN ?? s.pan ?? "",
+          gstin: s.GSTTIN ?? s.gstin ?? "",
        };
     }
     return {
@@ -179,7 +178,8 @@ const NewCustomers = () => {
       contactTitle: "",
       customerGroupId: null,
       regionId: null,
-      address: "",
+      addressLine1: "",
+      addressLine2: "",
       postalCode: "",
       phone: "",
       website: "",
@@ -187,10 +187,8 @@ const NewCustomers = () => {
       email: "",
       emailAddress: "",
       previousCredit: "",
-      cnic: "",
-      ntn: "",
-      strn: "",
-      vat: "",
+      pan: "",
+      gstin: "",
       salesManId: null,
       orderBookerId: null,
     };
@@ -230,35 +228,37 @@ const NewCustomers = () => {
   const loadLookups = async () => {
     try {
       setIsLoading(true);
-      const c = await getCountriesApi(1, 5000);
-      const countriesArr = parseArrayFromResponse(c);
+      
+      const [cRes, sRes, ctRes, empRes, regRes, sgRes] = await Promise.all([
+          getCountriesApi(1, 5000),
+          getStatesApi(1, 5000),
+          getCitiesApi(1, 5000),
+          getEmployeesApi(1, 5000),
+          getRegionsApi(1, 5000),
+          getSupplierGroupsApi(1, 5000)
+      ]);
+
+      const countriesArr = parseArrayFromResponse(cRes);
       setCountries(countriesArr);
 
-      const s = await getStatesApi(1, 5000);
-      const statesArr = parseArrayFromResponse(s);
+      const statesArr = parseArrayFromResponse(sRes);
       setStates(statesArr);
       setStatesMaster(statesArr);
 
-      const ct = await getCitiesApi(1, 5000);
-      const citiesArr = parseArrayFromResponse(ct);
+      const citiesArr = parseArrayFromResponse(ctRes);
       setCities(citiesArr);
       setCitiesMaster(citiesArr);
 
-      const emp = await getEmployeesApi(1, 5000);
       setEmployees(
-        parseArrayFromResponse(emp).map((e) => ({
+        parseArrayFromResponse(empRes).map((e) => ({
           id: e.Id ?? e.id,
           label: `${e.FirstName || e.firstName || ""} ${e.LastName || e.lastName || ""}`,
         }))
       );
 
-      const reg = await getRegionsApi(1, 5000);
-      const regArr = parseArrayFromResponse(reg);
-      setRegions(regArr);
+      setRegions(parseArrayFromResponse(regRes));
+      setCustomerGroups(parseArrayFromResponse(sgRes));
 
-      const sg = await getSupplierGroupsApi(1, 5000);
-      const sgArr = parseArrayFromResponse(sg);
-      setCustomerGroups(sgArr);
     } catch (err) {
       console.error("lookup load error", err);
       toast.error("Failed to load lookups");
@@ -309,7 +309,8 @@ const NewCustomers = () => {
           contactName: s.ContactName || s.contactName || "",
           contactTitle: s.ContactTitle || s.contactTitle || "",
           customerGroupId: s.CustomerGroupId ?? s.customerGroupId ?? null,
-          address: s.Address || s.address || "",
+          addressLine1: s.AddressLine1 || s.addressLine1 || "",
+          addressLine2: s.AddressLine2 || s.addressLine2 || "",
           regionId: s.RegionId ?? s.regionId ?? null,
           postalCode: s.PostalCode || s.postalCode || "",
           phone: s.Phone || s.phone || "",
@@ -318,12 +319,11 @@ const NewCustomers = () => {
           email: s.Email || s.email || "",
           emailAddress: s.EmailAddress || s.emailAddress || "",
           previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
-          cnic: s.CNIC || s.cnic || "",
-          ntn: s.NTN || s.ntn || "",
-          strn: s.STRN || s.strn || "",
-          vat: s.VAT ?? s.vat ?? "",
-          salesManId: s.SalesManId ?? s.salesManId ?? null,
+
+          salesManId: s.SalesMan ?? s.SalesManId ?? s.salesMan ?? s.salesManId ?? null,
           orderBookerId: s.OrderBooker ?? s.OrderBookerId ?? s.orderBooker ?? s.orderBookerId ?? null,
+          pan: s.PAN ?? s.pan ?? "",
+          gstin: s.GSTTIN ?? s.gstin ?? "",
         }));
 
 
@@ -516,7 +516,8 @@ const NewCustomers = () => {
         cityId: form.cityId ? Number(form.cityId) : null,
         contactName: form.contactName?.trim() || null,
         contactTitle: form.contactTitle?.trim() || null,
-        address: form.address?.trim() || null,
+        addressLine1: form.addressLine1?.trim() || null,
+        addressLine2: form.addressLine2?.trim() || null,
         regionId: form.regionId ? Number(form.regionId) : null,
         postalCode: form.postalCode?.trim() || null,
         phone: form.phone?.trim() || null,
@@ -526,12 +527,11 @@ const NewCustomers = () => {
         emailAddress: form.emailAddress?.trim() || null,
         previousCreditBalance: Number(form.previousCredit || 0),
         customerGroupId: form.customerGroupId ? Number(form.customerGroupId) : null,
-        cnic: form.cnic?.trim() || null,
-        ntn: form.ntn?.trim() || null,
-        strn: form.strn?.trim() || null,
+        customerGroupId: form.customerGroupId ? Number(form.customerGroupId) : null,
         salesMan: form.salesManId ? Number(form.salesManId) : null,
         orderBooker: form.orderBookerId ? Number(form.orderBookerId) : null,
-        vat: form.vat ? Number(form.vat) : 0,
+        pan: form.pan?.trim() || null,
+        gstin: form.gstin?.trim() || null,
         userId: 1,
       };
 
@@ -758,11 +758,19 @@ const handleDelete = async () => {
               />
             </div>
 
-            <div className="col-span-12">
-              <label className="text-sm">Address</label>
+            <div className="col-span-12 md:col-span-6">
+              <label className="text-sm">Address Line 1</label>
               <textarea
-                value={form.address}
-                onChange={(e) => update("address", e.target.value)}
+                value={form.addressLine1}
+                onChange={(e) => update("addressLine1", e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 min-h-[70px]"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6">
+              <label className="text-sm">Address Line 2</label>
+              <textarea
+                value={form.addressLine2}
+                onChange={(e) => update("addressLine2", e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 min-h-[70px]"
               />
             </div>
@@ -796,6 +804,26 @@ const handleDelete = async () => {
                 onChange={(e) => update("phone", e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
               />
+            </div>
+            <div className="col-span-12 md:col-span-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm">PAN</label>
+                  <input
+                    value={form.pan}
+                    onChange={(e) => update("pan", e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm">GSTIN</label>
+                  <input
+                    value={form.gstin}
+                    onChange={(e) => update("gstin", e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="col-span-12 md:col-span-6">
@@ -839,41 +867,7 @@ const handleDelete = async () => {
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
               />
             </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">CNIC</label>
-              <input
-                value={form.cnic}
-                onChange={(e) => update("cnic", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
 
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">NTN & VAT</label>
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                    value={form.ntn}
-                    onChange={(e) => update("ntn", e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                    placeholder="NTN"
-                />
-                <input
-                    value={form.vat}
-                    onChange={(e) => update("vat", e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                    placeholder="VAT"
-                />
-              </div>
-            </div>
-
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">STRN</label>
-              <input
-                value={form.strn}
-                onChange={(e) => update("strn", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
 
             <div className="col-span-12 mb-5 md:col-span-6">
               <CustomDropdown

@@ -35,7 +35,8 @@ import {
   getQuotationByIdApi,
   updateQuotationApi,
   deleteQuotationApi,
-  restoreQuotationApi
+  restoreQuotationApi,
+  getTaxTypesApi
 } from "../../services/allAPI";
 
 const NewSaleQuotation = () => {
@@ -184,6 +185,13 @@ useEffect(() => {
   const [totalDiscount, setTotalDiscount] = useState(0);
   const [taxAmount, setTaxAmount] = useState(0);
   const [grandTotal, setGrandTotal] = useState(0);
+  
+  // --- GST STATE ---
+  const [taxTypesList, setTaxTypesList] = useState([]);
+  const [taxTypeId, setTaxTypeId] = useState("");
+  const [igstRate, setIgstRate] = useState(0);
+  const [cgstRate, setCgstRate] = useState(0);
+  const [sgstRate, setSgstRate] = useState(0);
 
   // --- INITIAL DATA LOADING ---
   useEffect(() => {
@@ -191,7 +199,9 @@ useEffect(() => {
     fetchBrands();
     fetchProducts();
     fetchUnits();
+    fetchUnits();
     fetchCategories();
+    fetchTaxTypes();
   }, []);
 
   // --- HANDLE RETURN FROM NEW CUSTOMER ---
@@ -250,7 +260,13 @@ useEffect(() => {
         setGlobalDiscount(quotation.Discount ?? quotation.discount ?? 0);
         setShippingCost(quotation.ShippingCost ?? quotation.shippingCost ?? 0);
         setNoTax((quotation.NoTax ?? quotation.noTax) === 1 || (quotation.NoTax ?? quotation.noTax) === true);
+        setNoTax((quotation.NoTax ?? quotation.noTax) === 1 || (quotation.NoTax ?? quotation.noTax) === true);
         setDetails(quotation.Details ?? quotation.details ?? "");
+
+        setTaxTypeId(quotation.TaxTypeId ?? quotation.taxTypeId ?? "");
+        setIgstRate(quotation.IGSTRate ?? quotation.igstRate ?? 0);
+        setCgstRate(quotation.CGSTRate ?? quotation.cgstRate ?? 0);
+        setSgstRate(quotation.SGSTRate ?? quotation.sgstRate ?? 0);
 
         const mappedRows = (details || []).map(d => ({
           productId: d.productId ?? d.ProductId ?? d.ProductID ?? null,
@@ -321,6 +337,49 @@ useEffect(() => {
       console.error("Error fetching categories", error);
     }
   };
+
+  const fetchTaxTypes = async () => {
+      try {
+          const res = await getTaxTypesApi();
+          if (res.status === 200) {
+              // Normalize to match NewSales logic
+              const list = (res.data.records || []).map(t => ({
+                  id: t.typeId,
+                  name: `${t.isInterState ? "IGST" : "CGST/SGST"} - ${t.percentage}%`,
+                  isInterState: t.isInterState,
+                  percentage: t.percentage
+              }));
+              setTaxTypesList(list);
+          }
+      } catch(error) {
+          console.error("Error fetching tax types", error);
+      }
+  };
+
+   // --- AUTO POPULATE TAX RATES ---
+  useEffect(() => {
+    if (!taxTypeId) {
+        setIgstRate(0);
+        setCgstRate(0);
+        setSgstRate(0);
+        return;
+    }
+    const selected = taxTypesList.find(t => String(t.id || t.typeId) === String(taxTypeId));
+    if (selected) {
+        const pct = parseFloat(selected.percentage || selected.Percentage) || 0;
+        const isInter = selected.isInterState || selected.IsInterState;
+        
+        if (isInter) {
+            setIgstRate(pct);
+            setCgstRate(0);
+            setSgstRate(0);
+        } else {
+            setIgstRate(0);
+            setCgstRate(pct / 2);
+            setSgstRate(pct / 2);
+        }
+    }
+  }, [taxTypeId, taxTypesList]);
 
   /* ================= LINE ITEM LOGIC ================= */
   const handleProductSelect = (productId) => {
@@ -528,7 +587,11 @@ useEffect(() => {
 
     let tax = 0;
     if (!noTax) {
-      tax = (taxableAmount * 0.10); // 10% VAT
+      // tax = (taxableAmount * 0.10); // 10% VAT
+      const igst = (taxableAmount * igstRate) / 100;
+      const cgst = (taxableAmount * cgstRate) / 100;
+      const sgst = (taxableAmount * sgstRate) / 100;
+      tax = igst + cgst + sgst;
     }
 
     const finalTotal = taxableAmount + tax + shipping;
@@ -539,7 +602,7 @@ useEffect(() => {
     setTotalDiscount(sumLineDiscounts + gDiscount);
 
     // removed paid/due/change update logic
-  }, [rows, globalDiscount, shippingCost, noTax]);
+  }, [rows, globalDiscount, shippingCost, noTax, igstRate, cgstRate, sgstRate]);
 
   /* ================= SAVE / UPDATE SALE (Quotation) ================= */
 
@@ -553,6 +616,7 @@ const handleSaveQuotation = async () => {
 
   if (!customer) return toast.error("Please select a customer");
   if (!expiryDate) return toast.error("Please select expiry date");
+  if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
   if (rows.length === 0) return toast.error("Please add at least one item");
 
   const payload = {
@@ -565,9 +629,14 @@ const handleSaveQuotation = async () => {
 
     vat: parseFloat(taxAmount) || 0,
     totalTax: parseFloat(taxAmount) || 0,
-    vatPercentage: noTax ? 0 : 10,
+    vatPercentage: 0,
     noTax: noTax ? 1 : 0,
-    vatType: "Percentage",
+    vatType: "GST",
+
+    taxTypeId: taxTypeId || null,
+    igstRate: parseFloat(igstRate) || 0,
+    cgstRate: parseFloat(cgstRate) || 0,
+    sgstRate: parseFloat(sgstRate) || 0,
 
     shippingCost: parseFloat(shippingCost) || 0,
     grandTotal: parseFloat(grandTotal) || 0,
@@ -608,6 +677,7 @@ const handleSaveQuotation = async () => {
 const handleUpdateQuotation = async () => {
   if (!customer) return toast.error("Please select a customer");
   if (!expiryDate) return toast.error("Please select expiry date");
+  if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
   if (rows.length === 0) return toast.error("Please add at least one item");
 
   const payload = {
@@ -620,9 +690,14 @@ const handleUpdateQuotation = async () => {
 
     vat: parseFloat(taxAmount) || 0,
     totalTax: parseFloat(taxAmount) || 0,
-    vatPercentage: noTax ? 0 : 10,
+    vatPercentage: 0,
     noTax: noTax ? 1 : 0,
-    vatType: "Percentage",
+    vatType: "GST",
+
+    taxTypeId: taxTypeId || null,
+    igstRate: parseFloat(igstRate) || 0,
+    cgstRate: parseFloat(cgstRate) || 0,
+    sgstRate: parseFloat(sgstRate) || 0,
 
     shippingCost: parseFloat(shippingCost) || 0,
     grandTotal: parseFloat(grandTotal) || 0,
@@ -774,140 +849,6 @@ const handleRestoreQuotation = async () => {
   };
 
 
-  // ================= CUSTOM DROPDOWN =================
-const CustomDropdown = ({
-  label,
-  list = [],
-  valueId,
-  required = false,
-  onSelect = () => {},
-  showStar = false,
-  showPencil = false,
-  onAddClick,
-}) => {
-  const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
-  const ref = React.useRef(null);
-  const searchInputRef = React.useRef(null);
-
-  // close on outside click
-  React.useEffect(() => {
-    const h = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  // auto focus search input
-  React.useEffect(() => {
-    if (open && searchInputRef.current) {
-      setTimeout(() => searchInputRef.current.focus(), 0);
-    }
-  }, [open]);
-
-  const selected = list.find(
-    (x) => String(x.id ?? x.Id) === String(valueId)
-  );
-
-  const display =
-    selected?.label ||
-    selected?.name ||
-    selected?.ProductName ||
-    selected?.CompanyName ||
-    "";
-
-  const filtered = list.filter((x) =>
-    (
-      x.label ||
-      x.name ||
-      x.ProductName ||
-      x.CompanyName ||
-      ""
-    )
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="relative w-full" ref={ref}>
-      {label && (
-        <label className="text-sm text-gray-300 mb-1 block">
-          {label} {required && <span className="text-red-400">*</span>}
-        </label>
-      )}
-
-      <div className="flex gap-2">
-        <div
-          onClick={() => setOpen((o) => !o)}
-          className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm flex justify-between items-center cursor-pointer"
-        >
-          <span className={display ? "text-white" : "text-gray-500"}>
-            {display || "--select--"}
-          </span>
-
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            className="text-gray-400"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </div>
-
-        {showStar && (
-          <button
-            type="button"
-            onClick={onAddClick}
-            className="p-2 bg-gray-800 border border-gray-600 rounded"
-          >
-            <Star size={14} className="text-yellow-400" />
-          </button>
-        )}
-      </div>
-
-      {open && (
-        <div className="absolute z-[1000] mt-1 w-full bg-gray-800 border border-gray-700 rounded max-h-[180px] overflow-y-auto">
-          <input
-            ref={searchInputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
-            className="w-full bg-gray-900 px-3 py-2 text-sm border-b border-gray-700 outline-none"
-          />
-
-          {filtered.length ? (
-            filtered.map((item) => (
-              <div
-                key={item.id ?? item.Id}
-                onClick={() => {
-                  onSelect(item);
-                  setOpen(false);
-                  setSearch("");
-                }}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-              >
-                {item.label ||
-                  item.name ||
-                  item.ProductName ||
-                  item.CompanyName}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">
-              No results
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-
   /* ================= UI ================= */
   return (
     <PageLayout>
@@ -952,10 +893,11 @@ const CustomDropdown = ({
           )}
         </div>
 
-        {/* TOP SECTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-          {/* LEFT COL */}
-          <div className="lg:col-span-5 space-y-4">
+        {/* TOP SECTION - 2 COLUMNS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* LEFT COL - Customer & Tax Type */}
+          <div className="space-y-4">
+            {/* Customer */}
             <div className="flex items-center">
               <label className="w-32 text-sm text-gray-300">
                 <span className="text-red-400">*</span> Customer
@@ -980,35 +922,54 @@ const CustomDropdown = ({
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* MIDDLE COL - Expiry Date */}
-          <div className="lg:col-span-4">
+            {/* Tax Type (Moved from bottom) */}
             <div className="flex items-center">
-              <label className="w-24 text-sm text-gray-300">Expiry Date</label>
-              <input
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
+              <label className="w-32 text-sm text-gray-300">
+                  <span className="text-red-400">*</span> Tax Type
+              </label>
+              <select
+                value={taxTypeId}
+                onChange={(e) => setTaxTypeId(e.target.value)}
                 className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
+                disabled={inactiveView || noTax}
+              >
+                  <option value="">--Select--</option>
+                  {taxTypesList.map(t => (
+                      <option key={t.id || t.typeId} value={t.id || t.typeId}>
+                          {t.name || t.typeName} ({t.percentage}%)
+                      </option>
+                  ))}
+              </select>
             </div>
           </div>
 
-          {/* RIGHT COL - Date */}
-          <div className="lg:col-span-3">
-            <div className="flex items-center justify-end">
-              <label className="mr-3 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Date
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
+          {/* RIGHT COL - Dates */}
+          <div className="space-y-4">
+            {/* Date */}
+            <div className="flex items-center">
+               <label className="w-32 text-sm text-gray-300">
+                 <span className="text-red-400">*</span> Date
+               </label>
+               <input
+                 type="date"
+                 value={date}
+                 onChange={(e) => setDate(e.target.value)}
+                 className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                 disabled={inactiveView}
+               />
+            </div>
+
+            {/* Expiry Date */}
+            <div className="flex items-center">
+               <label className="w-32 text-sm text-gray-300">Expiry Date</label>
+               <input
+                 type="date"
+                 value={expiryDate}
+                 onChange={(e) => setExpiryDate(e.target.value)}
+                 className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                 disabled={inactiveView}
+               />
             </div>
           </div>
         </div>
@@ -1092,12 +1053,6 @@ const CustomDropdown = ({
                 {grandTotal.toFixed(2)}
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">{noTax ? "No Tax" : "Vat (10%)"}</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {taxAmount.toFixed(2)}
-              </div>
-            </div>
             <div className="pt-2">
               <label className="text-sm text-gray-300 block mb-1">Details</label>
               <textarea
@@ -1121,6 +1076,50 @@ const CustomDropdown = ({
                 disabled={inactiveView}
               />
             </div>
+            
+            {/* CONDITIONAL TAX INPUTS */}
+            {!noTax && taxTypeId && (() => {
+               const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId) || String(t.typeId) === String(taxTypeId));
+               if(!selectedTax) return null;
+               
+               if(selectedTax.isInterState) {
+                   return (
+                     <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">IGST %</label>
+                       <input
+                          type="text"
+                          value={`${igstRate}%`}
+                          readOnly
+                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                     </div>
+                   );
+               } else {
+                   return (
+                     <>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">CGST %</label>
+                       <input
+                          type="text"
+                          value={`${cgstRate}%`}
+                          readOnly
+                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                      </div>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">SGST %</label>
+                       <input
+                          type="text"
+                          value={`${sgstRate}%`}
+                          readOnly
+                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                      </div>
+                     </>
+                   );
+               }
+            })()}
+
             <div className="flex items-center justify-between">
               <label className="text-sm text-gray-300">{noTax ? "No Tax" : "Total Tax"}</label>
               <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">

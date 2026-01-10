@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { hasPermission } from "../utils/permissionUtils";
 import { PERMISSIONS } from "../constants/permissions";
+import { getDashboardStatsApi } from "../services/allAPI";
 import {
   YearlySalesChart,
   ExpenseChart,
@@ -14,7 +15,12 @@ import DashboardCard from "../components/DashboardCard";
    SUB SECTIONS
 ========================= */
 
-const LatestOrders = () => {
+
+/* =========================
+   SUB SECTIONS
+========================= */
+
+const LatestOrders = ({ orders = [] }) => {
   return (
     <DashboardCard title="Latest Orders" color="bg-cyan-400">
       <table className="w-full text-sm">
@@ -27,12 +33,22 @@ const LatestOrders = () => {
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-gray-700">
-            <td className="py-2 text-orange-400">2</td>
-            <td>machine</td>
-            <td>1</td>
-            <td>0.1</td>
-          </tr>
+          {orders.length > 0 ? (
+            orders.map((order, i) => (
+              <tr key={i} className="border-b border-gray-700">
+                <td className="py-2 text-orange-400">{order.Id}</td>
+                <td>{order.ItemName || "N/A"}</td>
+                <td>{order.Quantity || 0}</td>
+                <td>{order.GrandTotal ? order.GrandTotal.toFixed(2) : "0.00"}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="4" className="py-4 text-center text-gray-300">
+                No recent orders
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 
@@ -48,39 +64,47 @@ const LatestOrders = () => {
   );
 };
 
-const RecentlyAddedProducts = () => {
-  const products = [
-    { name: "driller", desc: "hfcfgc", qty: 100 },
-    { name: "machine", desc: "hvbhvbhv", qty: 0.1 },
-  ];
-
+const RecentlyAddedProducts = ({ products = [] }) => {
+  const navigate = useNavigate();
   return (
     <DashboardCard title="Recently Added Products" color="bg-purple-400">
       <div className="space-y-4">
-        {products.map((p, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between border-b border-gray-600 pb-3"
-          >
-            <div className="flex gap-3 items-center">
-              <div className="w-12 h-12 bg-gray-300 text-gray-700 flex items-center justify-center text-xs rounded">
-                50×50
+        {products.length > 0 ? (
+          products.map((p, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between border-b border-gray-600 pb-3"
+            >
+              <div className="flex gap-3 items-center">
+                <div className="w-12 h-12 bg-gray-300 text-gray-700 flex items-center justify-center text-xs rounded overflow-hidden">
+                  {/* Placeholder or Image if available */}
+                  IMG
+                </div>
+                <div>
+                  <p className="text-yellow-400 font-semibold">{p.ProductName}</p>
+                  <p className="text-gray-300 text-xs truncate w-40">
+                    {p.ProductDetails || "No description"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-yellow-400 font-semibold">{p.name}</p>
-                <p className="text-gray-300 text-xs">{p.desc}</p>
-              </div>
+              <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded">
+                Qty: {p.UnitsInStock}
+              </span>
             </div>
-            <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded">
-              {p.qty}
-            </span>
+          ))
+        ) : (
+          <div className="text-center text-gray-300 py-4">
+            No recently added products
           </div>
-        ))}
+        )}
       </div>
 
-      <div className="text-center mt-4 text-yellow-400 text-sm cursor-pointer">
+      <button 
+        onClick={() => navigate("/app/inventory/products")}
+        className="w-full text-center mt-4 text-yellow-400 text-sm cursor-pointer hover:text-yellow-300"
+      >
         View All Products
-      </div>
+      </button>
     </DashboardCard>
   );
 };
@@ -89,8 +113,39 @@ const RecentlyAddedProducts = () => {
    MAIN DASHBOARD
 ========================= */
 
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
+  const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
+
+  const [stats, setStats] = useState({
+    todaysSale: 0,
+    totalSuppliers: 0,
+    totalCustomers: 0,
+    totalProducts: 0,
+    yearlyData: [],
+    expenseData: [],
+    dailyData: [],
+    productData: [],
+    latestOrders: [],
+    recentProducts: []
+  }); 
+
+  const fetchStats = async () => {
+      try {
+          const res = await getDashboardStatsApi();
+          if(res.status === 200) {
+              setStats(res.data);
+          }
+      } catch(e) {
+          console.error("Failed to load dashboard stats", e);
+      }
+  };
+
+  useEffect(() => {
+      fetchStats();
+  }, []);
 
   if (!hasPermission(PERMISSIONS.DASHBOARD.VIEW)) {
     return (
@@ -110,7 +165,7 @@ const Dashboard = () => {
       {/* ================= TOP STATS ================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">0.00</h3>
+          <h3 className="text-3xl font-bold">{stats.todaysSale.toFixed(2)}</h3>
           <p>Today's Sale</p>
           <button
             onClick={() => navigate("/app/sales/sales")}
@@ -121,7 +176,7 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-green-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">0</h3>
+          <h3 className="text-3xl font-bold">{stats.totalSuppliers}</h3>
           <p>Total Suppliers</p>
           <button
             onClick={() => navigate("/app/businesspartners/suppliers")}
@@ -132,7 +187,7 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-yellow-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">1</h3>
+          <h3 className="text-3xl font-bold">{stats.totalCustomers}</h3>
           <p>Total Customers</p>
           <button
             onClick={() => navigate("/app/businesspartners/customers")}
@@ -143,7 +198,7 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-red-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">0</h3>
+          <h3 className="text-3xl font-bold">{stats.totalProducts}</h3>
           <p>Total Products</p>
           <button
             onClick={() => navigate("/app/inventory/products")}
@@ -157,38 +212,38 @@ const Dashboard = () => {
       {/* ================= CHARTS ================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <DashboardCard
-          title="Sales And Purchase Report Summary – 2025"
+          title={`Sales And Purchase Report Summary – ${currentYear}`}
           color="bg-blue-400"
         >
-          <YearlySalesChart />
+          <YearlySalesChart data={stats.yearlyData} />
         </DashboardCard>
 
         <DashboardCard
-          title="Expense Statement – 2025"
+          title={`Expense Statement – ${currentYear}`}
           color="bg-red-400"
         >
-          <ExpenseChart />
+          <ExpenseChart data={stats.expenseData} />
         </DashboardCard>
 
         <DashboardCard
-          title="Sales And Purchase Report Summary (December) – 2025"
+          title={`Sales Report Summary (${currentMonthName}) – ${currentYear}`}
           color="bg-blue-400"
         >
-          <MonthlySalesChart />
+          <MonthlySalesChart data={stats.dailyData} />
         </DashboardCard>
 
         <DashboardCard
-          title="Best Sale Product – 2025"
+          title={`Best Sale Product – ${currentYear}`}
           color="bg-green-400"
         >
-          <BestProductChart />
+          <BestProductChart data={stats.productData} />
         </DashboardCard>
       </div>
 
       {/* ================= BOTTOM SECTIONS ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <LatestOrders />
-        <RecentlyAddedProducts />
+        <LatestOrders orders={stats.latestOrders} />
+        <RecentlyAddedProducts products={stats.recentProducts} />
       </div>
     </div>
   );

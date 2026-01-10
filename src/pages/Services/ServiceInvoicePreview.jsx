@@ -126,8 +126,8 @@ useEffect(() => {
     (invoice?.VNo && invoice.VNo.trim()) ? invoice.VNo : `INV-${String(invoice?.Id ?? "").padStart(4, "0")}`;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-10 flex justify-center">
-      <div className="w-full max-w-[1280px] bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-6 md:p-8">
+    <div className="h-screen bg-gray-900 text-white p-4 md:p-10 flex justify-center overflow-y-auto">
+      <div className="w-full max-w-[1280px] bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-6 md:p-8 h-fit">
 
         {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-700 pb-4 mb-8 gap-4">
@@ -238,10 +238,43 @@ useEffect(() => {
               <span>{(Number(invoice.TotalDiscount) || 0).toFixed(2)}</span>
             </div>
 
-            <div className="flex justify-between border-b border-gray-700 pb-2">
-              <span>VAT ({settings?.vatPercent || 0}%):</span>
-              <span>{(Number(invoice.Vat) || 0).toFixed(2)}</span>
-            </div>
+            {/* TAX DISPLAY */}
+            {/* TAX DISPLAY */}
+            {(() => {
+                const igst = Number(invoice.IgstRate || invoice.IGSTRate || invoice.igstRate || 0);
+                const cgst = Number(invoice.CgstRate || invoice.CGSTRate || invoice.cgstRate || 0);
+                const sgst = Number(invoice.SgstRate || invoice.SGSTRate || invoice.sgstRate || 0);
+                const tTax = Number(invoice.TotalTax || invoice.totalTax || 0);
+
+                if (igst > 0) {
+                    return (
+                        <div className="flex justify-between border-b border-gray-700 pb-2">
+                           <span>IGST ({igst}%):</span>
+                           <span>{tTax.toFixed(2)}</span>
+                        </div>
+                    );
+                } else if (cgst > 0 || sgst > 0) {
+                    return (
+                        <>
+                        <div className="flex justify-between border-b border-gray-700 pb-2">
+                           <span>CGST ({cgst}%):</span>
+                           <span>{(tTax / 2).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-gray-700 pb-2">
+                           <span>SGST ({sgst}%):</span>
+                           <span>{(tTax / 2).toFixed(2)}</span>
+                        </div>
+                        </>
+                    );
+                } else {
+                    return (
+                        <div className="flex justify-between border-b border-gray-700 pb-2">
+                           <span>Tax:</span>
+                           <span>{tTax.toFixed(2)}</span>
+                        </div>
+                    );
+                }
+            })()}
 
             <div className="flex justify-between font-semibold text-lg pt-3 border-t border-gray-600 text-white">
               <span>Grand Total:</span>

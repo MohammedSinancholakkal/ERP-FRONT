@@ -27,7 +27,6 @@ import Warehouses from "./pages/masters/Warehouses";
 import Units from "./pages/inventory/Units";
 import Brands from "./pages/inventory/Brands";
 import Categories from "./pages/inventory/Categories";
-import Products from "./pages/inventory/Products";
 import DamagedProducts from "./pages/inventory/DamagedProducts";
 import UpdateStocks from "./pages/inventory/UpdateStock";
 import Departments from "./pages/human resource/Departments";
@@ -88,6 +87,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 
 import { ThemeProvider } from "./context/ThemeContext";  
+import TaxTypes from "./pages/masters/TaxTypes";
+import Products from "./pages/inventory/Products";
+import NewProduct from "./pages/Inventory/NewProduct";
 
 function App() {
   return (
@@ -133,6 +135,7 @@ function App() {
           <Route path="masters/attendancestatus" element={<AttendanceStatuses />} />
           <Route path="masters/locations" element={<Locations />} />
           <Route path="masters/warehouses" element={<Warehouses />} />
+          <Route path="masters/taxtypes" element={<TaxTypes />} />
 
 
           {/* inventory */}
@@ -141,6 +144,8 @@ function App() {
           <Route path="inventory/brands" element={<Brands />} />
           <Route path="inventory/categories" element={<Categories />} />
           <Route path="inventory/products" element={<Products />} />
+          <Route path="inventory/newproduct" element={<NewProduct />} />
+          <Route path="inventory/editproduct/:id" element={<NewProduct />} />
           <Route path="inventory/updatestock" element={<UpdateStocks />} />
           <Route path="inventory/damagedproducts" element={<DamagedProducts />} />
           <Route path="inventory/goodsreceipts" element={<GoodsReceipt />} />

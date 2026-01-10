@@ -31,44 +31,7 @@ import {
    DATA
 ========================= */
 
-// Yearly sales & purchase
-const yearlyData = [
-  { month: "Jan", purchase: 0, sale: 0, expense: 0 },
-  { month: "Feb", purchase: 0, sale: 0, expense: 0 },
-  { month: "Mar", purchase: 0, sale: 0, expense: 0 },
-  { month: "Apr", purchase: 0, sale: 0, expense: 0 },
-  { month: "May", purchase: 0, sale: 0, expense: 0 },
-  { month: "Jun", purchase: 0, sale: 0, expense: 0 },
-  { month: "Jul", purchase: 0, sale: 0, expense: 0 },
-  { month: "Aug", purchase: 0, sale: 0, expense: 0 },
-  { month: "Sep", purchase: 0, sale: 0, expense: 0 },
-  { month: "Oct", purchase: 0, sale: 0, expense: 0 },
-  { month: "Nov", purchase: 3600, sale: 200, expense: 300 },
-  { month: "Dec", purchase: 0, sale: 450, expense: 50 },
-];
-
-// Expense data
-const expenseData = [
-  { name: "Electricity", value: 100, color: "#8e44ad" },
-  { name: "Rent", value: 150, color: "#3498db" },
-  { name: "Maintenance", value: 80, color: "#e74c3c" },
-  { name: "Marketing", value: 120, color: "#2ecc71" },
-];
-
-// Monthly sales (December)
-const dailyData = Array.from({ length: 31 }, (_, i) => ({
-  day: i + 1,
-  sale: i === 9 ? 500 : Math.floor(Math.random() * 100),
-  forecast: Math.floor(Math.random() * 150) + 50,
-}));
-
-// Best selling products
-const productData = [
-  { name: "Machine", value: 45, color: "#e84393" },
-  { name: "Driller", value: 30, color: "#0984e3" },
-  { name: "Hammer", value: 25, color: "#00b894" },
-  { name: "Saw", value: 20, color: "#fdcb6e" },
-];
+// Data removed - provided via props
 
 /* =========================
    CARD COMPONENT
@@ -162,9 +125,9 @@ const ChartCard = ({
    CHARTS
 ========================= */
 
-export const YearlySalesChart = () => (
+export const YearlySalesChart = ({ data }) => (
   <ResponsiveContainer width="100%" height="100%">
-    <AreaChart data={yearlyData}>
+    <AreaChart data={data}>
       <CartesianGrid strokeDasharray="3 3" />
       <XAxis dataKey="month" />
       <YAxis />
@@ -177,11 +140,11 @@ export const YearlySalesChart = () => (
   </ResponsiveContainer>
 );
 
-export const ExpenseChart = () => (
+export const ExpenseChart = ({ data }) => (
   <ResponsiveContainer width="100%" height="100%">
     <PieChart>
-      <Pie data={expenseData} dataKey="value" label>
-        {expenseData.map((e, i) => (
+      <Pie data={data} dataKey="value" label>
+        {data && data.map((e, i) => (
           <Cell key={i} fill={e.color} />
         ))}
       </Pie>
@@ -190,9 +153,9 @@ export const ExpenseChart = () => (
   </ResponsiveContainer>
 );
 
-export const MonthlySalesChart = () => (
+export const MonthlySalesChart = ({ data }) => (
   <ResponsiveContainer width="100%" height="100%">
-    <LineChart data={dailyData}>
+    <LineChart data={data}>
       <CartesianGrid strokeDasharray="3 3" />
       <XAxis dataKey="day" />
       <YAxis />
@@ -207,15 +170,15 @@ export const MonthlySalesChart = () => (
   </ResponsiveContainer>
 );
 
-export const BestProductChart = () => (
+export const BestProductChart = ({ data }) => (
   <ResponsiveContainer width="100%" height="100%">
-    <BarChart data={productData}>
+    <BarChart data={data}>
       <CartesianGrid strokeDasharray="3 3" />
       <XAxis dataKey="name" />
       <YAxis />
       <Tooltip />
       <Bar dataKey="value">
-        {productData.map((p, i) => (
+        {data && data.map((p, i) => (
           <Cell key={i} fill={p.color} />
         ))}
       </Bar>
@@ -231,19 +194,19 @@ const Charts = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ChartCard title="Yearly Performance" icon={<TrendingUp />}>
-          <YearlySalesChart />
+          <YearlySalesChart data={[]} />
         </ChartCard>
 
         <ChartCard title="Monthly Sales" icon={<DollarSign />}>
-          <MonthlySalesChart />
+          <MonthlySalesChart data={[]} />
         </ChartCard>
 
         <ChartCard title="Expense Distribution" icon={<PieChartIcon />}>
-          <ExpenseChart />
+          <ExpenseChart data={[]} />
         </ChartCard>
 
         <ChartCard title="Best Selling Products" icon={<BarChart3 />}>
-          <BestProductChart />
+          <BestProductChart data={[]} />
         </ChartCard>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -25,7 +26,6 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import FilterBar from "../../components/FilterBar";
-import SearchableSelect from "../../components/SearchableSelect";   
 
 import {
   addProductApi,
@@ -88,11 +88,10 @@ const ExportButtons = ({ onExcel, onPDF }) => (
 
 const Products = () => {
   const { theme } = useTheme(); // ADDED
+  const navigate = useNavigate(); // ADDED - Need to import hook
   // UI state
-  const [modalOpen, setModalOpen] = useState(false); // add modal
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [brandModalOpen, setBrandModalOpen] = useState(false); // quick-add brand (rendered inside add/edit modal)
-  const [unitModalOpen, setUnitModalOpen] = useState(false); // quick-add unit
+  // UI state
+  const [brandModalOpen, setBrandModalOpen] = useState(false); 
   const [columnModal, setColumnModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -157,7 +156,10 @@ const Products = () => {
     reorderLevel: true,
     categoryName: true,
     unitName: true,
-    brandName: true
+    brandName: true,
+    hsnCode: true,
+    colour: true,
+    grade: true
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
@@ -288,8 +290,7 @@ const Products = () => {
     let max = 0;
     all.forEach((p) => {
       if (p && p.SN) {
-        // accept SN like P000001 or other numeric-contained SNs
-        const m = p.SN.match(/^P0*(\d+)$/); // matches P000001
+        const m = p.SN.match(/^P0*(\d+)$/);
         if (m) {
           const n = parseInt(m[1], 10);
           if (!isNaN(n) && n > max) max = n;
@@ -901,442 +902,7 @@ const Products = () => {
   return (
     <>
     
-      {/* =========================
-          ADD PRODUCT MODAL
-         ========================= */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-start z-50 pt-12">
-          <div className="w-[820px] max-h-[86vh] overflow-auto bg-gray-900 text-white rounded-lg border border-gray-700 relative">
-            {/* header */}
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-20">
-              <h2 className="text-lg">New Product</h2>
-              <button onClick={() => setModalOpen(false)}><X size={20} /></button>
-            </div>
-
-            {/* body */}
-            <div className="p-6 grid grid-cols-2 gap-4">
-              <div>
-                <label>Product Code</label>
-                <input
-                  type="text"
-                  value={newProduct.productCode}
-                  onChange={(e) => setNewProduct((p) => ({ ...p, productCode: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2"
-                />
-
-                <label className="font-semibold">* Product Name</label>
-                <input
-                  type="text"
-                  value={newProduct.ProductName}
-                  onChange={(e) => setNewProduct((p) => ({ ...p, ProductName: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2"
-                />
-
-                <label>SN</label>
-                <input type="text" value={newProduct.SN} disabled className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label>Model</label>
-                <input type="text" value={newProduct.Model} onChange={(e) => setNewProduct((p) => ({ ...p, Model: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label className="font-semibold">* Unit Price</label>
-                <input type="number" step="0.01" value={newProduct.UnitPrice} onChange={(e) => setNewProduct((p) => ({ ...p, UnitPrice: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label className="font-semibold">* Reorder Level</label>
-                <input type="number" step="0.01" value={newProduct.ReorderLevel} onChange={(e) => setNewProduct((p) => ({ ...p, ReorderLevel: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-              </div>
-
-              <div>
-                <label className="font-semibold">* Category</label>
-                <SearchableSelect
-                  options={categories}
-                  value={newProduct.CategoryId}
-                  onChange={(v) => setNewProduct((p) => ({ ...p, CategoryId: v }))}
-                  placeholder="Search / select category"
-                  className="w-full"
-                />
-
-                <div className="flex gap-2 items-end mt-3">
-                  <div className="flex-1">
-                    <label className="font-semibold">* Unit</label>
-                    <SearchableSelect
-                      options={units}
-                      value={newProduct.UnitId}
-                      onChange={(v) => setNewProduct((p) => ({ ...p, UnitId: v }))}
-                      placeholder="Search / select unit"
-                      className="w-full"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    title="Add Unit"
-                    onClick={() => setUnitModalOpen(true)}
-                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
-                  >
-                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && <Star size={16} />}
-                  </button>
-                </div>
-
-                <div className="flex gap-2 items-end mt-3">
-                  <div className="flex-1">
-                    <label className="font-semibold">* Company / Brand</label>
-                    <SearchableSelect
-                      options={brands}
-                      value={newProduct.BrandId}
-                      onChange={(v) => setNewProduct((p) => ({ ...p, BrandId: v }))}
-                      placeholder="Search / select brand"
-                      className="w-full"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    title="Add Brand"
-                    onClick={() => setBrandModalOpen(true)}
-                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
-                  >
-                   {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && <Star size={16} />}
-                  </button>
-                </div>
-
-                <div className="flex gap-2 items-end mt-3">
-                  <div className="flex-1">
-                    <label className="font-semibold">Country</label>
-                    <SearchableSelect
-                      options={countries}
-                      value={newProduct.CountryId}
-                      onChange={(v) => setNewProduct((p) => ({ ...p, CountryId: v }))}
-                      placeholder="Search / select country"
-                      className="w-full"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    title="Add Country"
-                    onClick={() => setCountryAddModal(true)}
-                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
-                  >
-                    {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && <Plus size={16} />}
-                  </button>
-                  {/* Edit Selected Country */}
-                  {newProduct.CountryId && (
-                    <button
-                      type="button"
-                      title="Edit Country"
-                      onClick={() => openCountryEditModal(newProduct.CountryId)}
-                      className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm"
-                    >
-                      {hasPermission(PERMISSIONS.COUNTRIES.EDIT) && <Pencil size={16} />}
-                    </button>
-                  )}
-                </div>
-
-              <label className="mt-3">Image</label>
-
-              {/* HIDDEN INPUT */}
-              <label className="mt-3">Image</label>
-
-{/* HIDDEN INPUT */}
-<input
-  type="file"
-  accept="image/*"
-  ref={fileInputRef}
-  onChange={(e) => handleImageChange(e, setNewProduct)}
-  className="hidden"
-/>
-
-{/* SELECT BUTTON */}
-<button
-  type="button"
-  onClick={() => fileInputRef.current.click()}
-  className="w-full bg-gray-800 border border-gray-700 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 mb-2"
->
-  Select Image
-</button>
-
-{/* PREVIEW + REMOVE BUTTON */}
-{newProduct.Image && (
-  <div className="mt-2">
-    <img
-      src={newProduct.Image}
-      alt="preview"
-      className="h-24 object-contain rounded border border-gray-700 p-1 mb-2"
-    />
-
-    <button
-      type="button"
-      onClick={() =>
-        setNewProduct((p) => ({
-          ...p,
-          Image: "",
-        }))
-      }
-      className="bg-red-600 px-3 py-1 rounded text-xs"
-    >
-      Remove Image
-    </button>
-  </div>
-)}
-
-
-
-                <label>Product Details</label>
-                <textarea value={newProduct.ProductDetails} onChange={(e) => setNewProduct((p) => ({ ...p, ProductDetails: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24" />
-              </div>
-            </div>
-
-            {/* Nested quick-add modals (rendered inside this add modal) */}
-            {brandModalOpen && (
-              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
-                <div className="w-[700px] bg-gray-900 text-white  rounded-lg border border-gray-700 p-5 shadow-lg">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3>Add Brand</h3>
-                    <button onClick={() => setBrandModalOpen(false)}><X /></button>
-                  </div>
-                  <input placeholder="Brand name" value={newBrandName} onChange={(e) => setNewBrandName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setBrandModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
-                    {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
-                    <button onClick={handleAddBrand} className="px-3 py-1.5 bg-gray-800 text-blue-300 rounded border border-gray-700">Add</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {unitModalOpen && (
-              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
-                <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3>Add Unit</h3>
-                    <button onClick={() => setUnitModalOpen(false)}><X /></button>
-                  </div>
-                  <input placeholder="Unit name" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setUnitModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
-                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
-                    <button onClick={handleAddUnit} className="px-3 py-1.5 bg-gray-800 rounded border text-blue-300 border-gray-700">Add</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* footer */}
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-end gap-2 sticky bottom-5 bg-gray-900 z-30">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-gray-800 border border-gray-600 rounded">Cancel</button>
-              {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
-              <button onClick={handleAddProduct} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"><Save size={16} /> Save</button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================
-          EDIT PRODUCT MODAL
-         ========================= */}
-      {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-start z-50 pt-12">
-          <div className="w-[820px] max-h-[86vh] overflow-auto bg-gray-900 text-white rounded-lg border border-gray-700 relative">
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700 sticky top-0 bg-gray-900 z-20">
-              <h2>{editProduct.isInactive ? "Restore Product" : "Edit Product"}</h2>
-              <button onClick={() => setEditModalOpen(false)}><X size={20} /></button>
-            </div>
-
-            <div className="p-6 grid grid-cols-2 gap-4">
-              <div>
-                <label>Product Code</label>
-                <input type="text" value={editProduct.productCode} onChange={(e) => setEditProduct((p) => ({ ...p, productCode: e.target.value }))} disabled={editProduct.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label className="font-semibold">* Product Name</label>
-                <input type="text" value={editProduct.ProductName} onChange={(e) => setEditProduct((p) => ({ ...p, ProductName: e.target.value }))} disabled={editProduct.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label>SN</label>
-                <input type="text" value={editProduct.SN} disabled className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label>Model</label>
-                <input type="text" value={editProduct.Model} onChange={(e) => setEditProduct((p) => ({ ...p, Model: e.target.value }))} disabled={editProduct.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label className="font-semibold">* Unit Price</label>
-                <input type="number" step="0.01" value={editProduct.UnitPrice} onChange={(e) => setEditProduct((p) => ({ ...p, UnitPrice: e.target.value }))} disabled={editProduct.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-
-                <label className="font-semibold">* Reorder Level</label>
-                <input type="number" step="0.01" value={editProduct.ReorderLevel} onChange={(e) => setEditProduct((p) => ({ ...p, ReorderLevel: e.target.value }))} disabled={editProduct.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2" />
-              </div>
-
-              <div>
-                <label className="font-semibold">* Category</label>
-                <SearchableSelect options={categories} value={editProduct.CategoryId} onChange={(v) => setEditProduct((p) => ({ ...p, CategoryId: v }))} disabled={editProduct.isInactive} placeholder="Search / select category" className="w-full" />
-
-                <div className="flex gap-2 items-end mt-3">
-                  <div className="flex-1">
-                    <label className="font-semibold">* Unit</label>
-                    <SearchableSelect options={units} value={editProduct.UnitId} onChange={(v) => setEditProduct((p) => ({ ...p, UnitId: v }))} disabled={editProduct.isInactive} placeholder="Search / select unit" className="w-full" />
-                  </div>
-                  <button type="button" title="Add Unit" disabled={editProduct.isInactive} onClick={() => setUnitModalOpen(true)} className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && <Star size={16} />}
-                  </button>
-                </div>
-
-                <div className="flex gap-2 items-end mt-3">
-                  <div className="flex-1">
-                    <label className="font-semibold">* Company / Brand</label>
-                    <SearchableSelect options={brands} value={editProduct.BrandId} onChange={(v) => setEditProduct((p) => ({ ...p, BrandId: v }))} disabled={editProduct.isInactive} placeholder="Search / select brand" className="w-full" />
-                  </div>
-                  <button type="button" title="Add Brand" disabled={editProduct.isInactive} onClick={() => setBrandModalOpen(true)} className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                     {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && <Star size={16} />}
-                  </button>
-                </div>
-
-                <div className="flex gap-2 items-end mt-3">
-                  <div className="flex-1">
-                    <label className="font-semibold">Country</label>
-                    <SearchableSelect
-                      options={countries}
-                      value={editProduct.CountryId}
-                      onChange={(v) => setEditProduct((p) => ({ ...p, CountryId: v }))}
-                      placeholder="Search / select country"
-                      className="w-full"
-                      disabled={editProduct.isInactive}
-                    />
-                  </div>
-                   <button
-                    type="button"
-                    title="Add Country"
-                    disabled={editProduct.isInactive}
-                    onClick={() => setCountryAddModal(true)}
-                    className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && <Plus size={16} />}
-                  </button>
-                   {editProduct.CountryId && (
-                    <button
-                      type="button"
-                      title="Edit Country"
-                      disabled={editProduct.isInactive}
-                      onClick={() => openCountryEditModal(editProduct.CountryId)}
-                      className="p-2 bg-gray-800 border border-gray-700 rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {hasPermission(PERMISSIONS.COUNTRIES.EDIT) && <Pencil size={16} />}
-                    </button>
-                  )}
-                </div>
-
-                <label className="mt-3">Image</label>
-
-{/* HIDDEN INPUT */}
-<input
-  type="file"
-  accept="image/*"
-  ref={fileInputRef}
-  onChange={(e) => handleImageChange(e, setEditProduct)}
-  disabled={editProduct.isInactive}
-  className="hidden"
-/>
-
-{/* CUSTOM BUTTON */}
-<button
-  type="button"
-  onClick={() => !editProduct.isInactive && fileInputRef.current.click()}
-  disabled={editProduct.isInactive}
-  className={`w-full px-3 py-2 rounded border mb-2
-    ${
-      editProduct.isInactive
-        ? "bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed"
-        : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-    }`}
->
-  Select Image
-</button>
-
-{/* PREVIEW + REMOVE BUTTON */}
-{editProduct.Image && (
-  <div className="mt-2">
-    <img
-      src={editProduct.Image}
-      alt="preview"
-      className="h-24 object-contain mb-2 rounded border border-gray-700 p-1"
-    />
-
-    {/* REMOVE button only if active */}
-    {!editProduct.isInactive && (
-      <button
-        type="button"
-        onClick={() =>
-          setEditProduct((p) => ({
-            ...p,
-            Image: "",
-          }))
-        }
-        className="bg-red-600 px-3 py-1 rounded text-xs"
-      >
-        Remove Image
-      </button>
-    )}
-  </div>
-)}
-
-
-
-                <label>Product Details</label>
-                <textarea value={editProduct.ProductDetails} onChange={(e) => setEditProduct((p) => ({ ...p, ProductDetails: e.target.value }))} disabled={editProduct.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24" />
-              </div>
-            </div>
-
-            {/* Nested quick-add modals inside edit modal too */}
-            {brandModalOpen && (
-              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
-                <div className="w-[420px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3>Add Brand</h3>
-                    <button onClick={() => setBrandModalOpen(false)}><X /></button>
-                  </div>
-                  <input placeholder="Brand name" value={newBrandName} onChange={(e) => setNewBrandName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setBrandModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
-                    {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
-                    <button onClick={handleAddBrand} className="px-3 py-1.5 bg-green-600 rounded border border-green-900">Add</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {unitModalOpen && (
-              <div className="fixed inset-0 flex justify-center items-center z-[60] bg-black/50 backdrop-blur-sm">
-                <div className="w-[420px] bg-gray-900 text-white rounded-lg border border-gray-700 p-5 shadow-lg">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3>Add Unit</h3>
-                    <button onClick={() => setUnitModalOpen(false)}><X /></button>
-                  </div>
-                  <input placeholder="Unit name" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-3" />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setUnitModalOpen(false)} className="px-3 py-1.5 bg-gray-800 rounded border border-gray-700">Cancel</button>
-                    {hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE) && (
-                    <button onClick={handleAddUnit} className="px-3 py-1.5 bg-green-600 rounded border border-green-900">Add</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="px-5 py-3 border-t border-gray-700 flex justify-between sticky bottom-5 bg-gray-900 z-30">
-              {editProduct.isInactive ? (
-                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
-                  <button onClick={handleRestoreProduct} className="flex items-center gap-2 bg-green-600 px-4 py-2 border border-green-900 rounded"><ArchiveRestore size={16} /> Restore</button>
-                )
-              ) : (
-                hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
-                  <button onClick={handleDeleteProduct} className="flex items-center gap-2 bg-red-600 px-4 py-2 border border-red-900 rounded"><Trash2 size={16} /> Delete</button>
-                )
-              )}
-
-              {!editProduct.isInactive && hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT) && (
-                <button onClick={handleUpdateProduct} className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"><Save size={16} /> Save</button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+{/* Product Modals Removed - Handled by NewProduct Page */}
 
       {/* COUNTRY ADD MODAL */}
       <AddModal
@@ -1398,9 +964,7 @@ const Products = () => {
       {/* -------------------------
          MAIN PAGE
          ------------------------- */}
-      {/* -------------------------
-         MAIN PAGE
-         ------------------------- */}
+
       <PageLayout>
         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden">
@@ -1417,36 +981,28 @@ const Products = () => {
                     visibleColumns.productName && { key: "ProductName", label: "Product", sortable: true },
                     visibleColumns.model && { key: "Model", label: "Model", sortable: true },
                     visibleColumns.unitPrice && { key: "UnitPrice", label: "Price", sortable: true },
-                    visibleColumns.unitsInStock && { key: "UnitsInStock", label: "Stock", sortable: true },
+                    visibleColumns.unitsInStock && { key: "UnitsInStock", label: "Stock", sortable: true, render: (r) => r.UnitsInStock ?? 0 },
                     visibleColumns.reorderLevel && { key: "ReorderLevel", label: "Reorder", sortable: true },
                     visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true, render: (r) => r.categoryName || "-" },
                     visibleColumns.unitName && { key: "unitName", label: "Unit", sortable: true, render: (r) => r.unitName || "-" },
                     visibleColumns.brandName && { key: "brandName", label: "Brand", sortable: true, render: (r) => r.brandName || "-" },
+                    visibleColumns.hsnCode && { key: "HSNCode", label: "HSN", sortable: true, render: (r) => r.HSNCode || "-" },
+                    visibleColumns.colour && { key: "Colour", label: "Colour", sortable: true, render: (r) => r.Colour || "-" },
+                    visibleColumns.grade && { key: "Grade", label: "Grade", sortable: true, render: (r) => r.Grade || "-" },
                 ].filter(Boolean)}
-                data={sortedList} // Use sortedList which is computed from displayedProducts (filtered)
-                inactiveData={inactiveProducts} // MasterTable might not need this if we handle displaying mixed content or handled via showInactive prop logic in MasterTable depending on implementation. 
-                // Wait, original Products.jsx appends inactive rows to displayed list if showInactive is true.
-                // MasterTable usually handles displaying active vs inactive. 
-                // But here Products.jsx has specific client-side filtering logic `computeDisplayed`.
-                // If we pass `sortedList` as `data`, it contains CURRENTLY VISIBLE items (filtered & sorted).
-                // If `showInactive` is true, `sortedList` SHOULD contain both?
-                // `computeDisplayed` filters `products`. `products` usually only has active ones loaded via `loadProducts`.
-                // `loadInactive` loads into `inactiveProducts`.
-                // `getExportRows` manually concats them.
-                // Original render (lines 1497) manually maps `inactiveProducts` if `showInactive` is true.
-                // So `sortedList` ONLY contains active products (based on `products` state).
-                // So we need to pass `inactiveData={inactiveProducts}` to MasterTable.
+                data={sortedList} 
+                inactiveData={inactiveProducts} 
                 
                 showInactive={showInactive}
                 sortConfig={sortConfig}
                 onSort={handleSort}
-                onRowClick={(p, isInactive) => openEditModal(p, isInactive)}
+                onRowClick={(p, isInactive) => navigate(`/app/inventory/editproduct/${p.id}`)}
                 
                 // Action Bar
                 search={searchText}
-                onSearch={(val) => setSearchText(val)} // MasterTable usually debounces or handles this. Current Products.jsx uses local state `searchText`.
+                onSearch={(val) => setSearchText(val)} 
                 
-                onCreate={() => openAddModal()}
+                onCreate={() => navigate("/app/inventory/newproduct")}
                 createLabel="New Product"
                 permissionCreate={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE)}
                 
@@ -1455,7 +1011,6 @@ const Products = () => {
                 onColumnSelector={() => setColumnModalOpen(true)}
                 
                 onToggleInactive={async () => { 
-                    // if (!showInactive) await loadInactive(); // Handled by useEffect in original code
                     setShowInactive((s) => !s); 
                 }}
                 customActions={<ExportButtons onExcel={exportToExcel} onPDF={exportToPDF} />}
@@ -1465,8 +1020,6 @@ const Products = () => {
                   <FilterBar filters={filters} onClear={handleClearFilters} />
                </div>
             </MasterTable>
-         
-
           {/* pagination */}
           <Pagination
             page={page}

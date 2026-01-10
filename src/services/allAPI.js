@@ -26,6 +26,10 @@ export const resetPasswordApi = async (data) =>
   await commonAPI("PUT", `${serverURL}/auth/reset-password`, data);
 
 
+// DASHBOARD
+export const getDashboardStatsApi = () => 
+  commonAPI("GET", `${serverURL}/dashboard/stats`);
+
 
 // LIST (Paginated)
 export const getUsersApi = (page, limit) =>
@@ -308,6 +312,7 @@ export const addBankApi = (data) => {
   formData.append("ACNumber", data.ACNumber);
   formData.append("Branch", data.Branch);
   formData.append("userId", data.userId);
+  formData.append("isCompanyBank", data.isCompanyBank);
 
   // MUST MATCH multer: uploadSignature.single("SignaturePicture")
   if (data.SignaturePicture instanceof File) {
@@ -330,6 +335,7 @@ export const updateBankApi = (id, data) => {
   formData.append("ACNumber", data.ACNumber);
   formData.append("Branch", data.Branch);
   formData.append("userId", data.userId);
+  formData.append("isCompanyBank", data.isCompanyBank);
 
   // If file uploaded → send File
   if (data.SignaturePicture instanceof File) {
@@ -793,6 +799,30 @@ export const getInactiveAttendanceStatusesApi = () =>
 
 export const restoreAttendanceStatusApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/attendance-statuses/restore/${id}`, data);
+
+
+// ======================= Tax Types APIs =======================
+export const getTaxTypesApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/tax-types/all?page=${page}&limit=${limit}`);
+
+export const addTaxTypeApi = (data) =>
+  commonAPI("POST", `${serverURL}/tax-types/add`, data);
+
+export const updateTaxTypeApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/tax-types/update/${id}`, data);
+
+export const deleteTaxTypeApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/tax-types/delete/${id}`, data);
+
+export const searchTaxTypeApi = (q) =>
+  commonAPI("GET", `${serverURL}/tax-types/search?q=${q}`);
+
+export const getInactiveTaxTypesApi = () =>
+  commonAPI("GET", `${serverURL}/tax-types/inactive`);
+
+export const restoreTaxTypeApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/tax-types/restore/${id}`, data);
+
 
 
 

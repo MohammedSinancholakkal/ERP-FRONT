@@ -96,6 +96,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Resolution Status", key: PERMISSIONS.RESOLUTION_STATUS.VIEW },
     { label: "Deductions", key: PERMISSIONS.DEDUCTIONS.VIEW },
     { label: "Incomes", key: PERMISSIONS.INCOMES.VIEW },
+    { label: "Tax Types", key: null }, // TODO: Add permissions later if needed
   ];
 
   const meetingLinks = [

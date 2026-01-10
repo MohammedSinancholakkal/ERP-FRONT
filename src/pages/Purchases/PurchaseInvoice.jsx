@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext";
-import { getPurchaseByIdApi, getSuppliersApi } from "../../services/allAPI";
+import { getPurchaseByIdApi, getSuppliersApi, getTaxTypesApi } from "../../services/allAPI";
 // import logo from "../../assets/logo.png"; // Assuming a logo exists, or placeholder
 
 const PurchaseInvoice = () => {
@@ -11,6 +11,7 @@ const PurchaseInvoice = () => {
   const [details, setDetails] = useState([]);
   const [supplier, setSupplier] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [taxTypeName, setTaxTypeName] = useState("");
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -20,6 +21,15 @@ const PurchaseInvoice = () => {
           const purchaseData = res.data.purchase;
           setPurchase(purchaseData);
           setDetails(res.data.details);
+
+          if (purchaseData?.TaxTypeId) {
+              getTaxTypesApi(1, 1000).then(taxRes => {
+                  if(taxRes.status === 200) {
+                      const found = taxRes.data.records.find(t => String(t.typeId) === String(purchaseData.TaxTypeId) || String(t.id) === String(purchaseData.TaxTypeId));
+                      if(found) setTaxTypeName(found.typeName || found.name || "");
+                  }
+              });
+          }
 
           // Fetch supplier details
           if (purchaseData?.SupplierId) {
@@ -70,7 +80,7 @@ const PurchaseInvoice = () => {
             <h3 className="text-xl font-bold text-white mb-1">{settings?.companyName || "Home Button"}</h3>
             <p>Phone: {settings?.phone || ""}</p>
             <p>Email: {settings?.companyEmail || ""}</p>
-            <p>VAT: {settings?.vatNo || ""}</p>
+            <p>GSTIN: {settings?.vatNo || ""}</p>
           </div>
           <div>
             <p className="text-sm text-gray-400 mb-2 font-semibold">To</p>
@@ -142,8 +152,35 @@ const PurchaseInvoice = () => {
               <span>{parseFloat(purchase.TotalDiscount).toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-b border-gray-700 pb-2">
-              <span>VAT ({settings?.vatPercent || 10}%):</span>
-              <span>{parseFloat(purchase.Vat).toFixed(2)}</span>
+            {purchase.TaxTypeId && (
+                <div className="flex justify-between border-b border-gray-700 pb-2">
+                  <span>Tax Type:</span>
+                  <span>{taxTypeName}</span>
+                </div>
+            )}
+            
+            {(parseFloat(purchase.IGSTRate) > 0) ? (
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                    <span>IGST ({parseFloat(purchase.IGSTRate)}%):</span>
+                    <span>{parseFloat(purchase.Vat || purchase.TotalTax).toFixed(2)}</span>
+                 </div>
+            ) : (parseFloat(purchase.CGSTRate) > 0 || parseFloat(purchase.SGSTRate) > 0) ? (
+                 <>
+                  <div className="flex justify-between border-b border-gray-700 pb-2">
+                    <span>CGST ({parseFloat(purchase.CGSTRate)}%):</span>
+                    <span>{(parseFloat(purchase.Vat || purchase.TotalTax)/2).toFixed(2)}</span>
+                 </div>
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                    <span>SGST ({parseFloat(purchase.SGSTRate)}%):</span>
+                    <span>{(parseFloat(purchase.Vat || purchase.TotalTax)/2).toFixed(2)}</span>
+                 </div>
+                 </>
+            ) : (
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                    <span>Tax:</span>
+                    <span>{parseFloat(purchase.Vat || purchase.TotalTax).toFixed(2)}</span>
+                 </div>
+            )}
             </div>
             <div className="flex justify-between font-bold text-white text-lg pt-2 border-t border-gray-600">
               <span>Grand Total:</span>

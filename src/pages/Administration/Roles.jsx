@@ -6,6 +6,10 @@ import {
   ChevronDown,
   Check,
   Ban,
+  Save,
+  Trash2,
+  Search,
+  ArchiveRestore
 } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
 import { useTheme } from "../../context/ThemeContext";
@@ -129,6 +133,13 @@ const Roles = () => {
     };
     fetchPerms();
   }, []);
+
+  // Normalize Helper
+  const normalizeRows = (items = []) => 
+    items.map(r => ({
+      id: r.Id || r.id,
+      name: r.Name || r.name || r.RoleName || r.roleName,
+    }));
 
   const togglePermission = (id) => {
     // 1. Update the target item and its children (downwards)
@@ -254,8 +265,11 @@ const Roles = () => {
     setSearchText("");
     const res = await getRolesApi(page, limit);
     if (res?.status === 200) {
+      const rawRecords = res.data.records || [];
+      const normalized = normalizeRows(rawRecords);
+
       // Filter out SuperAdmin (ID 1)
-      const visibleRoles = (res.data.records || []).filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+      const visibleRoles = normalized.filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
       
       setRoles(visibleRoles);
       setTotalRecords(res.data.total); // Note: Total might be off by 1 in pagination but acceptable for now
@@ -272,7 +286,8 @@ const Roles = () => {
   const loadInactive = async () => {
     const res = await getInactiveRolesApi();
     if (res?.status === 200) {
-      setInactiveRoles(res.data.records || res.data);
+      const items = res.data.records || res.data;
+      setInactiveRoles(normalizeRows(items));
     } else {
       toast.error("Failed to load inactive records");
     }
@@ -285,8 +300,9 @@ const Roles = () => {
 
     const res = await searchRoleApi(text);
     if (res?.status === 200) {
+       const normalized = normalizeRows(res.data || []);
        // Filter out SuperAdmin
-       const visibleRoles = (res.data || []).filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+       const visibleRoles = normalized.filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
       setRoles(visibleRoles);
     }
   };
@@ -753,9 +769,6 @@ const Roles = () => {
         </div>
       )}
 
-      {/* =============================
-              MAIN PAGE
-      ============================== */}
       {/* =============================
               MAIN PAGE
       ============================== */}

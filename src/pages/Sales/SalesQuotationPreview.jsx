@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext"; // Import hook
-import { getQuotationByIdApi, getCustomersApi } from "../../services/allAPI";
+import { getQuotationByIdApi, getCustomersApi, getTaxTypesApi } from "../../services/allAPI";
 
 const SalesQuotationPreview = () => {
   const { id } = useParams();
@@ -10,6 +10,7 @@ const SalesQuotationPreview = () => {
   const [quotation, setQuotation] = useState(null);
   const [details, setDetails] = useState([]);
   const [customer, setCustomer] = useState(null);
+  const [taxTypeName, setTaxTypeName] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +39,14 @@ const SalesQuotationPreview = () => {
               });
             }
           }
+        }
+
+        if (q?.TaxTypeId) {
+            const taxRes = await getTaxTypesApi(1, 1000);
+            if(taxRes.status === 200) {
+                const found = taxRes.data.records.find(t => String(t.typeId) === String(q.TaxTypeId) || String(t.id) === String(q.TaxTypeId));
+                if(found) setTaxTypeName(found.typeName || found.name || "");
+            }
         }
       } catch (err) {
         console.error("Error loading quotation", err);
@@ -75,7 +84,7 @@ const SalesQuotationPreview = () => {
             <h3 className="text-lg font-semibold text-white">{settings?.companyName || "Home Button"}</h3>
             <p>Phone: {settings?.phone || ""}</p>
             <p>Email: {settings?.companyEmail || ""}</p>
-            <p>VAT: {settings?.vatNo || ""}</p>
+            <p>GSTIN: {settings?.vatNo || ""}</p>
           </div>
 
           {/* TO */}
@@ -127,7 +136,37 @@ const SalesQuotationPreview = () => {
           <div className="w-full md:w-[420px] space-y-3 text-sm text-gray-300">
             <div className="flex justify-between border-b border-gray-700 pb-2"><span>Subtotal:</span><span>{(Number(quotation.GrandTotal) || 0).toFixed(2)}</span></div>
             <div className="flex justify-between border-b border-gray-700 pb-2"><span>Total Discount:</span><span>{(Number(quotation.TotalDiscount) || 0).toFixed(2)}</span></div>
-            <div className="flex justify-between border-b border-gray-700 pb-2"><span>VAT ({settings?.vatPercent || 0}%):</span><span>{(Number(quotation.Vat) || 0).toFixed(2)}</span></div>
+            
+            {taxTypeName && (
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                   <span className="text-gray-400">Tax Type:</span>
+                   <span>{taxTypeName}</span>
+                 </div>
+            )}
+
+            {/* GST / TAX SECTION */}
+            {(Number(quotation.IGSTRate) > 0) ? (
+               <div className="flex justify-between border-b border-gray-700 pb-2">
+                 <span>IGST ({quotation.IGSTRate}%):</span>
+                 <span>{(Number(quotation.Vat) || 0).toFixed(2)}</span>
+               </div>
+            ) : (Number(quotation.CGSTRate) > 0 || Number(quotation.SGSTRate) > 0) ? (
+               <>
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                   <span>CGST ({quotation.CGSTRate}%):</span>
+                   <span>{((Number(quotation.Vat) || 0) / 2).toFixed(2)}</span>
+                 </div>
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                   <span>SGST ({quotation.SGSTRate}%):</span>
+                   <span>{((Number(quotation.Vat) || 0) / 2).toFixed(2)}</span>
+                 </div>
+               </>
+            ) : (
+               <div className="flex justify-between border-b border-gray-700 pb-2">
+                 <span>Tax:</span>
+                 <span>{(Number(quotation.Vat) || 0).toFixed(2)}</span>
+               </div>
+            )}
             <div className="flex justify-between font-semibold text-lg pt-3 border-t border-gray-600 text-white"><span>Grand Total:</span><span>{(Number(quotation.NetTotal) || 0).toFixed(2)}</span></div>
           </div>
         </div>

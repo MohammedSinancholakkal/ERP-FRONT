@@ -27,7 +27,8 @@ import {
   addServiceInvoiceApi,
   updateServiceInvoiceApi,
   deleteServiceInvoiceApi,
-  restoreServiceInvoiceApi
+  restoreServiceInvoiceApi,
+  getTaxTypesApi
 } from "../../services/allAPI";
 import Swal from "sweetalert2";
 
@@ -44,6 +45,7 @@ const NewInvoices = () => {
   const [employee, setEmployee] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [taxTypeId, setTaxTypeId] = useState("");
   
   const [inactiveView, setInactiveView] = useState(false);
 
@@ -57,6 +59,7 @@ const NewInvoices = () => {
   const [customersList, setCustomersList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
   const [servicesList, setServicesList] = useState([]);
+  const [taxTypesList, setTaxTypesList] = useState([]);
 
   const paymentOptions = ["Cash at Hand", "Cash at Bank"];
 
@@ -81,6 +84,13 @@ const NewInvoices = () => {
   const [shippingCost, setShippingCost] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
   const [details, setDetails] = useState("");
+  const [noTax, setNoTax] = useState(false);
+
+  const [igstRate, setIgstRate] = useState(0);
+  const [cgstRate, setCgstRate] = useState(0);
+  const [sgstRate, setSgstRate] = useState(0);
+
+  const [taxAmount, setTaxAmount] = useState(0);
 
   // --- CALCULATED VALUES ---
   const [netTotal, setNetTotal] = useState(0);
@@ -94,6 +104,7 @@ const NewInvoices = () => {
     fetchCustomers();
     fetchEmployees();
     fetchServices();
+    fetchTaxTypes();
   }, []);
 
   // --- HANDLE RETURN FROM NEW CUSTOMER ---
@@ -193,6 +204,24 @@ const NewInvoices = () => {
     }
   };
 
+  const fetchTaxTypes = async () => {
+    try {
+      const res = await getTaxTypesApi(1, 1000);
+      if (res.status === 200) {
+         // Normalize to match NewSales logic
+         const list = res.data.records.map(t => ({
+             id: t.typeId,
+             name: `${t.isInterState ? "IGST" : "CGST/SGST"} - ${t.percentage}%`,
+             isInterState: t.isInterState,
+             percentage: t.percentage
+         }));
+         setTaxTypesList(list);
+      }
+    } catch (error) {
+      console.error("Error fetching tax types", error);
+    }
+  };
+
   /* ================= FETCH INVOICE FOR EDIT ================= */
   useEffect(() => {
     if (id) {
@@ -215,6 +244,11 @@ const NewInvoices = () => {
         setShippingCost(invoice.ShippingCost || 0);
         setPaidAmount(invoice.PaidAmount || 0);
         setDetails(invoice.Details || "");
+        setNoTax(invoice.NoTax === 1);
+
+        setTaxTypeId(invoice.TaxTypeId || ""); 
+        setCgstRate(invoice.CGSTRate || 0);
+        setSgstRate(invoice.SGSTRate || 0);
 
         const mappedRows = (details || []).map(d => ({
           serviceId: d.serviceId,
@@ -316,8 +350,34 @@ const NewInvoices = () => {
     setRows(updated);
   };
 
-  /* ================= TOTAL CALC (no tax on UI) ================= */
+  // --- UPDATE RATES WHEN TAX TYPE CHANGE ---
   useEffect(() => {
+    if (!taxTypeId) {
+        setCgstRate(0);
+        setSgstRate(0);
+        setIgstRate(0);
+        return;
+    }
+    const selected = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+    if (selected) {
+        const pct = parseFloat(selected.percentage) || 0;
+        if (selected.isInterState) {
+            setIgstRate(pct);
+            setCgstRate(0);
+            setSgstRate(0);
+        } else {
+            const half = pct / 2;
+            setCgstRate(half);
+            setSgstRate(half);
+            setIgstRate(0);
+        }
+    }
+  }, [taxTypeId, taxTypesList]);
+
+  /* ================= TOTAL CALC ================= */
+  useEffect(() => {
+    const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
     let sumLineTotals = 0;
     let sumLineDiscounts = 0;
 
@@ -334,29 +394,41 @@ const NewInvoices = () => {
       sumLineDiscounts += lineDisc;
     });
 
-    const subTotal = sumLineTotals;
+    const subTotal = round2(sumLineTotals);
     const gDiscount = parseFloat(globalDiscount) || 0;
     const shipping = parseFloat(shippingCost) || 0;
     const paid = parseFloat(paidAmount) || 0;
 
-    const tax = 0;
+    // Taxable Amount
+    let taxableAmount = subTotal - gDiscount;
+    if (taxableAmount < 0) taxableAmount = 0;
+    taxableAmount = round2(taxableAmount);
 
-    const finalTotal = subTotal - gDiscount + tax + shipping;
+    let tax = 0;
+    if (!noTax) {
+        const igst = (taxableAmount * igstRate) / 100;
+        const cgst = (taxableAmount * cgstRate) / 100;
+        const sgst = (taxableAmount * sgstRate) / 100;
+        tax = round2(igst + cgst + sgst);
+    }
 
-    setNetTotal(+finalTotal.toFixed(2));
-    setGrandTotal(+subTotal.toFixed(2));
-    setTotalDiscount(+((sumLineDiscounts + gDiscount).toFixed(2)));
+    const finalTotal = round2(taxableAmount + tax + shipping);
+
+    setNetTotal(finalTotal);
+    setGrandTotal(subTotal);
+    setTaxAmount(tax);
+    setTotalDiscount(round2(sumLineDiscounts + gDiscount));
 
     // Update Due and Change
     if (paid >= finalTotal) {
-      setChangeAmount(+((paid - finalTotal).toFixed(2)));
+      setChangeAmount(round2(paid - finalTotal));
       setDueAmount(0);
     } else {
       setChangeAmount(0);
-      setDueAmount(+((finalTotal - paid).toFixed(2)));
+      setDueAmount(round2(finalTotal - paid));
     }
 
-  }, [rows, globalDiscount, shippingCost, paidAmount]);
+  }, [rows, globalDiscount, shippingCost, paidAmount, noTax, igstRate, cgstRate, sgstRate]);
 
   /* ================= SAVE / UPDATE / DELETE / RESTORE ================= */
   const handleSaveInvoice = async () => {
@@ -369,6 +441,7 @@ const NewInvoices = () => {
     if (!customer) return toast.error("Please select a customer");
     if (!employee) return toast.error("Please select an employee");
     if (!paymentAccount) return toast.error("Please select a payment account");
+    if (!noTax && !taxTypeId) return toast.error("Please select a Tax Type");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
@@ -379,11 +452,14 @@ const NewInvoices = () => {
       paymentAccount: paymentAccount || "",
       discount: parseFloat(globalDiscount) || 0,
       totalDiscount: parseFloat(totalDiscount) || 0,
-      vat: 0,
-      totalTax: 0,
-      vatPercentage: 0,
-      noTax: 1,
-      vatType: "None",
+      totalTax: parseFloat(taxAmount) || 0,
+      noTax: noTax ? 1 : 0,
+      
+      taxTypeId: taxTypeId || null,
+      igstRate: parseFloat(igstRate) || 0,
+      cgstRate: parseFloat(cgstRate) || 0,
+      sgstRate: parseFloat(sgstRate) || 0,
+
       shippingCost: parseFloat(shippingCost) || 0,
       grandTotal: parseFloat(grandTotal) || 0,
       netTotal: parseFloat(netTotal) || 0,
@@ -422,6 +498,7 @@ const NewInvoices = () => {
     if (!customer) return toast.error("Please select a customer");
     if (!employee) return toast.error("Please select an employee");
     if (!paymentAccount) return toast.error("Please select a payment account");
+    if (!noTax && !taxTypeId) return toast.error("Please select a Tax Type");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
@@ -432,11 +509,14 @@ const NewInvoices = () => {
       paymentAccount: paymentAccount || "",
       discount: parseFloat(globalDiscount) || 0,
       totalDiscount: parseFloat(totalDiscount) || 0,
-      vat: 0,
-      totalTax: 0,
-      vatPercentage: 0,
-      noTax: 1,
-      vatType: "None",
+      totalTax: parseFloat(taxAmount) || 0,
+      noTax: noTax ? 1 : 0,
+
+      taxTypeId: taxTypeId || null,
+      igstRate: parseFloat(igstRate) || 0,
+      cgstRate: parseFloat(cgstRate) || 0,
+      sgstRate: parseFloat(sgstRate) || 0,
+
       shippingCost: parseFloat(shippingCost) || 0,
       grandTotal: parseFloat(grandTotal) || 0,
       netTotal: parseFloat(netTotal) || 0,
@@ -592,7 +672,16 @@ const handleRestoreInvoice = async () => {
 
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate(-1)} className="text-white hover:text-white-400">
+          <button 
+            onClick={() => {
+                if(location.state?.returnTo) {
+                    navigate(location.state.returnTo);
+                } else {
+                    navigate("/app/services/invoices");
+                }
+            }}
+            className="text-white hover:text-white-400"
+          >
             <ArrowLeft size={24} />
           </button>
           <h2 className="text-xl text-white font-medium">{id ? "Edit Service Invoice" : "New Service Invoice"}</h2>
@@ -722,6 +811,25 @@ const handleRestoreInvoice = async () => {
               </div>
             </div>
 
+            {/* Tax Type */}
+            <div className="lg:col-span-6">
+               <div className="flex items-center gap-3">
+               <label className="w-24 text-sm text-gray-300">
+                  <span className="text-red-400">*</span> Tax Type
+               </label>
+               <div className="flex-1">
+                <SearchableSelect
+                    options={taxTypesList}
+                    value={taxTypeId}
+                    onChange={setTaxTypeId}
+                    placeholder="Select Tax Type..."
+                    className="w-full"
+                    disabled={inactiveView || noTax}
+                 />
+                </div>
+               </div>
+            </div>
+
           </div>
         </div>
 
@@ -794,11 +902,64 @@ const handleRestoreInvoice = async () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* LEFT COLUMN */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Grand Total</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 font-bold">
-                {grandTotal.toFixed(2)}
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-gray-300">Grand Total</label>
+                <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 font-bold">
+                  {grandTotal.toFixed(2)}
+                </div>
               </div>
+
+
+
+            {/* TAX RATE FIELDS (Percentage) */}
+            {!noTax && taxTypeId && (() => {
+               const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+               if(!selectedTax) return null;
+               
+               if(selectedTax.isInterState) {
+                   return (
+                     <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">IGST %</label>
+                       <input
+                         type="number"
+                         value={igstRate}
+                         readOnly
+                         className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                     </div>
+                   );
+               } else {
+                   return (
+                     <>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">CGST %</label>
+                       <input
+                         type="number"
+                         value={cgstRate}
+                         readOnly
+                         className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                      </div>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">SGST %</label>
+                       <input
+                         type="number"
+                         value={sgstRate}
+                         readOnly
+                         className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                      </div>
+                     </>
+                   );
+               }
+            })()}
+
+            {/* TOTAL TAX AMOUNT */}
+            <div className="flex items-center justify-between">
+               <label className="text-sm text-gray-300">Total Tax</label>
+               <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
+                 {taxAmount.toFixed(2)}
+               </div>
             </div>
 
             <div className="flex items-center justify-between">

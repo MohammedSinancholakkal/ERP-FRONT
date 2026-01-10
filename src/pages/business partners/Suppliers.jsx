@@ -44,9 +44,6 @@ const Suppliers = () => {
     email: true,
     emailAddress: true,
     previousCreditBalance: true,
-    cnic: true,
-    ntn: true,
-    strn: true,
     orderBooker: true,
   };
 
@@ -230,16 +227,14 @@ const Suppliers = () => {
       r.previousCredit ??
       r.PreviousCredit ??
       "",
-    cnic: r.cnic ?? r.CNIC ?? "",
-    ntn: r.ntn ?? r.NTN ?? "",
-    strn: r.strn ?? r.STRN ?? "",
+
     orderBooker:
       r.orderBooker ??
       r.OrderBooker ??
       r.orderBookerId ??
       r.OrderBookerId ??
       "",
-    vat: r.vat ?? r.VAT ?? "",
+
   });
 
 
@@ -482,9 +477,6 @@ const Suppliers = () => {
              visibleColumns.email && { key: "email", label: "Email", sortable: true, className: "truncate max-w-[150px]" },
              visibleColumns.emailAddress && { key: "emailAddress", label: "Email Address", sortable: true, className: "truncate max-w-[150px]" },
              visibleColumns.previousCreditBalance && { key: "previousCreditBalance", label: "Prev Credit", sortable: true },
-             visibleColumns.cnic && { key: "cnic", label: "CNIC", sortable: true },
-             visibleColumns.ntn && { key: "ntn", label: "NTN", sortable: true },
-             visibleColumns.strn && { key: "strn", label: "STRN", sortable: true },
              visibleColumns.orderBooker && { key: "orderBooker", label: "Order Booker", sortable: true },
           ].filter(Boolean)}
           data={paginatedData}

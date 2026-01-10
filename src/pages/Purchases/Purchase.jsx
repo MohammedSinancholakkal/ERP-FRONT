@@ -40,6 +40,9 @@ const Purchase = () => {
     paymentAccount: true,
     totalDiscount: true,
     shippingCost: true,
+    igst: true,
+    cgst: true,
+    sgst: true,
     grandTotal: true,
     netTotal: true,
     paidAmount: true,
@@ -282,6 +285,19 @@ const Purchase = () => {
       setFilterDate("");
   };
 
+  const calculateTaxAmount = (record, type) => {
+    const grandTotal = parseFloat(record.grandTotal || record.GrandTotal || 0);
+    const discount = parseFloat(record.discount || record.Discount || 0); // Global discount
+    const taxableAmount = Math.max(0, grandTotal - discount);
+    
+    let rate = 0;
+    if (type === 'igst') rate = parseFloat(record.igstRate || record.IGSTRate || 0);
+    if (type === 'cgst') rate = parseFloat(record.cgstRate || record.CGSTRate || 0);
+    if (type === 'sgst') rate = parseFloat(record.sgstRate || record.SGSTRate || 0);
+
+    return ((taxableAmount * rate) / 100).toFixed(2);
+  };
+
   return (
     <>
       {/* COLUMN PICKER MODAL */}
@@ -332,6 +348,9 @@ const Purchase = () => {
                     visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment", sortable: true },
                     visibleColumns.totalDiscount && { key: "totalDiscount", label: "Total Disc", sortable: true },
                     visibleColumns.shippingCost && { key: "shippingCost", label: "Shipping", sortable: true },
+                    visibleColumns.igst && { key: "igst", label: "IGST", sortable: false, render: (p) => calculateTaxAmount(p, 'igst') },
+                    visibleColumns.cgst && { key: "cgst", label: "CGST", sortable: false, render: (p) => calculateTaxAmount(p, 'cgst') },
+                    visibleColumns.sgst && { key: "sgst", label: "SGST", sortable: false, render: (p) => calculateTaxAmount(p, 'sgst') },
                     visibleColumns.grandTotal && { key: "grandTotal", label: "Grand Total", sortable: true },
                     visibleColumns.netTotal && { key: "netTotal", label: "Net Total", sortable: true },
                     visibleColumns.paidAmount && { key: "paidAmount", label: "Paid", sortable: true },

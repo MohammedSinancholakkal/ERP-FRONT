@@ -34,7 +34,8 @@ import {
   getSaleByIdApi,
   updateSaleApi,
   deleteSaleApi,
-  restoreSaleApi
+  restoreSaleApi,
+  getTaxTypesApi
 } from "../../services/allAPI";
 
 const NewSale = () => {
@@ -58,11 +59,13 @@ const NewSale = () => {
   const [paymentAccount, setPaymentAccount] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [taxTypeId, setTaxTypeId] = useState("");
 
   // --- DROPDOWN DATA ---
   const [customersList, setCustomersList] = useState([]);
   const [brandsList, setBrandsList] = useState([]);
   const [productsList, setProductsList] = useState([]);
+  const [taxTypesList, setTaxTypesList] = useState([]);
 
   // --- LINE ITEMS STATE ---
   const [rows, setRows] = useState([]);
@@ -199,6 +202,11 @@ useEffect(() => {
   const [grandTotal, setGrandTotal] = useState(0);
   const [dueAmount, setDueAmount] = useState(0);
   const [changeAmount, setChangeAmount] = useState(0);
+  
+  // --- TAX RATES ---
+  const [cgstRate, setCgstRate] = useState(0);
+  const [sgstRate, setSgstRate] = useState(0);
+  const [igstRate, setIgstRate] = useState(0);
 
   // --- INITIAL DATA LOADING ---
   useEffect(() => {
@@ -206,8 +214,35 @@ useEffect(() => {
     fetchBrands();
     fetchProducts();
     fetchUnits();
+    fetchProducts();
+    fetchUnits();
     fetchCategories();
+    fetchTaxTypes();
   }, []);
+
+  // --- AUTO SET RATES ---
+  useEffect(() => {
+    if (!taxTypeId) {
+        setCgstRate(0);
+        setSgstRate(0);
+        setIgstRate(0);
+        return;
+    }
+    const selected = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+    if (selected) {
+        const pct = parseFloat(selected.percentage) || 0;
+        if (selected.isInterState) {
+            setIgstRate(pct);
+            setCgstRate(0);
+            setSgstRate(0);
+        } else {
+            const half = pct / 2;
+            setCgstRate(half);
+            setSgstRate(half);
+            setIgstRate(0);
+        }
+    }
+  }, [taxTypeId, taxTypesList]);
 
   // --- HANDLE RETURN FROM NEW CUSTOMER ---
   useEffect(() => {
@@ -257,19 +292,26 @@ useEffect(() => {
         setShippingCost(sale.ShippingCost);
         setPaidAmount(sale.PaidAmount);
         setNoTax(sale.NoTax === 1);
+        setPaidAmount(sale.PaidAmount);
+        setNoTax(sale.NoTax === 1);
         setDetails(sale.Details);
+
+        setTaxTypeId(sale.TaxTypeId);
+        setCgstRate(sale.CGSTRate || 0);
+        setSgstRate(sale.SGSTRate || 0);
+        setIgstRate(sale.IGSTRate || 0);
 
         // Map details to rows
         const mappedRows = details.map(d => ({
           productId: d.productId,
           productName: d.productName,
           description: d.Description,
-          unitId: d.unitId,
-          unitName: d.unitName,
-          quantity: d.Quantity,
-          unitPrice: d.UnitPrice,
-          discount: d.Discount,
-          total: d.Total
+          unitId: d.unitId ?? d.UnitId,
+          unitName: d.unitName ?? d.UnitName,
+          quantity: d.Quantity ?? d.quantity ?? 0,
+          unitPrice: d.UnitPrice ?? d.unitPrice ?? 0,
+          discount: d.Discount ?? d.discount ?? 0,
+          total: d.Total ?? d.total ?? 0
         }));
         setRows(mappedRows);
       }
@@ -332,6 +374,24 @@ useEffect(() => {
     }
   };
 
+  const fetchTaxTypes = async () => {
+    try {
+      const res = await getTaxTypesApi(1, 1000);
+      if (res.status === 200) {
+         // Normalize if needed, but the backend sends typed fields
+         const list = res.data.records.map(t => ({
+             id: t.typeId,
+             name: `${t.isInterState ? "IGST" : "CGST/SGST"} - ${t.percentage}%`,
+             isInterState: t.isInterState,
+             percentage: t.percentage
+         }));
+         setTaxTypesList(list);
+      }
+    } catch (error) {
+      console.error("Error fetching tax types", error);
+    }
+  };
+
   /* ================= LINE ITEM LOGIC ================= */
   const handleProductSelect = (productId) => {
     const product = productsList.find(p => String(p.id) === String(productId));
@@ -340,12 +400,12 @@ useEffect(() => {
         ...prev,
         productId: product.id,
         productName: product.ProductName,
-        unitId: product.UnitId,
-        unitName: product.unitName,
-        unitPrice: product.UnitPrice,
+        unitId: product.UnitId ?? product.unitId,
+        unitName: product.unitName ?? product.UnitName,
+        unitPrice: product.UnitPrice ?? product.unitPrice ?? product.price ?? 0,
         quantity: 1, 
-        brandId: product.BrandId || prev.brandId,
-        brandName: product.brandName || prev.brandName
+        brandId: product.BrandId || product.brandId || prev.brandId,
+        brandName: product.brandName || product.BrandName || prev.brandName
       }));
     } else {
       setNewItem(prev => ({ ...prev, productId }));
@@ -550,7 +610,23 @@ const openProductModal = () => {
 
     let tax = 0;
     if (!noTax) {
-      tax = (taxableAmount * 0.10); // 10% VAT
+       // Check selected tax type
+       const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+       if (selectedTax) {
+           if (selectedTax.isInterState) {
+               tax = (taxableAmount * (parseFloat(igstRate) || 0)) / 100;
+           } else {
+               const c = parseFloat(cgstRate) || 0;
+               const s = parseFloat(sgstRate) || 0;
+               tax = (taxableAmount * (c + s)) / 100;
+           }
+       } else {
+           // Fallback or No Tax Type selected -> maybe use 10% default? 
+           // For now, if no tax type, we assume 0 or keep old logic? 
+           // User requirement: Tax Type picklist. If selected... 
+           // Let's stick to the new logic. If nothing selected, tax is 0.
+           tax = 0; 
+       }
     }
 
     const finalTotal = taxableAmount + tax + shipping;
@@ -569,7 +645,7 @@ const openProductModal = () => {
       setDueAmount(finalTotal - paid);
     }
 
-  }, [rows, globalDiscount, shippingCost, paidAmount, noTax]);
+  }, [rows, globalDiscount, shippingCost, paidAmount, noTax, taxTypeId, cgstRate, sgstRate, igstRate, taxTypesList]);
 
   /* ================= SAVE / UPDATE SALE ================= */
   const handleSaveSale = async () => {
@@ -582,6 +658,7 @@ const openProductModal = () => {
 
     if (!customer) return toast.error("Please select a customer");
     if (!paymentAccount) return toast.error("Please select a payment account");
+    if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
@@ -602,9 +679,13 @@ const openProductModal = () => {
       vno: invoiceNo || "",
       vat: parseFloat(taxAmount) || 0,
       totalTax: parseFloat(taxAmount) || 0,
-      vatPercentage: noTax ? 0 : 10,
+      vatPercentage: 0,
       noTax: noTax ? 1 : 0,
       vatType: "Percentage",
+      taxTypeId,
+      cgstRate,
+      sgstRate,
+      igstRate,
       items: rows.map(r => ({
         productId: r.productId,
         productName: r.productName,
@@ -636,6 +717,7 @@ const openProductModal = () => {
   const handleUpdateSale = async () => {
     if (!customer) return toast.error("Please select a customer");
     if (!paymentAccount) return toast.error("Please select a payment account");
+    if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
@@ -656,9 +738,13 @@ const openProductModal = () => {
       vno: invoiceNo || "",
       vat: parseFloat(taxAmount) || 0,
       totalTax: parseFloat(taxAmount) || 0,
-      vatPercentage: noTax ? 0 : 10,
+      vatPercentage: 0,
       noTax: noTax ? 1 : 0,
       vatType: "Percentage",
+      taxTypeId,
+      cgstRate,
+      sgstRate,
+      igstRate,
       items: rows.map(r => ({
         productId: r.productId,
         productName: r.productName,
@@ -891,9 +977,11 @@ const openProductModal = () => {
           </div>
 
           {/* MIDDLE COL */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center">
-              <label className="w-24 text-sm text-gray-300">Invoice No</label>
+              <label className="w-24 text-sm text-gray-300">
+                <span className="text-red-400">*</span> Invoice No
+              </label>
               <input
                 type="text"
                 value={invoiceNo}
@@ -901,6 +989,22 @@ const openProductModal = () => {
                 className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
                 disabled={inactiveView}
               />
+            </div>
+            
+            <div className="flex items-center">
+               <label className="w-24 text-sm text-gray-300">
+                  <span className="text-red-400">*</span> Tax Type
+               </label>
+               <div className="flex-1">
+                <SearchableSelect
+                   options={taxTypesList}
+                   value={taxTypeId}
+                   onChange={setTaxTypeId}
+                   placeholder="Select Tax Type..."
+                   className="w-full"
+                   disabled={inactiveView || noTax}
+                />
+               </div>
             </div>
           </div>
 
@@ -998,7 +1102,7 @@ const openProductModal = () => {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">{noTax ? "No Tax" : "Vat (10%)"}</label>
+              <label className="text-sm text-gray-300">{noTax ? "No Tax" : "Total Tax"}</label>
               <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
                 {taxAmount.toFixed(2)}
               </div>
@@ -1036,12 +1140,50 @@ const openProductModal = () => {
                 disabled={inactiveView}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">{noTax ? "No Tax" : "Total Tax"}</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {taxAmount.toFixed(2)}
-              </div>
-            </div>
+
+            {/* CONDITIONAL TAX INPUTS */}
+            {!noTax && taxTypeId && (() => {
+               const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+               if(!selectedTax) return null;
+               
+               if(selectedTax.isInterState) {
+                   return (
+                     <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">IGST %</label>
+                       <input
+                          type="number"
+                          value={igstRate}
+                          readOnly
+                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                     </div>
+                   );
+               } else {
+                   return (
+                     <>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">CGST %</label>
+                       <input
+                          type="number"
+                          value={cgstRate}
+                          readOnly
+                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                      </div>
+                      <div className="flex items-center justify-between">
+                       <label className="text-sm text-gray-300">SGST %</label>
+                       <input
+                          type="number"
+                          value={sgstRate}
+                          readOnly
+                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
+                       />
+                      </div>
+                     </>
+                   );
+               }
+            })()}
+
             <div className="flex items-center justify-between">
               <label className="text-sm text-gray-300">Due</label>
               <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
@@ -1225,7 +1367,6 @@ const openProductModal = () => {
         />
       </AddModal>
 
-      {/* --- ADD CUSTOMER MODAL REMOVED (Replaced by navigation) --- */}
 
       {/* --- ADD PRODUCT MODAL --- */}
       <AddModal
@@ -1402,8 +1543,6 @@ const openProductModal = () => {
             className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
           />
 
-          {/* Model */}
-            {/* Added twice in original, but keeping structure clean here. Already added above. */}
 
            {/* DESCRIPTION */}
            <div className="md:col-span-2">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext"; // Import hook
-import { getSaleByIdApi, getCustomersApi } from "../../services/allAPI";
+import { getSaleByIdApi, getCustomersApi, getTaxTypesApi } from "../../services/allAPI";
 
 const SalesInvoicePreview = () => {
   const { id } = useParams();
@@ -10,6 +10,7 @@ const SalesInvoicePreview = () => {
   const [sale, setSale] = useState(null);
   const [details, setDetails] = useState([]);
   const [customer, setCustomer] = useState(null);
+  const [taxTypeName, setTaxTypeName] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +38,14 @@ const SalesInvoicePreview = () => {
               });
             }
           }
+        }
+
+        if (s?.TaxTypeId) {
+            const taxRes = await getTaxTypesApi(1, 1000);
+            if(taxRes.status === 200) {
+                const found = taxRes.data.records.find(t => String(t.typeId) === String(s.TaxTypeId) || String(t.id) === String(s.TaxTypeId));
+                if(found) setTaxTypeName(found.typeName || found.name || "");
+            }
         }
       } catch (err) {
         console.error("Error loading sale", err);
@@ -73,7 +82,7 @@ const SalesInvoicePreview = () => {
             <h3 className="text-lg font-semibold text-white">{settings?.companyName || "Home Button"}</h3>
             <p>Phone: {settings?.phone || ""}</p>
             <p>Email: {settings?.companyEmail || ""}</p>
-            <p>VAT: {settings?.vatNo || ""}</p>
+            <p>GSTIN: {settings?.vatNo || ""}</p>
           </div>
 
           {/* TO */}
@@ -125,7 +134,37 @@ const SalesInvoicePreview = () => {
           <div className="w-full md:w-[420px] space-y-3 text-sm text-gray-300">
             <div className="flex justify-between border-b border-gray-700 pb-2"><span>Subtotal:</span><span>{(Number(sale.GrandTotal) || 0).toFixed(2)}</span></div>
             <div className="flex justify-between border-b border-gray-700 pb-2"><span>Total Discount:</span><span>{(Number(sale.TotalDiscount) || 0).toFixed(2)}</span></div>
-            <div className="flex justify-between border-b border-gray-700 pb-2"><span>VAT ({settings?.vatPercent || 0}%):</span><span>{(Number(sale.Vat) || 0).toFixed(2)}</span></div>
+            
+            {taxTypeName && (
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                   <span className="text-gray-400">Tax Type:</span>
+                   <span>{taxTypeName}</span>
+                 </div>
+            )}
+
+            {/* GST / TAX SECTION */}
+            {(Number(sale.IGSTRate) > 0) ? (
+               <div className="flex justify-between border-b border-gray-700 pb-2">
+                 <span>IGST ({sale.IGSTRate}%):</span>
+                 <span>{(Number(sale.Vat) || 0).toFixed(2)}</span>
+               </div>
+            ) : (Number(sale.CGSTRate) > 0 || Number(sale.SGSTRate) > 0) ? (
+               <>
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                   <span>CGST ({sale.CGSTRate}%):</span>
+                   <span>{((Number(sale.Vat) || 0) / 2).toFixed(2)}</span>
+                 </div>
+                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                   <span>SGST ({sale.SGSTRate}%):</span>
+                   <span>{((Number(sale.Vat) || 0) / 2).toFixed(2)}</span>
+                 </div>
+               </>
+            ) : (
+               <div className="flex justify-between border-b border-gray-700 pb-2">
+                 <span>Tax:</span>
+                 <span>{(Number(sale.Vat) || 0).toFixed(2)}</span>
+               </div>
+            )}
             <div className="flex justify-between border-b border-gray-700 pb-2"><span>Shipping:</span><span>{(Number(sale.ShippingCost) || 0).toFixed(2)}</span></div>
             <div className="flex justify-between font-semibold text-lg pt-3 border-t border-gray-600 text-white"><span>Grand Total:</span><span>{(Number(sale.NetTotal) || 0).toFixed(2)}</span></div>
             <div className="flex justify-between text-gray-400 pt-1"><span>Paid:</span><span>{(Number(sale.PaidAmount) || 0).toFixed(2)}</span></div>
