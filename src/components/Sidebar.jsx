@@ -96,7 +96,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Resolution Status", key: PERMISSIONS.RESOLUTION_STATUS.VIEW },
     { label: "Deductions", key: PERMISSIONS.DEDUCTIONS.VIEW },
     { label: "Incomes", key: PERMISSIONS.INCOMES.VIEW },
-    { label: "Tax Types", key: null }, // TODO: Add permissions later if needed
+    { label: "Tax Types", key: null }, 
+    { label: "Tax Percentages", key: null }, // TODO: Add permissions later if needed
   ];
 
   const meetingLinks = [
@@ -130,7 +131,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const purchaseLinks = [
     { label: "New Purchase", key: PERMISSIONS.PURCHASING.CREATE },
-    { label: "Purchases", key: PERMISSIONS.PURCHASING.VIEW }
+    { label: "Purchases", key: PERMISSIONS.PURCHASING.VIEW },
+    { label: "New Purchase Order", key: PERMISSIONS.PURCHASING.CREATE },
+    { label: "Purchase Orders", key: PERMISSIONS.PURCHASING.VIEW }
   ];
 
   const servicesLinks = [

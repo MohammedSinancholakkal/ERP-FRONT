@@ -20,10 +20,12 @@ import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { useEffect, useState } from "react";
+import { useDashboard } from "../../context/DashboardContext";
 
 
 const Customers = () => {
   const navigate = useNavigate();
+  const { invalidateDashboard } = useDashboard();
 
   // -------------------------------
   // Column visibility
@@ -45,7 +47,6 @@ const Customers = () => {
     website: true,
     email: true,
     emailAddress: true,
-    previousCreditBalance: true,
     previousCreditBalance: true,
     pan: true,
     gstin: true,
@@ -203,6 +204,7 @@ const Customers = () => {
         showConfirmButton: false,
       });
       setInactiveRows(prev => prev.filter(r => r.id !== customer.id));
+      invalidateDashboard();
       loadCustomers(); 
 
     } catch (err) {

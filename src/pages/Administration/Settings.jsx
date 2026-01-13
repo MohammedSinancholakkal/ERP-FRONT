@@ -25,10 +25,10 @@ const Settings = () => {
   const [currencies, setCurrencies] = useState([]);
   const [currency, setCurrency] = useState("");
 
-  const [vatPercent, setVatPercent] = useState("");
-  const [vatNo, setVatNo] = useState("");
+  const [taxPercentage, setTaxPercentage] = useState("");
+  const [gstin, setGstin] = useState("");
   const [pan, setPan] = useState("");
-  const [vatType, setVatType] = useState("");
+  const [taxType, setTaxType] = useState("");
 
   const [currencyPosition, setCurrencyPosition] = useState("");
   const [footerText, setFooterText] = useState("");
@@ -81,10 +81,10 @@ const Settings = () => {
           setPhone(data.phone || "");
           setCurrency(data.currency || "");
           setCurrencyPosition(data.currencyPosition || "");
-          setVatPercent(String(data.vatPercent ?? ""));
-          setVatNo(data.vatNo || "");
+          setTaxPercentage(String(data.taxPercentage ?? ""));
+          setGstin(data.gstin || "");
           setPan(data.pan || "");
-          setVatType(data.vatType || "");
+          setTaxType(data.taxType || "");
           setFooterText(data.footerText || "");
 
           if (data.logoPath) setLogo(`${baseUrl}/${data.logoPath}`);
@@ -109,10 +109,10 @@ const Settings = () => {
             phone: data.phone || "",
             currency: data.currency || "",
             currencyPosition: data.currencyPosition || "",
-            vatPercent: data.vatPercent ?? "",
-            vatNo: data.vatNo || "",
+            taxPercentage: data.taxPercentage ?? "",
+            gstin: data.gstin || "",
             pan: data.pan || "",
-            vatType: data.vatType || "",
+            taxType: data.taxType || "",
             footerText: data.footerText || "",
             logoPath: data.logoPath || "",
             invoiceLogoPath: data.invoiceLogoPath || "",
@@ -163,9 +163,9 @@ const Settings = () => {
     let newErrors = {};
 
     if (!companyName.trim()) newErrors.companyName = "Company Name is required";
-    if (!String(vatPercent).trim())
-      newErrors.vatPercent = "Tax Percentage is required";
-    if (!vatType.trim()) newErrors.vatType = "Tax Type is required";
+    if (!String(taxPercentage).trim())
+      newErrors.taxPercentage = "Tax Percentage is required";
+    if (!taxType.trim()) newErrors.taxType = "Tax Type is required";
     if (!currencyPosition.trim())
       newErrors.currencyPosition = "Currency Position is required";
     if (!currency) newErrors.currency = "Currency is required";
@@ -197,10 +197,10 @@ const handleSave = async () => {
   formData.append("phone", phone);
   formData.append("currency", currency);
   formData.append("currencyPosition", currencyPosition);
-  formData.append("vatPercent", vatPercent);
-  formData.append("vatNo", vatNo);
+  formData.append("taxPercentage", taxPercentage);
+  formData.append("gstin", gstin);
   formData.append("pan", pan);
-  formData.append("vatType", vatType);
+  formData.append("taxType", taxType);
   formData.append("footerText", footerText);
   formData.append("userId", 1); // TODO: replace with auth user
 
@@ -376,14 +376,14 @@ if (response?.status === 200) {
                 <label className="block mb-1">Tax Percentage *</label>
                 <input
                   className={`w-full bg-gray-900 border rounded px-3 py-2 ${
-                    errors.vatPercent ? "border-red-500" : "border-gray-700"
+                    errors.taxPercentage ? "border-red-500" : "border-gray-700"
                   }`}
-                  value={vatPercent}
-                  onChange={(e) => setVatPercent(e.target.value)}
+                  value={taxPercentage}
+                  onChange={(e) => setTaxPercentage(e.target.value)}
                 />
-                {errors.vatPercent && (
+                {errors.taxPercentage && (
                   <p className="text-red-400 text-sm mt-1">
-                    {errors.vatPercent}
+                    {errors.taxPercentage}
                   </p>
                 )}
               </div>
@@ -393,8 +393,8 @@ if (response?.status === 200) {
                 <label className="block mb-1">GSTIN</label>
                 <input
                   className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                  value={vatNo}
-                  onChange={(e) => setVatNo(e.target.value)}
+                  value={gstin}
+                  onChange={(e) => setGstin(e.target.value)}
                 />
               </div>
 
@@ -413,17 +413,17 @@ if (response?.status === 200) {
                 <label className="block mb-1">Tax Type *</label>
                 <select
                   className={`w-full bg-gray-900 border rounded px-3 py-2 ${
-                    errors.vatType ? "border-red-500" : "border-gray-700"
+                    errors.taxType ? "border-red-500" : "border-gray-700"
                   }`}
-                  value={vatType}
-                  onChange={(e) => setVatType(e.target.value)}
+                  value={taxType}
+                  onChange={(e) => setTaxType(e.target.value)}
                 >
                   <option value="">--select--</option>
                   <option value="inclusive">Inclusive Tax</option>
                   <option value="exclusive">Exclusive Tax</option>
                 </select>
-                {errors.vatType && (
-                  <p className="text-red-400 text-sm mt-1">{errors.vatType}</p>
+                {errors.taxType && (
+                  <p className="text-red-400 text-sm mt-1">{errors.taxType}</p>
                 )}
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
   getInactiveExpenseTypesApi,
   restoreExpenseTypeApi,
 } from "../../services/allAPI";
+import { useDashboard } from "../../context/DashboardContext";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -29,6 +30,8 @@ const ExpenseTypes = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
+
+  const { invalidateDashboard } = useDashboard();
 
   const [rows, setRows] = useState([]);
   const [inactiveRows, setInactiveRows] = useState([]);
@@ -172,12 +175,13 @@ const ExpenseTypes = () => {
 
     try {
       const res = await addExpenseTypeApi({
-        name: newItem.name.trim(),
+        typeName: newItem.name.trim(),
         userId: currentUserId,
       });
 
       if (res?.status === 201) {
         toast.success("Expense type added");
+        invalidateDashboard();
         setModalOpen(false);
         setNewItem({ name: "" });
         setPage(1);
@@ -207,12 +211,13 @@ const ExpenseTypes = () => {
 
     try {
       const res = await updateExpenseTypeApi(editItem.id, {
-        name: editItem.name.trim(),
+        typeName: editItem.name.trim(),
         userId: currentUserId,
       });
 
       if (res?.status === 200) {
         toast.success("Updated");
+        invalidateDashboard();
         setEditModalOpen(false);
         loadRows();
         if (showInactive) loadInactive();
@@ -231,6 +236,7 @@ const ExpenseTypes = () => {
 
       if (res?.status === 200) {
         toast.success("Deleted");
+        invalidateDashboard();
         setEditModalOpen(false);
         loadRows();
         if (showInactive) loadInactive();
@@ -249,6 +255,7 @@ const ExpenseTypes = () => {
 
       if (res?.status === 200) {
         toast.success("Restored");
+        invalidateDashboard();
         setEditModalOpen(false);
         loadRows();
         loadInactive();

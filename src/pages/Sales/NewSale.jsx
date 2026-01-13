@@ -37,11 +37,13 @@ import {
   restoreSaleApi,
   getTaxTypesApi
 } from "../../services/allAPI";
+import { useDashboard } from "../../context/DashboardContext";
 
 const NewSale = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { invalidateDashboard } = useDashboard();
   
   const [inactiveView, setInactiveView] = useState(false);
 
@@ -58,6 +60,7 @@ const NewSale = () => {
   const [customer, setCustomer] = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
+  const [vehicleNo, setVehicleNo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [taxTypeId, setTaxTypeId] = useState("");
 
@@ -84,6 +87,7 @@ const NewSale = () => {
     quantity: 0,
     unitPrice: 0,
     discount: 0,
+    taxPercentage: 0,
     total: 0
   });
 
@@ -287,6 +291,7 @@ useEffect(() => {
         setCustomer(sale.CustomerId);
         setPaymentAccount(sale.PaymentAccount);
         setInvoiceNo(sale.VNo || "");
+        setVehicleNo(sale.VehicleNo || "");
         setDate(sale.Date.split('T')[0]);
         setGlobalDiscount(sale.Discount);
         setShippingCost(sale.ShippingCost);
@@ -311,7 +316,8 @@ useEffect(() => {
           quantity: d.Quantity ?? d.quantity ?? 0,
           unitPrice: d.UnitPrice ?? d.unitPrice ?? 0,
           discount: d.Discount ?? d.discount ?? 0,
-          total: d.Total ?? d.total ?? 0
+          total: d.Total ?? d.total ?? 0,
+          brandId: d.brandId || d.BrandId
         }));
         setRows(mappedRows);
       }
@@ -403,9 +409,10 @@ useEffect(() => {
         unitId: product.UnitId ?? product.unitId,
         unitName: product.unitName ?? product.UnitName,
         unitPrice: product.UnitPrice ?? product.unitPrice ?? product.price ?? 0,
-        quantity: 1, 
+        quantity: "", 
         brandId: product.BrandId || product.brandId || prev.brandId,
-        brandName: product.brandName || product.BrandName || prev.brandName
+        brandName: product.brandName || product.BrandName || prev.brandName,
+        taxPercentage: product.taxPercentageValue ?? 0
       }));
     } else {
       setNewItem(prev => ({ ...prev, productId }));
@@ -631,8 +638,8 @@ const openProductModal = () => {
 
     const finalTotal = taxableAmount + tax + shipping;
 
-    setNetTotal(finalTotal);
-    setGrandTotal(subTotal);
+    setNetTotal(subTotal);
+    setGrandTotal(finalTotal);
     setTaxAmount(tax);
     setTotalDiscount(sumLineDiscounts + gDiscount);
 
@@ -664,6 +671,7 @@ const openProductModal = () => {
     const payload = {
       customerId: customer,
       invoiceNo,
+      vehicleNo,
       date,
       discount: parseFloat(globalDiscount) || 0,
       totalDiscount: parseFloat(totalDiscount) || 0,
@@ -704,6 +712,7 @@ const openProductModal = () => {
       const res = await addSaleApi(payload);
       if (res.status === 200) {
         toast.success("Sale added successfully");
+        invalidateDashboard();
         navigate("/app/sales/sales"); 
       } else {
         toast.error("Failed to add sale");
@@ -723,6 +732,7 @@ const openProductModal = () => {
     const payload = {
       customerId: customer,
       invoiceNo,
+      vehicleNo,
       date,
       discount: parseFloat(globalDiscount) || 0,
       totalDiscount: parseFloat(totalDiscount) || 0,
@@ -763,6 +773,7 @@ const openProductModal = () => {
       const res = await updateSaleApi(id, payload);
       if (res.status === 200) {
         toast.success("Sale updated successfully");
+        invalidateDashboard();
         navigate("/app/sales/sales");
       } else {
         toast.error("Failed to update sale");
@@ -879,6 +890,7 @@ const openProductModal = () => {
       quantity: 0,
       unitPrice: 0,
       discount: 0,
+      taxPercentage: taxTypeId ? (igstRate + cgstRate + sgstRate) : 0,
       total: 0
     });
     setIsItemModalOpen(true);
@@ -1006,6 +1018,21 @@ const openProductModal = () => {
                 />
                </div>
             </div>
+
+            <div className="flex items-center">
+               <label className="w-24 text-sm text-gray-300">
+                  Vehicle No.
+               </label>
+               <input
+                 type="text"
+                 value={vehicleNo}
+                 onChange={(e) => setVehicleNo(e.target.value)}
+                 className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                 disabled={inactiveView}
+                 placeholder="Vehicle/Transport No"
+               />
+            </div>
+
           </div>
 
           {/* RIGHT COL */}
@@ -1249,7 +1276,7 @@ const openProductModal = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Brand</label>
+            <label className="block text-sm text-gray-300 mb-1"> * Brand</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
@@ -1268,7 +1295,7 @@ const openProductModal = () => {
 
           {/* Product */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Product</label>
+            <label className="block text-sm text-gray-300 mb-1"> * Product</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={productsList
@@ -1344,6 +1371,17 @@ const openProductModal = () => {
             <input
               type="text"
               value={newItem.unitName}
+              readOnly
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            />
+          </div>
+
+          {/* Tax Percentage (Read Only) */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Tax Percentage (%)</label>
+            <input
+              type="text"
+              value={newItem.taxPercentage}
               readOnly
               className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
             />

@@ -2,14 +2,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  Save,
-  Trash2,
-  ArchiveRestore,
   FileSpreadsheet,
   FileText,
   Calendar
@@ -31,6 +23,7 @@ import {
   getProductsApi,
   getCategoriesApi,
   getWarehousesApi,
+  getLastPurchasePriceApi,
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import SortableHeader from "../../components/SortableHeader";
@@ -81,7 +74,7 @@ const DamagedProducts = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const [damaged, setDamaged] = useState([]);
-  const [inactive, setInactive] = useState([]); // MasterTable uses inactiveData prop
+  const [inactive, setInactive] = useState([]); 
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -123,6 +116,8 @@ const DamagedProducts = () => {
     purchasePrice: true,
     quantity: true,
     date: true,
+    supplier: true, // NEW
+    purchaseId: true, // NEW
     note: true,
   };
 
@@ -143,6 +138,7 @@ const DamagedProducts = () => {
     Date: "",
     Note: "",
     WarehouseId: "",
+    PurchaseId: "", // NEW
   });
 
   const [editDP, setEditDP] = useState({
@@ -156,6 +152,7 @@ const DamagedProducts = () => {
     Date: "",
     Note: "",
     WarehouseId: "",
+    PurchaseId: "", // NEW
     isInactive: false,
   });
 
@@ -226,7 +223,7 @@ const DamagedProducts = () => {
   /* =========================================================
       PRODUCT SELECTION AUTO-FILL — robust
    ========================================================= */
-  const handleSelectProduct = (productId, mode) => {
+  const handleSelectProduct = async (productId, mode) => {
     const prod =
       products.find(
         (p) =>
@@ -243,6 +240,20 @@ const DamagedProducts = () => {
         CategoryId: prod.CategoryId ?? prod.categoryId ?? prev.CategoryId,
         Quantity: "1.00",
       }));
+
+      // Fetch Last Purchase Price for add mode
+      try {
+        const res = await getLastPurchasePriceApi(productId);
+        if (res.status === 200) {
+          setNewDP((prev) => ({
+            ...prev,
+            PurchasePrice: res.data.price || 0,
+            PurchaseId: res.data.purchaseId || "",
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching last purchase price", err);
+      }
     } else {
       setEditDP((prev) => ({
         ...prev,
@@ -268,6 +279,7 @@ const DamagedProducts = () => {
       Date: "",
       Note: "",
       WarehouseId: "",
+      PurchaseId: "",
     });
     setModalOpen(true);
   };
@@ -282,6 +294,7 @@ const DamagedProducts = () => {
     if (newDP.Quantity === "" || newDP.Quantity === null)
       return toast.error("Quantity is required");
     if (!newDP.Date) return toast.error("Date is required");
+    if (!newDP.Note?.trim()) return toast.error("Note is required");
 
     const payload = {
       productId: newDP.ProductId,
@@ -294,6 +307,7 @@ const DamagedProducts = () => {
       note: newDP.Note || null,
       warehouseId: newDP.WarehouseId || null,
       userId: currentUserId,
+      purchaseId: newDP.PurchaseId || null
     };
 
     try {
@@ -324,6 +338,7 @@ const DamagedProducts = () => {
       Date: record.Date ? String(record.Date).split("T")[0] : "",
       Note: record.Note ?? record.note ?? "",
       WarehouseId: record.WarehouseId ?? record.warehouseId ?? "",
+      PurchaseId: record.PurchaseId ?? record.purchaseId ?? "",
       isInactive: inactive,
     });
     setEditModalOpen(true);
@@ -339,6 +354,7 @@ const DamagedProducts = () => {
     if (editDP.Quantity === "" || editDP.Quantity === null)
       return toast.error("Quantity is required");
     if (!editDP.Date) return toast.error("Date is required");
+    if (!editDP.Note?.trim()) return toast.error("Note is required");
 
     const payload = {
       productId: editDP.ProductId,
@@ -537,6 +553,7 @@ const DamagedProducts = () => {
       Code: r.Code ?? r.code,
       Name: r.Name ?? r.name,
       Category: r.CategoryName ?? r.categoryName ?? "",
+      Supplier: r.SupplierName ?? r.supplierName ?? "",
       PurchasePrice: r.PurchasePrice ?? r.purchasePrice,
       Quantity: r.Quantity ?? r.quantity,
       Date: r.Date ?? r.date ? String(r.Date ?? r.date).split("T")[0] : "",
@@ -561,6 +578,7 @@ const DamagedProducts = () => {
       r.Code,
       r.Name,
       r.Category,
+      r.Supplier,
       r.PurchasePrice,
       r.Quantity,
       r.Date,
@@ -575,6 +593,7 @@ const DamagedProducts = () => {
           "Code",
           "Name",
           "Category",
+          "Supplier",
           "Price",
           "Qty",
           "Date",
@@ -672,6 +691,17 @@ const DamagedProducts = () => {
               />
             </div>
 
+            <label className="mt-3 block text-sm">Purchase ID</label>
+            <input
+              type="number"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
+              value={newDP.PurchaseId ?? ""}
+              onChange={(e) =>
+                setNewDP((prev) => ({ ...prev, PurchaseId: e.target.value }))
+              }
+              placeholder="Auto-filled or Manual"
+            />
+
             <label className="mt-3 block text-sm">* Purchase Price</label>
             <input
               type="number"
@@ -695,7 +725,7 @@ const DamagedProducts = () => {
           </div>
 
           <div className="col-span-2">
-            <label className="text-sm">Note</label>
+            <label className="text-sm">* Note</label>
             <textarea
               className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24 text-sm"
               value={newDP.Note ?? ""}
@@ -868,6 +898,8 @@ const DamagedProducts = () => {
                     visibleColumns.code && { key: "Code", label: "Code", sortable: true },
                     visibleColumns.name && { key: "Name", label: "Name", sortable: true },
                     visibleColumns.category && { key: "CategoryName", label: "Category", sortable: true, render: (r) => r.CategoryName || r.categoryName || "-" },
+                    visibleColumns.supplier && { key: "SupplierName", label: "Supplier", sortable: true, render: (r) => r.SupplierName || r.supplierName || "-" },
+                    visibleColumns.purchaseId && { key: "PurchaseId", label: "Pur. ID", sortable: true }, // NEW
                     visibleColumns.purchasePrice && { key: "PurchasePrice", label: "Price", sortable: true },
                     visibleColumns.quantity && { key: "Quantity", label: "Qty", sortable: true },
                     visibleColumns.date && { key: "Date", label: "Date", sortable: true, render: (r) => r.Date ? String(r.Date).split("T")[0] : "" },

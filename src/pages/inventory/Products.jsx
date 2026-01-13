@@ -10,17 +10,15 @@ import {
   Trash2,
   ArchiveRestore,
   Star,
-  FileSpreadsheet, // Keep for ExportButtons
-  FileText,        // Keep for ExportButtons
+  FileSpreadsheet, 
+  FileText,        
   Pencil
 } from "lucide-react";
 import Swal from "sweetalert2";
-import MasterTable from "../../components/MasterTable"; // ADDED
-import { useTheme } from "../../context/ThemeContext"; // ADDED
-// Removed SortableHeader
+import MasterTable from "../../components/MasterTable"; 
+import { useTheme } from "../../context/ThemeContext"; 
 import Pagination from "../../components/Pagination";
 import toast from "react-hot-toast";
-
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
@@ -153,10 +151,13 @@ const Products = () => {
     model: true,
     unitPrice: true,
     unitsInStock: true,
+    quantityIn: true,    // NEW
+    quantityOut: true,   // NEW
     reorderLevel: true,
     categoryName: true,
     unitName: true,
     brandName: true,
+    supplierName: true, // NEW
     hsnCode: true,
     colour: true,
     grade: true
@@ -193,9 +194,7 @@ const Products = () => {
     ReorderLevel: "10.00",
     CategoryId: "",
     UnitId: "",
-
     CountryId: "",
-
     BrandId: "",
     Image: "",
     ProductDetails: "",
@@ -692,10 +691,13 @@ const Products = () => {
       Model: r.Model,
       UnitPrice: r.UnitPrice,
       UnitsInStock: r.UnitsInStock,
+      QuantityIn: r.QuantityIn, 
+      QuantityOut: r.QuantityOut, 
       ReorderLevel: r.ReorderLevel,
       Category: r.categoryName || "-",
       Unit: r.unitName || "-",
-      Brand: r.brandName || "-"
+      Brand: r.brandName || "-",
+      Supplier: r.supplierName || "-"
     }));
 
     if (showInactive) {
@@ -742,6 +744,8 @@ const Products = () => {
       r.Model,
       r.UnitPrice,
       r.UnitsInStock,
+      r.QuantityIn,
+      r.QuantityOut,
       r.ReorderLevel,
       r.Category,
       r.Unit,
@@ -755,7 +759,7 @@ const Products = () => {
     doc.autoTable({
       head: [[
         "Id", "Barcode", "SN", "Product Name", "Model", "Unit Price",
-        "In Stock", "Reorder Level", "Category", "Unit", "Brand"
+        "In Stock", "Qty In", "Qty Out", "Reorder Level", "Category", "Unit", "Brand"
       ]],
       body: rows,
       startY: 22,
@@ -809,7 +813,6 @@ const Products = () => {
 
   useEffect(() => {
     setDisplayedProducts(computeDisplayed());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products, searchText, filterCategory, filterUnit, filterBrand, products.length]);
 
   // --- SORTING LOGIC ---
@@ -982,10 +985,13 @@ const Products = () => {
                     visibleColumns.model && { key: "Model", label: "Model", sortable: true },
                     visibleColumns.unitPrice && { key: "UnitPrice", label: "Price", sortable: true },
                     visibleColumns.unitsInStock && { key: "UnitsInStock", label: "Stock", sortable: true, render: (r) => r.UnitsInStock ?? 0 },
+                    visibleColumns.quantityIn && { key: "QuantityIn", label: "Qty In", sortable: true, render: (r) => r.QuantityIn ?? 0 },
+                    visibleColumns.quantityOut && { key: "QuantityOut", label: "Qty Out", sortable: true, render: (r) => r.QuantityOut ?? 0 },
                     visibleColumns.reorderLevel && { key: "ReorderLevel", label: "Reorder", sortable: true },
                     visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true, render: (r) => r.categoryName || "-" },
                     visibleColumns.unitName && { key: "unitName", label: "Unit", sortable: true, render: (r) => r.unitName || "-" },
                     visibleColumns.brandName && { key: "brandName", label: "Brand", sortable: true, render: (r) => r.brandName || "-" },
+                    visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true, render: (r) => r.supplierName || "-" },
                     visibleColumns.hsnCode && { key: "HSNCode", label: "HSN", sortable: true, render: (r) => r.HSNCode || "-" },
                     visibleColumns.colour && { key: "Colour", label: "Colour", sortable: true, render: (r) => r.Colour || "-" },
                     visibleColumns.grade && { key: "Grade", label: "Grade", sortable: true, render: (r) => r.Grade || "-" },

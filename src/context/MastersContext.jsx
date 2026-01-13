@@ -332,7 +332,6 @@ export const MastersProvider = ({ children }) => {
       incomesData, loadIncomes, refreshIncomes, loadInactiveIncomes, refreshInactiveIncomes,
       deductionsData, loadDeductions, refreshDeductions, loadInactiveDeductions, refreshInactiveDeductions,
       servicesData, loadServices, refreshServices, loadInactiveServices, refreshInactiveServices,
-      servicesData, loadServices, refreshServices, loadInactiveServices, refreshInactiveServices,
       shippersData, loadShippers, refreshShippers, loadInactiveShippers, refreshInactiveShippers,
       taxTypesData, loadTaxTypes, refreshTaxTypes, loadInactiveTaxTypes, refreshInactiveTaxTypes
     }}>

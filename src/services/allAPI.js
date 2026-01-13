@@ -1,9 +1,17 @@
 import { commonAPI } from "../services/commonAPI";
 import { serverURL } from "../services/serverURL";
 
+// TAX PERCENTAGES
+export const getTaxPercentagesApi = async (page, limit) => await commonAPI("GET", `${serverURL}/tax-percentages/get-all?page=${page}&limit=${limit}`, "");
+export const addTaxPercentageApi = async (reqBody) => await commonAPI("POST", `${serverURL}/tax-percentages/add`, reqBody);
+export const updateTaxPercentageApi = async (id, reqBody) => await commonAPI("PUT", `${serverURL}/tax-percentages/update/${id}`, reqBody);
+export const deleteTaxPercentageApi = async (id, reqBody) => await commonAPI("POST", `${serverURL}/tax-percentages/delete/${id}`, reqBody);
+export const restoreTaxPercentageApi = async (id, reqBody) => await commonAPI("POST", `${serverURL}/tax-percentages/restore/${id}`, reqBody);
+export const getInactiveTaxPercentagesApi = async () => await commonAPI("GET", `${serverURL}/tax-percentages/get-inactive`, "");
+export const searchTaxPercentageApi = async (key) => await commonAPI("GET", `${serverURL}/tax-percentages/search?q=${key}`, "");
+
 // Login API
 export const LoginApi = async (reqBody) => {
-  return await commonAPI("POST", `${serverURL}/auth/login`, reqBody, "");
   return await commonAPI("POST", `${serverURL}/auth/login`, reqBody, "");
 };
 
@@ -504,6 +512,8 @@ export const restoreCustomerGroupApi = (id, data) =>
 
 
 
+
+
 //   Supplier Groups APIs
 export const getSupplierGroupsApi = (page, limit) =>
   commonAPI("GET", `${serverURL}/supplier-groups/all?page=${page}&limit=${limit}`);
@@ -789,6 +799,10 @@ export const updateAttendanceStatusApi = (id, data) =>
 
 export const deleteAttendanceStatusApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/attendance-statuses/delete/${id}`, data);
+
+// ======================= Purchase Orders Next No =======================
+export const getNextPONumberApi = () => 
+  commonAPI("GET", `${serverURL}/purchase-orders/next-number`);
 
 export const searchAttendanceStatusApi = (q) =>
   commonAPI("GET", `${serverURL}/attendance-statuses/search?q=${q}`);
@@ -1477,6 +1491,10 @@ export const getPurchaseByIdApi = (id) =>
 export const addPurchaseApi = (data) =>
   commonAPI("POST", `${serverURL}/purchases/add`, data);
 
+// GET LAST PRICE
+export const getLastPurchasePriceApi = (productId) =>
+  commonAPI("GET", `${serverURL}/purchases/last-price/${productId}`);
+
 // UPDATE
 export const updatePurchaseApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/purchases/update/${id}`, data);
@@ -1746,3 +1764,29 @@ export const restoreStockUpdateApi = (id, data) =>
 // SEARCH
 export const searchStockUpdateApi = (query) =>
   commonAPI("GET", `${serverURL}/stock-updates/search?q=${encodeURIComponent(query)}`);
+
+// ================= PURCHASE ORDERS API =================
+
+export const getPurchaseOrdersApi = (page, limit) =>
+  commonAPI("GET", `${serverURL}/purchase-orders?page=${page}&limit=${limit}`);
+
+export const addPurchaseOrderApi = (data) =>
+  commonAPI("POST", `${serverURL}/purchase-orders/add`, data);
+
+export const updatePurchaseOrderApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/purchase-orders/update/${id}`, data);
+
+export const deletePurchaseOrderApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/purchase-orders/delete/${id}`, data);
+
+export const searchPurchaseOrderApi = (q) =>
+  commonAPI("GET", `${serverURL}/purchase-orders/search?q=${q}`);
+
+export const getInactivePurchaseOrdersApi = () =>
+  commonAPI("GET", `${serverURL}/purchase-orders/inactive`);
+
+export const restorePurchaseOrderApi = (id, data) =>
+  commonAPI("PUT", `${serverURL}/purchase-orders/restore/${id}`, data);
+
+export const getPurchaseOrderByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/purchase-orders/${id}`);

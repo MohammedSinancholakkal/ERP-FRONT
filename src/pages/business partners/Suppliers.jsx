@@ -234,6 +234,8 @@ const Suppliers = () => {
       r.orderBookerId ??
       r.OrderBookerId ??
       "",
+    pan: r.pan ?? r.PAN ?? "",
+    gstin: r.gstin ?? r.GSTIN ?? "",
 
   });
 
@@ -336,7 +338,7 @@ const Suppliers = () => {
   const loadSuppliers = async () => {
     try {
       setLoading(true);
-      const res = await getSuppliersApi(1, 5000); // Fetch all for client-side
+      const res = await getSuppliersApi(1, 5000); 
       
       let records = [];
       if (res?.data?.records) {
@@ -355,14 +357,10 @@ const Suppliers = () => {
     }
   };
 
-  // Deprecated handleSearch - search is now effect-based
-  // keeping empty or removing references in JSX to avoid errors
-  // We will map inputs to setSearchText directly.
 
   useEffect(() => {
     loadSuppliers();
     loadLookups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --------------------------------------

@@ -24,7 +24,10 @@ import {
   getProductsApi,
   addCategoryApi,
   addUnitApi,
-  addBrandApi
+  addBrandApi,
+  getSuppliersApi,
+  deleteProductApi,
+  getTaxPercentagesApi
 } from "../../services/allAPI";
 import AddModal from "../../components/modals/AddModal";
 
@@ -48,18 +51,23 @@ const NewProduct = () => {
     CategoryId: "",
     UnitId: "",
     BrandId: "",
+    SupplierId: "",
     CountryId: "",
     Image: "",
     ProductDetails: "",
     HSNCode: "",
     Colour: "",
-    Grade: ""       
+
+    Grade: "",
+    TaxPercentageId: ""      
   });
 
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [taxPercentages, setTaxPercentages] = useState([]);
   
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -99,17 +107,21 @@ const NewProduct = () => {
 
   const loadDropdowns = async () => {
     try {
-      const [cRes, uRes, bRes, coRes] = await Promise.all([
+      const [cRes, uRes, bRes, coRes, sRes, tRes] = await Promise.all([
         getCategoriesApi(1, 1000),
         getUnitsApi(),
         getBrandsApi(),
-        getCountriesApi(1, 1000)
+        getCountriesApi(1, 1000),
+        getSuppliersApi(1, 1000),
+        getTaxPercentagesApi(1, 1000)
       ]);
 
       if (cRes.status === 200) setCategories(cRes.data.records || []);
       if (uRes.status === 200) setUnits(uRes.data.records || []);
       if (bRes.status === 200) setBrands(bRes.data.records || []);
       if (coRes.status === 200) setCountries(coRes.data.records || []);
+      if (sRes.status === 200) setSuppliers(sRes.data.records || []);
+      if (tRes.status === 200) setTaxPercentages(tRes.data.records || []);
 
     } catch (error) {
       console.error("Error loading dropdowns", error);
@@ -119,7 +131,7 @@ const NewProduct = () => {
 
   const generateNextSN = async () => {
     try {
-      const res = await getProductsApi(1, 10000); // Fetch all to calculate max SN
+      const res = await getProductsApi(1, 10000); 
       if (res.status === 200) {
         const allProducts = res.data.records || [];
         let max = 0;
@@ -162,13 +174,15 @@ const NewProduct = () => {
                        ReorderLevel: found.ReorderLevel != null ? String(found.ReorderLevel) : "10.00",
                        CategoryId: found.CategoryId || "",
                        UnitId: found.UnitId || "",
-                       BrandId: found.BrandId || "",
-                       CountryId: found.CountryId || "",
+                        BrandId: found.BrandId || "",
+                        SupplierId: found.SupplierId || "",
+                        CountryId: found.CountryId || "",
                        Image: found.Image || "",
                        ProductDetails: found.ProductDetails || "",
                        HSNCode: found.HSNCode || "",
                        Colour: found.Colour || "",
-                       Grade: found.Grade || ""
+                       Grade: found.Grade || "",
+                       TaxPercentageId: found.TaxPercentageId || ""
                    });
                } else {
                    toast.error("Product not found");
@@ -200,6 +214,7 @@ const NewProduct = () => {
     if (!product.CategoryId) return toast.error("Category required");
     if (!product.UnitId) return toast.error("Unit required");
     if (!product.BrandId) return toast.error("Brand required");
+    if (!product.TaxPercentageId) return toast.error("Tax Percentage required");
 
     const payload = {
       Barcode: product.productCode || null,
@@ -213,12 +228,14 @@ const NewProduct = () => {
       CategoryId: product.CategoryId || null,
       UnitId: product.UnitId || null,
       BrandId: product.BrandId || null,
+      SupplierId: product.SupplierId || null,
       CountryId: product.CountryId || null,
       Image: product.Image,
       ProductDetails: product.ProductDetails,
       HSNCode: product.HSNCode,
       Colour: product.Colour,
       Grade: product.Grade,
+      TaxPercentageId: product.TaxPercentageId,
       userId: currentUserId
     };
 
@@ -259,6 +276,27 @@ const NewProduct = () => {
       toast.error("Server error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+
+    setLoading(true);
+    try {
+        const res = await deleteProductApi(id, { userId: currentUserId });
+        if (res.status === 200) {
+            toast.success("Product deleted successfully");
+            navigate("/app/inventory/products");
+        } else {
+            toast.error(res.message || "Failed to delete product");
+        }
+    } catch (error) {
+        console.error("Delete Error", error);
+        toast.error("Server error during deletion");
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -362,18 +400,32 @@ const NewProduct = () => {
                 <h2 className="text-2xl font-bold">{id ? "Edit Product" : "New Product"}</h2>
             </div>
             {/* Save Button */}
-            <button
-                onClick={handleSave}
-                disabled={loading}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
-                theme === 'emerald' 
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200' 
-                    : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
-                }`}
-            >
-                <Save size={18} />
-                {loading ? "Saving..." : "Save"}
-            </button>
+
+            <div className="flex items-center gap-2">
+                {id && (
+                    <button
+                        onClick={handleDelete}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+                    >
+                        <Trash2 size={18} />
+                        Delete
+                    </button>
+                )}
+
+                <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
+                        theme === 'emerald'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
+                    }`}
+                >
+                    <Save size={18} />
+                    {loading ? (id ? "Updating..." : "Saving...") : (id ? "Update" : "Save")}
+                </button>
+            </div>
         </div>
 
 
@@ -498,7 +550,7 @@ const NewProduct = () => {
                 </div>
 
 
-                {/* ROW 4: Brand (6), Colour (3), Grade (3) */}
+                {/* ROW 4: Brand (6), Supplier (6) */}
                 <div className="col-span-12 md:col-span-6">
                     <label className={labelClass}>Company / Brand {requiredStar}</label>
                      <div className="flex items-center gap-2">
@@ -518,7 +570,21 @@ const NewProduct = () => {
                         </button>
                     </div>
                 </div>
-                <div className="col-span-12 md:col-span-3">
+                <div className="col-span-12 md:col-span-6">
+                    <label className={labelClass}>Supplier</label>
+                     <div className="flex-1">
+                          <SearchableSelect
+                            options={suppliers.map(s => ({ id: s.id, name: s.companyName || s.name }))}
+                            value={product.SupplierId}
+                            onChange={(val) => setProduct({...product, SupplierId: val})}
+                            placeholder="--select--"
+                        />
+                    </div>
+                </div>
+
+
+                {/* ROW 5: Colour (4), Grade (4), Tax Percentage (4) */}
+                <div className="col-span-12 md:col-span-4">
                     <label className={labelClass}>Colour</label>
                     <input
                         type="text"
@@ -527,7 +593,7 @@ const NewProduct = () => {
                         className={inputClass}
                     />
                 </div>
-                <div className="col-span-12 md:col-span-3">
+                <div className="col-span-12 md:col-span-4">
                     <label className={labelClass}>Grade</label>
                     <input
                         type="text"
@@ -535,6 +601,17 @@ const NewProduct = () => {
                         onChange={(e) => setProduct({...product, Grade: e.target.value})}
                         className={inputClass}
                     />
+                </div>
+                <div className="col-span-12 md:col-span-4">
+                    <label className={labelClass}>Tax Percentage {requiredStar}</label>
+                     <div className="flex-1">
+                          <SearchableSelect
+                            options={taxPercentages.map(t => ({ id: t.id, name: `${t.percentage}%` }))}
+                            value={product.TaxPercentageId}
+                            onChange={(val) => setProduct({...product, TaxPercentageId: val})}
+                            placeholder="--select--"
+                        />
+                    </div>
                 </div>
 
 

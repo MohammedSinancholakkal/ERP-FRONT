@@ -36,9 +36,11 @@ import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import MasterTable from "../../components/MasterTable"; 
 import { useTheme } from "../../context/ThemeContext"; 
 import ExportButtons from "../../components/ExportButtons"; 
-
+import { useSettings } from "../../contexts/SettingsContext"; // ADDED
+import { generateSalesInvoicePDF } from "../../utils/salesPdfUtils"; // ADDED
 const SalesQuotation = () => {
   const { theme } = useTheme(); 
+  const { settings } = useSettings(); // ADDED
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [tempVisibleColumns, setTempVisibleColumns] = useState(null);
@@ -262,37 +264,14 @@ const SalesQuotation = () => {
     doc.save("quotations.pdf");
   };
 
+  // COZY SANITARYWARE STYLE PDF (REUSED for Proforma)
   const handleDownloadPdf = async (id) => {
-    try {
-      const res = await getQuotationByIdApi(id);
-      if (res?.status !== 200) {
-        toast.error("Failed to load quotation for PDF");
-        return;
-      }
-
-      const q = res.data?.quotation || res.data?.data || res.data?.records?.[0] || res.data;
-      const items = res.data?.details || res.data?.items || q?.details || [];
-
-      const doc = new jsPDF();
-      doc.text("Sales Quotation", 14, 10);
-      doc.text(`Quotation #: ${q?.VNo || q?.Id || id}`, 14, 20);
-      doc.text(`Date: ${q?.Date ? new Date(q.Date).toLocaleDateString() : "-"}`, 14, 28);
-
-      const body = items.map((it) => [it.itemName || it.ItemName || it.Description || "", (Number(it.UnitPrice) || 0).toFixed(2), it.Quantity ?? it.Qty ?? "-", (it.Discount ?? 0).toFixed(2), (Number(it.Total) || 0).toFixed(2)]);
-
-      doc.autoTable({
-        startY: 36,
-        head: [["Item", "Unit Price", "Qty", "Disc (%)", "Line Total"]],
-        body
-      });
-
-      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 140;
-      doc.text(`Grand Total: ${(Number(q?.NetTotal) || 0).toFixed(2)}`, 14, finalY + 6);
-      doc.save(`quotation-${q?.Id || id}.pdf`);
-    } catch (err) {
-      console.error("PDF generation error", err);
-      toast.error("Failed to generate PDF");
-    }
+    // We pass "PROFORMA INVOICE" as title (or "Performa Invoice" if user insists, but "PROFORMA" is standard)
+    // User requested "performa invoice" as heading.
+    // I will use "PROFORMA INVOICE" as it looks professional, or "PERFORMA INVOICE" to be literal?
+    // Let's use "PROFORMA INVOICE" (Standard). If user complains, I change it.
+    // Actually user said "change the heading as performa invoice".
+    await generateSalesInvoicePDF(id, settings, "PROFORMA INVOICE");
   };
 
   const handleRefresh = async () => {

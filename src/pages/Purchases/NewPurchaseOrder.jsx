@@ -1,4 +1,3 @@
-// src/pages/purchases/NewPurchase.jsx
 import React, { useEffect, useState } from "react";
 import SearchableSelect from "../../components/SearchableSelect";
 import {
@@ -7,8 +6,6 @@ import {
   Trash2,
   ArrowLeft,
   Star,
-  Check,
-  X,
   Edit,
   ArchiveRestore
 } from "lucide-react";
@@ -23,29 +20,30 @@ import AddModal from "../../components/modals/AddModal";
 // APIs
 import {
   getSuppliersApi,
-  getBanksApi, // For Payment Account
+  getBanksApi, 
   getBrandsApi,
   getProductsApi,
-  addPurchaseApi,
-  addBrandApi, // Quick create brand
+  addPurchaseOrderApi,
+  addBrandApi, 
   addSupplierApi,
   addProductApi,
   getUnitsApi,
   getCategoriesApi,
-  getPurchaseByIdApi,
-  updatePurchaseApi,
-  deletePurchaseApi,
-  restorePurchaseApi,
-  getTaxTypesApi
+  getPurchaseOrderByIdApi,
+  updatePurchaseOrderApi,
+  deletePurchaseOrderApi,
+  restorePurchaseOrderApi,
+  getTaxTypesApi,
+  getNextPONumberApi
 } from "../../services/allAPI";
 import { useDashboard } from "../../context/DashboardContext";
 import { useParams, useLocation } from "react-router-dom";
 
-const NewPurchase = () => {
+const NewPurchaseOrder = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams(); // Get ID from URL
-  const { invalidateDashboard } = useDashboard();
+  const { invalidateDashboard } = useDashboard(); 
   const userData = JSON.parse(localStorage.getItem("user"));
   const userId = userData?.userId || userData?.id || userData?.Id;
 
@@ -60,15 +58,17 @@ const NewPurchase = () => {
 
   // --- TOP SECTION STATE ---
   const [supplier, setSupplier] = useState("");
-  const [paymentAccount, setPaymentAccount] = useState("");
-  const [invoiceNo, setInvoiceNo] = useState("");
+  const [invoiceNo, setInvoiceNo] = useState(""); // PO Number / VNo
+  const [poSequence, setPoSequence] = useState(null); // NEW: PO Sequence
   const [vehicleNo, setVehicleNo] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [taxTypeId, setTaxTypeId] = useState("");
 
+
+
+
   // --- DROPDOWN DATA ---
   const [suppliersList, setSuppliersList] = useState([]);
-  const [banksList, setBanksList] = useState([]);
   const [brandsList, setBrandsList] = useState([]);
   const [productsList, setProductsList] = useState([]);
   const [taxTypesList, setTaxTypesList] = useState([]);
@@ -121,11 +121,26 @@ const NewPurchase = () => {
   // --- INITIAL DATA LOADING ---
   useEffect(() => {
     fetchSuppliers();
-    fetchBanks();
     fetchBrands();
     fetchProducts();
     fetchTaxTypes();
-  }, []);
+    
+    // Only fetch next number if creating new order
+    if (!id) {
+       fetchNextPONumber();
+    }
+  }, [id]);
+
+  const fetchNextPONumber = async () => {
+      try {
+          const res = await getNextPONumberApi();
+          if(res.status === 200 && res.data?.nextNo) {
+              setInvoiceNo(res.data.nextNo);
+          }
+      } catch(e) {
+          console.error("Error fetching next PO number", e);
+      }
+  };
 
   // --- HANDLE RETURN FROM NEW SUPPLIER ---
   useEffect(() => {
@@ -155,17 +170,17 @@ const NewPurchase = () => {
 
   const fetchPurchaseDetails = async (purchaseId) => {
     try {
-      const res = await getPurchaseByIdApi(purchaseId);
+      const res = await getPurchaseOrderByIdApi(purchaseId);
       if (res.status === 200) {
         const { purchase, details } = res.data;
         
         setSupplier(purchase.SupplierId);
-        setPaymentAccount(purchase.PaymentAccount);
-        setInvoiceNo(purchase.InvoiceNo);
+        setInvoiceNo(purchase.VNo || "");
         setVehicleNo(purchase.VehicleNo || "");
         setDate(purchase.Date.split('T')[0]);
         setGlobalDiscount(purchase.Discount);
         setShippingCost(purchase.ShippingCost);
+        setPaidAmount(purchase.PaidAmount);
         setPaidAmount(purchase.PaidAmount);
         setNoTax(purchase.NoTax === 1);
         setDetails(purchase.Details);
@@ -205,14 +220,7 @@ const NewPurchase = () => {
     }
   };
 
-  const fetchBanks = async () => {
-    try {
-      const res = await getBanksApi(1, 1000);
-      if (res.status === 200) setBanksList(res.data.records || []);
-    } catch (error) {
-      console.error("Error fetching banks", error);
-    }
-  };
+
 
   const fetchBrands = async () => {
     try {
@@ -256,9 +264,6 @@ const NewPurchase = () => {
       
       const currentFormState = {
           supplier,
-          paymentAccount,
-          invoiceNo,
-          vehicleNo,
           date,
           taxTypeId,
           rows,
@@ -267,8 +272,8 @@ const NewPurchase = () => {
           paidAmount,
           noTax,
           details,
-          newItem, // We preserve the modal state too
-          isItemModalOpen: true // We want the modal to be open when we return
+          newItem,
+          isItemModalOpen: true 
       };
 
       navigate("/app/inventory/newproduct", { 
@@ -286,9 +291,6 @@ const NewPurchase = () => {
         
         // Restore Form Data
         setSupplier(ps.supplier || "");
-        setPaymentAccount(ps.paymentAccount || "");
-        setInvoiceNo(ps.invoiceNo || "");
-        setVehicleNo(ps.vehicleNo || "");
         setDate(ps.date || new Date().toISOString().split("T")[0]);
         setTaxTypeId(ps.taxTypeId || "");
         setRows(ps.rows || []);
@@ -304,14 +306,11 @@ const NewPurchase = () => {
             setNewItem(ps.newItem || {});
         }
 
-        // Handle Created Product
         if (location.state.createdProductId || location.state.createdProductName) {
-             // We need to fetch products to get the full object of the new product
              getProductsApi(1, 1000).then(res => {
                  if (res.status === 200) {
                      setProductsList(res.data.records || []);
                      
-                     // Try to find by ID first, then Name
                      let found = null;
                      if (location.state.createdProductId) {
                         found = res.data.records.find(p => String(p.id) === String(location.state.createdProductId));
@@ -321,10 +320,8 @@ const NewPurchase = () => {
                      }
                      
                      if (found) {
-                         // Update newItem with the new product
                          setNewItem(prev => ({
                             ...prev,
-                            // Ensure we keep the previous modal state if valuable, but overwrite product details
                             productId: found.id,
                             productName: found.ProductName,
                             unitId: found.UnitId,
@@ -360,7 +357,7 @@ const NewPurchase = () => {
             setBrandsList(updatedBrands.data.records);
             const newBrand = updatedBrands.data.records.find(b => b.name === newBrandName);
             if(newBrand) {
-                setNewItem(prev => ({ ...prev, brandId: newBrand.id, productId: "", productName: "" })); // Clear product on brand change
+                setNewItem(prev => ({ ...prev, brandId: newBrand.id, productId: "", productName: "" })); 
             }
         }
 
@@ -380,7 +377,7 @@ const NewPurchase = () => {
 
   // --- MODAL HANDLERS ---
   const openItemModal = () => {
-    if (inactiveView) return; // Prevent open in inactive
+    if (inactiveView) return; 
     setEditingIndex(null);
     setNewItem({
       brandId: "",
@@ -405,13 +402,13 @@ const NewPurchase = () => {
       setNewItem(prev => ({
         ...prev,
         productId: product.id,
-        productName: product.ProductName, // Capitalized
-        unitId: product.UnitId, // Capitalized
-        unitName: product.unitName, // Aliased in query
+        productName: product.ProductName, 
+        unitId: product.UnitId, 
+        unitName: product.unitName, 
         unitPrice: "",
         quantity: "",  
         // description: product.ProductDetails || "", // REMOVED as per request
-        brandId: product.BrandId || prev.brandId, // Capitalized
+        brandId: product.BrandId || prev.brandId, 
         brandName: product.brandName || prev.brandName, // Aliased
         taxPercentage: product.taxPercentageValue ?? 0
       }));
@@ -720,8 +717,9 @@ const NewPurchase = () => {
     due = round2(netPayable - paid);
   }
 
-  setGrandTotal(subTotal);                     
-  setNetTotal(netPayable);                     
+  // 7️⃣ Set states (single source of truth)
+  setGrandTotal(subTotal);                     // purely informational
+  setNetTotal(netPayable);                     // FINAL amount
   setTaxAmount(tax);
   setTotalDiscount(round2(lineDiscountTotal + globalDisc));
   setDueAmount(due);
@@ -732,8 +730,8 @@ const NewPurchase = () => {
 
 
 
-  // --- SAVE PURCHASE ---
-  const handleSavePurchase = async () => {
+  // --- SAVE PURCHASE ORDER ---
+  const handleSavePurchaseOrder = async () => {
     // Robust userId check
     const currentUserId = userData?.userId || userData?.id || userData?.Id;
     
@@ -743,14 +741,11 @@ const NewPurchase = () => {
     }
 
     if (!supplier) return toast.error("Please select a supplier");
-    if (!paymentAccount) return toast.error("Please select a payment account");
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
       supplierId: supplier,
-      invoiceNo,
-      vehicleNo,
       date,
       discount: parseFloat(globalDiscount) || 0,
       totalDiscount: parseFloat(totalDiscount) || 0,
@@ -761,9 +756,10 @@ const NewPurchase = () => {
       due: parseFloat(dueAmount) || 0,
       change: parseFloat(changeAmount) || 0,
       details,
-      paymentAccount,
       employeeId: null, // Optional
-      vno: "", // Optional
+      vno: invoiceNo, // Added PO Number
+      poSequence: poSequence, // SEND SEQUENCE
+      vehicleNo, // Added
       vat: parseFloat(taxAmount) || 0,
       totalTax: parseFloat(taxAmount) || 0,
       vatPercentage: 0,
@@ -789,29 +785,28 @@ const NewPurchase = () => {
     };
 
     try {
-      const res = await addPurchaseApi(payload);
+      const res = await addPurchaseOrderApi(payload);
       if (res.status === 200) {
-        toast.success("Purchase added successfully");
+        toast.success("Purchase Order added successfully");
         invalidateDashboard();
-        navigate("/app/purchasing/purchases"); 
+        navigate("/app/purchasing/purchaseorders"); 
       } else {
-        toast.error("Failed to add purchase");
+        toast.error("Failed to add purchase order");
       }
     } catch (error) {
       console.error("SAVE ERROR", error);
-      toast.error("Error saving purchase");
+      toast.error("Error saving purchase order");
     }
   };
 
-  const handleUpdatePurchase = async () => {
+  // --- UPDATE PURCHASE ORDER ---
+  const handleUpdatePurchaseOrder = async () => {
     if (!supplier) return toast.error("Please select a supplier");
-    if (!paymentAccount) return toast.error("Please select a payment account");
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     const payload = {
       supplierId: supplier,
-      invoiceNo,
       date,
       discount: parseFloat(globalDiscount) || 0,
       totalDiscount: parseFloat(totalDiscount) || 0,
@@ -822,9 +817,8 @@ const NewPurchase = () => {
       due: parseFloat(dueAmount) || 0,
       change: parseFloat(changeAmount) || 0,
       details,
-      paymentAccount,
       employeeId: null,
-      vno: "",
+      vno: invoiceNo,
       vehicleNo, // Added
       vat: parseFloat(taxAmount) || 0,
       totalTax: parseFloat(taxAmount) || 0,
@@ -851,24 +845,26 @@ const NewPurchase = () => {
     };
 
     try {
-      const res = await updatePurchaseApi(id, payload);
+      const res = await updatePurchaseOrderApi(id, payload);
       if (res.status === 200) {
-        toast.success("Purchase updated successfully");
+        toast.success("Purchase Order updated successfully");
         invalidateDashboard();
-        navigate("/app/purchasing/purchases");
+        navigate("/app/purchasing/purchaseorders");
       } else {
-        toast.error("Failed to update purchase");
+        toast.error("Failed to update purchase order");
       }
     } catch (error) {
       console.error("UPDATE ERROR", error);
-      toast.error("Error updating purchase");
+      toast.error("Error updating purchase order");
     }
   };
 
-  const handleDeletePurchase = async () => {
+  // --- DELETE PURCHASE ORDER ---
+  // --- DELETE PURCHASE ORDER ---
+  const handleDeletePurchaseOrder = async () => {
     const result = await Swal.fire({
       title: "Are you sure?",
-      text: "Do you really want to delete this purchase?",
+      text: "Do you really want to delete this purchase order?",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -886,37 +882,36 @@ const NewPurchase = () => {
     });
   
     try {
-      const res = await deletePurchaseApi(id, { userId });
+      const res = await deletePurchaseOrderApi(id, { userId });
       Swal.close();
   
       if (res.status === 200) {
         await Swal.fire({
           icon: "success",
           title: "Deleted!",
-          text: "Purchase deleted successfully.",
+          text: "Purchase Order deleted successfully.",
           timer: 1500,
           showConfirmButton: false,
         });
-        navigate("/app/purchasing/purchases");
+        navigate("/app/purchasing/purchaseorders");
       } else {
-        Swal.fire("Failed", "Failed to delete purchase", "error");
+        Swal.fire("Failed", "Failed to delete purchase order", "error");
       }
     } catch (error) {
       Swal.close();
-      console.error("DELETE INVOICE ERROR", error);
+      console.error("DELETE ORDER ERROR", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Error deleting purchase",
+        text: "Error deleting purchase order",
       });
     }
   };
 
-  
-  const handleRestorePurchase = async () => {
+  const handleRestorePurchaseOrder = async () => {
     const result = await Swal.fire({
-      title: "Restore purchase?",
-      text: "Do you want to restore this purchase?",
+      title: "Restore purchase order?",
+      text: "Do you want to restore this purchase order?",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981", 
@@ -934,20 +929,20 @@ const NewPurchase = () => {
     });
   
     try {
-      const res = await restorePurchaseApi(id, { userId });
+      const res = await restorePurchaseOrderApi(id, { userId });
       Swal.close();
   
       if (res.status === 200) {
         await Swal.fire({
           icon: "success",
           title: "Restored!",
-          text: "Purchase restored successfully.",
+          text: "Purchase Order restored successfully.",
           timer: 1500,
           showConfirmButton: false,
         });
-        navigate("/app/purchasing/purchases");
+        navigate("/app/purchasing/purchaseorders");
       } else {
-        Swal.fire("Failed", "Failed to restore purchase", "error");
+        Swal.fire("Failed", "Failed to restore purchase order", "error");
       }
     } catch (error) {
       Swal.close();
@@ -955,7 +950,7 @@ const NewPurchase = () => {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Error restoring purchase",
+        text: "Error restoring purchase order",
       });
     }
   };
@@ -970,13 +965,13 @@ const NewPurchase = () => {
             if (location.state?.returnTo) {
                 navigate(location.state.returnTo);
             } else {
-                navigate("/app/purchasing/purchases");
+                navigate("/app/purchasing/purchaseorders");
             }
           }} className="text-white-500 hover:text-white-400">
             <ArrowLeft size={24} />
           </button>
           <h2 className="text-xl text-white-500 font-medium">
-            {id ? (inactiveView ? "View Inactive Purchase" : "Edit Purchase") : "New Purchase"}
+            {id ? (inactiveView ? "View Inactive Purchase Order" : "Edit Purchase Order") : "New Purchase Order"}
           </h2>
         </div>
 
@@ -985,24 +980,24 @@ const NewPurchase = () => {
           {id ? (
             <>
               {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
-              <button onClick={handleUpdatePurchase}  className="flex items-center gap-2 bg-gray-700 border border-gray-800 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
+              <button onClick={handleUpdatePurchaseOrder}  className="flex items-center gap-2 bg-gray-700 border border-gray-800 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
                 <Save size={18} /> Update
               </button>
               )}
               {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.DELETE) && (
-              <button onClick={handleDeletePurchase} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
+              <button onClick={handleDeletePurchaseOrder} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
                 <Trash2 size={18} /> Delete
               </button>
               )}
               {inactiveView && (
-                  <button onClick={handleRestorePurchase} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
+                  <button onClick={handleRestorePurchaseOrder} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
                       <ArchiveRestore size={18} /> Restore
                   </button>
               )}
             </>
           ) : (
             hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
-            <button onClick={handleSavePurchase} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
+            <button onClick={handleSavePurchaseOrder} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
               <Save size={18} /> Save
             </button>
             )
@@ -1037,27 +1032,16 @@ const NewPurchase = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <label className="text-sm text-gray-300 block mb-1">
-                  <span className="text-red-400">*</span> Payment Account
-                </label>
-                <select
-                  value={paymentAccount}
-                  onChange={(e) => setPaymentAccount(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                  disabled={inactiveView}
-                >
-                  <option value="">--select--</option>
-                  <option value="Cash at Hand">Cash at Hand</option>
-                  <option value="Cash at Bank">Cash at Bank</option>
-                </select>
-              </div>
 
+          </div>
+
+          {/* MIDDLE COL */}
+          <div className="lg:col-span-4">
+            <div className="flex items-center">
+              <label className="w-32 text-sm text-gray-300">
+                 Tax Type
+              </label>
               <div className="flex-1">
-                <label className="text-sm text-gray-300 block mb-1">
-                   Tax Type
-                </label>
                   <SearchableSelect
                     options={taxTypesList}
                     value={taxTypeId}
@@ -1067,22 +1051,9 @@ const NewPurchase = () => {
                   />
               </div>
             </div>
-          </div>
 
-          {/* MIDDLE COL */}
-          <div className="lg:col-span-4">
-            <div className="flex items-center mb-4">
-              <label className="w-24 text-sm text-gray-300">Invoice No</label>
-              <input
-                type="text"
-                value={invoiceNo}
-                onChange={(e) => setInvoiceNo(e.target.value)}
-                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            <div className="flex items-center">
-              <label className="w-24 text-sm text-gray-300">Vehicle No</label>
+            <div className="flex items-center mt-4">
+              <label className="w-32 text-sm text-gray-300">Vehicle No</label>
               <input
                 type="text"
                 value={vehicleNo}
@@ -1616,4 +1587,4 @@ const NewPurchase = () => {
   );
 };
 
-export default NewPurchase;
+export default NewPurchaseOrder;

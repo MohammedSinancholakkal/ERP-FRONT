@@ -57,6 +57,7 @@ const NewSaleQuotation = () => {
 
   // --- TOP SECTION STATE ---
   const [customer, setCustomer] = useState("");
+  const [vehicleNo, setVehicleNo] = useState(""); // ADDED
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [expiryDate, setExpiryDate] = useState("");
 
@@ -100,6 +101,7 @@ useEffect(() => {
     quantity: 0,
     unitPrice: 0,
     discount: 0,
+    taxPercentage: 0,
     total: 0
   });
 
@@ -248,6 +250,7 @@ useEffect(() => {
         // remove: payment account and invoice handling (not used)
         // setInvoiceNo(sale.VNo || "");
         if (quotation.Date) setDate(String(quotation.Date).split("T")[0]);
+        setVehicleNo(quotation.VehicleNo || quotation.vehicleNo || ""); // ADDED
         const expiryRaw = quotation.ExpiryDate || quotation.Expiry || quotation.expiryDate || quotation.Expiry_Date || null;
         if (expiryRaw) {
           try {
@@ -277,7 +280,8 @@ useEffect(() => {
           quantity: d.Quantity ?? d.quantity ?? d.qty ?? 0,
           unitPrice: d.UnitPrice ?? d.unitPrice ?? d.Price ?? 0,
           discount: d.Discount ?? d.discount ?? 0,
-          total: d.Total ?? d.total ?? 0
+          total: d.Total ?? d.total ?? 0,
+          brandId: d.brandId || d.BrandId
         }));
         setRows(mappedRows);
       }
@@ -392,9 +396,10 @@ useEffect(() => {
         unitId: product.UnitId ?? product.unitId ?? prev.unitId,
         unitName: product.unitName ?? product.unitName ?? prev.unitName,
         unitPrice: product.UnitPrice ?? product.unitPrice ?? prev.unitPrice,
-        quantity: 1,
+        quantity: "",
         brandId: product.BrandId ?? product.brandId ?? prev.brandId,
-        brandName: prev.brandName ?? ""
+        brandName: prev.brandName ?? "",
+        taxPercentage: product.taxPercentageValue ?? 0
       }));
     } else {
       setNewItem(prev => ({ ...prev, productId }));
@@ -621,6 +626,7 @@ const handleSaveQuotation = async () => {
 
   const payload = {
     customerId: customer,
+    vehicleNo, // ADDED
     date,
     expiryDate,
 
@@ -682,6 +688,7 @@ const handleUpdateQuotation = async () => {
 
   const payload = {
     customerId: customer,
+    vehicleNo, // ADDED
     date,
     expiryDate,
 
@@ -843,6 +850,7 @@ const handleRestoreQuotation = async () => {
       quantity: 0,
       unitPrice: 0,
       discount: 0,
+      taxPercentage: taxTypeId ? (igstRate + cgstRate + sgstRate) : 0,
       total: 0
     });
     setIsItemModalOpen(true);
@@ -969,6 +977,19 @@ const handleRestoreQuotation = async () => {
                  onChange={(e) => setExpiryDate(e.target.value)}
                  className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
                  disabled={inactiveView}
+               />
+            </div>
+
+            {/* Vehicle No */}
+            <div className="flex items-center">
+               <label className="w-32 text-sm text-gray-300">Vehicle No</label>
+               <input
+                 type="text"
+                 value={vehicleNo}
+                 onChange={(e) => setVehicleNo(e.target.value)}
+                 className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                 disabled={inactiveView}
+                 placeholder="Enter Vehicle No"
                />
             </div>
           </div>
@@ -1182,7 +1203,7 @@ const handleRestoreQuotation = async () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Brand</label>
+            <label className="block text-sm text-gray-300 mb-1"> * Brand</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
@@ -1277,6 +1298,17 @@ const handleRestoreQuotation = async () => {
             <input
               type="text"
               value={newItem.unitName}
+              readOnly
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            />
+          </div>
+
+          {/* Tax Percentage (Read Only) */}
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Tax Percentage (%)</label>
+            <input
+              type="text"
+              value={newItem.taxPercentage}
               readOnly
               className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
             />

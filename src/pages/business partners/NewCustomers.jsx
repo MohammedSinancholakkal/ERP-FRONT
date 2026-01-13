@@ -23,6 +23,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import AddModal from "../../components/modals/AddModal";
+import { useDashboard } from "../../context/DashboardContext";
 
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
@@ -102,6 +103,7 @@ const NewCustomers = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isEditMode = Boolean(id);
+  const { invalidateDashboard } = useDashboard();
 
   // PRE-LOAD DATA FROM NAVIGATION STATE
   const initialCustomer = location.state?.customer;
@@ -527,7 +529,6 @@ const NewCustomers = () => {
         emailAddress: form.emailAddress?.trim() || null,
         previousCreditBalance: Number(form.previousCredit || 0),
         customerGroupId: form.customerGroupId ? Number(form.customerGroupId) : null,
-        customerGroupId: form.customerGroupId ? Number(form.customerGroupId) : null,
         salesMan: form.salesManId ? Number(form.salesManId) : null,
         orderBooker: form.orderBookerId ? Number(form.orderBookerId) : null,
         pan: form.pan?.trim() || null,
@@ -540,6 +541,7 @@ const NewCustomers = () => {
         const res = await updateCustomerApi(id, payload);
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Customer updated");
+          invalidateDashboard();
           navigate("/app/businesspartners/customers");
           return;
         }
@@ -549,6 +551,7 @@ const NewCustomers = () => {
         const res = await addCustomerApi(payload);
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Customer created");
+          invalidateDashboard();
           if (location.state?.returnTo) {
              navigate(location.state.returnTo, { state: { newCustomerId: res.data?.record?.id || res.data?.id }});
           } else {
@@ -599,7 +602,8 @@ const handleDelete = async () => {
       timer: 1500,
       showConfirmButton: false,
     });
-
+    
+    invalidateDashboard();
     navigate("/app/businesspartners/customers");
   } catch (err) {
     Swal.close();
@@ -687,7 +691,6 @@ const handleDelete = async () => {
                 required
                 onSelect={(item) => {
                   update("countryId", item?.id ?? null);
-                  update("countryId", item?.id ?? null);
                   // Reset dependent fields only on manual change
                   update("stateId", null);
                   update("cityId", null);
@@ -704,7 +707,6 @@ const handleDelete = async () => {
                 list={states.map((s) => ({ id: s.Id ?? s.id, label: s.StateName ?? s.name }))}
                 valueId={form.stateId}
                 onSelect={(item) => {
-                  update("stateId", item?.id ?? null);
                   update("stateId", item?.id ?? null);
                   // Reset dependent fields only on manual change
                   update("cityId", null);

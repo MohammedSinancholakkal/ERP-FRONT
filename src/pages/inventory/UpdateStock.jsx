@@ -384,6 +384,7 @@ const UpdateStocks = () => {
       return toast.error("Enter valid quantity");
     if (!newItem.mode) return toast.error("Select mode (IN/OUT)");
     if (!newItem.status) return toast.error("Select status");
+    if (!newItem.note || !newItem.note.trim()) return toast.error("Note is required");
 
     try {
       const payload = {
@@ -440,6 +441,7 @@ const UpdateStocks = () => {
       return toast.error("Enter valid quantity");
     if (!editItem.mode) return toast.error("Select mode");
     if (!editItem.status) return toast.error("Select status");
+    if (!editItem.note || !editItem.note.trim()) return toast.error("Note is required");
 
     try {
       const payload = {
@@ -612,7 +614,7 @@ const UpdateStocks = () => {
 
           {/* Note */}
           <div>
-            <label className="text-sm">Note</label>
+            <label className="text-sm"> * Note</label>
             <textarea
               value={newItem.note}
               onChange={(e) =>
@@ -718,7 +720,7 @@ const UpdateStocks = () => {
 
           {/* Note */}
           <div>
-            <label className="text-sm">Note</label>
+            <label className="text-sm"> * Note</label>
             <textarea
               value={editItem.note}
               onChange={(e) =>

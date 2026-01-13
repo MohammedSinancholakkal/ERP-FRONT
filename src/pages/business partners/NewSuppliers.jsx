@@ -26,6 +26,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import AddModal from "../../components/modals/AddModal";
+import { useDashboard } from "../../context/DashboardContext";
 // ----------------- Utilities -----------------
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
@@ -112,6 +113,7 @@ const NewSupplier = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isEditMode = Boolean(id);
+  const { invalidateDashboard } = useDashboard();
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -160,6 +162,8 @@ const NewSupplier = () => {
     previousCredit: "",
 
     orderBookerId: null,
+    pan: "",
+    gstin: "",
 
   });
 
@@ -281,11 +285,9 @@ const NewSupplier = () => {
           contactName: s.ContactName || s.contactName || "",
           contactTitle: s.ContactTitle || s.contactTitle || "",
           supplierGroupId:
-            s.SupplierGroupId ??
-            s.supplierGroupId ??
-            s.SupplierGroup ??
-            s.supplierGroup ??
-            null,
+  s.supplierGroupId ??
+  s.SupplierGroupId ??
+  null,
           address: s.Address || s.address || "",
           regionId: s.RegionId ?? s.regionId ?? null,
           postalCode: s.PostalCode || s.postalCode || "",
@@ -296,12 +298,12 @@ const NewSupplier = () => {
           emailAddress: s.EmailAddress || s.emailAddress || "",
           previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
 
-          orderBookerId:
-            s.OrderBookerId ??
-            s.orderBookerId ??
-            s.OrderBooker ??
-            s.orderBooker ??
-            null,
+         orderBookerId:
+  s.orderBooker ??
+  s.OrderBooker ??
+  null,
+          pan: s.PAN ?? s.pan ?? "",
+          gstin: s.GSTIN ?? s.gstin ?? "",
 
         }));
 
@@ -418,7 +420,7 @@ const NewSupplier = () => {
   const handleSaveCity = async () => {
     if (!newCity.name.trim()) return toast.error("City name is required");
     if (!newCity.countryId) return toast.error("Country is required");
-    if (!newCity.stateId) return toast.error("State is required");
+    if (newCity.stateId === "" || newCity.stateId === null || newCity.stateId === undefined) return toast.error("State is required");
 
     try {
         let created = null;
@@ -527,6 +529,8 @@ const NewSupplier = () => {
         supplierGroupId: form.supplierGroupId ? Number(form.supplierGroupId) : null,
 
         orderBooker: form.orderBookerId ? Number(form.orderBookerId) : null,
+        pan: form.pan?.trim() || null,
+        gstin: form.gstin?.trim() || null,
 
         userId: 1,
       };
@@ -536,6 +540,7 @@ const NewSupplier = () => {
         const res = await updateSupplierApi(id, payload);
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Supplier updated");
+          invalidateDashboard();
           if (location.state?.returnTo) {
              navigate(location.state.returnTo, { state: { newSupplierId: id } }); // pass ID back if needed, though for edit might not be strictly necessary, but consistant
           } else {
@@ -549,6 +554,7 @@ const NewSupplier = () => {
         const res = await addSupplierApi(payload);
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Supplier created");
+          invalidateDashboard();
           const createdId = res.data.record?.id || res.data?.id; // Access logic might vary, ensuring we get ID
           if (location.state?.returnTo) {
              navigate(location.state.returnTo, { state: { newSupplierId: createdId } });
@@ -598,6 +604,7 @@ const handleDelete = async () => {
         showConfirmButton: false,
       });
 
+      invalidateDashboard();
       navigate("/app/businesspartners/suppliers");
       return;
     }
@@ -641,6 +648,7 @@ const handleRestore = async () => {
     if (typeof restoreSupplierApi === "function") {
       await restoreSupplierApi(id, { userId: 1 });
       toast.success("Supplier restored successfully");
+      invalidateDashboard();
       navigate("/app/businesspartners/suppliers");
     } else {
       toast.error("Restore API not available");
@@ -786,6 +794,27 @@ const handleRestore = async () => {
               />
             </div>
 
+            <div className="col-span-12 md:col-span-4">
+              <label className="text-sm">PAN Number</label>
+              <input 
+                value={form.pan} 
+                onChange={(e) => update("pan", e.target.value)} 
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                placeholder="Permanent Account Number"
+                disabled={isInactive}
+              />
+            </div>
+            <div className="col-span-12 md:col-span-4">
+               <label className="text-sm">GSTIN</label>
+               <input 
+                 value={form.gstin} 
+                 onChange={(e) => update("gstin", e.target.value)} 
+                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                 placeholder="GST Identification Number"
+                 disabled={isInactive}
+               />
+            </div>
+
             <div className="col-span-12">
               <label className="text-sm">Address</label>
               <textarea 
@@ -796,7 +825,7 @@ const handleRestore = async () => {
               />
             </div>
 
-            <div className="col-span-12 md:col-span-6">
+            <div className="col-span-12 md:col-span-3">
               <CustomDropdown
                 label="Region"
                 list={regions.map((r) => ({ id: r.regionId ?? r.Id ?? r.id, label: r.regionName ?? r.RegionName ?? r.name ?? "" }))}
@@ -826,6 +855,15 @@ const handleRestore = async () => {
                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
             </div>
+            <div className="col-span-12 md:col-span-3">
+              <label className="text-sm">Fax</label>
+              <input 
+                 value={form.fax} 
+                 onChange={(e) => update("fax", e.target.value)} 
+                 disabled={isInactive}
+                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+            </div>
 
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">Website</label>
@@ -836,25 +874,6 @@ const handleRestore = async () => {
                  className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
             </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Fax</label>
-              <input 
-                 value={form.fax} 
-                 onChange={(e) => update("fax", e.target.value)} 
-                 disabled={isInactive}
-                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Email Address</label>
-              <input 
-                 value={form.emailAddress} 
-                 onChange={(e) => update("emailAddress", e.target.value)} 
-                 disabled={isInactive}
-                 className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
-
             <div className="col-span-12 md:col-span-6">
               <label className="text-sm">Email</label>
               <input 
@@ -965,7 +984,7 @@ const handleRestore = async () => {
                       <SearchableSelect
                           options={countries.map(c => ({ id: c.Id ?? c.id, name: c.CountryName || c.name }))}
                           value={newCity.countryId}
-                          onChange={(val) => setNewCity({ ...newCity, countryId: val, stateId: "" })}
+                          onChange={(val) => setNewCity(prev => ({ ...prev, countryId: val, stateId: "" }))}
                           placeholder="Select Country"
                       />
                   </div>
@@ -976,7 +995,7 @@ const handleRestore = async () => {
                               .filter(s => !newCity.countryId || String(s.CountryId ?? s.countryId) === String(newCity.countryId))
                               .map(s => ({ id: s.Id ?? s.id, name: s.StateName || s.name }))}
                           value={newCity.stateId}
-                          onChange={(val) => setNewCity({ ...newCity, stateId: val })}
+                          onChange={(val) => setNewCity(prev => ({ ...prev, stateId: val }))}
                           placeholder="Select State"
                       />
                   </div>

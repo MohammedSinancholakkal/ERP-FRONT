@@ -36,9 +36,11 @@ import SearchableSelect from "../../components/SearchableSelect";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import { useDashboard } from "../../context/DashboardContext";
 
 const Expenses = () => {
     const { theme } = useTheme();
+  const { invalidateDashboard } = useDashboard();
 
   // ====================
   // STATES
@@ -167,6 +169,7 @@ const Expenses = () => {
 
         setShowExpenseTypeCreate(false);
         toast.success("Expense type added");
+        invalidateDashboard();
         setExpenseTypeCreateName("");
       } else {
         toast.error(res?.response?.data?.message || "Add failed");
@@ -322,6 +325,7 @@ const Expenses = () => {
     if (res?.status === 200) {
       setModalOpen(false);
       toast.success("Expense added");
+      invalidateDashboard();
       setPage(1);
       loadExpenses();
       setNewExpense({
@@ -364,6 +368,7 @@ const Expenses = () => {
 
     if (res?.status === 200) {
       toast.success("Expense updated");
+      invalidateDashboard();
       setEditModalOpen(false);
 
       if (showInactive) loadInactive();
@@ -398,6 +403,7 @@ const Expenses = () => {
 
       if (res?.status === 200) {
         toast.success("Deleted");
+        invalidateDashboard();
         setEditModalOpen(false);
         loadExpenses();
         if (showInactive) loadInactive();
@@ -432,6 +438,7 @@ const Expenses = () => {
 
       if (res?.status === 200) {
         toast.success("Restored");
+        invalidateDashboard();
         setEditModalOpen(false);
         loadExpenses();
         loadInactive();

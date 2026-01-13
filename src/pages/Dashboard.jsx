@@ -21,6 +21,7 @@ import DashboardCard from "../components/DashboardCard";
 ========================= */
 
 const LatestOrders = ({ orders = [] }) => {
+  const navigate = useNavigate();
   return (
     <DashboardCard title="Latest Orders" color="bg-cyan-400">
       <table className="w-full text-sm">
@@ -53,10 +54,16 @@ const LatestOrders = ({ orders = [] }) => {
       </table>
 
       <div className="flex justify-between items-center mt-4">
-        <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm">
+        <button 
+          onClick={() => navigate("/app/sales/newsale")} // Assuming newsale route
+          className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm"
+        >
           Place New Order
         </button>
-        <button className="border border-gray-400 px-4 py-2 rounded text-sm">
+        <button 
+          onClick={() => navigate("/app/sales/sales")}
+          className="border border-gray-400 px-4 py-2 rounded text-sm hover:bg-gray-700"
+        >
           View All Orders
         </button>
       </div>
@@ -114,12 +121,22 @@ const RecentlyAddedProducts = ({ products = [] }) => {
 ========================= */
 
 
+import { useDashboard } from "../context/DashboardContext";
+
+/* =========================
+   MAIN DASHBOARD
+========================= */
+
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
   const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
 
-  const [stats, setStats] = useState({
+  const { dashboardData, loading, fetchDashboardData } = useDashboard();
+  
+  // Default stats structure to avoid crash while loading context
+  const stats = dashboardData || {
     todaysSale: 0,
     totalSuppliers: 0,
     totalCustomers: 0,
@@ -130,22 +147,19 @@ const Dashboard = () => {
     productData: [],
     latestOrders: [],
     recentProducts: []
-  }); 
-
-  const fetchStats = async () => {
-      try {
-          const res = await getDashboardStatsApi();
-          if(res.status === 200) {
-              setStats(res.data);
-          }
-      } catch(e) {
-          console.error("Failed to load dashboard stats", e);
-      }
   };
 
   useEffect(() => {
-      fetchStats();
+      fetchDashboardData();
   }, []);
+
+  if (loading && !dashboardData) {
+      // Optional: Add a loading spinner here if desired, or just show stale data
+      // For now we just let it render what we have (or empty) to be "instant"
+      // If purely empty, maybe show skeleton?
+      // Let's render but inputs will be 0.
+  }
+
 
   if (!hasPermission(PERMISSIONS.DASHBOARD.VIEW)) {
     return (

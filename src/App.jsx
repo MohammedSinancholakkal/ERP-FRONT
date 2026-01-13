@@ -76,6 +76,9 @@ import NewPurchases from "./pages/Purchases/NewPurchases";
 import NewSale from "./pages/Sales/NewSale";
 import NewSaleQuotation from "./pages/Sales/NewSaleQuotaton";
 import PurchaseInvoice from "./pages/Purchases/PurchaseInvoice";
+import PurchaseOrderPreview from "./pages/Purchases/PurchaseOrderPreview";
+import PurchaseOrder from "./pages/Purchases/PurchaseOrder";
+import NewPurchaseOrder from "./pages/Purchases/NewPurchaseOrder";
 import NewGoodsIssue from "./pages/inventory/NewGoodsIssue";
 import NewInvoices from "./pages/Services/NewInvoices";
 import ServiceInvoicePreview from "./pages/Services/ServiceInvoicePreview";
@@ -90,13 +93,17 @@ import { ThemeProvider } from "./context/ThemeContext";
 import TaxTypes from "./pages/masters/TaxTypes";
 import Products from "./pages/inventory/Products";
 import NewProduct from "./pages/Inventory/NewProduct";
+import TaxPercentage from "./pages/masters/TaxPercentage";
+
+import { DashboardProvider } from "./context/DashboardContext";
 
 function App() {
   return (
     <ThemeProvider>
-      <Routes>  
-        {/* Public pages */}
-        <Route path="/" element={<Login />} />  
+      <DashboardProvider>
+        <Routes>  
+          {/* Public pages */}
+          <Route path="/" element={<Login />} />  
 
         {/* Reset Password Page */}
         <Route path="/reset-password/:token" element={<ResetPassword />} />
@@ -136,6 +143,7 @@ function App() {
           <Route path="masters/locations" element={<Locations />} />
           <Route path="masters/warehouses" element={<Warehouses />} />
           <Route path="masters/taxtypes" element={<TaxTypes />} />
+          <Route path="masters/taxpercentages" element={<TaxPercentage />} />
 
 
           {/* inventory */}
@@ -249,6 +257,10 @@ function App() {
           <Route path="purchasing/newpurchase" element={<NewPurchases />} />
           <Route path="purchasing/edit/:id" element={<NewPurchases />} />
           <Route path="purchasing/preview/:id" element={<PurchaseInvoice />} />
+          <Route path="purchasing/purchaseorders" element={<PurchaseOrder />} />
+          <Route path="purchasing/newpurchaseorder" element={<NewPurchaseOrder />} />
+          <Route path="purchasing/edit-order/:id" element={<NewPurchaseOrder />} />
+          <Route path="purchasing/preview-order/:id" element={<PurchaseOrderPreview />} />
 
 
           {/* services */}
@@ -289,6 +301,7 @@ function App() {
 
           </Route>
         </Routes>
+      </DashboardProvider>
     </ThemeProvider>
   );
 }

@@ -30,6 +30,7 @@ const Sales = () => {
     id: true,
     customerName: true,
     invoiceNo: true,
+    vehicleNo: true,
     date: true,
     paymentAccount: true,
     discount: true,
@@ -98,6 +99,7 @@ const Sales = () => {
       r.customerName ?? r.CustomerName ?? r.Customer?.companyName ?? r.Customer?.companyName ?? r.CompanyName ?? r.Company ?? "",
     employee: r.employee ?? r.Employee ?? r.EmployeeName ?? r.employeeName ?? "",
     invoiceNo: r.invoiceNo ?? r.VNo ?? r.vno ?? r.InvoiceNo ?? "",
+    vehicleNo: r.vehicleNo ?? r.VehicleNo ?? "",
     date: (r.date ?? r.Date ?? r.CreatedAt ?? r.createdAt ?? "")?.toString(),
     paymentAccount: r.paymentAccount ?? r.PaymentAccount ?? r.payment ?? r.Payment ?? "",
     discount: parseFloat(r.discount ?? r.Discount ?? 0) || 0,
@@ -360,7 +362,7 @@ const Sales = () => {
                     visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (s) => (
                         <div className="flex items-center justify-center gap-2">
                              <button
-                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`} // Fixed: Accessing isInactive from row data `s`
+                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
                                title="Download PDF"
                                disabled={s.isInactive}
                                onClick={(e) => { e.stopPropagation(); handleExportRowPDF(s); }}
@@ -382,6 +384,7 @@ const Sales = () => {
                         </div>
                     )},
                     visibleColumns.invoiceNo && { key: "invoiceNo", label: "Invoice No", sortable: true, render: (s) => s.invoiceNo || s.VNo || "" },
+                    visibleColumns.vehicleNo && { key: "vehicleNo", label: "Vehicle No", sortable: true, render: (s) => s.vehicleNo || "" },
                     visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (s) => s.date || "" },
                     visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment", sortable: true, render: (s) => s.paymentAccount || "" },
                     visibleColumns.discount && { key: "discount", label: "Discount", sortable: true, render: (s) => parseFloat(s.discount || 0).toFixed(2) },
