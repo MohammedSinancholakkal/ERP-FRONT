@@ -9,6 +9,7 @@ import {
   X,
   Save,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import { hasPermission } from "../../utils/permissionUtils";
@@ -105,6 +106,9 @@ const [newTx, setNewTx] = useState({
 
 
   const handleAdd = () => {
+    if (newTx.wdId && rows.some(r => r.wdId === newTx.wdId)) {
+        return toast.error("Transaction ID (WD ID) already exists");
+    }
     const newEntry = {
       id: rows.length + 1,
       wdId: newTx.wdId,

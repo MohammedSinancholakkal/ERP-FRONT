@@ -179,6 +179,23 @@ const SupplierGroups = () => {
     if (!newItem.name?.trim())
       return toast.error("Group Name is required");
 
+    // Check for duplicates
+    try {
+      const searchRes = await searchSupplierGroupApi(newItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.GroupName || r.groupName || "").toLowerCase() === newItem.name.trim().toLowerCase()
+        );
+        if (existing) return toast.error("Supplier group with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
     try {
       const payload = {
           groupName: newItem.name.trim(), // API expects groupName
@@ -216,6 +233,24 @@ const SupplierGroups = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Group Name is required");
+
+    // Check for duplicates
+    try {
+      const searchRes = await searchSupplierGroupApi(editItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.GroupName || r.groupName || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
+                 (r.Id || r.id || r.SupplierGroupId || r.supplierGroupId) !== editItem.id
+        );
+        if (existing) return toast.error("Supplier group with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
 
     try {
       const payload = {

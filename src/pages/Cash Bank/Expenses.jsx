@@ -146,6 +146,12 @@ const Expenses = () => {
   const handleCreateExpenseType = async () => {
     if (!expenseTypeCreateName.trim()) return toast.error("Type required");
 
+    // Duplicate Check
+    const existing = expenseTypes.find(
+      (t) => (t.typeName || t.type || "").toLowerCase() === expenseTypeCreateName.trim().toLowerCase()
+    );
+    if (existing) return toast.error("Expense type already exists");
+
     try {
       const res = await addExpenseTypeApi({
         typeName: expenseTypeCreateName.trim(),

@@ -36,7 +36,9 @@ import {
   updateQuotationApi,
   deleteQuotationApi,
   restoreQuotationApi,
-  getTaxTypesApi
+  getTaxTypesApi,
+  searchBrandApi,
+  searchProductApi
 } from "../../services/allAPI";
 
 const NewSaleQuotation = () => {
@@ -455,6 +457,14 @@ useEffect(() => {
   const handleCreateBrand = async () => {
     if (!newBrandName.trim()) return toast.error("Brand name required");
     try {
+      // DUPLICATE CHECK
+      const searchRes = await searchBrandApi(newBrandName.trim());
+      if (searchRes?.status === 200) {
+          const rows = searchRes.data.records || searchRes.data || [];
+          const existing = rows.find(b => (b.name || "").toLowerCase() === newBrandName.trim().toLowerCase());
+          if (existing) return toast.error("Brand Name already exists");
+      }
+
       const res = await addBrandApi({ name: newBrandName, description: "", userId });
       if (res.status === 200) {
         toast.success("Brand added");
@@ -547,6 +557,23 @@ useEffect(() => {
     };
 
     try {
+      // DUPLICATE CHECK
+      const searchRes = await searchProductApi(newProductData.name.trim());
+      if (searchRes?.status === 200) {
+          const rows = searchRes.data.records || searchRes.data || [];
+          const existingName = rows.find(p => (p.ProductName || "").toLowerCase() === newProductData.name.trim().toLowerCase());
+          if (existingName) return toast.error("Product with this Name already exists");
+      }
+
+      if (newProductData.productCode?.trim()) {
+           const codeRes = await searchProductApi(newProductData.productCode.trim());
+           if (codeRes?.status === 200) {
+              const rows = codeRes.data.records || codeRes.data || [];
+              const existingCode = rows.find(p => (p.Barcode || "").toLowerCase() === newProductData.productCode.trim().toLowerCase());
+              if (existingCode) return toast.error("Product with this Code already exists");
+           }
+      }
+
       const res = await addProductApi(payload);
       if (res.status === 200) {
         toast.success("Product added");

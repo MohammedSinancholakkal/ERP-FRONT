@@ -170,6 +170,23 @@ const MeetingTypes = () => {
     if (!newItem.name?.trim())
       return toast.error("Name is required");
 
+    // Check for duplicates
+    try {
+      const searchRes = await searchMeetingTypeApi(newItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.MeetingTypeName || r.meetingTypeName || "").toLowerCase() === newItem.name.trim().toLowerCase()
+        );
+        if (existing) return toast.error("Meeting type with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
     try {
       const res = await addMeetingTypeApi({
         name: newItem.name.trim(),
@@ -204,6 +221,24 @@ const MeetingTypes = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Name is required");
+
+    // Check for duplicates
+    try {
+      const searchRes = await searchMeetingTypeApi(editItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.MeetingTypeName || r.meetingTypeName || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
+                 (r.Id || r.id || r.MeetingTypeId || r.meetingTypeId) !== editItem.id
+        );
+        if (existing) return toast.error("Meeting type with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
 
     try {
       const res = await updateMeetingTypeApi(editItem.id, {

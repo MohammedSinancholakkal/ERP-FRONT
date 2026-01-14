@@ -187,6 +187,23 @@ const Services = () => {
     if (!newItem.name?.trim())
       return toast.error("Name is required");
 
+    // Check for duplicates
+    try {
+      const searchRes = await searchServiceApi(newItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.ServiceName || r.serviceName || "").toLowerCase() === newItem.name.trim().toLowerCase()
+        );
+        if (existing) return toast.error("Service with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
     try {
       const payload = {
           ServiceName: newItem.name.trim(),
@@ -228,6 +245,24 @@ const Services = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Name is required");
+
+    // Check for duplicates
+    try {
+      const searchRes = await searchServiceApi(editItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.ServiceName || r.serviceName || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
+                 (r.Id || r.id || r.ServiceId || r.serviceId) !== editItem.id
+        );
+        if (existing) return toast.error("Service with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
 
     try {
       const payload = {

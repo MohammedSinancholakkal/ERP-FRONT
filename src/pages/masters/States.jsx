@@ -162,6 +162,22 @@ const States = () => {
     if (!newData.name.trim()) return toast.error("Name required");
     if (!newData.countryId) return toast.error("Country required");
     
+    // Check for duplicates
+    try {
+        const searchRes = await searchStateApi(newData.name.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newData.name.trim().toLowerCase() && 
+                String(r.CountryId || r.countryId) === String(newData.countryId)
+            );
+            if (existing) return toast.error("State with this name already exists in selected country");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
     try {
       const res = await addStateApi({ ...newData, userId });
       if (res?.status === 200 || res?.status === 201) {
@@ -183,6 +199,23 @@ const States = () => {
   const handleUpdate = async () => {
     if (!editData.name.trim()) return toast.error("Name required");
     if (!editData.countryId) return toast.error("Country required");
+
+    // Check for duplicates
+    try {
+        const searchRes = await searchStateApi(editData.name.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.Name || r.name || "").toLowerCase() === editData.name.trim().toLowerCase() && 
+                String(r.CountryId || r.countryId) === String(editData.countryId) &&
+                (r.Id || r.id) !== editData.id
+            );
+            if (existing) return toast.error("State with this name already exists in selected country");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
     
     try {
       const res = await updateStateApi(editData.id, {
@@ -276,6 +309,20 @@ const States = () => {
   // --- QUICK ADD HANDLER ---
   const handleAddCountry = async () => {
       if(!newCountryName.trim()) return toast.error("Name required");
+
+      // Check for duplicates
+      try {
+        const searchRes = await searchCountryApi(newCountryName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data.records || searchRes.data || [];
+            const existing = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.trim().toLowerCase());
+            if (existing) return toast.error("Country with this name already exists");
+        }
+      } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+      }
+
       try {
           const res = await addCountryApi({ name: newCountryName, userId });
           if(res?.status === 200 || res?.status === 201) {
@@ -286,7 +333,7 @@ const States = () => {
               const resC = await getCountriesApi(1, 1000);
               if(resC?.status === 200) {
                   const rows = resC.data.records || resC.data || [];
-                  const created = rows.find(r => (r.Name || r.name).toLowerCase() === newCountryName.toLowerCase());
+                  const created = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.toLowerCase());
                   setCountries(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
                   
                   if(created) {

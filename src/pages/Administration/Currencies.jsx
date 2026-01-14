@@ -170,6 +170,34 @@ const Currencies = () => {
       return toast.error("Both fields are required");
     }
 
+    // Check duplicates (Name)
+    try {
+        const searchRes = await searchCurrencyApi(currencyName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.CurrencyName || r.currencyName).toLowerCase() === currencyName.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Currency name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+    }
+
+    // Check duplicates (Symbol)
+    try {
+        const searchRes = await searchCurrencyApi(currencySymbol.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.CurrencySymbol || r.currencySymbol).toLowerCase() === currencySymbol.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Currency symbol already exists");
+        }
+    } catch(err) {
+        console.error(err);
+    }
+
     const res = await addCurrencyApi({
       currencyName,
       currencySymbol,
@@ -192,6 +220,36 @@ const Currencies = () => {
 
     if (!currencyName.trim() || !currencySymbol.trim()) {
       return toast.error("Both fields required");
+    }
+
+    // Check duplicates (Name)
+    try {
+        const searchRes = await searchCurrencyApi(currencyName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.CurrencyName || r.currencyName).toLowerCase() === currencyName.trim().toLowerCase() &&
+                (r.Id || r.id) !== editCurrency.id
+            );
+            if (existing) return toast.error("Currency name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+    }
+
+    // Check duplicates (Symbol)
+    try {
+        const searchRes = await searchCurrencyApi(currencySymbol.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.CurrencySymbol || r.currencySymbol).toLowerCase() === currencySymbol.trim().toLowerCase() &&
+                (r.Id || r.id) !== editCurrency.id
+            );
+            if (existing) return toast.error("Currency symbol already exists");
+        }
+    } catch(err) {
+        console.error(err);
     }
 
     const res = await updateCurrencyApi(editCurrency.id, {

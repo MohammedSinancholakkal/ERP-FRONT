@@ -12,6 +12,7 @@ import {
   restoreTerritoryApi,
   getRegionsApi,
   addRegionApi,
+  searchRegionApi,
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -208,6 +209,22 @@ const Territories = () => {
     if (!newItem.name?.trim()) return toast.error("Territory name is required");
     if (!newItem.regionId) return toast.error("Region is required");
 
+    // Check for duplicates
+    try {
+      const searchRes = await searchTerritoryApi(newItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+        const existing = rows.find(r => 
+           (r.TerritoryDescription || r.territoryDescription || r.name || r.Name || "").toLowerCase() === newItem.name.trim().toLowerCase() &&
+           String(r.RegionId || r.regionId) === String(newItem.regionId)
+        );
+        if (existing) return toast.error("Territory with this name already exists in the selected region");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
     try {
       const payload = {
           territoryDescription: newItem.name.trim(),
@@ -234,6 +251,20 @@ const Territories = () => {
   // ===============================
   const handleAddRegion = async () => {
       if(!newRegionName.trim()) return toast.error("Region name required");
+
+      // Check duplicate
+      try {
+        const searchRes = await searchRegionApi(newRegionName.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || [];
+             const existing = rows.find(r => (r.Name || r.name || r.RegionName || r.regionName || "").toLowerCase() === newRegionName.trim().toLowerCase());
+             if (existing) return toast.error("Region with this name already exists");
+        }
+      } catch(err) {
+          console.error(err);
+          return toast.error("Error checking duplicates");
+      }
+
       try {
           const res = await addRegionApi({ regionName: newRegionName, userId: currentUserId });
           if(res?.status === 200 || res?.status === 201) {
@@ -282,6 +313,23 @@ const Territories = () => {
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Territory name is required");
     if (!editItem.regionId) return toast.error("Region is required");
+
+    // Check for duplicates
+    try {
+      const searchRes = await searchTerritoryApi(editItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+        const existing = rows.find(r => 
+           (r.TerritoryDescription || r.territoryDescription || r.name || r.Name || "").toLowerCase() === editItem.name.trim().toLowerCase() &&
+           String(r.RegionId || r.regionId) === String(editItem.regionId) &&
+           (r.Id || r.id) !== editItem.id
+        );
+        if (existing) return toast.error("Territory with this name already exists in the selected region");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
 
     try {
       const payload = {

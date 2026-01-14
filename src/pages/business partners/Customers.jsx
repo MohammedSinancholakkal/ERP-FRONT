@@ -182,6 +182,27 @@ const Customers = () => {
   };
 
   const handleRestore = async (customer) => {
+    // --- DUPLICATE CHECKS START ---
+    const checkDuplicate = (field, label) => {
+      const val = customer[field];
+      if (!val) return false;
+      const exists = allCustomers.some(
+        (c) => (c[field] || "").toLowerCase() === val.toLowerCase()
+      );
+      if (exists) {
+        toast.error(`Cannot restore: Active customer with this ${label} already exists.`);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkDuplicate("companyName", "Name")) return;
+    if (checkDuplicate("phone", "Phone")) return;
+    if (checkDuplicate("email", "Email")) return;
+    if (checkDuplicate("pan", "PAN")) return;
+    if (checkDuplicate("gstin", "GSTIN")) return;
+    // --- DUPLICATE CHECKS END ---
+
     const result = await Swal.fire({
       title: "Restore Customer?",
       text: `Are you sure you want to restore ${customer.companyName}?`,
@@ -206,7 +227,7 @@ const Customers = () => {
       setInactiveRows(prev => prev.filter(r => r.id !== customer.id));
       invalidateDashboard();
       loadCustomers(); 
-
+      // Also reload lookups if needed, but usually not critical for list
     } catch (err) {
       console.error("restore customer error", err);
       Swal.fire({

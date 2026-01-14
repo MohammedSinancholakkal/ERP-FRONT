@@ -135,6 +135,22 @@ const TaxTypes = () => {
 
   // ADD
   const handleAddTaxType = async () => {
+    // Check for duplicates
+    try {
+        const searchRes = await searchTaxTypeApi(newPercentage);
+        if (searchRes?.data) {
+             const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data.records || [];
+             const existing = rows.find(r => 
+                parseFloat(r.percentage || r.Percentage || 0) === parseFloat(newPercentage) &&
+                Boolean(r.isInterState || r.IsInterState) === Boolean(newIsInterState)
+             );
+             if (existing) return toast.error("Tax Type with this percentage and category already exists");
+        }
+    } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
     const res = await addTaxTypeApi({
       name: "", // Removed from UI
       isInterState: newIsInterState,
@@ -156,6 +172,23 @@ const TaxTypes = () => {
 
   // UPDATE
   const handleUpdateTaxType = async () => {
+    // Check for duplicates
+    try {
+        const searchRes = await searchTaxTypeApi(editTaxType.percentage);
+        if (searchRes?.data) {
+             const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data.records || [];
+             const existing = rows.find(r => 
+                parseFloat(r.percentage || r.Percentage || 0) === parseFloat(editTaxType.percentage) &&
+                Boolean(r.isInterState || r.IsInterState) === Boolean(editTaxType.isInterState) &&
+                (r.id || r.Id || r.typeId || r.TypeId) !== editTaxType.id
+             );
+             if (existing) return toast.error("Tax Type with this percentage and category already exists");
+        }
+    } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
     const res = await updateTaxTypeApi(editTaxType.id, {
       name: "", // Removed from UI
       isInterState: editTaxType.isInterState,

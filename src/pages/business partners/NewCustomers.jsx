@@ -19,6 +19,12 @@ import {
   updateCustomerApi,
   getCustomerByIdApi,
   deleteCustomerApi,
+  searchCustomerApi,
+  searchCountryApi,
+  searchStateApi,
+  searchCityApi,
+  searchCustomerGroupApi,
+  searchRegionApi,
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -369,6 +375,18 @@ const NewCustomers = () => {
   const handleSaveCountry = async () => {
       if (!newCountryName.trim()) return toast.error("Country name is required");
       try {
+          // DUPLICATE CHECK
+          const duplicateRes = await searchCountryApi(newCountryName.trim());
+          const duplicates = parseArrayFromResponse(duplicateRes);
+          const isDuplicate = duplicates.some(
+            (c) => (c.name || c.CountryName || "").toLowerCase() === newCountryName.trim().toLowerCase()
+          );
+
+          if (isDuplicate) {
+            toast.error("Country with this name already exists.");
+            return;
+          }
+
           let created = null;
           if (typeof addCountryApi === "function") {
               const res = await addCountryApi({ name: newCountryName.trim(), userId: 1 });
@@ -399,6 +417,20 @@ const NewCustomers = () => {
     if (!newState.countryId) return toast.error("Country is required");
 
     try {
+        // DUPLICATE CHECK
+        const duplicateRes = await searchStateApi(newState.name.trim());
+        const duplicates = parseArrayFromResponse(duplicateRes);
+        const isDuplicate = duplicates.some(
+          (s) =>
+            (s.name || s.StateName || "").toLowerCase() === newState.name.trim().toLowerCase() &&
+            Number(s.countryId ?? s.CountryId) === Number(newState.countryId)
+        );
+
+        if (isDuplicate) {
+          toast.error("State with this name already exists in selected country.");
+          return;
+        }
+
         let created = null;
         if (typeof addStateApi === "function") {
             const res = await addStateApi({ name: newState.name.trim(), countryId: Number(newState.countryId), userId: 1 });
@@ -432,6 +464,20 @@ const NewCustomers = () => {
     if (!newCity.stateId) return toast.error("State is required");
 
     try {
+        // DUPLICATE CHECK
+        const duplicateRes = await searchCityApi(newCity.name.trim());
+        const duplicates = parseArrayFromResponse(duplicateRes);
+        const isDuplicate = duplicates.some(
+          (c) =>
+            (c.name || c.CityName || "").toLowerCase() === newCity.name.trim().toLowerCase() &&
+            Number(c.stateId ?? c.StateId) === Number(newCity.stateId)
+        );
+
+        if (isDuplicate) {
+          toast.error("City with this name already exists in selected state.");
+          return;
+        }
+
         let created = null;
         if (typeof addCityApi === "function") {
              const res = await addCityApi({
@@ -470,28 +516,63 @@ const NewCustomers = () => {
     }
   };
 
-  const handleSaveCustomerGroup = () => {
+  const handleSaveCustomerGroup = async () => {
       if(!newGroupName.trim()) return toast.error("Group name required");
-      // Mock API call or Real API if available
-      const createdLocal = { id: `t_${Date.now()}`, GroupName: newGroupName.trim(), name: newGroupName.trim() };
-      setCustomerGroups(prev => [createdLocal, ...prev]);
-      update("customerGroupId", createdLocal.id);
       
-      setNewGroupName("");
-      setAddCustomerGroupModalOpen(false);
-      toast.success("Group added");
+      try {
+        // Duplicate check
+        const duplicateRes = await searchCustomerGroupApi(newGroupName.trim());
+        const duplicates = parseArrayFromResponse(duplicateRes);
+        const isDuplicate = duplicates.some(
+          (g) => (g.name || g.GroupName || "").toLowerCase() === newGroupName.trim().toLowerCase()
+        );
+        if (isDuplicate) {
+          toast.error("Customer Group with this name already exists.");
+          return;
+        }
+
+        // Mock API call or Real API if available
+        // Note: In a real app we would call addCustomerGroupApi here if available to persist it
+        const createdLocal = { id: `t_${Date.now()}`, GroupName: newGroupName.trim(), name: newGroupName.trim() };
+        setCustomerGroups(prev => [createdLocal, ...prev]);
+        update("customerGroupId", createdLocal.id);
+        
+        setNewGroupName("");
+        setAddCustomerGroupModalOpen(false);
+        toast.success("Group added");
+      } catch (err) {
+        console.error("Failed to add group", err);
+        toast.error("Failed to add group");
+      }
   };
 
-  const handleSaveRegion = () => {
+  const handleSaveRegion = async () => {
       if(!newRegionName.trim()) return toast.error("Region name required");
-      // Mock
-      const createdLocal = { id: `t_${Date.now()}`, regionName: newRegionName.trim(), name: newRegionName.trim() };
-      setRegions(prev => [createdLocal, ...prev]);
-      update("regionId", createdLocal.id);
+      try {
+        // Duplicate check
+        const duplicateRes = await searchRegionApi(newRegionName.trim());
+        const duplicates = parseArrayFromResponse(duplicateRes);
+        const isDuplicate = duplicates.some(
+            (r) => (r.name || r.regionName || r.RegionName || "").toLowerCase() === newRegionName.trim().toLowerCase()
+        );
 
-      setNewRegionName("");
-      setAddRegionModalOpen(false);
-      toast.success("Region added");
+        if (isDuplicate) {
+            toast.error("Region with this name already exists.");
+            return;
+        }
+
+        // Mock
+        const createdLocal = { id: `t_${Date.now()}`, regionName: newRegionName.trim(), name: newRegionName.trim() };
+        setRegions(prev => [createdLocal, ...prev]);
+        update("regionId", createdLocal.id);
+
+        setNewRegionName("");
+        setAddRegionModalOpen(false);
+        toast.success("Region added");
+      } catch (err) {
+        console.error("Failed to add region", err);
+        toast.error("Failed to add region");
+      }
   };
 
   const validate = () => {
@@ -515,6 +596,81 @@ const NewCustomers = () => {
     try {
       setIsSaving(true);
       const nameValue = form.companyName?.trim() || null;
+
+      // --- DUPLICATE CHECKS START ---
+      const [nameRes, phoneRes, emailRes, panRes, gstinRes] = await Promise.all([
+        searchCustomerApi(nameValue),
+        form.phone ? searchCustomerApi(form.phone) : Promise.resolve({ data: [] }),
+        form.email ? searchCustomerApi(form.email) : Promise.resolve({ data: [] }),
+        form.pan ? searchCustomerApi(form.pan) : Promise.resolve({ data: [] }),
+        form.gstin ? searchCustomerApi(form.gstin) : Promise.resolve({ data: [] }),
+      ]);
+
+      const nameDuplicates = parseArrayFromResponse(nameRes);
+      const phoneDuplicates = parseArrayFromResponse(phoneRes);
+      const emailDuplicates = parseArrayFromResponse(emailRes);
+      const panDuplicates = parseArrayFromResponse(panRes);
+      const gstinDuplicates = parseArrayFromResponse(gstinRes);
+
+      const isDuplicateName = nameDuplicates.some(
+        (i) =>
+            (i.Name || i.name || i.CompanyName || i.companyName || "").toLowerCase() === nameValue.toLowerCase() &&
+            (!isEditMode || String(i.Id ?? i.id) !== String(id))
+      );
+      if (isDuplicateName) {
+        setIsSaving(false);
+        return toast.error("Customer with this Name already exists.");
+      }
+
+      if (form.phone) {
+        const isDuplicatePhone = phoneDuplicates.some(
+            (i) =>
+            (i.Phone || i.phone || "") === form.phone &&
+            (!isEditMode || String(i.Id ?? i.id) !== String(id))
+        );
+        if (isDuplicatePhone) {
+            setIsSaving(false); // Stop loading!
+            return toast.error("Customer with this Phone already exists.");
+        }
+      }
+
+      if (form.email) {
+        const isDuplicateEmail = emailDuplicates.some(
+            (i) =>
+            (i.Email || i.email || "").toLowerCase() === form.email.toLowerCase() &&
+            (!isEditMode || String(i.Id ?? i.id) !== String(id))
+        );
+        if (isDuplicateEmail) {
+            setIsSaving(false);
+            return toast.error("Customer with this Email already exists.");
+        }
+      }
+
+      if (form.pan) {
+        const isDuplicatePan = panDuplicates.some(
+            (i) =>
+            (i.PAN || i.pan || "").toLowerCase() === form.pan.toLowerCase() &&
+            (!isEditMode || String(i.Id ?? i.id) !== String(id))
+        );
+        if (isDuplicatePan) {
+            setIsSaving(false);
+            return toast.error("Customer with this PAN already exists.");
+        }
+      }
+
+      if (form.gstin) {
+        const isDuplicateGstin = gstinDuplicates.some(
+            (i) =>
+            (i.GSTTIN || i.gstin || "").toLowerCase() === form.gstin.toLowerCase() &&
+            (!isEditMode || String(i.Id ?? i.id) !== String(id))
+        );
+        if (isDuplicateGstin) {
+            setIsSaving(false);
+            return toast.error("Customer with this GSTIN already exists.");
+        }
+      }
+      // --- DUPLICATE CHECKS END ---
+
       const payload = {
         name: nameValue, // backend expects 'Name' column
         companyName: nameValue, // keep alias for consistency

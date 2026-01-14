@@ -137,8 +137,23 @@ const end = Math.min(page * limit, totalRecords);
   // =============================
   // ADD CATEGORY
   // =============================
+  // =============================
+  // ADD CATEGORY
+  // =============================
   const handleAdd = async () => {
     if (!newCategory.name.trim()) return toast.error("Name required");
+
+    try {
+      // DUPLICATE CHECK
+      const searchRes = await searchCategoryApi(newCategory.name.trim());
+      if (searchRes?.status === 200) {
+         const rows = searchRes.data.records || searchRes.data || [];
+         const existing = rows.find(c => c.name.toLowerCase() === newCategory.name.trim().toLowerCase());
+         if (existing) return toast.error("Category with this name already exists");
+      }
+    } catch (err) {
+      console.error("Duplicate check error", err);
+    }
 
     const res = await addCategoryApi({
       ...newCategory,
@@ -159,6 +174,21 @@ const end = Math.min(page * limit, totalRecords);
   const handleUpdate = async () => {
     if (!editCategory.name.trim()) return toast.error("Name required");
 
+    try {
+      // DUPLICATE CHECK
+      const searchRes = await searchCategoryApi(editCategory.name.trim());
+      if (searchRes?.status === 200) {
+         const rows = searchRes.data.records || searchRes.data || [];
+         const existing = rows.find(c => 
+           c.name.toLowerCase() === editCategory.name.trim().toLowerCase() && 
+           String(c.id) !== String(editCategory.id)
+         );
+         if (existing) return toast.error("Category with this name already exists");
+      }
+    } catch (err) {
+      console.error("Duplicate check error", err);
+    }
+
     const payload = {
       name: editCategory.name,
       description: editCategory.description,
@@ -170,7 +200,6 @@ const end = Math.min(page * limit, totalRecords);
 
     if (res.status === 200) {
       toast.success("Updated");
-      setParentSearchEdit("");
       setEditModalOpen(false);
       loadCategories();
     }

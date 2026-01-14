@@ -26,7 +26,13 @@ import {
   searchCountryApi,
   searchStateApi,
   searchCityApi,
+  searchMeetingTypeApi,
+  searchDepartmentApi,
+  searchLocationApi,
+  searchAttendeeTypeApi,
+  searchAttendanceStatusApi,
   deleteMeetingApi,
+  searchMeetingsApi,
   getMeetingByIdApi,
   updateMeetingApi,
 } from "../../services/allAPI";
@@ -463,6 +469,25 @@ const NewMeeting = () => {
         return;
       }
 
+      // DUPLICATE CHECK
+      try {
+        const searchRes = await searchMeetingsApi(form.meetingName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data.records || searchRes.data || [];
+            const existing = rows.find(m => 
+                (m.Title || m.title || m.meetingName || "").toLowerCase() === form.meetingName.trim().toLowerCase() && 
+                (isEdit ? String(m.id || m.Id || m.MeetingId) !== String(id) : true)
+            );
+            
+            if (existing) {
+                toast.error("A meeting with this name already exists");
+                return;
+            }
+        }
+      } catch (e) {
+        console.error("Duplicate Check Error", e);
+      }
+
       const payload = {
         ...form,
         // Optional Fields: Only send if valid number, else null (clears legacy text)
@@ -534,6 +559,18 @@ const NewMeeting = () => {
   const handleSaveMeetingType = async () => {
     if (!newMeetingType.trim()) return toast.error("Name is required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchMeetingTypeApi(newMeetingType.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) => (i.name || i.Name || "").toLowerCase() === newMeetingType.trim().toLowerCase()
+      );
+
+      if (isDuplicate) {
+        toast.error("Meeting Type with this name already exists.");
+        return;
+      }
+
       await addMeetingTypeApi({ name: newMeetingType, userId: currentUserId });
       toast.success("Meeting Type Added");
       setNewMeetingType("");
@@ -548,6 +585,18 @@ const NewMeeting = () => {
   const handleSaveAttendeeType = async () => {
     if (!newAttendeeType.trim()) return toast.error("Name is required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchAttendeeTypeApi(newAttendeeType.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) => (i.name || i.Name || "").toLowerCase() === newAttendeeType.trim().toLowerCase()
+      );
+
+      if (isDuplicate) {
+        toast.error("Attendee Type with this name already exists.");
+        return;
+      }
+
       await addAttendeeTypeApi({ name: newAttendeeType, userId: currentUserId });
       toast.success("Attendee Type Added");
       setNewAttendeeType("");
@@ -562,6 +611,18 @@ const NewMeeting = () => {
   const handleSaveAttendanceStatus = async () => {
     if (!newAttendanceStatus.trim()) return toast.error("Name is required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchAttendanceStatusApi(newAttendanceStatus.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) => (i.name || i.Name || "").toLowerCase() === newAttendanceStatus.trim().toLowerCase()
+      );
+
+      if (isDuplicate) {
+        toast.error("Attendance Status with this name already exists.");
+        return;
+      }
+
       await addAttendanceStatusApi({ name: newAttendanceStatus, userId: currentUserId });
       toast.success("Attendance Status Added");
       setNewAttendanceStatus("");
@@ -576,6 +637,18 @@ const NewMeeting = () => {
   const handleSaveDepartment = async () => {
     if (!newDepartment.department.trim()) return toast.error("Department Name is required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchDepartmentApi(newDepartment.department.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) => (i.department || i.Department || i.name || i.Name || "").toLowerCase() === newDepartment.department.trim().toLowerCase()
+      );
+
+      if (isDuplicate) {
+        toast.error("Department with this name already exists.");
+        return;
+      }
+
       await addDepartmentApi({ ...newDepartment, userId: currentUserId });
       toast.success("Department Added");
       setNewDepartment({ department: "", description: "", parentDepartmentId: "" });
@@ -592,6 +665,17 @@ const NewMeeting = () => {
   const handleSaveCountry = async () => {
     if (!newCountryName.trim()) return toast.error("Country Name is required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchCountryApi(newCountryName.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) => (i.name || i.CountryName || "").toLowerCase() === newCountryName.trim().toLowerCase()
+      );
+      if (isDuplicate) {
+        toast.error("Country with this name already exists.");
+        return;
+      }
+
       await addCountryApi({ name: newCountryName, userId: currentUserId });
       toast.success("Country Added");
       setNewCountryName("");
@@ -608,6 +692,19 @@ const NewMeeting = () => {
   const handleSaveState = async () => {
     if (!newState.name.trim() || !newState.countryId) return toast.error("State Name and Country are required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchStateApi(newState.name.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) =>
+           (i.name || i.StateName || "").toLowerCase() === newState.name.trim().toLowerCase() &&
+           String(i.countryId ?? i.CountryId) === String(newState.countryId)
+      );
+      if (isDuplicate) {
+        toast.error("State with this name already exists in selected country.");
+        return;
+      }
+
       await addStateApi({ ...newState, userId: currentUserId });
       toast.success("State Added");
       setNewState({ name: "", countryId: "" });
@@ -626,6 +723,19 @@ const NewMeeting = () => {
   const handleSaveCity = async () => {
     if (!newCity.name.trim() || !newCity.stateId) return toast.error("City Name and State are required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchCityApi(newCity.name.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) =>
+           (i.name || i.CityName || "").toLowerCase() === newCity.name.trim().toLowerCase() &&
+           String(i.stateId ?? i.StateId) === String(newCity.stateId)
+      );
+      if (isDuplicate) {
+        toast.error("City with this name already exists in selected state.");
+        return;
+      }
+
       await addCityApi({ ...newCity, userId: currentUserId });
       toast.success("City Added");
       setNewCity({ name: "", countryId: "", stateId: "" });
@@ -641,6 +751,17 @@ const NewMeeting = () => {
   const handleSaveLocation = async () => {
     if (!newLocation.name.trim()) return toast.error("Location Name is required");
     try {
+      // DUPLICATE CHECK
+      const duplicateRes = await searchLocationApi(newLocation.name.trim());
+      const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
+      const isDuplicate = duplicates.some(
+        (i) => (i.name || i.Name || "").toLowerCase() === newLocation.name.trim().toLowerCase()
+      );
+      if (isDuplicate) {
+        toast.error("Location with this name already exists.");
+        return;
+      }
+
       await addLocationApi({ ...newLocation, userId: currentUserId });
       toast.success("Location Added");
       setNewLocation({ name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" });

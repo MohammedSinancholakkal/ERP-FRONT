@@ -146,6 +146,22 @@ const Regions = () => {
 
   const handleAdd = async () => {
     if (!newData.name.trim()) return toast.error("Name required");
+
+    // Check for duplicates
+    try {
+        const searchRes = await searchRegionApi(newData.name.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.RegionName || r.regionName || r.name || "").toLowerCase() === newData.name.trim().toLowerCase()
+            );
+            if (existing) return toast.error("Region with this name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
     try {
       const res = await addRegionApi({ regionName: newData.name, userId });
       if (res?.status === 200 || res?.status === 201) {
@@ -170,6 +186,23 @@ const Regions = () => {
 
   const handleUpdate = async () => {
     if (!editData.name.trim()) return toast.error("Name required");
+
+    // Check for duplicates
+    try {
+        const searchRes = await searchRegionApi(editData.name.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data || [];
+            const existing = rows.find(r => 
+                (r.RegionName || r.regionName || r.name || "").toLowerCase() === editData.name.trim().toLowerCase() &&
+                (r.RegionId || r.regionId || r.id) !== editData.id
+            );
+            if (existing) return toast.error("Region with this name already exists");
+        }
+    } catch(err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
     try {
       const res = await updateRegionApi(editData.id, {
         regionName: editData.name,

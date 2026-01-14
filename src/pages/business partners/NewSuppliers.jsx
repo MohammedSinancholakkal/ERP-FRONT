@@ -21,7 +21,12 @@ import {
   getSupplierByIdApi,
   deleteSupplierApi,
   restoreSupplierApi,
- 
+  searchCountryApi,
+  searchStateApi,
+  searchCityApi,
+  searchRegionApi,
+  searchSupplierGroupApi,
+  searchSupplierApi,
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -359,6 +364,20 @@ const NewSupplier = () => {
 
   const handleSaveCountry = async () => {
       if (!newCountryName.trim()) return toast.error("Country name is required");
+
+      // Check duplicates
+      try {
+        const searchRes = await searchCountryApi(newCountryName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data.records || searchRes.data || [];
+            const existing = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.trim().toLowerCase());
+            if (existing) return toast.error("Country with this name already exists");
+        }
+      } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+      }
+
       try {
           let created = null;
           if (typeof addCountryApi === "function") {
@@ -389,6 +408,22 @@ const NewSupplier = () => {
   const handleSaveState = async () => {
     if (!newState.name.trim()) return toast.error("State name is required");
     if (!newState.countryId) return toast.error("Country is required");
+
+    try {
+        const searchRes = await searchStateApi(newState.name.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data || []; 
+             const items = Array.isArray(rows) ? rows : rows.records || [];
+             const existing = items.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newState.name.trim().toLowerCase() && 
+                String(r.CountryId || r.countryId) === String(newState.countryId)
+             );
+             if (existing) return toast.error("State with this name already exists in selected country");
+        }
+    } catch(err) {
+         console.error(err);
+         return toast.error("Error checking duplicates");
+    }
 
     try {
         let created = null;
@@ -426,6 +461,22 @@ const NewSupplier = () => {
     if (!newCity.name.trim()) return toast.error("City name is required");
     if (!newCity.countryId) return toast.error("Country is required");
     if (!newCity.stateId) return toast.error("State is required");
+
+    try {
+        const searchRes = await searchCityApi(newCity.name.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || []; 
+             const items = Array.isArray(rows) ? rows : []; 
+             const existing = items.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newCity.name.trim().toLowerCase() && 
+                String(r.StateId || r.stateId) === String(newCity.stateId)
+             );
+             if (existing) return toast.error("City with this name already exists in selected state");
+        }
+    } catch(err) {
+         console.error(err);
+         return toast.error("Error checking duplicates");
+    }
 
     try {
         let created = null;
@@ -473,8 +524,21 @@ const NewSupplier = () => {
 Note: The tool cannot skip lines easily in replace_content, so I will target the handleSaveCity function fully and the Modal input separately if needed, but since they are far apart, I'll use multi_replace.
 */
 
-  const handleSaveSupplierGroup = () => {
+  const handleSaveSupplierGroup = async () => {
       if(!newGroupName.trim()) return toast.error("Group name required");
+
+      try {
+        const searchRes = await searchSupplierGroupApi(newGroupName.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || [];
+             const existing = rows.find(r => (r.Name || r.name || r.GroupName || r.groupName || "").toLowerCase() === newGroupName.trim().toLowerCase());
+             if (existing) return toast.error("Supplier group with this name already exists");
+        }
+      } catch(err) {
+          console.error(err);
+          return toast.error("Error checking duplicates");
+      }
+
       const createdLocal = { id: `t_${Date.now()}`, GroupName: newGroupName.trim(), name: newGroupName.trim() };
       setSupplierGroups(prev => [createdLocal, ...prev]);
       update("supplierGroupId", createdLocal.id);
@@ -484,8 +548,21 @@ Note: The tool cannot skip lines easily in replace_content, so I will target the
       toast.success("Group added");
   };
 
-  const handleSaveRegion = () => {
+  const handleSaveRegion = async () => {
       if(!newRegionName.trim()) return toast.error("Region name required");
+
+      try {
+        const searchRes = await searchRegionApi(newRegionName.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || [];
+             const existing = rows.find(r => (r.Name || r.name || r.RegionName || r.regionName || "").toLowerCase() === newRegionName.trim().toLowerCase());
+             if (existing) return toast.error("Region with this name already exists");
+        }
+      } catch(err) {
+          console.error(err);
+          return toast.error("Error checking duplicates");
+      }
+
       // Mock
       const createdLocal = { id: `t_${Date.now()}`, regionName: newRegionName.trim(), name: newRegionName.trim() };
       setRegions(prev => [createdLocal, ...prev]);
@@ -517,6 +594,100 @@ Note: The tool cannot skip lines easily in replace_content, so I will target the
 
     try {
       setIsSaving(true);
+
+      // --- DUPLICATE CHECKS START ---
+      // Check Name
+      if (form.companyName?.trim()) {
+         const searchRes = await searchSupplierApi(form.companyName.trim());
+         if (searchRes?.status === 200) {
+              const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+              const existing = rows.find(
+                  (r) => (r.Name || r.name || r.CompanyName || r.companyName || "").toLowerCase() === form.companyName.trim().toLowerCase() && 
+                  (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+              );
+              if (existing) {
+                  setIsSaving(false);
+                  return toast.error("Supplier with this Company Name already exists");
+              }
+         }
+      }
+
+      // Check Phone
+      if (form.phone?.trim()) {
+         try {
+             // Assuming searchSupplierApi searches phone too, or we can use specific if available. 
+             // If searchSupplierApi only searches name, this might flag fals positives if fuzzy matching.
+             // But usually safe to call generic search and check results.
+             const searchRes = await searchSupplierApi(form.phone.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.Phone || r.phone) === form.phone.trim() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Supplier with this Phone Number already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
+      }
+
+       // Check Email
+      if (form.email?.trim()) {
+         try {
+             const searchRes = await searchSupplierApi(form.email.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.Email || r.email || "").toLowerCase() === form.email.trim().toLowerCase() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Supplier with this Email already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
+      }
+
+       // Check PAN
+      if (form.pan?.trim()) {
+         try {
+             const searchRes = await searchSupplierApi(form.pan.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.PAN || r.pan || "").toLowerCase() === form.pan.trim().toLowerCase() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Supplier with this PAN already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
+      }
+
+       // Check GSTIN
+      if (form.gstin?.trim()) {
+         try {
+             const searchRes = await searchSupplierApi(form.gstin.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.GSTIN || r.gstin || "").toLowerCase() === form.gstin.trim().toLowerCase() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Supplier with this GSTIN already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
+      }
+      // --- DUPLICATE CHECKS END ---
+
       const payload = {
         companyName: form.companyName?.trim(),
         countryId: form.countryId ? Number(form.countryId) : null,

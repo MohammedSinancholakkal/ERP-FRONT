@@ -27,7 +27,11 @@ import {
   addBrandApi,
   getSuppliersApi,
   deleteProductApi,
-  getTaxPercentagesApi
+  getTaxPercentagesApi,
+  searchProductApi,
+  searchCategoryApi,
+  searchUnitsApi,
+  searchBrandApi
 } from "../../services/allAPI";
 import AddModal from "../../components/modals/AddModal";
 
@@ -243,6 +247,36 @@ const NewProduct = () => {
       userId: currentUserId
     };
 
+    // DUPLICATE CHECK
+    try {
+        const searchRes = await searchProductApi(product.ProductName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data.records || searchRes.data || [];
+            // Check Name
+            const existingName = rows.find(p => 
+                (p.ProductName || "").toLowerCase() === product.ProductName.trim().toLowerCase() && 
+                (id ? String(p.id) !== String(id) : true)
+            );
+            if (existingName) return toast.error("Product with this Name already exists");
+        }
+
+        // Check Product Code (Barcode) if provided
+        if (product.productCode?.trim()) {
+           const codeRes = await searchProductApi(product.productCode.trim());
+           if (codeRes?.status === 200) {
+              const rows = codeRes.data.records || codeRes.data || [];
+              const existingCode = rows.find(p => 
+                  (p.Barcode || "").toLowerCase() === product.productCode.trim().toLowerCase() && 
+                  (id ? String(p.id) !== String(id) : true)
+              );
+              if (existingCode) return toast.error("Product with this Code already exists");
+           }
+        }
+
+    } catch (e) {
+        console.error("Duplicate Check Error", e);
+    }
+
     setLoading(true);
     // ... rest of handleSave
 
@@ -311,6 +345,14 @@ const NewProduct = () => {
     if (!newCategory.name.trim()) return toast.error("Category Name required");
 
     try {
+        // DUPLICATE CHECK
+        const searchRes = await searchCategoryApi(newCategory.name.trim());
+        if (searchRes?.status === 200) {
+           const rows = searchRes.data.records || searchRes.data || [];
+           const existing = rows.find(c => c.name.toLowerCase() === newCategory.name.trim().toLowerCase());
+           if (existing) return toast.error("Category with this name already exists");
+        }
+
         const res = await addCategoryApi({
             ...newCategory,
             userId: currentUserId
@@ -333,6 +375,14 @@ const NewProduct = () => {
   const handleAddUnit = async () => {
     if (!newUnit.name.trim()) return toast.error("Unit Name required");
     try {
+      // DUPLICATE CHECK
+      const searchRes = await searchUnitsApi(newUnit.name.trim());
+      if (searchRes?.status === 200) {
+         const rows = searchRes.data.records || searchRes.data || [];
+         const existing = rows.find(u => (u.name || "").toLowerCase() === newUnit.name.trim().toLowerCase());
+         if (existing) return toast.error("Unit Name already exists");
+      }
+
       const res = await addUnitApi({ ...newUnit, userId: currentUserId });
       if (res?.status === 200) {
         toast.success("Unit added");
@@ -352,6 +402,14 @@ const NewProduct = () => {
   const handleAddBrand = async () => {
     if (!newBrand.name.trim()) return toast.error("Brand Name required");
     try {
+      // DUPLICATE CHECK
+      const searchRes = await searchBrandApi(newBrand.name.trim());
+      if (searchRes?.status === 200) {
+          const rows = searchRes.data.records || searchRes.data || [];
+          const existing = rows.find(b => (b.name || "").toLowerCase() === newBrand.name.trim().toLowerCase());
+          if (existing) return toast.error("Brand Name already exists");
+      }
+
       const res = await addBrandApi({ ...newBrand, userId: currentUserId });
       if (res?.status === 200) {
         toast.success("Brand added");

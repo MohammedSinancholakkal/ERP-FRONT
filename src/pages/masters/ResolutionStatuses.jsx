@@ -170,6 +170,23 @@ const ResolutionStatuses = () => {
     if (!newItem.name?.trim())
       return toast.error("Name is required");
 
+    // Check for duplicates
+    try {
+      const searchRes = await searchResolutionStatusApi(newItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.StatusName || r.statusName || "").toLowerCase() === newItem.name.trim().toLowerCase()
+        );
+        if (existing) return toast.error("Resolution status with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
     try {
       const res = await addResolutionStatusApi({
         name: newItem.name.trim(),
@@ -204,6 +221,24 @@ const ResolutionStatuses = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Name is required");
+
+    // Check for duplicates
+    try {
+      const searchRes = await searchResolutionStatusApi(editItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data)
+          ? searchRes.data
+          : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.StatusName || r.statusName || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
+                 (r.Id || r.id || r.ResolutionStatusId || r.resolutionStatusId) !== editItem.id
+        );
+        if (existing) return toast.error("Resolution status with this name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
 
     try {
       const res = await updateResolutionStatusApi(editItem.id, {

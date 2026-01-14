@@ -179,6 +179,38 @@ const Shippers = () => {
     if (!newItem.name?.trim())
       return toast.error("Company Name is required");
 
+    // Check for duplicate Name
+    try {
+      const searchRes = await searchShipperApi(newItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.CompanyName || r.companyName || "").toLowerCase() === newItem.name.trim().toLowerCase()
+        );
+        if (existing) return toast.error("Shipper with this company name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
+    // Check for duplicate Phone
+    if (newItem.phone?.trim()) {
+        try {
+            const searchRes = await searchShipperApi(newItem.phone.trim());
+            if (searchRes?.status === 200) {
+                const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                const existing = rows.find(
+                    (r) => (r.Phone || r.phone) === newItem.phone.trim()
+                );
+                if (existing) return toast.error("Shipper with this phone number already exists");
+            }
+        } catch (err) {
+            console.error(err);
+            return toast.error("Error checking duplicates");
+        }
+    }
+
     try {
       const payload = {
           companyName: newItem.name.trim(), // API expects companyName
@@ -216,6 +248,40 @@ const Shippers = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Company Name is required");
+
+    // Check for duplicate Name
+    try {
+      const searchRes = await searchShipperApi(editItem.name.trim());
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+        const existing = rows.find(
+          (r) => (r.Name || r.name || r.CompanyName || r.companyName || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
+                 (r.Id || r.id || r.ShipperId || r.shipperId) !== editItem.id
+        );
+        if (existing) return toast.error("Shipper with this company name already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
+    // Check for duplicate Phone
+    if (editItem.phone?.trim()) {
+        try {
+            const searchRes = await searchShipperApi(editItem.phone.trim());
+            if (searchRes?.status === 200) {
+                const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                const existing = rows.find(
+                    (r) => (r.Phone || r.phone) === editItem.phone.trim() &&
+                           (r.Id || r.id || r.ShipperId || r.shipperId) !== editItem.id
+                );
+                if (existing) return toast.error("Shipper with this phone number already exists");
+            }
+        } catch (err) {
+            console.error(err);
+            return toast.error("Error checking duplicates");
+        }
+    }
 
     try {
       const payload = {

@@ -36,7 +36,11 @@ import {
   updatePurchaseApi,
   deletePurchaseApi,
   restorePurchaseApi,
-  getTaxTypesApi
+  getTaxTypesApi,
+  searchPurchaseApi,
+  searchSupplierApi,
+  searchBrandApi,
+  searchProductApi
 } from "../../services/allAPI";
 import { useDashboard } from "../../context/DashboardContext";
 import { useParams, useLocation } from "react-router-dom";
@@ -345,6 +349,14 @@ const NewPurchase = () => {
   const handleCreateBrand = async () => {
     if (!newBrandName.trim()) return toast.error("Brand name required");
     try {
+      // DUPLICATE CHECK
+      const searchRes = await searchBrandApi(newBrandName.trim());
+      if (searchRes?.status === 200) {
+          const rows = searchRes.data.records || searchRes.data || [];
+          const existing = rows.find(b => (b.name || "").toLowerCase() === newBrandName.trim().toLowerCase());
+          if (existing) return toast.error("Brand Name already exists");
+      }
+
       const res = await addBrandApi({ 
           name: newBrandName, 
           description: newBrandDescription, 
@@ -477,6 +489,14 @@ const NewPurchase = () => {
   const handleCreateSupplier = async () => {
       if(!newSupplierName.trim()) return toast.error("Supplier name required");
       try {
+          // DUPLICATE CHECK
+          const searchRes = await searchSupplierApi(newSupplierName.trim());
+          if (searchRes?.status === 200) {
+              const rows = searchRes.data.records || searchRes.data || [];
+              const existing = rows.find(s => (s.companyName || "").toLowerCase() === newSupplierName.trim().toLowerCase());
+              if (existing) return toast.error("Supplier with this Name already exists");
+          }
+
           const res = await addSupplierApi({ companyName: newSupplierName, userId });
           if(res.status === 200) {
               toast.success("Supplier added");
@@ -612,6 +632,23 @@ const NewPurchase = () => {
       };
 
       try {
+          // DUPLICATE CHECK
+          const searchRes = await searchProductApi(newProductData.name.trim());
+          if (searchRes?.status === 200) {
+              const rows = searchRes.data.records || searchRes.data || [];
+              const existingName = rows.find(p => (p.ProductName || "").toLowerCase() === newProductData.name.trim().toLowerCase());
+              if (existingName) return toast.error("Product with this Name already exists");
+          }
+
+          if (newProductData.productCode?.trim()) {
+               const codeRes = await searchProductApi(newProductData.productCode.trim());
+               if (codeRes?.status === 200) {
+                  const rows = codeRes.data.records || codeRes.data || [];
+                  const existingCode = rows.find(p => (p.Barcode || "").toLowerCase() === newProductData.productCode.trim().toLowerCase());
+                  if (existingCode) return toast.error("Product with this Code already exists");
+               }
+          }
+
           const res = await addProductApi(payload);
           if(res.status === 200) {
               toast.success("Product added");
@@ -619,9 +656,7 @@ const NewPurchase = () => {
               const updatedProducts = await getProductsApi(1, 1000);
               if(updatedProducts.status === 200) {
                   setProductsList(updatedProducts.data.records);
-                  // Find the new product. Might be tricky if names are duplicate, but assuming unique or last added.
-                  // Ideally backend returns ID.
-                  // We'll try to find by name and brand.
+                  // Find the new product
                   const newProduct = updatedProducts.data.records.find(p => p.ProductName === newProductData.name && String(p.BrandId) === String(newProductData.brandId));
                   if(newProduct) {
                       // Auto select in the line item modal
@@ -789,6 +824,16 @@ const NewPurchase = () => {
     };
 
     try {
+      // DUPLICATE CHECK: Invoice No
+      if (invoiceNo && invoiceNo.trim() !== "") {
+          const searchRes = await searchPurchaseApi(invoiceNo.trim());
+          if (searchRes?.status === 200) {
+              const rows = searchRes.data.records || searchRes.data || [];
+              const existing = rows.find(p => (p.invoiceNo || p.InvoiceNo || "").toLowerCase() === invoiceNo.trim().toLowerCase());
+              if (existing) return toast.error("Invoice No already exists");
+          }
+      }
+
       const res = await addPurchaseApi(payload);
       if (res.status === 200) {
         toast.success("Purchase added successfully");
@@ -851,6 +896,16 @@ const NewPurchase = () => {
     };
 
     try {
+      // DUPLICATE CHECK: Invoice No
+      if (invoiceNo && invoiceNo.trim() !== "") {
+          const searchRes = await searchPurchaseApi(invoiceNo.trim());
+          if (searchRes?.status === 200) {
+              const rows = searchRes.data.records || searchRes.data || [];
+              const existing = rows.find(p => (p.invoiceNo || p.InvoiceNo || "").toLowerCase() === invoiceNo.trim().toLowerCase() && String(p.id) !== String(id));
+              if (existing) return toast.error("Invoice No already exists");
+          }
+      }
+
       const res = await updatePurchaseApi(id, payload);
       if (res.status === 200) {
         toast.success("Purchase updated successfully");

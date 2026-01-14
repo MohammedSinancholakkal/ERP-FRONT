@@ -61,7 +61,7 @@ const MasterTable = ({
       {columns.map((col) => (
         <td
           key={col.key}
-          className={`px-4 py-2 text-center whitespace-nowrap ${
+          className={`px-4 py-1 text-center whitespace-nowrap ${
             theme === "emerald" && !isInactive ? "border-b border-emerald-200" : ""
           } ${col.className || ""}`}
         >
@@ -181,7 +181,14 @@ const MasterTable = ({
 
       <div className="w-full overflow-auto flex-1 rounded-lg scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
         <table 
-          className="text-left border-separate border-spacing-y-1 text-sm w-auto min-w-[800px]"
+          style={{ 
+            minWidth: `${
+              columns.length > 6 
+                ? 900 + (columns.length - 6) * 200 
+                : 500 + Math.max(0, columns.length - 2) * 100
+            }px` 
+          }}
+          className="text-left border-separate border-spacing-y-1 text-sm w-auto"
         >
           <thead
             className={`sticky top-0 z-10 ${
@@ -198,7 +205,7 @@ const MasterTable = ({
                     onClick={() => onSort && onSort(col.key)}
                   />
                 ) : (
-                  <th key={col.key} className="px-1 py-2 font-semibold text-center uppercase tracking-wider whitespace-nowrap">
+                  <th key={col.key} className="px-1 py-1 font-semibold text-center uppercase tracking-wider whitespace-nowrap">
                     {col.label}
                   </th>
                 )

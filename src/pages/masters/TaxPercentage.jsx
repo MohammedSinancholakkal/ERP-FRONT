@@ -140,6 +140,22 @@ const TaxPercentage = () => {
   const handleAdd = async () => {
     if (!newItem.percentage) return toast.error("Percentage is required");
 
+    // Check for duplicates
+    try {
+      const searchRes = await searchTaxPercentageApi(newItem.percentage);
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+        // Compare percentages effectively (as strings or floats)
+        const existing = rows.find(r => 
+           parseFloat(r.percentage || r.Percentage) === parseFloat(newItem.percentage)
+        );
+        if (existing) return toast.error("This Tax Percentage already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
+
     try {
       const res = await addTaxPercentageApi({
         percentage: parseFloat(newItem.percentage),
@@ -173,6 +189,22 @@ const TaxPercentage = () => {
   // ================= UPDATE =================
   const handleUpdate = async () => {
     if (!editItem.percentage) return toast.error("Percentage is required");
+
+    // Check for duplicates
+    try {
+      const searchRes = await searchTaxPercentageApi(editItem.percentage);
+      if (searchRes?.status === 200) {
+        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+        const existing = rows.find(r => 
+           parseFloat(r.percentage || r.Percentage) === parseFloat(editItem.percentage) &&
+           (r.id || r.Id) !== editItem.id
+        );
+        if (existing) return toast.error("This Tax Percentage already exists");
+      }
+    } catch (err) {
+      console.error(err);
+      return toast.error("Error checking duplicates");
+    }
 
     try {
       const res = await updateTaxPercentageApi(editItem.id, {

@@ -20,6 +20,9 @@ import {
   addCountryApi,
   addStateApi,
   addCityApi,
+  searchCountryApi,
+  searchStateApi,
+  searchCityApi,
 } from "../../services/allAPI"; 
 import SearchableSelect from "../../components/SearchableSelect"; 
 import FilterBar from "../../components/FilterBar";
@@ -288,6 +291,21 @@ const Warehouses = () => {
     if (!newData.stateId) return toast.error("State required");
     if (!newData.cityId) return toast.error("City required");
     
+    // Check for duplicates
+    try {
+        const searchRes = await searchWarehouseApi(newData.name.trim());
+        if (searchRes?.status === 200) {
+             const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+             const existing = rows.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newData.name.trim().toLowerCase()
+             );
+             if (existing) return toast.error("Warehouse with this name already exists");
+        }
+    } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
+
     try {
       const res = await addWarehouseApi({ ...newData, userId });
       if (res?.status === 200 || res?.status === 201) {
@@ -333,6 +351,22 @@ const Warehouses = () => {
     if (!editData.countryId) return toast.error("Country required");
     if (!editData.stateId) return toast.error("State required");
     if (!editData.cityId) return toast.error("City required");
+
+    // Check for duplicates
+    try {
+        const searchRes = await searchWarehouseApi(editData.name.trim());
+        if (searchRes?.status === 200) {
+             const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+             const existing = rows.find(r => 
+                (r.Name || r.name || "").toLowerCase() === editData.name.trim().toLowerCase() &&
+                (r.Id || r.id) !== editData.id
+             );
+             if (existing) return toast.error("Warehouse with this name already exists");
+        }
+    } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+    }
     
     try {
       const res = await updateWarehouseApi(editData.id, {
@@ -396,6 +430,20 @@ const Warehouses = () => {
   // --- QUICK ADD HANDLERS ---
   const handleAddCountry = async () => {
       if(!newCountryName.trim()) return toast.error("Name required");
+
+      // Check duplicates
+      try {
+        const searchRes = await searchCountryApi(newCountryName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data.records || searchRes.data || [];
+            const existing = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.trim().toLowerCase());
+            if (existing) return toast.error("Country with this name already exists");
+        }
+      } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+      }
+
       try {
           const res = await addCountryApi({ name: newCountryName, userId });
           if(res?.status === 200 || res?.status === 201) {
@@ -406,7 +454,7 @@ const Warehouses = () => {
               const resC = await getCountriesApi(1, 1000);
               if(resC?.status === 200) {
                   const rows = resC.data.records || resC.data || [];
-                  const created = rows.find(r => (r.Name || r.name).toLowerCase() === newCountryName.toLowerCase());
+                  const created = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.toLowerCase());
                   setCountries(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
                   
                   if(created) {
@@ -430,6 +478,22 @@ const Warehouses = () => {
       if(!currentCountryId) return toast.error("Select Country first");
 
       try {
+        const searchRes = await searchStateApi(newStateName.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data || []; 
+             const items = Array.isArray(rows) ? rows : rows.records || [];
+             const existing = items.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newStateName.trim().toLowerCase() && 
+                String(r.CountryId || r.countryId) === String(currentCountryId)
+             );
+             if (existing) return toast.error("State with this name already exists in selected country");
+        }
+      } catch(err) {
+         console.error(err);
+         return toast.error("Error checking duplicates");
+      }
+
+      try {
           const res = await addStateApi({ name: newStateName, countryId: currentCountryId, userId });
           if(res?.status === 200 || res?.status === 201) {
               toast.success("State added");
@@ -439,7 +503,7 @@ const Warehouses = () => {
               const resS = await getStatesApi(1, 1000);
               if(resS?.status === 200) {
                    const rows = resS.data.records || resS.data || [];
-                   const created = rows.find(r => (r.Name || r.name).toLowerCase() === newStateName.toLowerCase() && (r.CountryId || r.countryId) == currentCountryId);
+                   const created = rows.find(r => (r.Name || r.name || "").toLowerCase() === newStateName.toLowerCase() && (r.CountryId || r.countryId) == currentCountryId);
                    setStates(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name, countryId: r.CountryId || r.countryId })));
 
                    if(created) {
@@ -464,6 +528,22 @@ const Warehouses = () => {
       if(!currentStateId) return toast.error("Select State first");
 
       try {
+        const searchRes = await searchCityApi(newCityName.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || []; 
+             const items = Array.isArray(rows) ? rows : []; 
+             const existing = items.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newCityName.trim().toLowerCase() && 
+                String(r.StateId || r.stateId) === String(currentStateId)
+             );
+             if (existing) return toast.error("City with this name already exists in selected state");
+        }
+      } catch(err) {
+         console.error(err);
+         return toast.error("Error checking duplicates");
+      }
+
+      try {
           const res = await addCityApi({ name: newCityName, stateId: currentStateId, countryId: currentCountryId, userId });
           if(res?.status === 200 || res?.status === 201) {
               toast.success("City added");
@@ -473,7 +553,7 @@ const Warehouses = () => {
               const resCi = await getCitiesApi(1, 1000);
               if(resCi?.status === 200) {
                   const rows = resCi.data.records || resCi.data || [];
-                  const created = rows.find(r => (r.Name || r.name).toLowerCase() === newCityName.toLowerCase() && (r.StateId || r.stateId) == currentStateId);
+                  const created = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCityName.toLowerCase() && (r.StateId || r.stateId) == currentStateId);
                   setCities(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name, stateId: r.StateId || r.stateId })));
 
                   if(created) {
