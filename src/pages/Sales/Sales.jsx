@@ -9,6 +9,8 @@ import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -350,7 +352,7 @@ const Sales = () => {
 
       <PageLayout>
         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex flex-col h-full overflow-hidden gap-2">
             
             <div className="flex justify-between items-center mb-4">
                <h2 className="text-2xl font-semibold">Sales</h2>

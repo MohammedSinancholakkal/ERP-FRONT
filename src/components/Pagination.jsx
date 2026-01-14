@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import toast from "react-hot-toast";
 import {
   ChevronsLeft,
   ChevronLeft,
@@ -20,6 +21,19 @@ const Pagination = ({
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const start = (page - 1) * limit + 1;
   const end = Math.min(page * limit, total);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (onRefresh) {
+        setIsRefreshing(true);
+        await onRefresh();
+        setTimeout(() => {
+            setIsRefreshing(false);
+            toast.success("Refreshed");
+        }, 500); 
+    }
+  };
 
   return (
     <div className={`sticky bottom-0 px-10 py-2 border-t z-30 ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-700 border-emerald-600' : 'bg-gray-900 border-gray-700'}`}>
@@ -87,11 +101,12 @@ const Pagination = ({
 
         {onRefresh && (
           <button
-            onClick={onRefresh}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
             className={`p-1 border rounded text-blue-400 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
             title="Refresh"
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
           </button>
         )}
 

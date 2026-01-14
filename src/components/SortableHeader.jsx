@@ -17,7 +17,7 @@ export default function SortableHeader({ label, sortKey, currentSort, onSort, so
 
   return (
     <th
-      className="pb-1 border-b text-center cursor-pointer select-none transition border-white"
+      className="px-4 py-2 border-b text-center cursor-pointer select-none transition border-white whitespace-nowrap"
       onClick={handleClick}
     >
       <div className="flex items-center justify-center gap-1">

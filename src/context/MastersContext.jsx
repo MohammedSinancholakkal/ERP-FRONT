@@ -50,7 +50,7 @@ export const useMasters = () => useContext(MastersContext);
 
 export const MastersProvider = ({ children }) => {
   // HELPER: Create State
-  const createState = () => useState({ data: [], total: 0, loaded: false, inactive: [], inactiveLoaded: false });
+  const createState = () => useState({ data: [], total: 0, loaded: false, inactive: [], inactiveLoaded: false, cachedLimit: 25 });
 
   // --- STATE ---
   const [countriesData, setCountriesData] = createState();
@@ -82,7 +82,7 @@ export const MastersProvider = ({ children }) => {
       // If args exist, we can't easily cache unless we cache by args key. For now, bypass cache if args exist.
       const hasArgs = args.length > 0 && args.some(a => a && Object.keys(a).length > 0);
       
-      if (!forceRefresh && !search && !hasArgs && state.loaded && page === 1) {
+      if (!forceRefresh && !search && !hasArgs && state.loaded && page === 1 && state.cachedLimit === limit) {
         return { data: state.data, total: state.total };
       }
       try {
@@ -100,7 +100,7 @@ export const MastersProvider = ({ children }) => {
           // Let's pass raw records for compatibility with existing page logic.
           
           if (!search && page === 1) {
-             setState(prev => ({ ...prev, data: records, total, loaded: true }));
+             setState(prev => ({ ...prev, data: records, total, loaded: true, cachedLimit: limit }));
           }
           return { data: records, total };
         }
@@ -108,7 +108,7 @@ export const MastersProvider = ({ children }) => {
         console.error(`Context Load ${name} Error`, err);
       }
       return { data: [], total: 0 };
-    }, [state.loaded, state.data, state.total]);
+    }, [state.loaded, state.data, state.total, state.cachedLimit]);
   };
 
   const createLoadInactiveFunction = (state, setState, getInactiveApi, name) => {
@@ -173,7 +173,7 @@ export const MastersProvider = ({ children }) => {
         }
       } catch (err) { console.error(`Context Load ${name} Error`, err); }
       return { data: [], total: 0 };
-    }, [state.loaded, state.data, state.total]);
+    }, [state.loaded, state.data, state.total, state.cachedLimit]);
   };
     
   // States Normalizer (from original)

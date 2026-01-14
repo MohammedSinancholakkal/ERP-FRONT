@@ -429,7 +429,7 @@ const Suppliers = () => {
       {/* MAIN */}
       <PageLayout>
 <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden">
+  <div className="flex flex-col h-full overflow-hidden gap-2">
         <h2 className="text-2xl font-semibold mb-4">Suppliers</h2>
 
         <MasterTable

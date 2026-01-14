@@ -9,7 +9,7 @@ const SearchableSelect = ({
   placeholder = "Select...", 
   disabled = false,
   className = "",
-  direction = "down", // "down" | "up"
+  direction = "down",
   dropdownHeight = "max-h-48",
   compact = false,
   name,
@@ -21,7 +21,7 @@ const SearchableSelect = ({
   const wrapperRef = useRef(null);
 
   // Find selected option object
-  const selectedOption = options.find(opt => opt.id == value);
+  const selectedOption = options.find(opt => String(opt.id) === String(value));
 
   const dropdownRef = useRef(null);
 
@@ -97,7 +97,7 @@ const SearchableSelect = ({
     <>
       <div className={`relative ${className}`} ref={wrapperRef}>
         <div
-          className={`w-full bg-gray-800 border border-gray-600 rounded px-3 ${compact ? 'py-1.5' : 'py-2'} flex justify-between items-center cursor-pointer ${
+          className={`w-full bg-gray-800 border border-gray-600 rounded px-3 ${compact ? 'py-1' : 'py-2'} flex justify-between items-center cursor-pointer ${
             disabled ? "opacity-50 cursor-not-allowed" : "hover:border-gray-500"
           }`}
           onClick={toggleOpen}

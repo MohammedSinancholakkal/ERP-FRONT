@@ -378,7 +378,7 @@ const Brands = () => {
       ======================================================= */}
       <PageLayout>
         <div className={`p-4 text-white h-full ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex flex-col h-full overflow-hidden gap-2">
 
             <h2 className="text-2xl font-semibold mb-4">Brands</h2>
 

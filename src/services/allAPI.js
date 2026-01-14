@@ -589,8 +589,21 @@ export const getInactiveMeetingTypesApi = () =>
 export const restoreMeetingTypeApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/meeting-types/restore/${id}`, data);
 
-
-
+// ============================================
+// CHART OF ACCOUNTS
+// ============================================
+export const getCOAHeadsApi = async () => {
+    return await commonAPI("GET", `${serverURL}/api/chart-of-accounts`, "");
+};
+export const addCOAHeadApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/api/chart-of-accounts`, reqBody);
+};
+export const updateCOAHeadApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/api/chart-of-accounts/${id}`, reqBody);
+};
+export const deleteCOAHeadApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/api/chart-of-accounts/delete/${id}`, reqBody);
+};
 
 // GET AGENDA ITEMS BY MEETING
 export const getAgendaItemsApi = (meetingId) =>

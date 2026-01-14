@@ -73,6 +73,11 @@ const CustomDropdown = ({
             options={options}
             value={valueId}
             onChange={(id) => {
+               // Explicitly handle clear/empty
+               if (!id) {
+                 onSelect(null);
+                 return;
+               }
                // Find original item to pass back
                const originalItem = list.find(x => String(x.id ?? x.Id) === String(id));
                onSelect(originalItem);
@@ -460,7 +465,7 @@ const NewCustomers = () => {
         setAddCityModalOpen(false);
         toast.success("City added successfully");
     } catch (error) {
-        console.error("Failed to add city", error);
+        console.error("Failed to update city", error);
         toast.error("Failed to add city");
     }
   };
@@ -713,7 +718,10 @@ const handleDelete = async () => {
                 }}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)}
                 showPencil={isEditMode}
-                onAddClick={() => setAddStateModalOpen(true)}
+                onAddClick={() => {
+                  setNewState(prev => ({ ...prev, countryId: form.countryId }));
+                  setAddStateModalOpen(true);
+                }}
               />
             </div>
 
@@ -725,7 +733,10 @@ const handleDelete = async () => {
                 onSelect={(item) => update("cityId", item?.id ?? null)}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)}
                 showPencil={isEditMode}
-                onAddClick={() => setAddCityModalOpen(true)}
+                onAddClick={() => {
+                  setNewCity(prev => ({ ...prev, countryId: form.countryId, stateId: form.stateId }));
+                  setAddCityModalOpen(true);
+                }}
               />
             </div>
 
@@ -973,7 +984,7 @@ const handleDelete = async () => {
                       <SearchableSelect
                           options={countries.map(c => ({ id: c.Id ?? c.id, name: c.CountryName || c.name }))}
                           value={newCity.countryId}
-                          onChange={(val) => setNewCity({ ...newCity, countryId: val, stateId: "" })}
+                          onChange={(val) => setNewCity(prev => ({ ...prev, countryId: val, stateId: "" }))}
                           placeholder="Select Country"
                       />
                   </div>
@@ -984,7 +995,7 @@ const handleDelete = async () => {
                               .filter(s => !newCity.countryId || String(s.CountryId ?? s.countryId) === String(newCity.countryId))
                               .map(s => ({ id: s.Id ?? s.id, name: s.StateName || s.name }))}
                           value={newCity.stateId}
-                          onChange={(val) => setNewCity({ ...newCity, stateId: val })}
+                          onChange={(val) => setNewCity(prev => ({ ...prev, stateId: val }))}
                           placeholder="Select State"
                       />
                   </div>
@@ -995,7 +1006,10 @@ const handleDelete = async () => {
                       type="text"
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
                       value={newCity.name}
-                      onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewCity(prev => ({ ...prev, name: val }));
+                      }}
                       placeholder="Enter City Name"
                   />
               </div>

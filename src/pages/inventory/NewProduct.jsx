@@ -59,7 +59,9 @@ const NewProduct = () => {
     Colour: "",
 
     Grade: "",
-    TaxPercentageId: ""      
+
+    TaxPercentageId: "",
+    OpeningStock: "0"      
   });
 
   const [categories, setCategories] = useState([]);
@@ -222,8 +224,10 @@ const NewProduct = () => {
       ProductName: product.ProductName,
       Model: product.Model,
       UnitPrice: parseFloat(product.UnitPrice),
-      UnitsInStock: 0,
+
+      UnitsInStock: id ? 0 : parseFloat(product.OpeningStock || 0),
       UnitsOnOrder: 0,
+
       ReorderLevel: parseFloat(product.ReorderLevel),
       CategoryId: product.CategoryId || null,
       UnitId: product.UnitId || null,
@@ -496,6 +500,18 @@ const NewProduct = () => {
                         className={inputClass}
                     />
                 </div>
+                {!id && (
+                <div className="col-span-12 md:col-span-3">
+                    <label className={labelClass}>Opening Stock</label>
+                    <input
+                        type="number"
+                        min="0"
+                        value={product.OpeningStock}
+                        onChange={(e) => setProduct({...product, OpeningStock: e.target.value})}
+                        className={inputClass}
+                    />
+                </div>
+                )}
 
 
                 {/* ROW 3: Category (6), Unit (3), HSN (3) */}

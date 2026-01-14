@@ -24,13 +24,14 @@ const LatestOrders = ({ orders = [] }) => {
   const navigate = useNavigate();
   return (
     <DashboardCard title="Latest Orders" color="bg-cyan-400">
+      <div className="max-h-64 overflow-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-500 text-left">
-            <th className="pb-2">Order ID</th>
-            <th className="pb-2">Item</th>
-            <th className="pb-2">Quantity</th>
-            <th className="pb-2">Total</th>
+            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Order ID</th>
+            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Item</th>
+            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Quantity</th>
+            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -52,6 +53,7 @@ const LatestOrders = ({ orders = [] }) => {
           )}
         </tbody>
       </table>
+      </div>
 
       <div className="flex justify-between items-center mt-4">
         <button 
@@ -75,7 +77,7 @@ const RecentlyAddedProducts = ({ products = [] }) => {
   const navigate = useNavigate();
   return (
     <DashboardCard title="Recently Added Products" color="bg-purple-400">
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
         {products.length > 0 ? (
           products.map((p, i) => (
             <div
@@ -95,7 +97,7 @@ const RecentlyAddedProducts = ({ products = [] }) => {
                 </div>
               </div>
               <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded">
-                Qty: {p.UnitsInStock}
+                Qty: {p.UnitsInStock !== null && p.UnitsInStock !== undefined ? p.UnitsInStock : 0}
               </span>
             </div>
           ))
@@ -226,7 +228,7 @@ const Dashboard = () => {
       {/* ================= CHARTS ================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <DashboardCard
-          title={`Sales And Purchase Report Summary – ${currentYear}`}
+          title={`Sales, Purchase & Expense Report Summary – ${currentYear}`}
           color="bg-blue-400"
         >
           <YearlySalesChart data={stats.yearlyData} />
@@ -240,7 +242,7 @@ const Dashboard = () => {
         </DashboardCard>
 
         <DashboardCard
-          title={`Sales Report Summary (${currentMonthName}) – ${currentYear}`}
+          title={`Sales, Purchase & Expense Report Summary (${currentMonthName}) – ${currentYear}`}
           color="bg-blue-400"
         >
           <MonthlySalesChart data={stats.dailyData} />

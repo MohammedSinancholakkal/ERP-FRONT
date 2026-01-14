@@ -169,12 +169,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const reportsLinks = [
     { label: "Day Closing", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Today's Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Daily Closing Reports", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Stock Reports", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Sales Reports", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Product Wise Sale Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Purchase Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Customer Receivable Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW }
   ];
@@ -328,13 +324,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       {/* MOBILE OVERLAY BACKDROP */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 w-full h-full z-[99] bg-black/50 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <aside
-        className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-600' : 'bg-gradient-to-b from-gray-900 to-gray-800'} text-white h-screen flex flex-col transition-all duration-300 z-50 
+        className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-600' : 'bg-gradient-to-b from-gray-900 to-gray-800'} text-white h-screen flex flex-col transition-all duration-300 z-[100]  
         md:static md:flex 
         ${sidebarOpen ? "md:w-64" : "md:w-16"} 
         ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden md:flex"}`}

@@ -313,7 +313,7 @@ const States = () => {
   return (
     <PageLayout>
       <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden gap-2">
           <h2 className="text-2xl font-semibold mb-4">States</h2>
 
           <MasterTable

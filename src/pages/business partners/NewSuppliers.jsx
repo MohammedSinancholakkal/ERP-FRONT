@@ -79,6 +79,11 @@ const CustomDropdown = ({
             options={options}
             value={valueId}
             onChange={(id) => {
+              // Explicitly handle clear/empty
+              if (!id) {
+                onSelect(null);
+                return;
+              }
               // Find original item to pass back
               const originalItem = list.find(x => String(x.id ?? x.Id) === String(id));
               onSelect(originalItem);
@@ -420,7 +425,7 @@ const NewSupplier = () => {
   const handleSaveCity = async () => {
     if (!newCity.name.trim()) return toast.error("City name is required");
     if (!newCity.countryId) return toast.error("Country is required");
-    if (newCity.stateId === "" || newCity.stateId === null || newCity.stateId === undefined) return toast.error("State is required");
+    if (!newCity.stateId) return toast.error("State is required");
 
     try {
         let created = null;
@@ -456,15 +461,20 @@ const NewSupplier = () => {
         setAddCityModalOpen(false);
         toast.success("City added successfully");
     } catch (error) {
-        console.error("Failed to add city", error);
+        console.error("Failed to update city", error);
         toast.error("Failed to add city");
     }
   };
 
+// ... (skipping unchanged parts) ...
+
+// Also updating the Add City Modal input onChange to functional update
+/* 
+Note: The tool cannot skip lines easily in replace_content, so I will target the handleSaveCity function fully and the Modal input separately if needed, but since they are far apart, I'll use multi_replace.
+*/
+
   const handleSaveSupplierGroup = () => {
       if(!newGroupName.trim()) return toast.error("Group name required");
-      // Mock API call or Real API if available (not imported but pattern suggests it exists or we mock)
-      // The original code mocked it:
       const createdLocal = { id: `t_${Date.now()}`, GroupName: newGroupName.trim(), name: newGroupName.trim() };
       setSupplierGroups(prev => [createdLocal, ...prev]);
       update("supplierGroupId", createdLocal.id);
@@ -497,10 +507,7 @@ const NewSupplier = () => {
     const phoneRegex = /^[0-9]{7,20}$/;
     const urlRegex = /^(https?:\/\/)?([\w-]+\.)+[a-zA-Z]{2,}(\/\S*)?$/;
     if (form.email && !emailRegex.test(form.email)) return "Email is not valid";
-    // if (form.emailAddress && !emailRegex.test(form.emailAddress)) return "Email Address is not valid";
     if (form.phone && !phoneRegex.test(form.phone)) return "Phone is not valid";
-    // if (form.fax && !phoneRegex.test(form.fax)) return "Fax is not valid";
-    // if (form.website && !urlRegex.test(form.website)) return "Website is not valid";
     return null;
   };
 
@@ -542,7 +549,7 @@ const NewSupplier = () => {
           toast.success("Supplier updated");
           invalidateDashboard();
           if (location.state?.returnTo) {
-             navigate(location.state.returnTo, { state: { newSupplierId: id } }); // pass ID back if needed, though for edit might not be strictly necessary, but consistant
+             navigate(location.state.returnTo, { state: { newSupplierId: id } }); 
           } else {
              navigate("/app/businesspartners/suppliers");
           }
@@ -555,7 +562,7 @@ const NewSupplier = () => {
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Supplier created");
           invalidateDashboard();
-          const createdId = res.data.record?.id || res.data?.id; // Access logic might vary, ensuring we get ID
+          const createdId = res.data.record?.id || res.data?.id; 
           if (location.state?.returnTo) {
              navigate(location.state.returnTo, { state: { newSupplierId: createdId } });
           } else {
@@ -757,7 +764,10 @@ const handleRestore = async () => {
                 }}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)}
                 showPencil={isEditMode}
-              onAddClick={() => setAddStateModalOpen(true)}
+              onAddClick={() => {
+                setNewState(prev => ({ ...prev, countryId: form.countryId }));
+                setAddStateModalOpen(true);
+              }}
               />
             </div>
             <div className="col-span-12 md:col-span-6">
@@ -768,7 +778,10 @@ const handleRestore = async () => {
                 onSelect={(item) => update("cityId", item?.id ?? null)}
                 showStar={!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)}
                 showPencil={isEditMode}
-              onAddClick={() => setAddCityModalOpen(true)}
+              onAddClick={() => {
+                setNewCity(prev => ({ ...prev, countryId: form.countryId, stateId: form.stateId }));
+                setAddCityModalOpen(true);
+              }}
               />
             </div>
 
@@ -1006,7 +1019,10 @@ const handleRestore = async () => {
                       type="text"
                       className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
                       value={newCity.name}
-                      onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewCity(prev => ({ ...prev, name: val }));
+                      }}
                       placeholder="Enter City Name"
                   />
               </div>

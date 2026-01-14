@@ -103,6 +103,7 @@ const Warehouses = () => {
     state: true,
     city: true,
     phone: true,
+    address: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   
@@ -493,7 +494,7 @@ const Warehouses = () => {
   return (
     <PageLayout>
       <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden gap-2">
           <h2 className="text-2xl font-semibold mb-4">Warehouses</h2>
 
           <MasterTable
@@ -504,6 +505,7 @@ const Warehouses = () => {
                 visibleColumns.state && { key: 'stateName', label: 'State', sortable: true },
                 visibleColumns.city && { key: 'cityName', label: 'City', sortable: true },
                 visibleColumns.phone && { key: 'phone', label: 'Phone', sortable: true },
+                visibleColumns.address && { key: 'address', label: 'Address', sortable: true },
             ].filter(Boolean)}
             data={sortedRows}
             inactiveData={inactiveRows}

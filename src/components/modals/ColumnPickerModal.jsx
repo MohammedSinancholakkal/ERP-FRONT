@@ -17,7 +17,7 @@ const ColumnPickerModal = ({ isOpen, onClose, visibleColumns, setVisibleColumns,
       isOpen={isOpen}
       onClose={onClose}
       title="Column Picker"
-      zIndex={60}
+      // zIndex={60} // Removed to use default from BaseModal
       footer={
         <div className="flex justify-between w-full">
            <button
@@ -48,7 +48,7 @@ const ColumnPickerModal = ({ isOpen, onClose, visibleColumns, setVisibleColumns,
         </div>
 
         {/* VISIBLE / HIDDEN COLUMNS */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="border border-gray-700 rounded p-3 bg-gray-800/40 h-[400px] overflow-y-auto">
             <h3 className="font-semibold mb-3">👁 Visible Columns</h3>
 

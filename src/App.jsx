@@ -175,6 +175,7 @@ function App() {
           <Route path="hr/newemployee" element={<NewEmployee />} />
           <Route path="hr/editemployee/:id" element={<NewEmployee />} />
           <Route path="hr/employees" element={<Employees />} />
+          <Route path="hr/employees/:id" element={<NewEmployee />} />
           <Route path="hr/attendance" element={<Attendance />} />
           <Route path="hr/payroll" element={<Payroll />} />
           <Route path="hr/newpayroll" element={<NewPayroll />} />

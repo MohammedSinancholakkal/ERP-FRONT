@@ -3,16 +3,15 @@ import React, { useState, useEffect } from "react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 // import SortableHeader from "../../components/SortableHeader"; // Unused?
-import toast from "react-hot-toast";
 
 // API
 import {
   addCountryApi,
-//   getCountriesApi, // Unused?
+  getCountriesApi, 
   updateCountryApi,
   deleteCountryApi,
   restoreCountryApi,
-//   getInactiveCountriesApi, // Unused?
+//   getInactiveCountriesApi,
   searchCountryApi,
 } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
@@ -20,7 +19,6 @@ import { useMasters } from "../../context/MastersContext";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import MasterTable from "../../components/MasterTable";
-import Swal from "sweetalert2";
 
 // MODALS
 import AddModal from "../../components/modals/AddModal";
@@ -59,10 +57,6 @@ const Countries = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-//   const totalPages = Math.max(1, Math.ceil(totalRecords / limit)); // Unused?
-//   const start = (page - 1) * limit + 1; // Unused?
-//   const end = Math.min(page * limit, totalRecords); // Unused?
-
   // SEARCH
   const [searchText, setSearchText] = useState("");
 
@@ -75,11 +69,6 @@ const Countries = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  // const [searchColumn, setSearchColumn] = useState(""); // Moved to Modal
-
-  // const toggleColumn = (col) => { ... } // Moved to Modal
-  // const restoreDefaultColumns = () => { ... } // Moved to Modal
-
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
   const handleSort = (key) => {
@@ -339,7 +328,7 @@ const Countries = () => {
 
         {/* MAIN PAGE */}
         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex flex-col h-full overflow-hidden gap-2 ">
             <h2 className="text-2xl font-semibold mb-4">Countries</h2>
 
             {/* TABLE SECTION - Action Bar is now inside MasterTable */}

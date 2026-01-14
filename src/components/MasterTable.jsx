@@ -1,6 +1,8 @@
 import SortableHeader from "./SortableHeader";
 import { useTheme } from "../context/ThemeContext";
 import { Search, Plus, RefreshCw, List, ArchiveRestore } from "lucide-react";
+import { useState } from "react"; // ADDED
+import toast from "react-hot-toast"; // ADDED
 
 const MasterTable = ({
   columns,
@@ -10,7 +12,6 @@ const MasterTable = ({
   sortConfig,
   onSort,
   onRowClick,
-  // Action Bar Props
   search,
   onSearch,
   onCreate,
@@ -23,6 +24,18 @@ const MasterTable = ({
   children,
 }) => {
   const { theme } = useTheme();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      await onRefresh();
+      setTimeout(() => {
+        setIsRefreshing(false);
+        toast.success("Refreshed");
+      }, 500);
+    }
+  };
 
   const renderRow = (item, isInactive = false) => (
     <tr
@@ -48,7 +61,7 @@ const MasterTable = ({
       {columns.map((col) => (
         <td
           key={col.key}
-          className={`px-2 py-1 text-center ${
+          className={`px-4 py-2 text-center whitespace-nowrap ${
             theme === "emerald" && !isInactive ? "border-b border-emerald-200" : ""
           } ${col.className || ""}`}
         >
@@ -59,7 +72,7 @@ const MasterTable = ({
   );
 
   return (
-    <div className="w-full flex flex-col gap-4">
+    <div className="w-full flex flex-col gap-4 flex-1 min-h-0">
       {/* ACTION BAR */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-1">
         {/* Search */}
@@ -104,7 +117,8 @@ const MasterTable = ({
         {/* Refresh Button */}
         {onRefresh && (
           <button
-            onClick={onRefresh}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
             className={`p-1.5 rounded-md border ${
               theme === "emerald"
                 ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
@@ -113,7 +127,7 @@ const MasterTable = ({
           >
             <RefreshCw
               size={16}
-              className={theme === "emerald" ? "text-white" : "text-blue-400"}
+              className={`${theme === "emerald" ? "text-white" : "text-blue-400"} ${isRefreshing ? "animate-spin" : ""}`}
             />
           </button>
         )}
@@ -165,10 +179,9 @@ const MasterTable = ({
 
       {children}
 
-      <div className="w-full overflow-auto h-[65vh] rounded-lg scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+      <div className="w-full overflow-auto flex-1 rounded-lg scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
         <table 
-          className="text-left border-separate border-spacing-y-1 text-sm"
-          style={{ minWidth: `${300 + columns.length * 100}px` }}
+          className="text-left border-separate border-spacing-y-1 text-sm w-auto min-w-[800px]"
         >
           <thead
             className={`sticky top-0 z-10 ${
@@ -185,7 +198,7 @@ const MasterTable = ({
                     onClick={() => onSort && onSort(col.key)}
                   />
                 ) : (
-                  <th key={col.key} className="px-4 py-2 font-semibold text-center uppercase tracking-wider">
+                  <th key={col.key} className="px-1 py-2 font-semibold text-center uppercase tracking-wider whitespace-nowrap">
                     {col.label}
                   </th>
                 )

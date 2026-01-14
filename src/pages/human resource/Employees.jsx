@@ -538,7 +538,7 @@ const columnModalRef = useRef(null);
       {/* MAIN */}
       <PageLayout>
         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex flex-col h-full overflow-hidden gap-2">
             <h2 className="text-2xl font-semibold mb-4">Employees</h2>
 
             <MasterTable
@@ -550,12 +550,12 @@ const columnModalRef = useRef(null);
                 onSort={handleSort}
                 onRowClick={(c, isInactive) => {
                      // Navigate to Edit
-                     navigate(`/hr/employees/${c.id}`);
+                     navigate(`/app/hr/employees/${c.id}`);
                 }}
                 // Action Bar
                 search={searchText}
                 onSearch={setSearchText}
-                onCreate={() => navigate("/hr/employees/new")}
+                onCreate={() => navigate("/app/hr/newemployee")}
                 createLabel="New Employee"
                 permissionCreate={hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
                 onRefresh={() => { fetchAllData(); }}
@@ -565,7 +565,6 @@ const columnModalRef = useRef(null);
                     setShowInactive(!showInactive);
                 }}
             >
-                {/* FILTER BAR as Children */}
                 {/* FILTER BAR as Children */}
                 <FilterBar
                     filters={[
@@ -592,9 +591,8 @@ const columnModalRef = useRef(null);
                         setSearchText("");
                     }}
                 />
-
+                
             </MasterTable>
-
              {/* PAGINATION */}
               <Pagination
                 page={page}

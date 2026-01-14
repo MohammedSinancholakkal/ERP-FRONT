@@ -127,16 +127,16 @@ const ChartCard = ({
 
 export const YearlySalesChart = ({ data }) => (
   <ResponsiveContainer width="100%" height="100%">
-    <AreaChart data={data}>
+    <LineChart data={data}>
       <CartesianGrid strokeDasharray="3 3" />
       <XAxis dataKey="month" />
       <YAxis />
       <Tooltip />
       <Legend />
-      <Area dataKey="sale" stroke="#3498db" fill="#3498db55" />
-      <Area dataKey="purchase" stroke="#e74c3c" fill="#e74c3c55" />
-      <Area dataKey="expense" stroke="#9b59b6" fill="#9b59b655" />
-    </AreaChart>
+      <Line type="monotone" dataKey="sale" stroke="#3498db" strokeWidth={3} activeDot={{ r: 8 }} name="Sales" />
+      <Line type="monotone" dataKey="purchase" stroke="#e74c3c" strokeWidth={3} name="Purchase" />
+      <Line type="monotone" dataKey="expense" stroke="#9b59b6" strokeWidth={3} name="Expense" />
+    </LineChart>
   </ResponsiveContainer>
 );
 
@@ -160,12 +160,10 @@ export const MonthlySalesChart = ({ data }) => (
       <XAxis dataKey="day" />
       <YAxis />
       <Tooltip />
-      <Line dataKey="sale" stroke="#3498db" strokeWidth={3} />
-      <Line
-        dataKey="forecast"
-        stroke="#95a5a6"
-        strokeDasharray="5 5"
-      />
+      <Legend />
+      <Line type="monotone" dataKey="sale" stroke="#3498db" strokeWidth={3} activeDot={{ r: 8 }} name="Sales" />
+      <Line type="monotone" dataKey="purchase" stroke="#e74c3c" strokeWidth={3} activeDot={{ r: 8 }} name="Purchase" />
+      <Line type="monotone" dataKey="expense" stroke="#9b59b6" strokeWidth={3} activeDot={{ r: 8 }} name="Expense" />
     </LineChart>
   </ResponsiveContainer>
 );
