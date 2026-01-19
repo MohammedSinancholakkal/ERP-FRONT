@@ -78,32 +78,29 @@ const end = Math.min(page * limit, totalRecords);
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
   // SORT
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadCategories(page, limit, newConfig);
   };
 
-  const sortedCategories = [...categories].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const valA = String(a[sortConfig.key] || "").toLowerCase();
-    const valB = String(b[sortConfig.key] || "").toLowerCase();
-    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
+  // Client-side sorting removed
+  // const sortedCategories = ...
 
 
 
   // =============================
   // LOADERS
   // =============================
-  const loadCategories = async () => {
-    const res = await getCategoriesApi(page, limit);
+  const loadCategories = async (p = page, l = limit, currentSort = sortConfig) => {
+    const { key, direction } = currentSort;
+    const res = await getCategoriesApi(p, l, key, direction); // Pass sort params
     if (res.status === 200) {
       setCategories(res.data.records);
       setTotalRecords(res.data.total);
@@ -139,6 +136,31 @@ const end = Math.min(page * limit, totalRecords);
   // ADD CATEGORY
   // =============================
   const handleAdd = async () => {
+    const nameLen = newCategory.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Category Name must be between 2 and 50 characters");
+
+    const descLen = newCategory.description?.trim().length || 0;
+    if (newCategory.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
+    // Parent category name validation is tricky as we only have the ID here usually, but if we're creating new ones we might need it.
+    // However, the input is a select box for existing parent categories. The user probably meant "if searching/selecting".
+    // Or if creating a sub-category?
+    // Wait, the prompt says "parent category min 2 max 50". This usually implies the Name of the parent category if it's being created or displayed?
+    // In this form, it's a dropdown. We can't validate "length" of a dropdown selection ID.
+    // BUT! Since it's a "SearchableSelect", maybe they type in it?
+    // If it's just selecting an ID, validation is n/a on length, just existence.
+    // I will assume the prompt means "If I were to type a new parent category name" OR they want to ensure the selected parent's name meets this?
+    // No, standard validation usually applies to INPUT fields.
+    // Let's stick to Name and Description for now. If "Parent Category" implies a free-text input, I'd validate it, but it's a select.
+    // Re-reading: "parent category min 2 max 50" -> Maybe they mean the name of the parent category?
+    // If I select a parent, I am selecting an ID.
+    // I will just validate Name and Description.
+    // Wait, if the requirement is strict, maybe I should check the selected parent name length?
+    // "parent category min 2 max 50" -> This is likely ensuring the Parent Category Name (if displayed or filtered) is within limits? 
+    // Or maybe they mistakenly think it's a text box.
+    // I'll stick to validating Name and Description. Validating ID length is nonsense.
+    // Actually, looking at NewProduct validation, I should probably check NewProduct too.
+
     if (!newCategory.name.trim()) return showErrorToast("Name required");
 
     try {
@@ -170,6 +192,12 @@ const end = Math.min(page * limit, totalRecords);
   // UPDATE
   // =============================
   const handleUpdate = async () => {
+    const nameLen = editCategory.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Category Name must be between 2 and 50 characters");
+
+    const descLen = editCategory.description?.trim().length || 0;
+    if (editCategory.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     if (!editCategory.name.trim()) return showErrorToast("Name required");
 
     try {
@@ -386,15 +414,14 @@ const handleRestore = async () => {
           <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Categories</h2>
           <hr className="mb-4 border-gray-300" />
 
-          {/* ACTION BAR & TABLE */}
-          <MasterTable
-            columns={[
-                visibleColumns.id && { key: "id", label: "ID", sortable: true },
-                visibleColumns.name && { key: "name", label: "Name", sortable: true },
-                visibleColumns.description && { key: "description", label: "Description", sortable: true },
-                visibleColumns.parentName && { key: "parentName", label: "Parent Category", sortable: true, render: (r) => r.parentName || "-" },
-            ].filter(Boolean)}
-            data={sortedCategories}
+            <MasterTable
+              columns={[
+                  visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                  visibleColumns.name && { key: "name", label: "Name", sortable: true },
+                  visibleColumns.description && { key: "description", label: "Description", sortable: true },
+                  visibleColumns.parentName && { key: "parentName", label: "Parent Category", sortable: true, render: (r) => r.parentName || "-" },
+              ].filter(Boolean)}
+              data={categories} // Server sorted
             inactiveData={inactiveCategories}
             showInactive={showInactive}
             sortConfig={sortConfig}
@@ -418,8 +445,9 @@ const handleRestore = async () => {
             permissionCreate={hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.CREATE)}
             onRefresh={() => {
                 setSearchText("");
+                setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
-                loadCategories();
+                loadCategories(1, limit, { key: "id", direction: "asc" });
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
             onToggleInactive={async () => {
@@ -436,11 +464,12 @@ const handleRestore = async () => {
             limit={limit}
             setLimit={setLimit}
             total={totalRecords}
-            onRefresh={() => {
-              setSearchText("");
-              setPage(1);
-              loadCategories();
-            }}
+              onRefresh={() => {
+                setSearchText("");
+                setSortConfig({ key: "id", direction: "asc" });
+                setPage(1);
+                loadCategories(1, limit, { key: "id", direction: "asc" });
+              }}
           />
           </div>       
           </div>

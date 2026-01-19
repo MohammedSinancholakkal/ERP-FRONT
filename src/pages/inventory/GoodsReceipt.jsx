@@ -75,14 +75,21 @@ const GoodsReceipt = () => {
   const [filterEmployee, setFilterEmployee] = useState("");
   
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'asc' });
 
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    
+    if (showAll) {
+        fetchAll(newConfig);
+    } else {
+        fetchActive(page, limit, newConfig);
+    }
   };
 
   // -------------------- pagination -------------------- 
@@ -185,34 +192,8 @@ const GoodsReceipt = () => {
   }, [rows, searchText, filterSupplier, filterPurchaseBill, filterEmployee]);
 
     // --- SORTING LOGIC ---
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredRows];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        // Handle numeric values
-        if (['id', 'totalQuantity'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             // String comparison
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [filteredRows, sortConfig]);
+  // Client side sorting removed
+  // const sortedList = ...
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -244,7 +225,9 @@ const GoodsReceipt = () => {
     setFilterSupplier("");
     setFilterPurchaseBill("");
     setFilterEmployee("");
-    setSortConfig({ key: null, direction: 'asc' });
+    setSortConfig({ key: "id", direction: 'asc' });
+    if(showAll) fetchAll({ key: "id", direction: 'asc' });
+    else fetchActive(1, limit, { key: "id", direction: 'asc' });
   };
 
   // -------------------- server interactions --------------------
@@ -316,10 +299,11 @@ const GoodsReceipt = () => {
     return mapped
   };
 
-  const fetchActive = async () => {
+  const fetchActive = async (p = page, l = limit, currentSort = sortConfig) => {
     setLoading(true)
     try {
-      const res = await getGoodsReceiptsApi(page, limit)
+      const { key, direction } = currentSort;
+      const res = await getGoodsReceiptsApi(p, l, key, direction)
       if (res.status === 200) {
         const records = Array.isArray(res?.data?.records) ? res.data.records : (res?.data ?? [])
         const normalized = records.map(rec => normalize(rec))
@@ -350,10 +334,14 @@ const GoodsReceipt = () => {
     }
   }
 
-  const fetchAll = async () => {
+  const fetchAll = async (currentSort = sortConfig) => {
     setLoading(true)
     try {
-      const [activeRes, inactiveRes] = await Promise.all([getGoodsReceiptsApi(1, 1000), getInactiveGoodsReceiptsApi()])
+      const { key, direction } = currentSort;
+      const [activeRes, inactiveRes] = await Promise.all([
+          getGoodsReceiptsApi(1, 1000, key, direction), 
+          getInactiveGoodsReceiptsApi()
+      ])
       const active = activeRes.status === 200 ? (Array.isArray(activeRes.data.records) ? activeRes.data.records : activeRes.data || []) : []
       const inactive = inactiveRes.status === 200 ? (Array.isArray(inactiveRes.data.records) ? inactiveRes.data.records : inactiveRes.data || []) : []
       const combined = [...active, ...inactive].map(rec => normalize(rec))
@@ -419,6 +407,7 @@ const GoodsReceipt = () => {
         fetchInactive();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, showInactive, showAll])
 
 
@@ -710,7 +699,7 @@ const GoodsReceipt = () => {
                     visibleColumns.remarks && { key: "remarks", label: "Remarks", sortable: true },
                     visibleColumns.reference && { key: "reference", label: "Reference", sortable: true },
                 ].filter(Boolean)}
-                data={showAll ? sortedList.slice(start - 1, end) : sortedList}
+                data={showAll ? filteredRows.slice(start - 1, end) : filteredRows} // Using filteredRows directly
                 inactiveData={inactiveRows}
                 showInactive={showInactive}
                 sortConfig={sortConfig}
@@ -729,8 +718,9 @@ const GoodsReceipt = () => {
                     setFilterEmployee("");
                     if(showAll) fetchAll();
                     else {
+                        setSortConfig({ key: "id", direction: 'asc' });
                         setPage(1);
-                        fetchActive();
+                        fetchActive(1, limit, { key: "id", direction: 'asc' });
                     }
                 }}
                 onColumnSelector={() => {

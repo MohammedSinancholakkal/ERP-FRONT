@@ -59,7 +59,7 @@ const Payroll = () => {
 const fetchPayrolls = async () => {
   try {
     setLoading(true);
-    const resp = await getPayrollsApi(1, 10000); // Fetch ALL for client-side sorting
+    const resp = await getPayrollsApi(1, 10000, sortConfig.key, sortConfig.direction); // Fetch ALL for client-side sorting
 
     if (resp.status === 200) {
       const records = resp.data?.records || [];
@@ -170,37 +170,8 @@ const fetchPayrolls = async () => {
         );
     }
 
-    let sortableItems = [...allData];
-    if (sortConfig.key) {
-      sortableItems.sort((a, b) => {
-          let aVal = a[sortConfig.key] || "";
-          let bVal = b[sortConfig.key] || "";
-
-          // Date check
-          if (sortConfig.key === 'paymentDate') {
-              aVal = new Date(aVal).getTime() || 0;
-              bVal = new Date(bVal).getTime() || 0;
-          }
-          // Number check
-          else if (['id', 'totalBasicSalary', 'totalIncome', 'totalDeduction', 'totalTakeHomePay', 'totalPaymentAmount'].includes(sortConfig.key)) {
-              aVal = Number(aVal) || 0;
-              bVal = Number(bVal) || 0;
-          }
-          
-          // String check
-          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-          
-          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-          return 0;
-      });
-    } else {
-        // default sort by id
-        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
-    }
-    return sortableItems;
-  }, [rows, inactiveRows, showInactive, sortConfig, searchText]);
+    return allData;
+  }, [rows, inactiveRows, showInactive, searchText]);
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -221,7 +192,7 @@ const fetchPayrolls = async () => {
 
   useEffect(() => {
     fetchPayrolls();
-  }, []); // Fetch ONLY ONCE on mount
+  }, [sortConfig]); // Fetch ONLY ONCE on mount
 
 
   // -------------------------------

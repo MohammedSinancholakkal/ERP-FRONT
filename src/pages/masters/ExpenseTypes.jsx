@@ -63,7 +63,7 @@ const ExpenseTypes = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -75,27 +75,21 @@ const ExpenseTypes = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedRows = [...rows];
-  if (sortConfig.key) {
-    sortedRows.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+  // REMOVED CLIENT SIDE SORT LOGIC
+  const sortedRows = rows;
 
   // ===============================
   // Helpers
   // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const normalizeRows = (items = []) =>
     items.map((r) => ({
       id: r.Id ?? r.id ?? r.ID ?? r._id ?? r.expenseTypeId ?? r.ExpenseTypeId ?? r.typeId ?? r.TypeId ?? null,
-      name: r.Name ?? r.name ?? r.ExpenseName ?? r.expenseName ?? r.ExpenseType ?? r.expenseType ?? r.TypeName ?? r.typeName ?? "",
+      name: capitalize(r.Name ?? r.name ?? r.ExpenseName ?? r.expenseName ?? r.ExpenseType ?? r.expenseType ?? r.TypeName ?? r.typeName ?? ""),
     }));
 
   // ===============================
@@ -103,7 +97,7 @@ const ExpenseTypes = () => {
   // ===============================
   const loadRows = async () => {
     try {
-      const res = await getExpenseTypesApi(page, limit);
+      const res = await getExpenseTypesApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         const data = res.data;
         let items = [];
@@ -144,7 +138,7 @@ const ExpenseTypes = () => {
 
   useEffect(() => {
     loadRows();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // ===============================
   // Search
@@ -176,8 +170,11 @@ const ExpenseTypes = () => {
   // Add
   // ===============================
   const handleAdd = async () => {
-    if (!newItem.name?.trim())
-      return toast.error("Name is required");
+    if (!newItem.name?.trim()) return toast.error("Name is required");
+    const nameToCheck = newItem.name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
 
     // Check for duplicates
     try {
@@ -231,6 +228,10 @@ const ExpenseTypes = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Name is required");
+    const nameToCheck = editItem.name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
 
     // Check for duplicates
     try {

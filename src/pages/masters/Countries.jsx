@@ -81,10 +81,24 @@ const Countries = () => {
  
   const sortedCountries = countries; 
 
+  // ===============================
+  // Helpers
+  // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const normalizeRows = (items = []) =>
+    items.map((r) => ({
+      ...r,
+      name: capitalize(r.name || r.Name),
+    })); 
+
   // LOAD COUNTRIES
   const loadCountries = async (forceRefresh = false) => {
     const { data, total } = await loadCountriesCtx(page, limit, searchText, forceRefresh, sortConfig.key, sortConfig.direction);
-    setCountries(data || []);
+    setCountries(normalizeRows(data || []));
     setTotalRecords(total || 0);
   };
 
@@ -94,24 +108,28 @@ const Countries = () => {
 
   const loadInactive = async () => {
     const data = await loadInactiveCtx();
-    setInactiveCountries(data || []);
+    setInactiveCountries(normalizeRows(data || []));
   };
 
   const handleSearch = async (text) => {
     setSearchText(text);
     if (!text.trim()) {
         const { data, total } = await loadCountriesCtx(1, limit, "");
-        setCountries(data || []);
+        setCountries(normalizeRows(data || []));
         setTotalRecords(total || 0);
         return;
     }
     const { data, total } = await loadCountriesCtx(1, limit, text);
-    setCountries(data || []);
+    setCountries(normalizeRows(data || []));
     setTotalRecords(total || 0);
   };
 
   const handleAdd = async () => {
+    // VALIDATIONS
     if (!newData.name.trim()) return toast.error("Name required");
+    if (newData.name.trim().length < 2) return toast.error("Name must be at least 2 characters");
+    if (newData.name.trim().length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(newData.name.trim())) return toast.error("Name allows only characters");
     
     // Check duplicates
     try {
@@ -148,7 +166,11 @@ const Countries = () => {
   };
 
   const handleUpdate = async () => {
+    // VALIDATIONS
     if (!editData.name.trim()) return toast.error("Name required");
+    if (editData.name.trim().length < 2) return toast.error("Name must be at least 2 characters");
+    if (editData.name.trim().length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(editData.name.trim())) return toast.error("Name allows only characters");
 
     try {
       const res = await updateCountryApi(editData.id, {

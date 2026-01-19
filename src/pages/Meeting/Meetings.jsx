@@ -62,15 +62,7 @@ const Meetings = () => {
   const [loading, setLoading] = useState(false);
 
   // Sorting
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
-
-  const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-  };
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   /* Derived Filter Lists */
   const [dropdownOptions, setDropdownOptions] = useState({
@@ -86,16 +78,26 @@ const Meetings = () => {
   /* ================================
      LOAD ACTIVE MEETINGS
   =================================*/
-  const loadMeetings = async () => {
+  const loadMeetings = async (currentSort = sortConfig) => {
     try {
       setLoading(true);
-      const res = await getMeetingsApi(1, 5000); // Fetch all for client-side filtering
+      const { key, direction } = currentSort;
+      
+      const res = await getMeetingsApi(
+        1, 
+        5000, 
+        key || "id", 
+        direction || "asc"
+      ); 
 
       if (res?.data) {
         let records = res.data.records || res.data || [];
         if (!Array.isArray(records)) records = [];
         setAllMeetings(records);
         const unique = (key) => [...new Set(records.map(r => r[key]).filter(Boolean))].sort().map(val => ({ id: val, name: val }));
+        
+        // Only update options if it's the initial load to preserve filter context if needed, 
+        // or always update? Master pages usually update.
         setDropdownOptions({
           meetingTypes: unique('meetingType'),
           startDates: unique('startDate'),
@@ -121,7 +123,7 @@ const Meetings = () => {
     try {
       // Don't set main loading to true to avoid hiding active table
       const res = await getInactiveMeetingsApi();
-      if (res.status === 200) {
+        if (res?.data) {
         setInactiveMeetings(res.data.records || res.data || []);
       }
     } catch (err) {
@@ -141,7 +143,7 @@ const Meetings = () => {
     try {
       await restoreMeetingApi(id, { userId: 1 });
       showSuccessToast("Meeting restored successfully");
-      loadMeetings(false);
+      loadMeetings(sortConfig);
       setInactiveMeetings(prev => prev.filter(m => m.id !== id));
     } catch (error) {
       console.error("RESTORE ERROR:", error);
@@ -150,10 +152,38 @@ const Meetings = () => {
   };
 
   useEffect(() => {
-    loadMeetings();
-  }, []);
+    loadMeetings(sortConfig);
+  }, []); // Initial load
 
-  /* Filter Logic - ACTIVE ONLY */
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadMeetings(newConfig);
+  };
+
+  const handleRefresh = () => {
+    setSearchText("");
+    setSortConfig({ key: "id", direction: "asc" });
+    setPage(1);
+    setShowInactive(false); // Reset inactive view
+    
+    // Clear Filters
+    setFilterMeetingType("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setFilterDepartment("");
+    setFilterLocation("");
+    setFilterOrganizedBy("");
+    setFilterReporter("");
+
+    loadMeetings({ key: "id", direction: "asc" });
+  };
+
+  /* Filter Logic - ACTIVE ONLY (Client Side Filtering Only) */
   useEffect(() => {
     let result = Array.isArray(allMeetings) ? allMeetings : [];
 
@@ -174,16 +204,7 @@ const Meetings = () => {
     if (filterOrganizedBy) result = result.filter(m => m.organizedBy === filterOrganizedBy);
     if (filterReporter) result = result.filter(m => m.reporter === filterReporter);
 
-    // Sorting Logic
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        const valA = String(a[sortConfig.key] || "").toLowerCase();
-        const valB = String(b[sortConfig.key] || "").toLowerCase();
-        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
+    // Sorting Logic REMOVED (Handled by Backend)
 
     setFilteredMeetings(result);
     setPage(1); 
@@ -247,15 +268,15 @@ const Meetings = () => {
             {/* MASTER TABLE */}
             <MasterTable
               columns={[
-                visibleColumns.id && { key: "id", label: "ID", sortable: true },
-                visibleColumns.meetingName && { key: "meetingName", label: "Meeting Name", sortable: true },
-                visibleColumns.meetingType && { key: "meetingType", label: "Meeting Type", sortable: true },
-                visibleColumns.startDate && { key: "startDate", label: "Start Date", sortable: true },
-                visibleColumns.endDate && { key: "endDate", label: "End Date", sortable: true },
-                visibleColumns.department && { key: "department", label: "Department", sortable: true },
-                visibleColumns.location && { key: "location", label: "Location", sortable: true },
-                visibleColumns.organizedBy && { key: "organizedBy", label: "Organized By", sortable: true },
-                visibleColumns.reporter && { key: "reporter", label: "Reporter", sortable: true },
+                visibleColumns.id && { key: "id", label: "ID", sortable: true, className: "capitalize" },
+                visibleColumns.meetingName && { key: "meetingName", label: "Meeting Name", sortable: true, className: "capitalize" },
+                visibleColumns.meetingType && { key: "meetingType", label: "Meeting Type", sortable: true, className: "capitalize" },
+                visibleColumns.startDate && { key: "startDate", label: "Start Date", sortable: true, className: "capitalize" },
+                visibleColumns.endDate && { key: "endDate", label: "End Date", sortable: true, className: "capitalize" },
+                visibleColumns.department && { key: "department", label: "Department", sortable: true, className: "capitalize" },
+                visibleColumns.location && { key: "location", label: "Location", sortable: true, className: "capitalize" },
+                visibleColumns.organizedBy && { key: "organizedBy", label: "Organized By", sortable: true, className: "capitalize" },
+                visibleColumns.reporter && { key: "reporter", label: "Reporter", sortable: true, className: "capitalize" },
               ].filter(Boolean)}
               data={paginatedData}
               inactiveData={inactiveMeetings}
@@ -275,7 +296,7 @@ const Meetings = () => {
               onCreate={() => navigate("/app/meeting/meetings/new")}
               createLabel="New Meeting"
               permissionCreate={hasPermission(PERMISSIONS.MEETINGS.CREATE)}
-              onRefresh={loadMeetings}
+              onRefresh={handleRefresh}
               onColumnSelector={() => setColumnModalOpen(true)}
               onToggleInactive={async () => {
                 if (!showInactive) await loadInactiveMeetings();
@@ -295,11 +316,7 @@ const Meetings = () => {
               limit={limit}
               setLimit={setLimit}
               total={total}
-              onRefresh={() => {
-                setSearchText("");
-                setPage(1);
-                loadMeetings();
-              }}
+              onRefresh={handleRefresh}
             />
             </ContentCard>
         </div>

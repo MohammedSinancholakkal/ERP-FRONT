@@ -9,6 +9,7 @@ import {
   deleteTaxTypeApi,
   restoreTaxTypeApi,
   searchTaxTypeApi,
+  getTaxTypesApi,
 } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
 import { useMasters } from "../../context/MastersContext";
@@ -69,7 +70,7 @@ const TaxTypes = () => {
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -81,20 +82,8 @@ const TaxTypes = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedTaxTypes = [...taxTypes];
-  if (sortConfig.key) {
-    sortedTaxTypes.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
-
+  // REMOVED CLIENT SIDE SORT LOGIC
+  const sortedTaxTypes = taxTypes;
   // NORMALIZE HELPER
   const normalizeRows = (items = []) => 
     items.map(r => ({
@@ -104,15 +93,22 @@ const TaxTypes = () => {
     }));
 
   // LOAD ACTIVE TAX TYPES
-  const loadTaxTypes = async (forceRefresh = false) => {
-    const { data, total } = await loadTaxTypesCtx(page, limit, searchText, forceRefresh);
-    setTaxTypes(normalizeRows(data || []));
-    setTotalRecords(total || 0);
+  const loadTaxTypes = async () => {
+    try {
+        const res = await getTaxTypesApi(page, limit, sortConfig.key, sortConfig.direction);
+        if (res?.status === 200) {
+            const rows = res.data.records || res.data || [];
+            setTaxTypes(normalizeRows(rows));
+            setTotalRecords(res.data.total || rows.length || 0);
+        }
+    } catch(err) {
+        console.error(err);
+    }
   };
 
   useEffect(() => {
     loadTaxTypes();
-  }, [page, limit]); 
+  }, [page, limit, sortConfig]); 
 
   // LOAD INACTIVE
   const loadInactive = async () => {
@@ -372,6 +368,8 @@ const TaxTypes = () => {
               onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadTaxTypes();
               }}
               onColumnSelector={() => setColumnModal(true)}
@@ -391,6 +389,8 @@ const TaxTypes = () => {
               onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadTaxTypes();
               }}
             />

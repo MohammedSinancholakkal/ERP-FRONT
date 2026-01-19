@@ -2,7 +2,7 @@ import { commonAPI } from "../services/commonAPI";
 import { serverURL } from "../services/serverURL";
 
 // TAX PERCENTAGES
-export const getTaxPercentagesApi = async (page, limit) => await commonAPI("GET", `${serverURL}/tax-percentages/get-all?page=${page}&limit=${limit}`, "");
+export const getTaxPercentagesApi = async (page, limit, sortBy = null, order = null) => await commonAPI("GET", `${serverURL}/tax-percentages/get-all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "");
 export const addTaxPercentageApi = async (reqBody) => await commonAPI("POST", `${serverURL}/tax-percentages/add`, reqBody);
 export const updateTaxPercentageApi = async (id, reqBody) => await commonAPI("PUT", `${serverURL}/tax-percentages/update/${id}`, reqBody);
 export const deleteTaxPercentageApi = async (id, reqBody) => await commonAPI("POST", `${serverURL}/tax-percentages/delete/${id}`, reqBody);
@@ -40,8 +40,8 @@ export const getDashboardStatsApi = () =>
 
 
 // LIST (Paginated)
-export const getUsersApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/users/all?page=${page}&limit=${limit}`);
+export const getUsersApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/users/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // ADD USER (with image)
 export const addUserApi = (data) =>
@@ -210,8 +210,8 @@ export const restoreCityApi = (id, data) =>
 
 
 // ------------------- REGIONS -------------------
-export const getRegionsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/regions/all?page=${page}&limit=${limit}`, "", "");
+export const getRegionsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/regions/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const addRegionApi = (data) =>
   commonAPI("POST", `${serverURL}/regions/add`, data, "");
@@ -239,8 +239,8 @@ export const restoreRegionApi = async (id, data) => {
 
 // ------------------- TERRITORIES -------------------
 // GET Territories — PAGINATED
-export const getTerritoriesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/territories/all?page=${page}&limit=${limit}`, "", "");
+export const getTerritoriesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/territories/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 // Add Territory
 export const addTerritoryApi = (data) =>
@@ -271,8 +271,8 @@ export const restoreTerritoryApi = (id, data) =>
 // ============================
 
 // EXPENSE TYPES — PAGINATED LIST
-export const getExpenseTypesApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/expense-types/all?page=${page}&limit=${limit}`,"","");
+export const getExpenseTypesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/expense-types/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`,"","");
 
 
 // Add Expense Type
@@ -390,8 +390,8 @@ export const restoreBankApi = (id, data) =>
 // ========================= SERVICES =========================
 
 // Get all services
-export const getServicesApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/services/all?page=${page}&limit=${limit}`,"","");
+export const getServicesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/services/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`,"","");
 
 // Add service
 export const addServiceApi = (data) =>
@@ -424,8 +424,8 @@ export const restoreServiceApi = (id, data) =>
 // ========================= INCOMES API =========================
 
 // Get all incomes (with pagination)
-export const getIncomesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/incomes/all?page=${page}&limit=${limit}`);
+export const getIncomesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/incomes/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // Add Income
 export const addIncomeApi = (data) =>
@@ -455,8 +455,8 @@ export const restoreIncomeApi = (id, data) =>
 
 // ========================= SHIPPERS API =========================
 
-export const getShippersApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/shippers/all?page=${page}&limit=${limit}`);
+export const getShippersApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/shippers/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addShipperApi = (data) =>
   commonAPI("POST", `${serverURL}/shippers/add`, data);
@@ -483,8 +483,8 @@ export const restoreShipperApi = (id, data) =>
 // ======================= Customer Groups =======================
 
 // Get all customer groups (with pagination)
-export const getCustomerGroupsApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/customer-groups/all?page=${page}&limit=${limit}`);
+export const getCustomerGroupsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/customer-groups/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // Add new customer group
 export const addCustomerGroupApi = (data) =>
@@ -515,8 +515,8 @@ export const restoreCustomerGroupApi = (id, data) =>
 
 
 //   Supplier Groups APIs
-export const getSupplierGroupsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/supplier-groups/all?page=${page}&limit=${limit}`);
+export const getSupplierGroupsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/supplier-groups/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addSupplierGroupApi = (data) =>
   commonAPI("POST", `${serverURL}/supplier-groups/add`, data);
@@ -540,8 +540,8 @@ export const restoreSupplierGroupApi = (id, data) =>
 
 
 // ======================= Agenda Item Types APIs =======================
-export const getAgendaItemTypesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/agenda-item-types/all?page=${page}&limit=${limit}`);
+export const getAgendaItemTypesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/agenda-item-types/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addAgendaItemTypeApi = (data) =>
   commonAPI("POST", `${serverURL}/agenda-item-types/add`, data);
@@ -566,8 +566,8 @@ export const restoreAgendaItemTypeApi = (id, data) =>
 
 // ======================= Meeting Types APIs =======================
 
-export const getMeetingTypesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/meeting-types/all?page=${page}&limit=${limit}`);
+export const getMeetingTypesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/meeting-types/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addMeetingTypeApi = (data) =>
   commonAPI("POST", `${serverURL}/meeting-types/add`, data);
@@ -720,8 +720,8 @@ export const restoreAgendaDecisionApi = (id, data) =>
   
 // ======================= Deductions APIs =======================
 
-export const getDeductionsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/deductions/all?page=${page}&limit=${limit}`);
+export const getDeductionsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/deductions/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const deleteDeductionApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/deductions/delete/${id}`, data);
@@ -748,8 +748,8 @@ export const restoreDeductionApi = (id, data) =>
 
 
 // ================= Resolution Statuses =================
-export const getResolutionStatusesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/resolution-statuses/all?page=${page}&limit=${limit}`);
+export const getResolutionStatusesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/resolution-statuses/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addResolutionStatusApi = (data) =>
   commonAPI("POST", `${serverURL}/resolution-statuses/add`, data);
@@ -772,8 +772,8 @@ export const restoreResolutionStatusApi = (id, data) =>
 
 
 // ================= Attendee Types =================
-export const getAttendeeTypesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/attendee-types/all?page=${page}&limit=${limit}`);
+export const getAttendeeTypesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/attendee-types/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addAttendeeTypeApi = (data) =>
   commonAPI("POST", `${serverURL}/attendee-types/add`, data);
@@ -801,8 +801,8 @@ export const restoreAttendeeTypeApi = (id, data) =>
 
 
 // ============= Attendance Statuses =============
-export const getAttendanceStatusesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/attendance-statuses/all?page=${page}&limit=${limit}`);
+export const getAttendanceStatusesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/attendance-statuses/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addAttendanceStatusApi = (data) =>
   commonAPI("POST", `${serverURL}/attendance-statuses/add`, data);
@@ -829,8 +829,8 @@ export const restoreAttendanceStatusApi = (id, data) =>
 
 
 // ======================= Tax Types APIs =======================
-export const getTaxTypesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/tax-types/all?page=${page}&limit=${limit}`);
+export const getTaxTypesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/tax-types/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addTaxTypeApi = (data) =>
   commonAPI("POST", `${serverURL}/tax-types/add`, data);
@@ -855,8 +855,8 @@ export const restoreTaxTypeApi = (id, data) =>
 
 
 // =================== LOCATIONS ===================
-export const getLocationsApi = (page, limit, filters = {}) => {
-  let url = `${serverURL}/locations/all?page=${page}&limit=${limit}`;
+export const getLocationsApi = (page, limit, filters = {}, sortBy = null, order = null) => {
+  let url = `${serverURL}/locations/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`;
   if (filters.countryId) url += `&countryId=${filters.countryId}`;
   if (filters.stateId) url += `&stateId=${filters.stateId}`;
   if (filters.cityId) url += `&cityId=${filters.cityId}`;
@@ -891,8 +891,8 @@ export const restoreLocationApi = (id, data) =>
 // ===============================
 
 // Get all warehouses (with pagination)
-export const getWarehousesApi = (page, limit, filters) => {
-  let url = `${serverURL}/warehouses/all?page=${page}&limit=${limit}`;
+export const getWarehousesApi = (page, limit, filters, sortBy = null, order = null) => {
+  let url = `${serverURL}/warehouses/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`;
   if(filters?.countryId) url += `&countryId=${filters.countryId}`;
   if(filters?.stateId) url += `&stateId=${filters.stateId}`;
   if(filters?.cityId) url += `&cityId=${filters.cityId}`;
@@ -932,8 +932,8 @@ export const restoreWarehouseApi = (id, data) =>
 export const addUnitApi = (data) =>
   commonAPI("POST", `${serverURL}/units/add`, data, "");
 
-export const getUnitsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/units?page=${page}&limit=${limit}`, "", "");
+export const getUnitsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/units?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const updateUnitApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/units/update/${id}`, data, "");
@@ -959,8 +959,8 @@ export const restoreUnitApi = (id, data) =>
 export const addBrandApi = (data) =>
   commonAPI("POST", `${serverURL}/brands/add`, data, "");
 
-export const getBrandsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/brands?page=${page}&limit=${limit}`, "", "");
+export const getBrandsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/brands?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const updateBrandApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/brands/update/${id}`, data, "");
@@ -988,10 +988,10 @@ export const addCategoryApi = (data) =>
   commonAPI("POST", `${serverURL}/categories/add`, data, "");
 
 // GET CATEGORIES (Paginated)
-export const getCategoriesApi = (page, limit) =>
+export const getCategoriesApi = (page, limit, sortBy = null, order = null) =>
   commonAPI(
     "GET",
-    `${serverURL}/categories?page=${page}&limit=${limit}`,
+    `${serverURL}/categories?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`,
     "",
     ""
   );
@@ -1027,8 +1027,8 @@ export const addProductApi = (data) =>
   commonAPI("POST", `${serverURL}/products/add`, data, "");
 
 // GET PRODUCTS (Paginated)
-export const getProductsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/products?page=${page}&limit=${limit}`, "", "");
+export const getProductsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/products?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 // UPDATE PRODUCT
 export const updateProductApi = (id, data) =>
@@ -1055,8 +1055,8 @@ export const restoreProductApi = (id, data) =>
 
 // =================== STOCKS ===================
 // Get paginated stocks
-export const getStocksApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/stocks/all?page=${page}&limit=${limit}`, "", "");
+export const getStocksApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/stocks/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 // Add stock
 export const addStockApi = (data) =>
@@ -1090,8 +1090,8 @@ export const addDamagedProductApi = (data) =>
   commonAPI("POST", `${serverURL}/damaged-products/add`, data, "");
 
 // GET DAMAGED PRODUCTS (Paginated)
-export const getDamagedProductsApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/damaged-products/all?page=${page}&limit=${limit}`,"","");
+export const getDamagedProductsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/damaged-products/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`,"","");
 
 
 // UPDATE DAMAGED PRODUCT
@@ -1127,8 +1127,8 @@ export const addDepartmentApi = (data) =>
   commonAPI("POST", `${serverURL}/departments/add`, data, "");
 
 // GET DEPARTMENTS (Paginated)
-export const getDepartmentsApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/departments?page=${page}&limit=${limit}`,"","");
+export const getDepartmentsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/departments?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`,"","");
 
 // UPDATE DEPARTMENT
 export const updateDepartmentApi = (id, data) =>
@@ -1159,8 +1159,8 @@ export const addDesignationApi = (data) =>
   commonAPI("POST", `${serverURL}/designations/add`, data, "");
 
 // GET DESIGNATIONS (Paginated)
-export const getDesignationsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/designations?page=${page}&limit=${limit}`, "", "");
+export const getDesignationsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/designations?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 // UPDATE DESIGNATION
 export const updateDesignationApi = (id, data) =>
@@ -1194,8 +1194,8 @@ export const addEmployeeApi = (formData) =>
   commonAPI("POST", `${serverURL}/employees`, formData, true);
 
 // GET ALL EMPLOYEES (Paginated)
-export const getEmployeesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/employees?page=${page}&limit=${limit}`, "", "");
+export const getEmployeesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/employees?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 // GET SINGLE EMPLOYEE
 export const getEmployeeByIdApi = (id) =>
@@ -1227,8 +1227,8 @@ export const searchEmployeeApi = (q) =>
 export const addRoleApi = (data) =>
   commonAPI("POST", `${serverURL}/roles/add`, data, "");
 
-export const getRolesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/roles?page=${page}&limit=${limit}`, "", "");
+export const getRolesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/roles?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const updateRoleApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/roles/update/${id}`, data, "");
@@ -1252,8 +1252,8 @@ export const restoreRoleApi = (id, data) =>
 export const addCurrencyApi = (data) =>
   commonAPI("POST", `${serverURL}/currencies/add`, data, "");
 
-export const getCurrenciesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/currencies?page=${page}&limit=${limit}`, "", "");
+export const getCurrenciesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/currencies?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const updateCurrencyApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/currencies/update/${id}`, data, "");
@@ -1276,8 +1276,8 @@ export const restoreCurrencyApi = (id, data) =>
 export const addLanguageApi = (data) =>
   commonAPI("POST", `${serverURL}/languages/add`, data, "");
 
-export const getLanguagesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/languages?page=${page}&limit=${limit}`, "", "");
+export const getLanguagesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/languages?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const updateLanguageApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/languages/update/${id}`, data, "");
@@ -1346,8 +1346,8 @@ export const updateSettingsApi = (id, data) =>
 
 // ======================= Suppliers APIs =======================
 // LIST (paginated)
-export const getSuppliersApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/suppliers?page=${page}&limit=${limit}`);
+export const getSuppliersApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/suppliers?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID (not available in routes; keep for compatibility if added server-side)
 export const getSupplierByIdApi = (id) =>
@@ -1366,8 +1366,8 @@ export const deleteSupplierApi = (id, data) =>
   commonAPI("DELETE", `${serverURL}/suppliers/delete/${id}`, data);
 
 // SEARCH
-export const searchSupplierApi = (query) =>
-  commonAPI("GET", `${serverURL}/suppliers/search?q=${encodeURIComponent(query)}`);
+export const searchSupplierApi = (query, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/suppliers/search?q=${encodeURIComponent(query)}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // INACTIVE LIST
 export const getInactiveSuppliersApi = () =>
@@ -1381,8 +1381,8 @@ export const restoreSupplierApi = (id, data) =>
 
 // ======================= Customers APIs =======================
 // LIST (paginated)
-export const getCustomersApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/customers?page=${page}&limit=${limit}`);
+export const getCustomersApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/customers?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getCustomerByIdApi = (id) =>
@@ -1401,8 +1401,8 @@ export const deleteCustomerApi = (id, data) =>
   commonAPI("DELETE", `${serverURL}/customers/delete/${id}`, data);
 
 // SEARCH
-export const searchCustomerApi = (query) =>
-  commonAPI("GET", `${serverURL}/customers/search?q=${encodeURIComponent(query)}`);
+export const searchCustomerApi = (query, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/customers/search?q=${encodeURIComponent(query)}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // INACTIVE LIST
 export const getInactiveCustomersApi = () =>
@@ -1456,8 +1456,8 @@ export const restoreMeetingApi = (id, data) =>
 // ======================= Attendance APIs =======================
 
 // LIST (paginated)
-export const getAttendanceApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/attendance?page=${page}&limit=${limit}`);
+export const getAttendanceApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/attendance?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID (Not implemented server-side but keeping for consistency)
 export const getAttendanceByIdApi = (id) =>
@@ -1493,8 +1493,8 @@ export const restoreAttendanceApi = (id, data) =>
 // ======================= Purchases APIs =======================
 
 // LIST (paginated)
-export const getPurchasesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/purchases?page=${page}&limit=${limit}`);
+export const getPurchasesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/purchases?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getPurchaseByIdApi = (id) =>
@@ -1537,8 +1537,8 @@ export const searchPurchaseApi = (query) =>
 // ======================= Goods Receipts APIs =======================
 
 // LIST (paginated)
-export const getGoodsReceiptsApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/goods-receipts?page=${page}&limit=${limit}`);
+export const getGoodsReceiptsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/goods-receipts?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getGoodsReceiptByIdApi = (id) =>
@@ -1571,8 +1571,8 @@ export const restoreGoodsReceiptApi = (id, data) =>
 // ======================= Goods Issue APIs =======================
 
 // LIST (paginated)
-export const getGoodsIssuesApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/goods-issues?page=${page}&limit=${limit}`);
+export const getGoodsIssuesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/goods-issues?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getGoodsIssueByIdApi = (id) =>
@@ -1606,8 +1606,8 @@ export const restoreGoodsIssueApi = (id, data) =>
 // ======================= Sales APIs =======================
 
 // LIST (paginated)
-export const getSalesApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/sales?page=${page}&limit=${limit}`);
+export const getSalesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/sales?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getSaleByIdApi = (id) =>
@@ -1648,8 +1648,8 @@ export const getNextQuotationNoApi = () =>
 export const getNextInvoiceNoApi = () =>
   commonAPI("GET", `${serverURL}/sales/next-number`, "", "");
 
-export const getQuotationsApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/quotations?page=${page}&limit=${limit}`);
+export const getQuotationsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/quotations?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getQuotationByIdApi = (id) =>
@@ -1686,8 +1686,8 @@ export const searchQuotationApi = (query) =>
 // ======================= Service Invoice APIs =======================
 
 // LIST (paginated)
-export const getServiceInvoicesApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/service-invoices?page=${page}&limit=${limit}`);
+export const getServiceInvoicesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/service-invoices?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getServiceInvoiceByIdApi = (id) =>
@@ -1723,8 +1723,8 @@ export const searchServiceInvoiceApi = (query) =>
 // ======================= Payroll APIs =======================
 
 // LIST (paginated)
-export const getPayrollsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/payrolls?page=${page}&limit=${limit}`);
+export const getPayrollsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/payrolls?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID
 export const getPayrollByIdApi = (id) =>
@@ -1786,8 +1786,8 @@ export const searchStockUpdateApi = (query) =>
 
 // ================= PURCHASE ORDERS API =================
 
-export const getPurchaseOrdersApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/purchase-orders?page=${page}&limit=${limit}`);
+export const getPurchaseOrdersApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/purchase-orders?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 export const addPurchaseOrderApi = (data) =>
   commonAPI("POST", `${serverURL}/purchase-orders/add`, data);

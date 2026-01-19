@@ -16,6 +16,7 @@ import {
   updateStateApi,
   searchStateApi,
   restoreCityApi,
+  getCitiesApi,
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
@@ -110,7 +111,7 @@ const Cities = () => {
   const [countryModalCallback, setCountryModalCallback] = useState(null);
   const [stateModalCallback, setStateModalCallback] = useState(null);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -162,17 +163,37 @@ const Cities = () => {
     }
   };
 
-  const loadCities = async (forceRefresh = false) => {
-    // Context handles caching if not searching
-    const { data, total } = await loadCitiesCtx(page, limit, searchText, forceRefresh, sortConfig.key || "", sortConfig.direction || "");
-    setCities(data || []);
-    setTotalRecords(total || 0);
+  // Add helper
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const loadCities = async () => {
+    try {
+        const res = await getCitiesApi(page, limit, sortConfig.key, sortConfig.direction);
+        if (res?.status === 200) {
+            const rows = res.data.records || res.data || [];
+            const normalized = rows.map(c => ({
+                ...c,
+                name: capitalize(c.name)
+            }));
+            setCities(normalized);
+            setTotalRecords(res.data.total || rows.length || 0);
+        }
+    } catch(err) {
+        console.error(err);
+    }
   };
 
   // INACTIVE loaders
   const loadInactiveCities = async () => {
      const data = await loadInactiveCtx();
-     setInactiveCities(data || []);
+     const normalized = (data || []).map(c => ({
+        ...c,
+        name: capitalize(c.name)
+    }));
+     setInactiveCities(normalized);
   };
 
   useEffect(() => {
@@ -198,9 +219,14 @@ const Cities = () => {
 
   // ========== ADD CITY ==========
   const handleAddCity = async () => {
+    // VALIDATIONS
     if (!newCity.name?.trim() || !newCity.countryId || !newCity.stateId) {
       return toast.error("All fields are required");
     }
+    const nameToCheck = newCity.name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
 
     try {
       const payload = {
@@ -261,6 +287,12 @@ const Cities = () => {
     if (!name?.trim() || !countryId || !stateId)
       return toast.error("All fields are required");
 
+    // VALIDATIONS
+    const nameToCheck = name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+
     try {
       const payload = {
         name: name.trim(),
@@ -313,7 +345,6 @@ const Cities = () => {
   };
 
   // ========== RESTORE CITY ==========
-  // ========== RESTORE CITY ==========
   const handleRestoreCity = async () => {
     const result = await showRestoreConfirm();
 
@@ -338,7 +369,6 @@ const Cities = () => {
   };
 
   // ========== COUNTRY / STATE create helpers ==========
-  // create country and return created object (uses search fallback)
   const createCountryAndReload = async (name) => {
     if (!name?.trim()) return null;
 
@@ -362,7 +392,6 @@ const Cities = () => {
     try {
       const res = await addCountryApi({ name: name.trim(), userId: currentUserId });
       if (res?.status === 200) {
-        // reload list & try to find created record by searching
         await loadCountries();
         const sres = await searchCountryApi(name.trim());
         const arr = Array.isArray(sres.data) ? sres.data : sres.data?.records ?? [];
@@ -403,7 +432,6 @@ const Cities = () => {
     try {
       const res = await addStateApi({ name: name.trim(), countryId: Number(countryId), userId: currentUserId });
       if (res?.status === 200) {
-        // reload states and try to find created by searching or by list
         const items = await loadStates(countryId);
         const created = items.find((s) => s.name.toLowerCase() === name.trim().toLowerCase());
         if (created) return created;
@@ -426,6 +454,12 @@ const Cities = () => {
   const handleAddCountryModalSave = async () => {
     const name = countryFormName.trim();
     if (!name) return toast.error("Country name required");
+
+    // VALIDATIONS
+    if (name.length < 2) return toast.error("Name must be at least 2 characters");
+    if (name.length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(name)) return toast.error("Name allows only characters");
+
     const created = await createCountryAndReload(name);
     if (created) {
       if (typeof countryModalCallback === "function") {
@@ -446,6 +480,12 @@ const Cities = () => {
     const countryId = countryIdToUse || editCity.countryId || newCity.countryId;
     if (!name) return toast.error("State name required");
     if (!countryId) return toast.error("Country required");
+
+    // VALIDATIONS
+    if (name.length < 2) return toast.error("Name must be at least 2 characters");
+    if (name.length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(name)) return toast.error("Name allows only characters");
+
     const created = await createStateAndReload(name, countryId);
     if (created) {
       if (typeof stateModalCallback === "function") {
@@ -465,6 +505,13 @@ const Cities = () => {
   const handleEditCountryModalSave = async () => {
     const { id, name } = countryEditData;
     if (!id || !name.trim()) return toast.error("Invalid country details");
+    
+    // VALIDATIONS
+    const nameToCheck = name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+
     try {
       const res = await updateCountryApi(id, { name: name.trim(), userId: currentUserId });
       if (res?.status === 200) {
@@ -484,6 +531,13 @@ const Cities = () => {
   const handleEditStateModalSave = async () => {
     const { id, name, countryId } = stateEditData;
     if (!id || !name.trim()) return toast.error("Invalid state data");
+
+    // VALIDATIONS
+    const nameToCheck = name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+
     try {
       const res = await updateStateApi(id, { name: name.trim(), countryId: Number(countryId), userId: currentUserId });
       if (res?.status === 200) {
@@ -553,6 +607,8 @@ const Cities = () => {
               onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadCities();
               }}
               onColumnSelector={() => setColumnModal(true)}
@@ -572,6 +628,8 @@ const Cities = () => {
               onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadCities();
               }}
             />

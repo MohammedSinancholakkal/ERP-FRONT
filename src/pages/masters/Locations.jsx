@@ -115,7 +115,7 @@ const Locations = () => {
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -127,34 +127,28 @@ const Locations = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedRows = [...rows];
-  if (sortConfig.key) {
-    sortedRows.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+  // REMOVED CLIENT SIDE SORT LOGIC
+  const sortedRows = rows;
 
   // ===============================
   // Helpers
   // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const normalizeRows = (items = []) => 
      items.map(r => ({
         id: r.Id || r.id,
-        name: r.Name || r.name,
+        name: capitalize(r.Name || r.name),
         countryId: r.CountryId || r.countryId,
-        countryName: r.CountryName || r.countryName,
+        countryName: capitalize(r.CountryName || r.countryName),
         stateId: r.StateId || r.stateId,
-        stateName: r.StateName || r.stateName,
+        stateName: capitalize(r.StateName || r.stateName),
         cityId: r.CityId || r.cityId,
-        cityName: r.CityName || r.cityName,
-        address: r.Address || r.address,
+        cityName: capitalize(r.CityName || r.cityName),
+        address: capitalize(r.Address || r.address),
         latitude: r.Latitude || r.latitude,
         longitude: r.Longitude || r.longitude,
     }));
@@ -194,7 +188,7 @@ const Locations = () => {
   // LOAD LOCATIONS
   const loadRows = async () => {
     try {
-      const res = await getLocationsApi(page, limit, filters);
+      const res = await getLocationsApi(page, limit, filters, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         const data = res.data;
         let items = [];
@@ -221,7 +215,7 @@ const Locations = () => {
   // Reload when page, limit, or filters change
   useEffect(() => {
     loadRows();
-  }, [page, limit, filters]);
+  }, [page, limit, filters, sortConfig]);
 
   const loadInactive = async () => {
     try {
@@ -279,6 +273,13 @@ const Locations = () => {
   // ADD
   const handleAdd = async () => {
     if (!newData.name.trim()) return toast.error("Name required");
+    const nameToCheck = newData.name.trim();
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+
+    if (!newData.address?.trim()) return toast.error("Address is required");
+    if (newData.address.length > 200) return toast.error("Address must be at most 200 characters");
     
     // Check for duplicates
     try {
@@ -341,6 +342,13 @@ const Locations = () => {
 
   const handleUpdate = async () => {
     if (!editData.name.trim()) return toast.error("Name required");
+    const nameToCheck = editData.name.trim();
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+
+    if (!editData.address?.trim()) return toast.error("Address is required");
+    if (editData.address.length > 200) return toast.error("Address must be at most 200 characters");
     
     // Check for duplicates
     try {
@@ -573,6 +581,8 @@ const Locations = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadRows();
             }}
             onColumnSelector={() => setColumnModal(true)}
@@ -596,6 +606,8 @@ const Locations = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadRows();
             }}
             />

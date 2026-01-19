@@ -119,26 +119,8 @@ const Employees = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const sortedEmployees = React.useMemo(() => {
-    let sortableItems = [...filteredEmployees];
-    if (sortConfig.key) {
-      sortableItems.sort((a, b) => {
-          let aVal = a[sortConfig.key] || "";
-          let bVal = b[sortConfig.key] || "";
-
-          // Safe check for strings
-          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-          
-          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-          return 0;
-      });
-    } else {
-        // default sort by id
-        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
-    }
-    return sortableItems;
-  }, [filteredEmployees, sortConfig]);
+    return filteredEmployees;
+  }, [filteredEmployees]);
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -261,7 +243,7 @@ useEffect(() => {
     // 1. Fetch Employees FIRST (Fast UI)
     try {
       setLoading(true);
-      const empRes = await getEmployeesApi(1, 5000);
+      const empRes = await getEmployeesApi(1, 5000, sortConfig.key, sortConfig.direction);
       
       let raw = [];
       if (empRes?.data?.records) {
@@ -377,7 +359,7 @@ useEffect(() => {
  
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [sortConfig]);
 
   const loadInactiveEmployees = async () => {
     try {

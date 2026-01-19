@@ -423,7 +423,6 @@ const handleEditRoles = async () => {
   const restoreDefaultColumns = () => setVisibleColumns(defaultColumns);
 
   // Sorting (simple by userId asc/desc)
-  // Sorting (simple by userId asc/desc)
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const handleSort = (key) => {
@@ -433,39 +432,6 @@ const handleEditRoles = async () => {
     }
     setSortConfig({ key, direction });
   };
-
-  const sortedUsers = [...users];
-  if (sortConfig.key) {
-    sortedUsers.sort((a, b) => {
-      let aValue = a[sortConfig.key];
-      let bValue = b[sortConfig.key];
-
-      // Handle ID specifically if needed (assuming userId/UserId)
-      if (sortConfig.key === 'userId') {
-         aValue = a.userId ?? a.UserId;
-         bValue = b.userId ?? b.UserId;
-      }
-        
-      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-
-      if (aValue < bValue) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
-  } else {
-     // Default sort by ID desc if no sort selected (preserving original logic somewhat, or default to asc)
-     // Original logic was toggling sortOrder 'desc' initially.
-     // Let's default to ID desc if nothing set? Or just rely on API order?
-     // The original code had: const [sortOrder, setSortOrder] = useState("desc");
-     if (!sortConfig.key) {
-        sortedUsers.sort((a, b) => (b.userId ?? b.UserId) - (a.userId ?? a.UserId));
-     }
-  }
 
   // Assets base for image URLs (same logic as Banks)
   const assetsBase = (() => {
@@ -502,7 +468,7 @@ const handleEditRoles = async () => {
         return;
       }
 
-      const res = await getUsersApi(page, limit);
+      const res = await getUsersApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         const normalized = (res.data.records || []).map((item) => ({
           ...item,
@@ -519,7 +485,7 @@ const handleEditRoles = async () => {
   useEffect(() => {
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // Load inactive users
   const loadInactiveUsers = async () => {
@@ -564,13 +530,21 @@ const handleEditRoles = async () => {
   // Add user
   const handleAdd = async () => {
     try {
-      if (
-        !newUser.username.trim() ||
-        !newUser.displayName.trim() ||
-        !newUser.password.trim()
-      ) {
+      if (!newUser.username.trim() || !newUser.displayName.trim() || !newUser.password.trim()) {
         return toast.error("Missing required fields");
       }
+      if (newUser.username.trim().length < 2 || newUser.username.trim().length > 50) return toast.error("Username must be 2-50 characters");
+      if (newUser.displayName.trim().length < 2 || newUser.displayName.trim().length > 50) return toast.error("Display Name must be 2-50 characters");
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (newUser.email && !emailRegex.test(newUser.email.trim())) return toast.error("Invalid email format");
+  
+      // Password validation
+      if (newUser.password.length < 6 || newUser.password.length > 20) return toast.error("Password must be 6-20 characters");
+      const pwdRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[a-zA-Z]).{6,20}$/;
+      if (!pwdRegex.test(newUser.password)) return toast.error("Password must contain at least one uppercase letter and one number");
+
       if (newUser.password !== newUser.confirmPassword) {
         return toast.error("Passwords do not match");
       }
@@ -659,6 +633,13 @@ const handleEditRoles = async () => {
       if (!editData.username.trim() || !editData.displayName.trim()) {
         return toast.error("Missing required fields");
       }
+      
+      if (editData.username.trim().length < 2 || editData.username.trim().length > 50) return toast.error("Username must be 2-50 characters");
+      if (editData.displayName.trim().length < 2 || editData.displayName.trim().length > 50) return toast.error("Display Name must be 2-50 characters");
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (editData.email && !emailRegex.test(editData.email.trim())) return toast.error("Invalid email format");
 
       // Check duplicates (Username)
       try {
@@ -1168,7 +1149,7 @@ const handleEditRoles = async () => {
                     visibleColumns.email && { key: "email", label: "Email", sortable: true },
                     visibleColumns.source && { key: "source", label: "Source", sortable: true },
                 ].filter(Boolean)}
-                data={sortedUsers}
+                data={users}
                 inactiveData={inactiveUsers}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

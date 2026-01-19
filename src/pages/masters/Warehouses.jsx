@@ -116,7 +116,7 @@ const Warehouses = () => {
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -128,19 +128,8 @@ const Warehouses = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedRows = [...rows];
-  if (sortConfig.key) {
-    sortedRows.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+  // REMOVED CLIENT SIDE SORT LOGIC
+  const sortedRows = rows;
 
   // LOAD DROPDOWNS
   const loadDropdowns = async () => {
@@ -173,25 +162,36 @@ const Warehouses = () => {
     loadDropdowns();
   }, []);
 
+  // ===============================
+  // Helpers
+  // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const normalizeRows = (items = []) =>
+    items.map((r) => ({
+      id: r.Id || r.id,
+      name: capitalize(r.Name || r.name),
+      description: capitalize(r.Description || r.description),
+      countryId: r.CountryId || r.countryId,
+      countryName: capitalize(r.CountryName || r.countryName),
+      stateId: r.StateId || r.stateId,
+      stateName: capitalize(r.StateName || r.stateName),
+      cityId: r.CityId || r.cityId,
+      cityName: capitalize(r.CityName || r.cityName),
+      phone: r.Phone || r.phone,
+      address: capitalize(r.Address || r.address),
+    }));
+
   // LOAD WAREHOUSES
   const loadRows = async () => {
     try {
-      const res = await getWarehousesApi(page, limit, filters);
+      const res = await getWarehousesApi(page, limit, filters, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.Id || r.id,
-            name: r.Name || r.name,
-            description: r.Description || r.description,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.CountryName || r.countryName,
-            stateId: r.StateId || r.stateId,
-            stateName: r.StateName || r.stateName,
-            cityId: r.CityId || r.cityId,
-            cityName: r.CityName || r.cityName,
-            phone: r.Phone || r.phone,
-            address: r.Address || r.address,
-        }));
+        const normalized = normalizeRows(rows);
         setRows(normalized);
         const total = res.data.total || normalized.length;
         setTotalRecords(total);
@@ -206,7 +206,7 @@ const Warehouses = () => {
 
   useEffect(() => {
     loadRows();
-  }, [page, limit, filters]);
+  }, [page, limit, filters, sortConfig]);
 
   const loadInactive = async () => {
     try {
@@ -214,20 +214,7 @@ const Warehouses = () => {
           const res = await getInactiveWarehousesApi();
           if (res?.status === 200) {
             const rows = res.data.records || res.data || [];
-            const normalized = rows.map(r => ({
-                id: r.Id || r.id,
-                name: r.Name || r.name,
-                description: r.Description || r.description,
-                countryId: r.CountryId || r.countryId,
-                countryName: r.CountryName || r.countryName,
-                stateId: r.StateId || r.stateId,
-                stateName: r.StateName || r.stateName,
-                cityId: r.CityId || r.cityId,
-                cityName: r.CityName || r.cityName,
-                phone: r.Phone || r.phone,
-                address: r.Address || r.address,
-            }));
-            setInactiveRows(normalized);
+            setInactiveRows(normalizeRows(rows));
           }
       }
     } catch (err) {
@@ -268,20 +255,7 @@ const Warehouses = () => {
       const res = await searchWarehouseApi(text);
       if (res?.status === 200) {
         const rows = res.data || [];
-        const normalized = rows.map(r => ({
-             id: r.Id || r.id,
-            name: r.Name || r.name,
-            description: r.Description || r.description,
-            countryId: r.CountryId || r.countryId,
-            countryName: r.CountryName || r.countryName,
-            stateId: r.StateId || r.stateId,
-            stateName: r.StateName || r.stateName,
-            cityId: r.CityId || r.cityId,
-            cityName: r.CityName || r.cityName,
-            phone: r.Phone || r.phone,
-            address: r.Address || r.address,
-        }));
-        setRows(normalized);
+        setRows(normalizeRows(rows));
         setTotalRecords(rows.length);
       }
     } catch (err) {
@@ -291,9 +265,22 @@ const Warehouses = () => {
 
   const handleAdd = async () => {
     if (!newData.name.trim()) return toast.error("Name required");
+    const nameToCheck = newData.name.trim();
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+
     if (!newData.countryId) return toast.error("Country required");
     if (!newData.stateId) return toast.error("State required");
     if (!newData.cityId) return toast.error("City required");
+    
+    if (!newData.address?.trim()) return toast.error("Address is required");
+    if (newData.address.length > 200) return toast.error("Address must be at most 200 characters");
+
+    // Validate Phone
+    if (!newData.phone?.trim()) return toast.error("Phone number is required");
+    if (!/^\d{10}$/.test(newData.phone.trim())) return toast.error("Phone number must be exactly 10 digits");
+
     
     // Check for duplicates
     try {
@@ -352,9 +339,21 @@ const Warehouses = () => {
 
   const handleUpdate = async () => {
     if (!editData.name.trim()) return toast.error("Name required");
+    const nameToCheck = editData.name.trim();
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+
     if (!editData.countryId) return toast.error("Country required");
     if (!editData.stateId) return toast.error("State required");
     if (!editData.cityId) return toast.error("City required");
+
+    if (!editData.address?.trim()) return toast.error("Address is required");
+    if (editData.address.length > 200) return toast.error("Address must be at most 200 characters");
+
+    // Validate Phone
+    if (!editData.phone?.trim()) return toast.error("Phone number is required");
+    if (!/^\d{10}$/.test(editData.phone.trim())) return toast.error("Phone number must be exactly 10 digits");
 
     // Check for duplicates
     try {
@@ -616,6 +615,9 @@ const Warehouses = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
+                setFilters({ countryId: "", stateId: "", cityId: "" });
                 loadRows();
             }}
             onColumnSelector={() => setColumnModal(true)}
@@ -639,6 +641,9 @@ const Warehouses = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
+                setFilters({ countryId: "", stateId: "", cityId: "" });
                 loadRows();
             }}
             />
@@ -723,17 +728,17 @@ const Warehouses = () => {
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-dark">Phone</label>
+                       <label className="text-sm text-dark">Phone *</label>
                         <InputField
                             
                             value={newData.phone}
-                            onChange={e => setNewData({...newData, phone: e.target.value})}
+                            onChange={e => setNewData({...newData, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                             className="mt-1"
                         />
                    </div>
                </div>
                <div>
-                   <label className="text-sm text-dark">Address</label>
+                   <label className="text-sm text-dark">Address *</label>
                     <InputField
                         
                         textarea
@@ -839,9 +844,9 @@ const Warehouses = () => {
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-dark">Phone</label>
+                       <label className="text-sm text-dark">Phone *</label>
                         <InputField
-                             label="Phone"
+                             label=""
                              value={editData.phone}
                              onChange={e => setEditData({...editData, phone: e.target.value})}
                              disabled={editData.isInactive}
@@ -852,7 +857,7 @@ const Warehouses = () => {
                <div>
                    <label className="text-sm text-dark">Address</label>
                     <InputField
-                        label="Address"
+                        label=""
                         textarea
                         value={editData.address}
                         onChange={e => setEditData({...editData, address: e.target.value})}

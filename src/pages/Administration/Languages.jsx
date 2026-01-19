@@ -89,32 +89,10 @@ const Languages = () => {
     setSortConfig({ key, direction });
   };
 
-  const sortedLanguages = React.useMemo(() => {
-    let sortableItems = [...languages];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-        
-         if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-         if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [languages, sortConfig]);
-
   // LOAD ACTIVE LANGUAGES
   const loadLanguages = async () => {
     setSearchText("");
-    const res = await getLanguagesApi(page, limit);
+    const res = await getLanguagesApi(page, limit, sortConfig.key, sortConfig.direction);
     if (res?.status === 200) {
       setLanguages(res.data.records);
       setTotalRecords(res.data.total);
@@ -125,7 +103,7 @@ const Languages = () => {
 
   useEffect(() => {
     loadLanguages();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // LOAD INACTIVE
   const loadInactive = async () => {
@@ -155,6 +133,9 @@ const Languages = () => {
     if (!languageId.trim() || !languageName.trim()) {
       return toast.error("Both fields required");
     }
+
+    if (languageId.trim().length < 2 || languageId.trim().length > 10) return toast.error("Language ID must be between 2 and 10 characters");
+    if (languageName.trim().length < 2 || languageName.trim().length > 20) return toast.error("Language Name must be between 2 and 20 characters");
 
     // Check duplicates (Name)
     try {
@@ -208,6 +189,9 @@ const Languages = () => {
     if (!languageId.trim() || !languageName.trim()) {
       return toast.error("Both fields required");
     }
+
+    if (languageId.trim().length < 2 || languageId.trim().length > 10) return toast.error("Language ID must be between 2 and 10 characters");
+    if (languageName.trim().length < 2 || languageName.trim().length > 20) return toast.error("Language Name must be between 2 and 20 characters");
 
     // Check duplicates (Name)
     try {
@@ -431,7 +415,7 @@ const Languages = () => {
                     visibleColumns.languageId && { key: "languageId", label: "Language ID", sortable: true },
                     visibleColumns.languageName && { key: "languageName", label: "Language Name", sortable: true },
                 ].filter(Boolean)}
-                data={sortedLanguages}
+                data={languages}
                 inactiveData={inactiveLanguages}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

@@ -1,22 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
-  FileSpreadsheet,
   FileText,
   Eye,
-  ArchiveRestore
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
-import { getCustomersApi, getEmployeesApi, getQuotationsApi, searchQuotationApi, getQuotationByIdApi, getInactiveQuotationsApi } from "../../services/allAPI";
-import SortableHeader from "../../components/SortableHeader";
+import { getCustomersApi, getEmployeesApi, getQuotationsApi, searchQuotationApi, getInactiveQuotationsApi } from "../../services/allAPI";
+// import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import { useNavigate } from "react-router-dom";
@@ -24,12 +13,6 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
-// import { hasPermission } from "../../utils/permissionUtils";
-// import { PERMISSIONS } from "../../constants/permissions";
-// import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
-
-
-
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
@@ -64,7 +47,8 @@ const SalesQuotation = () => {
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
         direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
   };
 
   const [page, setPage] = useState(1);
@@ -114,12 +98,9 @@ const SalesQuotation = () => {
 
   useEffect(() => {
     fetchAllData();
-  }, [limit]); // Fetch on mount or limit change (Wait, if I use fetchAllData on limit change it reloads everything. Just mount is better if we have pagination effect)
-  
-  // Actually, I'll stick to just mount for now, and rely on pagination effect for limit changes.
-  // But wait, my plan below (in next steps) will define fetchAllData.
-  // The original code had useEffect(() => { fetchCustomers(); fetchEmployees(); }, []);
-  // I will change it to fetchAllData.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, sortConfig]); // Fetch on mount or limit/sort change
+
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -156,7 +137,8 @@ const SalesQuotation = () => {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText, page, limit, customers, employees]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText]);
 
   const fetchAllData = async () => {
     try {
@@ -164,7 +146,7 @@ const SalesQuotation = () => {
       const [cRes, eRes, qRes] = await Promise.all([
         getCustomersApi(1, 1000),
         getEmployeesApi(1, 1000),
-        getQuotationsApi(page, limit)
+        getQuotationsApi(page, limit, sortConfig.key, sortConfig.direction)
       ]);
 
       let cList = [];
@@ -207,7 +189,7 @@ const SalesQuotation = () => {
 
   const fetchQuotations = async () => {
     try {
-      const res = await getQuotationsApi(page, limit);
+      const res = await getQuotationsApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res.status === 200) {
         let rows = res.data.records || [];
         // Use current state for customers/employees
@@ -268,10 +250,7 @@ const SalesQuotation = () => {
   // COZY SANITARYWARE STYLE PDF (REUSED for Proforma)
   const handleDownloadPdf = async (id) => {
     // We pass "PROFORMA INVOICE" as title (or "Performa Invoice" if user insists, but "PROFORMA" is standard)
-    // User requested "performa invoice" as heading.
-    // I will use "PROFORMA INVOICE" as it looks professional, or "PERFORMA INVOICE" to be literal?
-    // Let's use "PROFORMA INVOICE" (Standard). If user complains, I change it.
-    // Actually user said "change the heading as performa invoice".
+
     await generateSalesInvoicePDF(id, settings, "PROFORMA INVOICE", "QUOTATION");
   };
 
@@ -287,7 +266,7 @@ const SalesQuotation = () => {
     if (showInactive) {
       loadInactiveQuotations();
     }
-    toast.success("Refreshed");
+    // toast.success("Refreshed");
   };
 
   const filteredList = quotationsList.filter((p) => {
@@ -302,35 +281,9 @@ const SalesQuotation = () => {
   // Combine lists if showing inactive
   const displayList = showInactive ? [...filteredList, ...inactiveRows] : filteredList;
 
-   // --- SORTING LOGIC ---
-   const sortedList = React.useMemo(() => {
-    let sortableItems = [...displayList];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        // Handle numeric values
-        if (['discount', 'totalDiscount', 'vat', 'igstRate', 'cgstRate', 'sgstRate', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'id'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             // String comparison
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [displayList, sortConfig]);
+   // --- DATA LIST ---
+  // Use direct list instead of sortedList since sorting is server-side
+  // const displayList = showInactive ? [...filteredList, ...inactiveRows] : filteredList; // Already defined above
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -430,7 +383,7 @@ const SalesQuotation = () => {
                     visibleColumns.details && { key: "details", label: "Details", sortable: true, render: (q) => <div className="max-w-xs truncate">{q.details || "-"}</div> },
                     visibleColumns.expiryDate && { key: "expiryDate", label: "Expiry", sortable: true, render: (q) => q.expiryDate ? new Date(q.expiryDate).toLocaleDateString() : "-" },
                 ].filter(Boolean)}
-                data={sortedList}
+                data={displayList}
                 inactiveData={inactiveRows}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

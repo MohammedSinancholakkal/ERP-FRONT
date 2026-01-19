@@ -96,15 +96,17 @@ const Customers = () => {
     groups: [],
   });
 
-  // Sorting
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  /* Sorting */
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadCustomers(newConfig);
   };
 
   // --------------------------------------
@@ -139,16 +141,9 @@ const Customers = () => {
     if (filterRegion) result = result.filter(r => String(r.regionId) === String(filterRegion));
     if (filterGroup) result = result.filter(r => String(r.customerGroupId) === String(filterGroup));
 
-    // 3. Sorting
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        const valA = String(a[sortConfig.key] || "").toLowerCase();
-        const valB = String(b[sortConfig.key] || "").toLowerCase();
-        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
+    // 3. Sorting (Handled by Backend, so we preserve order)
+    // Removed client-side sorting logic
+
 
     setFilteredCustomers(result);
     setPage(1); // Reset to page 1 on filter change
@@ -394,10 +389,12 @@ const Customers = () => {
     }
   };
 
-  const loadCustomers = async () => {
+  const loadCustomers = async (currentSort = sortConfig) => {
     try {
       setLoading(true);
-      const res = await getCustomersApi(1, 5000); // Fetch all for client-side
+      const { key, direction } = currentSort;
+      // Fetch all for client-side filtering, but sorted by backend
+      const res = await getCustomersApi(1, 5000, key, direction); 
       const records = parseArrayFromResponse(res);
       setAllCustomers(records.map(normalizeRow));
     } catch (err) {
@@ -414,6 +411,7 @@ const Customers = () => {
   useEffect(() => {
     loadCustomers();
     loadLookups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // -------------------------------
@@ -490,43 +488,49 @@ const Customers = () => {
         <MasterTable
           columns={[
              visibleColumns.id && { key: "id", label: "ID", sortable: true },
-             visibleColumns.companyName && { key: "companyName", label: "Company Name", sortable: true },
-             visibleColumns.contactName && { key: "contactName", label: "Contact Name", sortable: true },
-             visibleColumns.contactTitle && { key: "contactTitle", label: "Contact Title", sortable: true },
+             visibleColumns.companyName && { key: "companyName", label: "Company Name", sortable: true, className: "capitalize" },
+             visibleColumns.contactName && { key: "contactName", label: "Contact Name", sortable: true, className: "capitalize" },
+             visibleColumns.contactTitle && { key: "contactTitle", label: "Contact Title", sortable: true, className: "capitalize" },
              visibleColumns.countryName && { 
                  key: "countryName", 
                  label: "Country", 
                  sortable: true,
+                 className: "capitalize",
                  render: (r) => lookupMaps.countries[String(r.countryId)] || r.countryName || "" 
              },
              visibleColumns.stateName && { 
                  key: "stateName", 
                  label: "State", 
                  sortable: true,
+                 className: "capitalize",
                  render: (r) => lookupMaps.states[String(r.stateId)] || r.stateName || "" 
              },
              visibleColumns.cityName && { 
                  key: "cityName", 
                  label: "City", 
                  sortable: true,
+                 className: "capitalize",
                  render: (r) => lookupMaps.cities[String(r.cityId)] || r.cityName || "" 
              },
              visibleColumns.regionName && { 
                  key: "regionName", 
                  label: "Region", 
                  sortable: true,
+                 className: "capitalize",
                  render: (r) => lookupMaps.regions[String(r.regionId)] || r.regionName || "" 
              },
              visibleColumns.address && { 
                  key: "address", 
                  label: "Address", 
                  sortable: true,
+                 className: "capitalize",
                  render: (r) => `${r.addressLine1 || ""} ${r.addressLine2 || ""}`.trim()
              },
               visibleColumns.customerGroupName && { 
                  key: "customerGroupName", 
                  label: "Group", 
                  sortable: true,
+                 className: "capitalize",
                  render: (r) => lookupMaps.groups[String(r.customerGroupId)] || r.customerGroupName || "" 
              },
              visibleColumns.postalCode && { key: "postalCode", label: "Postal Code", sortable: true },
@@ -539,8 +543,8 @@ const Customers = () => {
 
              visibleColumns.pan && { key: "pan", label: "PAN", sortable: true },
              visibleColumns.gstin && { key: "gstin", label: "GSTIN", sortable: true },
-             visibleColumns.salesMan && { key: "salesMan", label: "Sales Man", sortable: true },
-             visibleColumns.orderBooker && { key: "orderBooker", label: "Order Booker", sortable: true },
+             visibleColumns.salesMan && { key: "salesMan", label: "Sales Man", sortable: true, className: "capitalize" },
+             visibleColumns.orderBooker && { key: "orderBooker", label: "Order Booker", sortable: true, className: "capitalize" },
           ].filter(Boolean)}
           data={paginatedData}
           inactiveData={inactiveRows}

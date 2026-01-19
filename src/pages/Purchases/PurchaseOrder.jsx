@@ -77,6 +77,10 @@ const PurchaseOrder = () => {
   }, []);
 
   useEffect(() => {
+     fetchPurchaseOrders();
+  }, [page, limit, sortConfig]);
+
+  useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (searchText.trim()) {
         searchPurchaseOrderApi(searchText)
@@ -110,12 +114,13 @@ const PurchaseOrder = () => {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText, page, limit, suppliers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText]);
 
   const fetchPurchaseOrders = async () => {
     setIsLoading(true);
     try {
-      const res = await getPurchaseOrdersApi(page, limit);
+      const res = await getPurchaseOrdersApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res.status === 200) {
         let rows = res.data.records || [];
         rows = rows.map((r) => ({
@@ -207,7 +212,6 @@ const PurchaseOrder = () => {
     setPage(1);
     await fetchPurchaseOrders();
     if (showInactive) await loadInactivePurchaseOrders();
-    toast.success("Refreshed");
   };
 
   const handleExportExcel = () => {
@@ -251,27 +255,7 @@ const PurchaseOrder = () => {
     return match;
   });
 
-  const sortedList = [...filteredList].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    
-    let aVal = a[sortConfig.key];
-    let bVal = b[sortConfig.key];
-
-    if (aVal === null || aVal === undefined) aVal = "";
-    if (bVal === null || bVal === undefined) bVal = "";
-
-    if (["id", "totalDiscount", "shippingCost", "grandTotal", "netTotal", "paidAmount", "due", "change"].includes(sortConfig.key)) {
-        aVal = Number(aVal);
-        bVal = Number(bVal);
-    } else {
-        aVal = String(aVal).toLowerCase();
-        bVal = String(bVal).toLowerCase();
-    }
-
-    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
+  const sortedList = purchasesList; // Server-side sorted
 
   const filters = [
       {

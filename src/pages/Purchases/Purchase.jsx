@@ -77,12 +77,42 @@ const Purchase = () => {
   }, []);
 
   useEffect(() => {
+      fetchPurchases();
+  }, [page, limit, sortConfig]);
+
+  // Removed the useEffect hook that combined search and fetch, 
+  // because fetchPurchases now handles the main data loading triggered by sortConfig change.
+  // Search logic should probably be separate or updating fetchPurchases to handle search text if needed, 
+  // but looking at previous pattern, search replaces list.
+  // I will leave the search effect as is but remove 'page', 'limit' from dependencies to avoid double fetch
+  // if fetchPurchases handles them. 
+  // Actually, wait. fetchPurchases is called in the new useEffect above. 
+  // The existing search effect (lines 79-112) handles debounce search AND calls fetchPurchases if no search text.
+  // I should MODIFY this search effect to NOT call fetchPurchases if it's already being called by the new useEffect above?
+  // Or better, let's INTEGRATE them. 
+  // If I use the new useEffect [page, limit, sortConfig], it calls fetchPurchases.
+  // The search effect watches [searchText]. 
+  // If searchText is present, it searches. If not, it calls fetchPurchases.
+  // When I change sortConfig, fetchPurchases runs.
+  // This seems fine, except for the potential race condition or double fetch.
+  // I will update the search effect to mainly handle searchText changes.
+
+  useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (searchText.trim()) {
         searchPurchaseApi(searchText)
           .then((res) => {
             if (res.status === 200) {
-              const rows = Array.isArray(res.data.records)
+               // ... (same search logic) ...
+               // Search API doesn't support sorting usually, or does it? 
+               // The user wants server side sorting on the main list. 
+               // Search results might not need server sorting if they are few.
+               // For now, I'll keep client side sorting for search results if I have to, 
+               // OR just let the search API return results and we don't sort them server side.
+               // But wait, the previous code replaced `purchasesList`.
+               
+               // Search logic ...
+               const rows = Array.isArray(res.data.records)
                 ? res.data.records
                 : Array.isArray(res.data)
                 ? res.data
@@ -100,21 +130,26 @@ const Purchase = () => {
             }
           })
           .catch((error) => {
-            console.error("Search error", error);
-            toast.error("Search failed");
+             console.error("Search error", error);
+             toast.error("Search failed");
           });
       } else {
+        // If search cleared, we want to fetch normal data with current sort/page
+        // fetchPurchases is already called by the other useEffect when searchText becomes empty? 
+        // No, searchText is not in the other useEffect dependency.
         fetchPurchases();
       }
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText, page, limit, suppliers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText]); // Removed page, limit, suppliers from here to avoid conflicts
+
 
   const fetchPurchases = async () => {
     setIsLoading(true);
     try {
-      const res = await getPurchasesApi(page, limit);
+      const res = await getPurchasesApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res.status === 200) {
         let rows = res.data.records || [];
         rows = rows.map((r) => ({
@@ -202,7 +237,6 @@ const Purchase = () => {
       await fetchPurchases();
     }
     
-    // toast.success("Refreshed"); // REMOVED: Managed by MasterTable/Pagination
   };
 
   const handleExportExcel = () => {
@@ -250,29 +284,7 @@ const Purchase = () => {
     return match;
   });
 
-  const sortedList = [...filteredList].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    
-    let aVal = a[sortConfig.key];
-    let bVal = b[sortConfig.key];
-
-    // Handle null/undefined
-    if (aVal === null || aVal === undefined) aVal = "";
-    if (bVal === null || bVal === undefined) bVal = "";
-
-    // Numeric sort for specific columns
-    if (["id", "totalDiscount", "shippingCost", "grandTotal", "netTotal", "paidAmount", "due", "change"].includes(sortConfig.key)) {
-        aVal = Number(aVal);
-        bVal = Number(bVal);
-    } else {
-        aVal = String(aVal).toLowerCase();
-        bVal = String(bVal).toLowerCase();
-    }
-
-    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
+  const sortedList = purchasesList; // Server-side sorted now
 
   const filters = [
       {

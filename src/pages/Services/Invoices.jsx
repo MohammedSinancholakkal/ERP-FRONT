@@ -93,7 +93,7 @@ const Invoices = () => {
   /* ================= FETCH DATA ================= */
   useEffect(() => {
     fetchAllData();
-  }, [limit, page]); 
+  }, [limit, page, sortConfig]); 
 
   // Search Effect
   useEffect(() => {
@@ -131,6 +131,7 @@ const Invoices = () => {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText]); 
 
   const fetchAllData = async () => {
@@ -139,7 +140,7 @@ const Invoices = () => {
       const [cRes, eRes, iRes] = await Promise.all([
         getCustomersApi(1, 1000),
         getEmployeesApi(1, 1000),
-        getServiceInvoicesApi(page, limit)
+        getServiceInvoicesApi(page, limit, sortConfig.key, sortConfig.direction)
       ]);
 
       let cList = [];
@@ -302,30 +303,6 @@ const Invoices = () => {
     return match;
   });
 
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredList];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        const numericKeys = ['grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'shippingCost', 'discount', 'totalDiscount', 'igst', 'cgst', 'sgst', 'id'];
-        if (numericKeys.includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             aValue = aValue ? String(aValue).toLowerCase() : '';
-             bValue = bValue ? String(bValue).toLowerCase() : '';
-        }
-
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [filteredList, sortConfig]);
-
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
@@ -456,7 +433,7 @@ const Invoices = () => {
                     visibleColumns.change && { key: "change", label: "Change", sortable: true, render: (p) => parseFloat(p.change || 0).toFixed(2) },
                     visibleColumns.details && { key: "details", label: "Details", sortable: true, render: (p) => <div className="max-w-xs truncate">{p.details || "-"}</div> },
                 ].filter(Boolean)}
-                data={sortedList}
+                data={filteredList}
                 inactiveData={inactiveRows}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

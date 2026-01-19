@@ -683,6 +683,10 @@ const submitEmployee = async () => {
   if (!String(form.salary).trim()) return showErrorToast("Basic Salary required");
   if (!form.payrollBankId) return showErrorToast("Payroll Bank required");
   if (!form.payrollBankAccount.trim()) return showErrorToast("Bank Account required");
+  const bankAccLen = form.payrollBankAccount.trim().length;
+  if (bankAccLen < 10 || bankAccLen > 18) return showErrorToast("Bank Account must be between 10 and 18 digits");
+  
+  if (form.phone && form.phone.length !== 10) return showErrorToast("Phone number must be exactly 10 digits");
 
   // DUPLICATE VALIDATION
   try {
@@ -913,7 +917,7 @@ const handleDelete = async () => {
                       <FormInput
                         label="Phone"
                         value={form.phone}
-                        onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))}
+                        onChange={(e) => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                       />
                     </div>
                     <div>
@@ -1205,7 +1209,7 @@ const handleDelete = async () => {
                       <FormInput
                         label="Bank Account"
                         value={form.payrollBankAccount}
-                        onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value }))}
+                        onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value.replace(/\D/g, "").slice(0, 18) }))}
                         required
                       />
                     </div>
@@ -1256,9 +1260,9 @@ const handleDelete = async () => {
                             incomes.map((r) => (
                               <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'}`}>
                                 <td className="py-2 pr-4">{r.typeName}</td>
-                                <td className="py-2 w-24 text-right">{r.amount}</td>
+                                <td className="py-2 w-24">{r.amount}</td>
                                 <td className="py-2">{r.description || "-"}</td>
-                                <td className="py-2 text-right">
+                                <td className="py-2">
                                   <button
                                     className="p-1 mr-2"
                                     onClick={() => {
@@ -1319,9 +1323,9 @@ const handleDelete = async () => {
                           ) : deductions.map(r => (
                             <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-900'}`}>
                               <td className="py-2 pr-4">{r.typeName}</td>
-                              <td className="py-2 w-24 text-right">{r.amount}</td>
+                              <td className="py-2 w-24">{r.amount}</td>
                               <td className="py-2">{r.description || "-"}</td>
-                              <td className="py-2 text-right">
+                              <td className="py-2">
                                 <button className="p-1 mr-2" onClick={() => { setEditingDeductionId(r.id); setDeductionForm({ typeId: r.typeId, amount: r.amount, description: r.description }); setShowDeductionModal(true); }}><Pencil size={14} /></button>
                                 <button className="p-1 text-red-400" onClick={() => setDeductions(prev => prev.filter(x => x.id !== r.id))}><Trash2 size={14} /></button>
                               </td>

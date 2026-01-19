@@ -59,30 +59,27 @@ const Units = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadUnits(page, limit, newConfig);
   };
-
-  const sortedUnits = [...units].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const valA = String(a[sortConfig.key] || "").toLowerCase();
-    const valB = String(b[sortConfig.key] || "").toLowerCase();
-    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
+  
+  // Client-side sorting removed
+  // const sortedUnits = ...
 
   // LOAD UNITS
-  const loadUnits = async () => {
+  const loadUnits = async (p = page, l = limit, currentSort = sortConfig) => {
     setSearchText("");
 
-    const res = await getUnitsApi(page, limit);
+    const { key, direction } = currentSort;
+    const res = await getUnitsApi(p, l, key, direction); // Pass sort params
 
     if (res?.status === 200) {
       setUnits(res.data.records);
@@ -117,6 +114,12 @@ const Units = () => {
 
   // ADD UNIT
   const handleAddUnit = async () => {
+    const nameLen = newUnit.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Name must be between 2 and 50 characters");
+
+    const descLen = newUnit.description?.trim().length || 0;
+    if (newUnit.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     if (!newUnit.name.trim())
       return showErrorToast("Unit name required");
 
@@ -149,6 +152,12 @@ const Units = () => {
 
   // UPDATE UNIT
   const handleUpdateUnit = async () => {
+    const nameLen = editUnit.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Name must be between 2 and 50 characters");
+
+    const descLen = editUnit.description?.trim().length || 0;
+    if (editUnit.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     if (!editUnit.name.trim())
       return showErrorToast("Unit name required");
 
@@ -336,7 +345,7 @@ const Units = () => {
             
             <MasterTable
                 columns={columns}
-                data={sortedUnits}
+                data={units} // Server sorted
                 inactiveData={inactiveUnits}
                 showInactive={showInactive}
                 sortConfig={sortConfig}
@@ -350,8 +359,9 @@ const Units = () => {
                 permissionCreate={hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE)}
                 onRefresh={() => {
                     setSearchText("");
+                    setSortConfig({ key: "id", direction: "asc" });
                     setPage(1);
-                    loadUnits();
+                    loadUnits(1, limit, { key: "id", direction: "asc" });
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={toggleInactive}
@@ -365,8 +375,9 @@ const Units = () => {
               total={totalRecords}
               onRefresh={() => {
                 setSearchText("");
+                setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
-                loadUnits();
+                loadUnits(1, limit, { key: "id", direction: "asc" });
               }}
             />
           </div>

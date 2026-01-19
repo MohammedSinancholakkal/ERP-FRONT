@@ -460,6 +460,9 @@ const NewPurchaseOrder = () => {
        return;
     }
 
+    const descLen = newItem.description?.trim().length || 0;
+    if (newItem.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     if (editingIndex !== null) {
         const updatedRows = [...rows];
         updatedRows[editingIndex] = newItem;
@@ -678,7 +681,6 @@ const NewPurchaseOrder = () => {
 
 
   // --- UPDATE RATES WHEN TAX TYPE CHANGE ---
-  // --- UPDATE RATES WHEN TAX TYPE CHANGE ---
   useEffect(() => {
     if (!taxTypeId) {
         setCgstRate(0);
@@ -784,6 +786,10 @@ const NewPurchaseOrder = () => {
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
+    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
 
     // --- DETERMINE SEQ ---
     let seqToSend = poSequence;
@@ -865,6 +871,11 @@ const NewPurchaseOrder = () => {
     if (!supplier) return toast.error("Please select a supplier");
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
+
+    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
 
     const payload = {
       supplierId: supplier,
@@ -1016,7 +1027,7 @@ const NewPurchaseOrder = () => {
             {id ? (
                 <>
                 {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
-                <button onClick={handleUpdatePurchaseOrder}  className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? 'bg-[#6448ae] hover:bg-[#6e55b6] text-white shadow-md hover:bg-purple-300' : 'bg-gray-700 border border-gray-800 text-blue-300 hover:bg-gray-600'}`}>
+                <button onClick={handleUpdatePurchaseOrder}  className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-800 text-blue-300 hover:bg-gray-600'}`}>
                     <Save size={18} /> Update
                 </button>
                 )}
@@ -1467,6 +1478,7 @@ const NewPurchaseOrder = () => {
           {/* Description */}
           <div className="col-span-2">
             <InputField
+              textarea
               label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}

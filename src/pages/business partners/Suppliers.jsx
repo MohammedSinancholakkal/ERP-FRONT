@@ -38,6 +38,7 @@ const Suppliers = () => {
     countryName: true,
     stateName: true,
     cityName: true,
+    address: true,
     regionName: true,
     supplierGroupName: true,
     postalCode: true,
@@ -48,16 +49,12 @@ const Suppliers = () => {
     emailAddress: true,
     previousCreditBalance: true,
     orderBooker: true,
-  };
+  };  
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
-  const [columnSearch, setColumnSearch] = useState("");
 
-  // --------------------------------------
-  // Filters
-  // --------------------------------------
   // --------------------------------------
   // Filters
   // --------------------------------------
@@ -68,9 +65,8 @@ const Suppliers = () => {
   const [filterGroup, setFilterGroup] = useState("");
 
   /* Data State */
-  const [allSuppliers, setAllSuppliers] = useState([]); // Stores all active suppliers
-  const [filteredSuppliers, setFilteredSuppliers] = useState([]); // Stores filtered active suppliers
-  
+  const [allSuppliers, setAllSuppliers] = useState([]);
+  const [filteredSuppliers, setFilteredSuppliers] = useState([]); 
   const [inactiveRows, setInactiveRows] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -91,14 +87,16 @@ const Suppliers = () => {
   });
 
   // Sorting
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadSuppliers(newConfig);
   };
 
   // --------------------------------------
@@ -133,16 +131,16 @@ const Suppliers = () => {
     if (filterRegion) result = result.filter(r => String(r.regionId) === String(filterRegion));
     if (filterGroup) result = result.filter(r => String(r.supplierGroupId) === String(filterGroup));
 
-    // 3. Sorting
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        const valA = String(a[sortConfig.key] || "").toLowerCase();
-        const valB = String(b[sortConfig.key] || "").toLowerCase();
-        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
+    // 3. Sorting handled by backend
+    // if (sortConfig.key) {
+    //   result.sort((a, b) => {
+    //     const valA = String(a[sortConfig.key] || "").toLowerCase();
+    //     const valB = String(b[sortConfig.key] || "").toLowerCase();
+    //     if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    //     if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    //     return 0;
+    //   });
+    // }
 
     setFilteredSuppliers(result);
     setPage(1); // Reset to page 1 on filter change
@@ -218,6 +216,8 @@ const Suppliers = () => {
     supplierGroupId:
       r.supplierGroupId ?? r.SupplierGroupId ?? r.supplierGroup ?? r.group ?? "",
     address: r.address ?? r.Address ?? "",
+    addressLine1: r.addressLine1 ?? r.AddressLine1 ?? "",
+    addressLine2: r.addressLine2 ?? r.AddressLine2 ?? "",
     postalCode: r.postalCode ?? r.PostalCode ?? "",
     phone: r.phone ?? r.Phone ?? "",
     fax: r.fax ?? r.Fax ?? "",
@@ -338,10 +338,11 @@ const Suppliers = () => {
   };
 
 
-  const loadSuppliers = async () => {
+  const loadSuppliers = async (currentSort = sortConfig) => {
     try {
       setLoading(true);
-      const res = await getSuppliersApi(1, 5000); 
+      const { key, direction } = currentSort;
+      const res = await getSuppliersApi(1, 5000, key, direction); 
       
       let records = [];
       if (res?.data?.records) {
@@ -459,7 +460,16 @@ const Suppliers = () => {
                  key: "cityName", 
                  label: "City", 
                  sortable: true,
-                 render: (r) => lookupMaps.cities[String(r.cityId)] || r.cityName || "" 
+                  render: (r) => lookupMaps.cities[String(r.cityId)] || r.cityName || "" 
+             },
+             visibleColumns.address && { 
+                 key: "address", 
+                 label: "Address", 
+                 sortable: true,
+                 render: (r) => {
+                     const lines = [r.addressLine1, r.addressLine2].filter(Boolean);
+                     return lines.length > 0 ? lines.join(", ") : r.address;
+                 }
              },
              visibleColumns.regionName && { 
                  key: "regionName", 

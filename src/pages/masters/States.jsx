@@ -103,6 +103,22 @@ const States = () => {
  
   const sortedStates = states; 
 
+  // ===============================
+  // Helpers
+  // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const normalizeRows = (items = []) =>
+    items.map((r) => ({
+      id: r.StateId ?? r.stateId ?? r.id ?? null,
+      name: capitalize(r.StateName ?? r.stateName ?? r.name ?? ""),
+      countryId: r.CountryId ?? r.countryId ?? "",
+      countryName: capitalize(r.CountryName ?? r.countryName ?? ""),
+    })); 
+
   // LOAD DROPDOWNS
   const loadCountries = async () => {
     try {
@@ -121,10 +137,17 @@ const States = () => {
   }, []);
 
   // LOAD STATES
-  const loadStates = async (forceRefresh = false) => {
-    const { data, total } = await loadStatesCtx(page, limit, searchText, forceRefresh, sortConfig.key, sortConfig.direction);
-    setStates(data || []);
-    setTotalRecords(total || 0);
+  const loadStates = async () => {
+    try {
+        const res = await getStatesApi(page, limit, sortConfig.key, sortConfig.direction);
+        if (res?.status === 200) {
+            const rows = res.data.records || res.data || [];
+            setStates(normalizeRows(rows));
+            setTotalRecords(res.data.total || rows.length || 0);
+        }
+    } catch(err) {
+        console.error(err);
+    }
   };
 
   useEffect(() => {
@@ -133,24 +156,30 @@ const States = () => {
 
   const loadInactive = async () => {
     const data = await loadInactiveCtx();
-    setInactiveStates(data || []);
+    setInactiveStates(normalizeRows(data || []));
   };
 
   const handleSearch = async (text) => {
     setSearchText(text);
     if (!text.trim()) {
         const { data, total } = await loadStatesCtx(1, limit, "");
-        setStates(data || []);
+        setStates(normalizeRows(data || []));
         setTotalRecords(total || 0);
         return;
     }
     const { data, total } = await loadStatesCtx(1, limit, text);
-    setStates(data || []);
+    setStates(normalizeRows(data || []));
     setTotalRecords(total || 0);
   };
 
   const handleAdd = async () => {
+    // VALIDATIONS
     if (!newData.name.trim()) return toast.error("Name required");
+    if (newData.name.trim().length < 2) return toast.error("Name must be at least 2 characters");
+    if (newData.name.trim().length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(newData.name.trim())) return toast.error("Name allows only characters");
+
+    if (!newData.countryId) return toast.error("Country required");
     if (!newData.countryId) return toast.error("Country required");
     
     try {
@@ -176,7 +205,13 @@ const States = () => {
   };
 
   const handleUpdate = async () => {
+    // VALIDATIONS
     if (!editData.name.trim()) return toast.error("Name required");
+    if (editData.name.trim().length < 2) return toast.error("Name must be at least 2 characters");
+    if (editData.name.trim().length > 20) return toast.error("Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(editData.name.trim())) return toast.error("Name allows only characters");
+
+    if (!editData.countryId) return toast.error("Country required");
     if (!editData.countryId) return toast.error("Country required");
 
     try {
@@ -258,7 +293,11 @@ const States = () => {
 
   // --- QUICK ADD HANDLER ---
   const handleAddCountry = async () => {
+      // VALIDATIONS
       if(!newCountryName.trim()) return toast.error("Name required");
+      if (newCountryName.trim().length < 2) return toast.error("Name must be at least 2 characters");
+      if (newCountryName.trim().length > 20) return toast.error("Name must be at most 20 characters");
+      if (!/^[a-zA-Z\s]+$/.test(newCountryName.trim())) return toast.error("Name allows only characters");
 
       // Check for duplicates
       try {
@@ -340,6 +379,8 @@ const States = () => {
             onRefresh={() => {
               setSearchText("");
               setPage(1);
+              setSortConfig({ key: "id", direction: "asc" });
+              setShowInactive(false);
               loadStates();
             }}
             onColumnSelector={() => setColumnModal(true)}
@@ -358,6 +399,8 @@ const States = () => {
             onRefresh={() => {
               setSearchText("");
               setPage(1);
+              setSortConfig({ key: "id", direction: "asc" });
+              setShowInactive(false);
               loadStates();
             }}
           />

@@ -66,14 +66,16 @@ const openEdit = (row, isInactive = false) => {
   const [searchText, setSearchText] = useState("");
   
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'asc' });
 
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    fetchGoodsIssues(page, limit, newConfig);
   };
 
 
@@ -141,34 +143,8 @@ const readOnly = isRestoreMode;
   }, [rows, searchText, filterCustomer, filterInvoice, filterEmployee]);
 
     // --- SORTING LOGIC ---
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredRows];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        // Handle numeric values
-        if (['id', 'totalQuantity'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             // String comparison
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [filteredRows, sortConfig]);
+  // Client side sorting removed
+  // const sortedList = ...
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -200,14 +176,16 @@ const readOnly = isRestoreMode;
     setFilterCustomer("");
     setFilterInvoice("");
     setFilterEmployee("");
-    setSortConfig({ key: null, direction: 'asc' });
+    setSortConfig({ key: "id", direction: 'asc' });
+    fetchGoodsIssues(1, limit, { key: "id", direction: 'asc' });
   };
 
   /* ------------------------------ Fetchers ------------------------------ */
-  const fetchGoodsIssues = async () => {
+  const fetchGoodsIssues = async (p = page, l = limit, currentSort = sortConfig) => {
     try {
       setLoading(true);
-      const res = await getGoodsIssuesApi(page, limit);
+      const { key, direction } = currentSort;
+      const res = await getGoodsIssuesApi(p, l, key, direction);
 
       // tolerate various response shapes
       const records = Array.isArray(res?.data?.records)
@@ -410,7 +388,7 @@ const handleRestoreIssue = async (id) => {
                     visibleColumns.employee && { key: "employee", label: "Employee", sortable: true },
                     visibleColumns.remarks && { key: "remarks", label: "Remarks", sortable: true },
                 ].filter(Boolean)}
-                data={sortedList}
+                data={filteredRows} // Use filteredRows directly
                 inactiveData={inactiveRows}
                 showInactive={showInactive}
                 sortConfig={sortConfig}
@@ -424,11 +402,13 @@ const handleRestoreIssue = async (id) => {
                 permissionCreate={hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE)}
                 onRefresh={() => {
                    setSearchText("");
-                   setFilterCustomer("");
-                   setFilterInvoice("");
-                   setFilterEmployee("");
-                   fetchGoodsIssues();
-                }}
+                    setFilterCustomer("");
+                    setFilterInvoice("");
+                    setFilterEmployee("");
+                    setSortConfig({ key: "id", direction: 'asc' });
+                    setPage(1);
+                    fetchGoodsIssues(1, limit, { key: "id", direction: 'asc' });
+                 }}
                 onColumnSelector={() => {
                    setTempVisibleColumns(visibleColumns);
                    setColumnModalOpen(true);

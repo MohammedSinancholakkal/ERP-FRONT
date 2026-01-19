@@ -97,14 +97,16 @@ const DamagedProducts = () => {
   const [filterCategory, setFilterCategory] = useState("");
   
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'asc' });
 
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadDamaged(page, limit, newConfig);
   };
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -191,10 +193,11 @@ const DamagedProducts = () => {
     }
   };
 
-  const loadDamaged = async (p = page, l = limit) => {
+  const loadDamaged = async (p = page, l = limit, currentSort = sortConfig) => {
     setLoading(true);
     try {
-      const res = await getDamagedProductsApi(p, l);
+      const { key, direction } = currentSort;
+      const res = await getDamagedProductsApi(p, l, key, direction); // Pass sort params
       setDamaged(res.data.records || []);
       setTotal(res.data.total || 0);
     } catch (err) {
@@ -287,6 +290,8 @@ const DamagedProducts = () => {
   };
 
   const handleAdd = async () => {
+    const noteLen = newDP.Note?.trim().length || 0;
+    if (newDP.Note && (noteLen < 2 || noteLen > 300)) return showErrorToast("Note must be between 2 and 300 characters");
     if (!newDP.ProductId) return showErrorToast("Product is required");
     if (!newDP.Code) return showErrorToast("Code is required");
     if (!newDP.Name) return showErrorToast("Name is required");
@@ -347,6 +352,8 @@ const DamagedProducts = () => {
   };
 
   const handleUpdate = async () => {
+    const noteLen = editDP.Note?.trim().length || 0;
+    if (editDP.Note && (noteLen < 2 || noteLen > 300)) return showErrorToast("Note must be between 2 and 300 characters");
     if (!editDP.ProductId) return showErrorToast("Product is required");
     if (!editDP.Code) return showErrorToast("Code is required");
     if (!editDP.Name) return showErrorToast("Name is required");
@@ -461,7 +468,7 @@ const DamagedProducts = () => {
       );
     }
 
-    list.sort((a, b) => (a.Id ?? a.id ?? 0) - (b.Id ?? b.id ?? 0));
+    // list.sort((a, b) => (a.Id ?? a.id ?? 0) - (b.Id ?? b.id ?? 0)); // REMOVED CLIENT SIDE SORT
 
     return list;
   };
@@ -476,34 +483,8 @@ const DamagedProducts = () => {
   }, [damaged, searchText, filterCategory]);
 
   // --- SORTING LOGIC ---
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...displayed];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        // Handle numeric values
-        if (['PurchasePrice', 'Quantity', 'Id', 'id', 'purchasePrice', 'quantity'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             // String comparison
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [displayed, sortConfig]);
+  // Client side sorting removed
+  // const sortedList = ...
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -519,7 +500,8 @@ const DamagedProducts = () => {
   const handleClearFilters = () => {
     setSearchText("");
     setFilterCategory("");
-    setSortConfig({ key: null, direction: 'asc' });
+    setSortConfig({ key: "id", direction: 'asc' });
+    loadDamaged(1, limit, { key: "id", direction: 'asc' });
   };
 
   /* =========================================================
@@ -863,7 +845,7 @@ const DamagedProducts = () => {
                     visibleColumns.date && { key: "Date", label: "Date", sortable: true, render: (r) => r.Date ? String(r.Date).split("T")[0] : "" },
                     visibleColumns.note && { key: "Note", label: "Note", sortable: true },
                 ].filter(Boolean)}
-                data={sortedList}
+                data={damaged}
                 inactiveData={inactive}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

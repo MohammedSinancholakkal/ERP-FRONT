@@ -324,6 +324,9 @@ const NewInvoices = () => {
       return;
     }
 
+    const descLen = newItem.description?.trim().length || 0;
+    if (newItem.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     const itemToInsert = {
       ...newItem,
       quantity: parseFloat(newItem.quantity) || 0,
@@ -448,6 +451,9 @@ const NewInvoices = () => {
     if (!noTax && !taxTypeId) return showErrorToast("Please select a Tax Type");
     if (rows.length === 0) return showErrorToast("Please add at least one item");
 
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
     const payload = {
       customerId: customer,
       date,
@@ -504,6 +510,9 @@ const NewInvoices = () => {
     if (!paymentAccount) return showErrorToast("Please select a payment account");
     if (!noTax && !taxTypeId) return showErrorToast("Please select a Tax Type");
     if (rows.length === 0) return showErrorToast("Please add at least one item");
+
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
 
     const payload = {
       customerId: customer,
@@ -1052,6 +1061,7 @@ const handleRestoreInvoice = async () => {
           {/* Description */}
           <div className="md:col-span-2">
             <InputField
+              textarea
               label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
@@ -1062,7 +1072,7 @@ const handleRestoreInvoice = async () => {
           <div>
             <InputField
               type="number"
-              label="Quantity"
+              label="Quantity *"
               value={newItem.quantity}
               onChange={(e) => {
                   const qty = parseFloat(e.target.value) || 0;

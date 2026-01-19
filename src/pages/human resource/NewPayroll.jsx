@@ -18,6 +18,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
 import ContentCard from "../../components/ContentCard";
 import InputField from "../../components/InputField";
+import PageLayout from "../../layout/PageLayout";
 
 const NewPayroll = () => {
   const { theme } = useTheme();
@@ -211,6 +212,29 @@ const NewPayroll = () => {
     if (!paymentDate) return showErrorToast("Payment date required");
     if (!cashBank) return showErrorToast("Cash/Bank required");
     if (rows.length === 0) return showErrorToast("Add at least one employee");
+
+    const descLen = description?.trim().length || 0;
+    if (description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
+    // Validate Rows
+    for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (r.bankName && (r.bankName.length < 2 || r.bankName.length > 20)) return showErrorToast(`Row ${i+1}: Bank Name must be 2-20 characters`);
+        if (r.bankAccount && !/^\d{10,18}$/.test(r.bankAccount)) return showErrorToast(`Row ${i+1}: Bank Account must be 10-18 numbers`);
+        
+        // Incomes notes
+        if(r.incomes) {
+            for(const inc of r.incomes) {
+                if(inc.note && (inc.note.length < 2 || inc.note.length > 50)) return showErrorToast(`Row ${i+1}: Short Note (Income) must be 2-50 characters`);
+            }
+        }
+        // Deductions notes
+        if(r.deductions) {
+            for(const ded of r.deductions) {
+                 if(ded.note && (ded.note.length < 2 || ded.note.length > 50)) return showErrorToast(`Row ${i+1}: Short Note (Deduction) must be 2-50 characters`);
+            }
+        }
+    }
 
     setLoading(true);
     try {

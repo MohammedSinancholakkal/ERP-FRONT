@@ -106,32 +106,10 @@ const Currencies = () => {
     setSortConfig({ key, direction });
   };
 
-  const sortedCurrencies = React.useMemo(() => {
-    let sortableItems = [...currencies];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-        
-         if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-         if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [currencies, sortConfig]);
-
   // Load active records
   const loadCurrencies = async () => {
     setSearchText("");
-    const res = await getCurrenciesApi(page, limit);
+    const res = await getCurrenciesApi(page, limit, sortConfig.key, sortConfig.direction);
     if (res?.status === 200) {
       setCurrencies(res.data.records);
       setTotalRecords(res.data.total);
@@ -142,7 +120,7 @@ const Currencies = () => {
 
   useEffect(() => {
     loadCurrencies();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // Load inactive
   const loadInactive = async () => {
@@ -444,7 +422,7 @@ const Currencies = () => {
                     visibleColumns.currencyName && { key: "currencyName", label: "Currency Name", sortable: true },
                     visibleColumns.currencySymbol && { key: "currencySymbol", label: "Symbol", sortable: true },
                 ].filter(Boolean)}
-                data={sortedCurrencies}
+                data={currencies}
                 inactiveData={inactiveCurrencies}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

@@ -93,25 +93,7 @@ const Departments = () => {
   // SORT
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  const sortedDepartments = React.useMemo(() => {
-    let sortableItems = [...departments];
-    if (sortConfig.key) {
-      sortableItems.sort((a, b) => {
-          let aVal = a[sortConfig.key] || "";
-          let bVal = b[sortConfig.key] || "";
-          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-          
-          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-          return 0;
-      });
-    } else {
-        // default sort by id
-        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
-    }
-    return sortableItems;
-  }, [departments, sortConfig]);
+
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -125,7 +107,7 @@ const Departments = () => {
   // LOADERS
   // =============================
   const loadDepartments = async () => {
-    const res = await getDepartmentsApi(page, limit);
+    const res = await getDepartmentsApi(page, limit, sortConfig.key, sortConfig.direction);
     if (res.status === 200) {
       setDepartments(res.data.records);
       setTotalRecords(res.data.total);
@@ -141,7 +123,7 @@ const Departments = () => {
 
   useEffect(() => {
     loadDepartments();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // =============================
   // SEARCH HANDLER
@@ -161,6 +143,9 @@ const Departments = () => {
   // =============================
   const handleAdd = async () => {
     if (!newDepartment.department.trim()) return toast.error("Department required");
+
+    if (newDepartment.department.trim().length < 2 || newDepartment.department.trim().length > 50) return toast.error("Department Name must be between 2 and 50 characters");
+    if (newDepartment.description && (newDepartment.description.trim().length < 2 || newDepartment.description.trim().length > 300)) return toast.error("Description must be between 2 and 300 characters");
 
     // Check duplicates
     try {
@@ -194,6 +179,9 @@ const Departments = () => {
   // =============================
   const handleUpdate = async () => {
     if (!editDepartment.department.trim()) return toast.error("Department required");
+
+    if (editDepartment.department.trim().length < 2 || editDepartment.department.trim().length > 50) return toast.error("Department Name must be between 2 and 50 characters");
+    if (editDepartment.description && (editDepartment.description.trim().length < 2 || editDepartment.description.trim().length > 300)) return toast.error("Description must be between 2 and 300 characters");
 
     // Check duplicates
     try {
@@ -427,7 +415,7 @@ const Departments = () => {
                     visibleColumns.description && { key: "description", label: "Description", sortable: true },
                     visibleColumns.parentName && { key: "parentName", label: "Parent Department", sortable: true, render: (r) => r.parentName || "-" },
                 ].filter(Boolean)}
-                data={sortedDepartments}
+                data={departments}
                 inactiveData={inactiveDepartments}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

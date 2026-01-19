@@ -1030,8 +1030,6 @@ const NewMeeting = () => {
                        <thead>
                           <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900' : 'bg-gray-800 text-gray-400'}>
                              <th className="p-3 text-sm font-medium">Name</th>
-                             <th className="p-3 text-sm font-medium">Department</th>
-                             <th className="p-3 text-sm font-medium">Designation</th>
                              <th className="p-3 text-sm font-medium">Type</th>
                              <th className="p-3 text-sm font-medium">Status</th>
                              <th className="p-3 text-sm font-medium text-right">Actions</th>
@@ -1040,28 +1038,22 @@ const NewMeeting = () => {
                        <tbody>
                           {form.attendees.map((row, index) => (
                              <tr key={index} className={`border-t ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                                <td className="p-3 text-sm">{row.attendee}</td>
-                                <td className="p-3 text-sm text-gray-500">{row.departmentName}</td>
-                                <td className="p-3 text-sm text-gray-500">{row.designationName}</td>
+                                <td className="p-3 text-sm text-purple-800 font-medium ">{row.attendee}</td>
+                                <td className="p-3 text-sm text-purple-800 font-medium ">{row.attendeeType}</td>
                                 <td className="p-3 text-sm">
-                                   <span className={`px-2 py-0.5 rounded text-xs ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
-                                      {row.attendeeType}
-                                   </span>
-                                </td>
-                                <td className="p-3 text-sm">
-                                   <span className={`px-2 py-0.5 rounded text-xs ${
+                                   <span className={`rounded text-sm ${
                                        row.attendanceStatus === 'Present' 
-                                         ? (theme === 'emerald' ? 'bg-green-50 text-green-700' : 'bg-green-900/30 text-green-300')
-                                         : (theme === 'emerald' ? 'bg-orange-50 text-orange-700' : 'bg-yellow-900/30 text-yellow-300')
+                                         ? (theme === 'emerald' ? 'text-purple-800 font-medium' : 'text-purple-800 font-medium')
+                                         : (theme === 'purple' ? 'text-purple-800 font-medium' : 'text-purple-800 font-medium')
                                    }`}>
                                       {row.attendanceStatus}
                                    </span>
                                 </td>
                                 <td className="p-3 text-right flex justify-end gap-2">
-                                     <button onClick={() => editAttendee(index)} className="p-1 text-gray-400 hover:text-blue-400">
+                                     <button onClick={() => editAttendee(index)} className="p-1 text-purple-800 hover:text-blue-400">
                                          <Pencil size={16} />
                                      </button>
-                                     <button onClick={() => deleteAttendee(index)} className="p-1 text-gray-400 hover:text-red-400">
+                                     <button onClick={() => deleteAttendee(index)} className="p-1 text-purple-800 hover:text-red-400">
                                          <Trash2 size={16} />
                                      </button>
                                 </td>

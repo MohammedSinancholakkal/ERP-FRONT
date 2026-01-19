@@ -216,7 +216,20 @@ const NewProduct = () => {
   };
 
   const handleSave = async () => {
-    if (!product.ProductName?.trim()) return showErrorToast("Product Name required");
+    const nameLen = product.ProductName?.trim().length || 0;
+    if (nameLen < 2 || nameLen > 100) return showErrorToast("Product Name must be between 2 and 100 characters");
+    
+    if (product.Model && product.Model.trim().length < 2) return showErrorToast("Model must be at least 2 characters");
+    if (product.HSNCode && product.HSNCode.trim().length < 3) return showErrorToast("HSN Code must be at least 3 characters");
+    
+    const colorLen = product.Colour?.trim().length || 0;
+    if (product.Colour && (colorLen < 2 || colorLen > 10)) return showErrorToast("Colour must be between 2 and 10 characters");
+
+    if (product.Grade && product.Grade.trim().length > 10) return showErrorToast("Grade must be at most 10 characters");
+
+    const detailsLen = product.ProductDetails?.trim().length || 0;
+    if (product.ProductDetails && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Product Details must be between 2 and 300 characters");
+
     if (product.UnitPrice === "" || isNaN(Number(product.UnitPrice))) return showErrorToast("Unit Price required");
     if (product.ReorderLevel === "" || isNaN(Number(product.ReorderLevel))) return showErrorToast("Reorder Level required");
     if (!product.CategoryId) return showErrorToast("Category required");
@@ -347,6 +360,12 @@ const NewProduct = () => {
   
   // Category
   const handleAddCategory = async () => {
+    const nameLen = newCategory.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Category Name must be between 2 and 50 characters");
+
+    const descLen = newCategory.description?.trim().length || 0;
+    if (newCategory.description && (descLen < 2 || descLen > 300)) return showErrorToast("Category Description must be between 2 and 300 characters");
+
     if (!newCategory.name.trim()) return showErrorToast("Category Name required");
 
     try {
@@ -378,6 +397,14 @@ const NewProduct = () => {
 
   // Unit
   const handleAddUnit = async () => {
+    const nameLen = newUnit.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Unit Name must be between 2 and 50 characters");
+
+    // Unit description isn't in the object provided in the state def: { name: "", description: "" }
+    // but the modal usually has name/description.
+    const descLen = newUnit.description?.trim().length || 0;
+    if (newUnit.description && (descLen < 2 || descLen > 300)) return showErrorToast("Unit Description must be between 2 and 300 characters");
+
     if (!newUnit.name.trim()) return showErrorToast("Unit Name required");
     try {
       // DUPLICATE CHECK
@@ -405,6 +432,12 @@ const NewProduct = () => {
 
   // Brand
   const handleAddBrand = async () => {
+    const nameLen = newBrand.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Brand Name must be between 2 and 50 characters");
+
+    const descLen = newBrand.description?.trim().length || 0;
+    if (newBrand.description && (descLen < 2 || descLen > 300)) return showErrorToast("Brand Description must be between 2 and 300 characters");
+
     if (!newBrand.name.trim()) return showErrorToast("Brand Name required");
     try {
       // DUPLICATE CHECK

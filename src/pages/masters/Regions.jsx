@@ -59,7 +59,7 @@ const Regions = () => {
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -71,30 +71,30 @@ const Regions = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedRows = [...rows];
-  if (sortConfig.key) {
-    sortedRows.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+  // REMOVED CLIENT SIDE SORT LOGIC
+  const sortedRows = rows;
+
+  // ===============================
+  // Helpers
+  // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const normalizeRows = (items = []) =>
+    items.map((r) => ({
+      id: r.RegionId ?? r.regionId ?? r.id ?? null,
+      name: capitalize(r.RegionName ?? r.regionName ?? r.name ?? ""),
+    }));
 
   // LOAD
   const loadRows = async () => {
     try {
-      const res = await getRegionsApi(page, limit);
+      const res = await getRegionsApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.regionId || r.id,
-            name: r.regionName || r.name
-        }));
+        const normalized = normalizeRows(rows);
         setRows(normalized);
         const total = res.data.total || normalized.length;
         setTotalRecords(total);
@@ -109,18 +109,14 @@ const Regions = () => {
 
   useEffect(() => {
     loadRows();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   const loadInactive = async () => {
     try {
       const res = await getInactiveRegionsApi();
       if (res?.status === 200) {
         const rows = res.data.records || res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.regionId || r.id,
-            name: r.regionName || r.name
-        }));
-        setInactiveRows(normalized);
+        setInactiveRows(normalizeRows(rows));
       }
     } catch (err) {
       console.error(err);
@@ -138,11 +134,7 @@ const Regions = () => {
       const res = await searchRegionApi(text);
       if (res?.status === 200) {
         const rows = res.data || [];
-        const normalized = rows.map(r => ({
-            id: r.regionId || r.id,
-            name: r.regionName || r.name
-        }));
-        setRows(normalized);
+        setRows(normalizeRows(rows));
         setTotalRecords(rows.length);
       }
     } catch (err) {
@@ -152,6 +144,10 @@ const Regions = () => {
 
   const handleAdd = async () => {
     if (!newData.name.trim()) return toast.error("Name required");
+    const nameToCheck = newData.name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
 
     // Check for duplicates
     try {
@@ -192,6 +188,10 @@ const Regions = () => {
 
   const handleUpdate = async () => {
     if (!editData.name.trim()) return toast.error("Name required");
+    const nameToCheck = editData.name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
 
     // Check for duplicates
     try {
@@ -298,6 +298,8 @@ const Regions = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadRows();
             }}
             onColumnSelector={() => setColumnModal(true)}
@@ -317,6 +319,8 @@ const Regions = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadRows();
             }}
             />

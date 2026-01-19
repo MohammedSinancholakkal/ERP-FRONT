@@ -106,17 +106,40 @@ const UpdateStocks = () => {
   const currentUserId = user?.userId || 1;
 
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'asc' });
 
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadRows(page, limit, newConfig);
   };
 
   // --- FILTERED & SORTED LIST ---
+  // const filteredRows = React.useMemo(() => {
+  //   let list = rows;
+    
+  //   // Global Search
+  //   if (searchText.trim()) {
+  //       const s = searchText.toLowerCase();
+  //       list = list.filter(r => 
+  //           String(r.id).includes(s) ||
+  //           (r.productName || "").toLowerCase().includes(s) ||
+  //           (r.warehouseName || "").toLowerCase().includes(s) ||
+  //           (r.note || "").toLowerCase().includes(s)
+  //       );
+  //   }
+
+  //   if (filterProduct) list = list.filter(r => String(r.productId) === String(filterProduct));
+  //   if (filterWarehouse) list = list.filter(r => String(r.warehouseId) === String(filterWarehouse));
+    
+  //   return list;
+  // }, [rows, searchText, filterProduct, filterWarehouse]);
+
+  // --- FILTERED LIST (Client side Filtering only) ---
   const filteredRows = React.useMemo(() => {
     let list = rows;
     
@@ -137,32 +160,8 @@ const UpdateStocks = () => {
     return list;
   }, [rows, searchText, filterProduct, filterWarehouse]);
 
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredRows];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        if (['id', 'quantity', 'productId', 'warehouseId'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [filteredRows, sortConfig]);
+  // Client side sorting removed
+  // const sortedList = ...
 
   // --- FILTER BAR CONFIG ---
    const filters = [
@@ -186,7 +185,8 @@ const UpdateStocks = () => {
     setSearchText("");
     setFilterProduct("");
     setFilterWarehouse("");
-    setSortConfig({ key: null, direction: 'asc' });
+    setSortConfig({ key: "id", direction: 'asc' });
+    loadRows(1, limit, { key: "id", direction: 'asc' });
   };
 
   // ========================= LOADERS =========================
@@ -244,9 +244,10 @@ const UpdateStocks = () => {
     }
   };
 
-  const loadRows = async () => {
+  const loadRows = async (p = page, l = limit, currentSort = sortConfig) => {
     try {
-      const res = await getStocksApi(page, limit);
+      const { key, direction } = currentSort;
+      const res = await getStocksApi(p, l, key, direction); // Pass sort params
       if (res?.status === 200) {
         const data = res.data ?? res;
         const items = Array.isArray(data.records)
@@ -386,6 +387,9 @@ const UpdateStocks = () => {
       return showErrorToast("Enter valid quantity");
     if (!newItem.mode) return showErrorToast("Select mode (IN/OUT)");
     if (!newItem.status) return showErrorToast("Select status");
+    
+    const noteLen = newItem.note?.trim().length || 0;
+    if (newItem.note && (noteLen < 2 || noteLen > 300)) return showErrorToast("Note must be between 2 and 300 characters");
     if (!newItem.note || !newItem.note.trim()) return showErrorToast("Note is required");
 
     try {
@@ -443,6 +447,9 @@ const UpdateStocks = () => {
       return showErrorToast("Enter valid quantity");
     if (!editItem.mode) return showErrorToast("Select mode");
     if (!editItem.status) return showErrorToast("Select status");
+    
+    const noteLen = editItem.note?.trim().length || 0;
+    if (editItem.note && (noteLen < 2 || noteLen > 300)) return showErrorToast("Note must be between 2 and 300 characters");
     if (!editItem.note || !editItem.note.trim()) return showErrorToast("Note is required");
 
     try {
@@ -772,7 +779,7 @@ const UpdateStocks = () => {
                 visibleColumns.vNo && { key: "vNo", label: "VNo", sortable: true },
                 visibleColumns.note && { key: "note", label: "Note", sortable: true },
               ].filter(Boolean)}
-              data={sortedList}
+              data={filteredRows} // Used filteredRows instead of sortedList
               inactiveData={inactiveRows}
               showInactive={showInactive}
               sortConfig={sortConfig}
@@ -791,7 +798,9 @@ const UpdateStocks = () => {
                 setSearchText("");
                 setFilterProduct("");
                 setFilterWarehouse("");
-                loadRows();
+                setSortConfig({ key: "id", direction: 'asc' });
+                setPage(1);
+                loadRows(1, limit, { key: "id", direction: 'asc' });
                 if (showInactive) loadInactiveRows();
               }}
               onColumnSelector={openColumnPicker}

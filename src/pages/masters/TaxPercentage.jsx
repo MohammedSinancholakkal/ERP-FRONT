@@ -57,7 +57,7 @@ const TaxPercentage = () => {
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
   // SORT
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -71,7 +71,7 @@ const TaxPercentage = () => {
   const loadData = async () => {
     setSearchText("");
     try {
-      const res = await getTaxPercentagesApi(page, limit);
+      const res = await getTaxPercentagesApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         setDataList(res.data.records || []);
         setTotalRecords(res.data.total || 0);
@@ -95,7 +95,7 @@ const TaxPercentage = () => {
   useEffect(() => {
     if (showInactive) loadInactive();
     else loadData();
-  }, [page, limit, showInactive]);
+  }, [page, limit, showInactive, sortConfig]);
 
   // ================= SEARCH =================
   const handleSearch = async (txt) => {
@@ -112,30 +112,8 @@ const TaxPercentage = () => {
     }
   };
 
-  // ================= CLIENT SORT =================
-  const sortedList = useMemo(() => {
-    let sortableItems = [...dataList];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-        
-        // Handle numbers
-        if (sortConfig.key === 'id' || sortConfig.key === 'percentage') {
-             aValue = parseFloat(aValue) || 0;
-             bValue = parseFloat(bValue) || 0;
-        } else {
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [dataList, sortConfig]);
+  // ================= CLIENT SORT REMOVED =================
+  const sortedList = dataList;
 
   // ================= ADD =================
   const handleAdd = async () => {
@@ -354,8 +332,9 @@ const TaxPercentage = () => {
                 onRefresh={() => {
                    setSearchText("");
                    setPage(1);
-                   if (!showInactive) loadData();
-                   else loadInactive();
+                   setSortConfig({ key: "id", direction: 'asc' });
+                   setShowInactive(false);
+                   loadData();
                 }}
                 
                 onColumnSelector={() => setColumnModalOpen(true)}

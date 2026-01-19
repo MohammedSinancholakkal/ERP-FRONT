@@ -459,6 +459,9 @@ useEffect(() => {
       toast.error("Quantity must be greater than 0");
       return;
     }
+
+    const descLen = newItem.description?.trim().length || 0;
+    if (newItem.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
     
     // STOCK CHECK
     if (Number(newItem.quantity) > Number(newItem.unitsInStock)) {
@@ -722,6 +725,11 @@ const openProductModal = () => {
     if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
+    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
     // DUPLICATE CHECK FOR INVOICE NO
     if (invoiceNo && invoiceNo.trim() !== "") {
         try {
@@ -807,6 +815,11 @@ const openProductModal = () => {
     if (!paymentAccount) return toast.error("Please select a payment account");
     if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
+
+    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
 
     // DUPLICATE CHECK FOR INVOICE NO
     if (invoiceNo && invoiceNo.trim() !== "") {
@@ -1463,6 +1476,7 @@ const openProductModal = () => {
           {/* Description */}
           <div className="col-span-2">
             <InputField
+              textarea
               label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
@@ -1473,7 +1487,7 @@ const openProductModal = () => {
           <div>
             <InputField
               type="number"
-              label="Quantity"
+              label="Quantity *"
               value={newItem.quantity}
               onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />

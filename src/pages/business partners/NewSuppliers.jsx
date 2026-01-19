@@ -48,9 +48,6 @@ const parseArrayFromResponse = (res) => {
   return Array.isArray(maybeArray) ? maybeArray : [];
 };
 
-// ----------------- Main Component -----------------
-
-
 
 // ----------------- Main Component -----------------
 const NewSupplier = () => {
@@ -114,7 +111,7 @@ const NewSupplier = () => {
   });
   const update = (k, v) => {
     if (k === "phone") {
-      // Numbers only, strictly max 10 chars
+        // Numbers only, strictly max 10 chars
       const val = v.replace(/\D/g, "").slice(0, 10);
       setForm((p) => ({ ...p, [k]: val }));
     } else if (k === "postalCode") {
@@ -339,16 +336,12 @@ const NewSupplier = () => {
                created = { ...created, id: `t_${Date.now()}`, CountryName: newCountryName.trim() };
            }
            
-           // Normalize
            created = { ...created, CountryName: created.CountryName ?? created.name ?? newCountryName.trim(), name: created.name ?? created.CountryName ?? newCountryName.trim() };
-
            setCountries(prev => [created, ...prev]);
            update("countryId", created.Id ?? created.id);
-           // Reset subordinate
            update("stateId", null);
            update("cityId", null);
-           loadStatesForCountry(created.Id ?? created.id); // Load (empty) states for new country
-
+           loadStatesForCountry(created.Id ?? created.id); 
            setNewCountryName("");
            setAddCountryModalOpen(false);
            toast.success("Country added successfully");
@@ -600,20 +593,16 @@ const NewSupplier = () => {
     // Phone: Must be exactly 10 digits if provided
     if (form.phone) {
          if (form.phone.length !== 10) return "Phone number must be exactly 10 digits";
+         if (!/^\d+$/.test(form.phone)) return "Phone number can only contain digits";
     }
     
     // Zip Code: Must be exactly 6 digits if provided (since max is 6 in input)
     if (form.postalCode && form.postalCode.length < 6) return "Zip Code must be 6 digits";
 
-    const urlRegex = /^(https?:\/\/)/; 
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    const urlRegex = /^(https?:\/\/)/;
 
     if (form.email && !emailRegex.test(form.email)) return "Email is not valid (must contain @ and . domain)";
     if (form.website && !urlRegex.test(form.website)) return "Website must start with http:// or https://";
-    
-    if (form.pan && !panRegex.test(form.pan)) return "Invalid PAN format (e.g., ABCDE1234F)";
-    if (form.gstin && !gstinRegex.test(form.gstin)) return "Invalid GSTIN format";
 
     return null;
   };
@@ -645,9 +634,6 @@ const NewSupplier = () => {
       // Check Phone
       if (form.phone?.trim()) {
          try {
-             // Assuming searchSupplierApi searches phone too, or we can use specific if available. 
-             // If searchSupplierApi only searches name, this might flag fals positives if fuzzy matching.
-             // But usually safe to call generic search and check results.
              const searchRes = await searchSupplierApi(form.phone.trim());
               if (searchRes?.status === 200) {
                   const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];

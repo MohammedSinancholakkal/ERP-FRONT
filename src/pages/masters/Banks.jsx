@@ -94,7 +94,7 @@ const Banks = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -115,13 +115,21 @@ const Banks = () => {
   // ===============================
   // Helpers
   // ===============================
+  // ===============================
+  // Helpers
+  // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const normalizeRows = (items = []) =>
     items.map((r) => ({
         id: r.Id || r.id,
-        bankName: r.BankName || r.bankName,
-        acName: r.ACName || r.acName,
-        acNumber: r.ACNumber || r.acNumber,
-        branch: r.Branch || r.branch,
+        bankName: capitalize(r.BankName || r.bankName),
+        acName: capitalize(r.ACName || r.acName),
+        acNumber: r.ACNumber || r.acNumber, // Often kept numeric/literal
+        branch: capitalize(r.Branch || r.branch),
         signature: r.SignaturePicture || r.signaturePicture,
         isCompanyBank: !!(r.IsCompanyBank ?? r.isCompanyBank),
     }));
@@ -257,8 +265,31 @@ const Banks = () => {
   };
 
   const handleAdd = async () => {
+    // VALIDATIONS
     if (!newItem.BankName?.trim()) return toast.error("Bank Name required");
+    const nameToCheck = newItem.BankName.trim();
+    if (nameToCheck.length < 2) return toast.error("Bank Name must be at least 2 characters");
+    if (nameToCheck.length > 20) return toast.error("Bank Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Bank Name allows only characters");
+
+    if (newItem.ACName?.trim()) {
+        const acNameCheck = newItem.ACName.trim();
+        if (acNameCheck.length < 2) return toast.error("A/C Name must be at least 2 characters");
+        if (acNameCheck.length > 20) return toast.error("A/C Name must be at most 20 characters");
+        if (!/^[a-zA-Z\s]+$/.test(acNameCheck)) return toast.error("A/C Name allows only characters");
+    }
+
+    if (newItem.Branch?.trim()) {
+        const branchCheck = newItem.Branch.trim();
+        if (branchCheck.length < 2) return toast.error("Branch must be at least 2 characters");
+        if (branchCheck.length > 20) return toast.error("Branch must be at most 20 characters");
+        if (!/^[a-zA-Z\s]+$/.test(branchCheck)) return toast.error("Branch allows only characters");
+    }
+
     if (!newItem.ACNumber?.trim()) return toast.error("Account Number required");
+    const acNumLen = newItem.ACNumber.trim().length;
+    if (acNumLen < 10 || acNumLen > 18) return toast.error("Account Number must be between 10 and 18 digits");
+    if (!/^\d+$/.test(newItem.ACNumber.trim())) return toast.error("Account Number allows only digits");
 
     const dup = await checkDuplicates(newItem.BankName.trim(), newItem.ACNumber.trim());
     if(dup) return toast.error(dup.error);
@@ -338,8 +369,31 @@ const Banks = () => {
   };
 
   const handleUpdate = async () => {
+    // VALIDATIONS
     if (!editItem.BankName?.trim()) return toast.error("Bank Name required");
+    const nameToCheck = editItem.BankName.trim();
+    if (nameToCheck.length < 2) return toast.error("Bank Name must be at least 2 characters");
+    if (nameToCheck.length > 20) return toast.error("Bank Name must be at most 20 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Bank Name allows only characters");
+
+    if (editItem.ACName?.trim()) {
+        const acNameCheck = editItem.ACName.trim();
+        if (acNameCheck.length < 2) return toast.error("A/C Name must be at least 2 characters");
+        if (acNameCheck.length > 20) return toast.error("A/C Name must be at most 20 characters");
+        if (!/^[a-zA-Z\s]+$/.test(acNameCheck)) return toast.error("A/C Name allows only characters");
+    }
+
+    if (editItem.Branch?.trim()) {
+        const branchCheck = editItem.Branch.trim();
+        if (branchCheck.length < 2) return toast.error("Branch must be at least 2 characters");
+        if (branchCheck.length > 20) return toast.error("Branch must be at most 20 characters");
+        if (!/^[a-zA-Z\s]+$/.test(branchCheck)) return toast.error("Branch allows only characters");
+    }
+
     if (!editItem.ACNumber?.trim()) return toast.error("Account Number required");
+    const acNumLenEdit = editItem.ACNumber.trim().length;
+    if (acNumLenEdit < 10 || acNumLenEdit > 18) return toast.error("Account Number must be between 10 and 18 digits");
+    if (!/^\d+$/.test(editItem.ACNumber.trim())) return toast.error("Account Number allows only digits");
 
     const dup = await checkDuplicates(editItem.BankName.trim(), editItem.ACNumber.trim(), editItem.id);
     if(dup) return toast.error(dup.error);
@@ -500,7 +554,7 @@ const Banks = () => {
                   <InputField label="Bank Name" value={newItem.BankName} onChange={e => setNewItem({...newItem, BankName: e.target.value})} required />
               </div>
               <div>
-                  <InputField label="A/C Number" value={newItem.ACNumber} onChange={e => setNewItem({...newItem, ACNumber: e.target.value})} required />
+                  <InputField label="A/C Number" value={newItem.ACNumber} onChange={e => setNewItem({...newItem, ACNumber: e.target.value.replace(/\D/g, "").slice(0, 18)})} required />
               </div>
               <div>
                   <InputField label="A/C Name" value={newItem.ACName} onChange={e => setNewItem({...newItem, ACName: e.target.value})} />
@@ -579,7 +633,7 @@ const Banks = () => {
                   <InputField label="Bank Name" value={editItem.BankName} onChange={e => setEditItem({...editItem, BankName: e.target.value})} disabled={editItem.isInactive} required />
               </div>
               <div>
-                  <InputField label="A/C Number" value={editItem.ACNumber} onChange={e => setEditItem({...editItem, ACNumber: e.target.value})} disabled={editItem.isInactive} required />
+                  <InputField label="A/C Number" value={editItem.ACNumber} onChange={e => setEditItem({...editItem, ACNumber: e.target.value.replace(/\D/g, "").slice(0, 18)})} disabled={editItem.isInactive} required />
               </div>
               <div>
                   <InputField label="A/C Name" value={editItem.ACName} onChange={e => setEditItem({...editItem, ACName: e.target.value})} disabled={editItem.isInactive} />

@@ -60,7 +60,7 @@ const MeetingTypes = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -72,27 +72,21 @@ const MeetingTypes = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedRows = [...rows];
-  if (sortConfig.key) {
-    sortedRows.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+  // REMOVED CLIENT SIDE SORT LOGIC
+  const sortedRows = rows;
 
   // ===============================
   // Helpers
   // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const normalizeRows = (items = []) =>
     items.map((r) => ({
       id: r.Id ?? r.id ?? r.meetingTypeId ?? null,
-      name: r.Name ?? r.MeetingTypeName ?? r.name ?? "",
+      name: capitalize(r.Name ?? r.MeetingTypeName ?? r.name ?? ""),
     }));
 
   // ===============================
@@ -100,7 +94,7 @@ const MeetingTypes = () => {
   // ===============================
   const loadRows = async () => {
     try {
-      const res = await getMeetingTypesApi(page, limit);
+      const res = await getMeetingTypesApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         const data = res.data;
         let items = [];
@@ -141,7 +135,7 @@ const MeetingTypes = () => {
 
   useEffect(() => {
     loadRows();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // ===============================
   // Search
@@ -173,8 +167,11 @@ const MeetingTypes = () => {
   // Add
   // ===============================
   const handleAdd = async () => {
-    if (!newItem.name?.trim())
-      return toast.error("Name is required");
+    if (!newItem.name?.trim()) return toast.error("Name is required");
+    const nameToCheck = newItem.name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
 
     // Check for duplicates
     try {
@@ -227,6 +224,10 @@ const MeetingTypes = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Name is required");
+    const nameToCheck = editItem.name.trim();
+    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
+    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
 
     // Check for duplicates
     try {
@@ -341,6 +342,8 @@ const MeetingTypes = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -358,6 +361,8 @@ const MeetingTypes = () => {
           onRefresh={() => {
             setSearchText("");
             setPage(1);
+            setSortConfig({ key: "id", direction: "asc" });
+            setShowInactive(false);
             loadRows();
           }}
         />

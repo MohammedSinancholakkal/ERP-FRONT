@@ -78,6 +78,40 @@ const Attendance = () => {
   // Sorting
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
+  // Real-time clock for Add Modal
+  const [isManualTime, setIsManualTime] = useState(false);
+
+  useEffect(() => {
+    let interval;
+    if (modalOpen && !isManualTime) {
+       // Update immediately on open to avoid 1s delay
+       setForm(prev => ({
+           ...prev,
+           checkInDate: getTodayDate(),
+           checkInTime: getCurrentTime(),
+           checkOutDate: getTodayDate(),
+           checkOutTime: getCurrentTime()
+       }));
+
+       interval = setInterval(() => {
+           setForm(prev => ({
+               ...prev,
+               checkInDate: getTodayDate(),
+               checkInTime: getCurrentTime(),
+               checkOutDate: getTodayDate(),
+               checkOutTime: getCurrentTime()
+           }));
+       }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [modalOpen, isManualTime]);
+
+  // Reset manual mode when modal closes
+  useEffect(() => {
+      if (!modalOpen) setIsManualTime(false);
+  }, [modalOpen]);
+
+
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -103,13 +137,25 @@ const Attendance = () => {
 
 
   const splitDateTime = (dateTime) => {
-  if (!dateTime) return { date: null, time: null };
-  const d = new Date(dateTime);
-  return {
-    date: d.toISOString().split("T")[0],
-    time: d.toTimeString().slice(0, 5),
+    if (!dateTime) return { date: null, time: null };
+    const d = new Date(dateTime);
+    // Use UTC methods to ensure we extract exactly what the server sent (e.g. stored "10:00" -> sent as "T10:00Z")
+    // avoiding browser local time conversion shifting the hours/date
+    return {
+      date: d.toISOString().split("T")[0],
+      time: d.toISOString().split("T")[1].slice(0, 5),
+    };
   };
-};
+
+  const formatTime12Hour = (time24) => {
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(":");
+    let h = parseInt(hours, 10);
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12;
+    h = h ? h : 12; // the hour '0' should be '12'
+    return `${String(h).padStart(2, '0')}:${minutes} ${ampm}`;
+  };
 
 
 
@@ -118,17 +164,7 @@ const Attendance = () => {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
 
-  const sortedRows = React.useMemo(() => {
-    if (!sortConfig.key) return rows;
-    const sorted = [...rows].sort((a, b) => {
-        const aVal = a[sortConfig.key] ? String(a[sortConfig.key]).toLowerCase() : "";
-        const bVal = b[sortConfig.key] ? String(b[sortConfig.key]).toLowerCase() : "";
-        if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
-    });
-    return sorted;
-  }, [rows, sortConfig]);
+  // Removed client-side sorting logic
 
   const calculateStayTime = (inDate, inTime, outDate, outTime) => {
     const start = new Date(`${inDate}T${inTime}`);
@@ -147,6 +183,7 @@ const Attendance = () => {
 
   const loadAttendance = async () => {
     try {
+      // NOTE: Search API does NOT support pagination/sorting yet usually, but keeping consistency
       if (searchText.trim() !== "") {
         const res = await searchAttendanceApi(searchText);
         const data = res?.data || [];
@@ -155,12 +192,17 @@ const Attendance = () => {
         const { date: inDate, time: inTime } = splitDateTime(item.checkIn);
         const { date: outDate, time: outTime } = splitDateTime(item.checkOut);
 
+        const formattedIn = inTime ? formatTime12Hour(inTime) : "";
+        const formattedOut = outTime ? formatTime12Hour(outTime) : "";
+
         return {
           id: item.id,
           employeeId: item.employeeId, // Store raw ID for editing
           employee: emp ? `${emp.FirstName} ${emp.LastName}` : "Unknown",
-          checkIn: `${inDate} ${inTime}`,
-          checkOut: item.checkOut ? `${outDate} ${outTime}` : "-",
+          checkIn: `${inDate} ${formattedIn}`,
+          checkOut: item.checkOut ? `${outDate} ${formattedOut}` : "-",
+          rawCheckIn: item.checkIn,
+          rawCheckOut: item.checkOut,
           stayTime: item.checkOut
             ? calculateStayTime(inDate, inTime, outDate, outTime)
             : "-",
@@ -173,7 +215,7 @@ const Attendance = () => {
         return;
       }
 
-      const res = await getAttendanceApi(page, limit);
+      const res = await getAttendanceApi(page, limit, sortConfig.key, sortConfig.direction);
       const data = res?.data?.records || [];
 
       const formatted = data.map((item) => {
@@ -182,12 +224,17 @@ const Attendance = () => {
         const { date: inDate, time: inTime } = splitDateTime(item.checkIn);
         const { date: outDate, time: outTime } = splitDateTime(item.checkOut);
 
+        const formattedIn = inTime ? formatTime12Hour(inTime) : "";
+        const formattedOut = outTime ? formatTime12Hour(outTime) : "";
+
         return {
           id: item.id,
           employeeId: item.employeeId, // Store raw ID for editing
-          employee: emp ? `${emp.FirstName} ${emp.LastName}` : "Unknown",
-          checkIn: `${inDate} ${inTime}`,
-          checkOut: item.checkOut ? `${outDate} ${outTime}` : "-",
+          employee: emp ? `${emp.FirstName} ${emp.LastName}` : (item.employeeName || "Unknown"), // Fallback to item.employeeName if available from joined query
+          checkIn: `${inDate} ${formattedIn}`,
+          checkOut: item.checkOut ? `${outDate} ${formattedOut}` : "-",
+          rawCheckIn: item.checkIn,   // Store raw for editing to avoid timezone re-conversion
+          rawCheckOut: item.checkOut, // Store raw for editing
           stayTime: item.checkOut
             ? calculateStayTime(inDate, inTime, outDate, outTime)
             : "-",
@@ -210,12 +257,18 @@ const Attendance = () => {
         const emp = employees.find((e) => e.Id === item.employeeId);
         const { date: inDate, time: inTime } = splitDateTime(item.checkIn);
         const { date: outDate, time: outTime } = splitDateTime(item.checkOut);
+
+        const formattedIn = inTime ? formatTime12Hour(inTime) : "";
+        const formattedOut = outTime ? formatTime12Hour(outTime) : "";
+
         return {
           id: item.id,
           employeeId: item.employeeId,
           employee: emp ? `${emp.FirstName} ${emp.LastName}` : "Unknown",
-          checkIn: `${inDate} ${inTime}`,
-          checkOut: item.checkOut ? `${outDate} ${outTime}` : "-",
+          checkIn: `${inDate} ${formattedIn}`,
+          checkOut: item.checkOut ? `${outDate} ${formattedOut}` : "-",
+          rawCheckIn: item.checkIn,
+          rawCheckOut: item.checkOut,
           stayTime: item.checkOut
             ? calculateStayTime(inDate, inTime, outDate, outTime)
             : "-",
@@ -231,8 +284,12 @@ const Attendance = () => {
 
   const handleRowClick = (row) => {
     // Prepare form for edit
-    const { date: inDate, time: inTime } = splitDateTime(row.checkIn);
-    const { date: outDate, time: outTime } = splitDateTime(row.checkOut !== "-" ? row.checkOut : null);
+    // Use raw attributes if available to avoid timezone shift from re-parsing "Y-M-D H:m" as local
+    const rawIn = row.rawCheckIn || row.checkIn; 
+    const rawOut = row.rawCheckOut || (row.checkOut !== "-" ? row.checkOut : null);
+
+    const { date: inDate, time: inTime } = splitDateTime(rawIn);
+    const { date: outDate, time: outTime } = splitDateTime(rawOut);
     
     setEditForm({
       id: row.id,
@@ -248,7 +305,7 @@ const Attendance = () => {
   };
 
   const handleUpdate = async () => {
-    if (!editForm.employeeId) return toast.error("Employee required");
+    if (!editForm.employeeId) return showErrorToast("Employee required");
     
     const checkIn = `${editForm.checkInDate} ${editForm.checkInTime}`;
     const checkOut = `${editForm.checkOutDate} ${editForm.checkOutTime}`;
@@ -305,7 +362,7 @@ const Attendance = () => {
 
   useEffect(() => {
     if (employees.length > 0) loadAttendance();
-  }, [page, limit, searchText, employees]);
+  }, [page, limit, searchText, employees, sortConfig]); // Added sortConfig
 
   const saveAttendance = async () => {
     if (!form.employeeId) {
@@ -342,10 +399,9 @@ const Attendance = () => {
     }
   };
 
-  const totalRecords = rows.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
+  const totalRecords = total; // Use server value
+  // const totalPages = Math.max(1, Math.ceil(total / limit)); // Unused variable usually handled by Pagination component
+  // Pagination component handles pagination logic internally based on total and limit
 
   return (
     <>
@@ -394,12 +450,14 @@ const Attendance = () => {
               <input
                 type="date"
                 value={form.checkInDate}
-                onChange={(e) =>
+                onFocus={() => setIsManualTime(true)}
+                onChange={(e) => {
+                  setIsManualTime(true);
                   setForm((p) => ({
                     ...p,
                     checkInDate: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
@@ -409,12 +467,14 @@ const Attendance = () => {
               <input
                 type="time"
                 value={form.checkInTime}
-                onChange={(e) =>
+                onFocus={() => setIsManualTime(true)}
+                onChange={(e) => {
+                  setIsManualTime(true);
                   setForm((p) => ({
                     ...p,
                     checkInTime: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
@@ -426,12 +486,14 @@ const Attendance = () => {
               <input
                 type="date"
                 value={form.checkOutDate}
-                onChange={(e) =>
+                onFocus={() => setIsManualTime(true)}
+                onChange={(e) => {
+                  setIsManualTime(true);
                   setForm((p) => ({
                     ...p,
                     checkOutDate: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
@@ -441,12 +503,14 @@ const Attendance = () => {
               <input
                 type="time"
                 value={form.checkOutTime}
-                onChange={(e) =>
+                onFocus={() => setIsManualTime(true)}
+                onChange={(e) => {
+                  setIsManualTime(true);
                   setForm((p) => ({
                     ...p,
                     checkOutTime: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
@@ -562,7 +626,7 @@ const Attendance = () => {
                     visibleColumns.checkOut && { key: "checkOut", label: "Check Out", sortable: true },
                     visibleColumns.stayTime && { key: "stayTime", label: "Stay Time", sortable: true },
                 ].filter(Boolean)}
-                data={sortedRows}
+                data={rows}
                 inactiveData={inactiveRows}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

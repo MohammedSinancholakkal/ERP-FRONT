@@ -79,30 +79,27 @@ const Brands = () => {
     setVisibleColumns(defaultColumns);
   };
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadBrands(page, limit, newConfig);
   };
 
-  const sortedBrands = [...brands].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const valA = String(a[sortConfig.key] || "").toLowerCase();
-    const valB = String(b[sortConfig.key] || "").toLowerCase();
-    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
+  // Client-side sorting removed
+  // const sortedBrands = ...
 
   // LOAD BRANDS
-  const loadBrands = async () => {
+  const loadBrands = async (p = page, l = limit, currentSort = sortConfig) => {
     setSearchText("");
 
-    const res = await getBrandsApi(page, limit);
+    const { key, direction } = currentSort;
+    const res = await getBrandsApi(p, l, key, direction); // Pass sort params
     if (res?.status === 200) {
       setBrands(res.data.records);
       setTotalRecords(res.data.total);
@@ -136,6 +133,12 @@ const Brands = () => {
 
   // ADD
   const handleAddBrand = async () => {
+    const nameLen = newBrand.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Name must be between 2 and 50 characters");
+
+    const descLen = newBrand.description?.trim().length || 0;
+    if (newBrand.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     if (!newBrand.name.trim())
       return showErrorToast("Brand name required");
 
@@ -170,6 +173,12 @@ const Brands = () => {
 
   // UPDATE
   const handleUpdateBrand = async () => {
+    const nameLen = editBrand.name.trim().length;
+    if (nameLen < 2 || nameLen > 50) return showErrorToast("Name must be between 2 and 50 characters");
+
+    const descLen = editBrand.description?.trim().length || 0;
+    if (editBrand.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     if (!editBrand.name.trim())
       return showErrorToast("Brand name required");
 
@@ -367,7 +376,7 @@ const Brands = () => {
             {/* TABLE SECTION - Action Bar is now inside MasterTable */}
             <MasterTable
               columns={tableColumns}
-              data={sortedBrands}
+              data={brands} // Use brands directly (server sorted)
               inactiveData={inactiveBrands}
               showInactive={showInactive}
               sortConfig={sortConfig}
@@ -389,8 +398,9 @@ const Brands = () => {
               permissionCreate={hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE)}
               onRefresh={() => {
                 setSearchText("");
+                setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
-                loadBrands();
+                loadBrands(1, limit, { key: "id", direction: "asc" });
               }}
               onColumnSelector={() => setColumnModalOpen(true)}
               onToggleInactive={async () => {
@@ -409,8 +419,9 @@ const Brands = () => {
               total={totalRecords}
               onRefresh={() => {
                 setSearchText("");
+                setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
-                loadBrands();
+                loadBrands(1, limit, { key: "id", direction: "asc" });
               }}
             />
 

@@ -1147,7 +1147,7 @@ const EditMeeting = () => {
 
               {/* Department */}
               <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Department</label>
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black bg-none' : 'text-gray-300'}`}>Department</label>
                     <div className="flex-1 font-medium">
                        <div className="flex-1 font-medium">
                         <SearchableSelect
@@ -1156,7 +1156,7 @@ const EditMeeting = () => {
                             onChange={(v) => updateField("department", v)}
                             disabled={isInactive}
                             placeholder="--select--"
-                            className={`w-full ${theme === 'emerald' ? 'bg-white border-gray-300' : 'bg-gray-700 border-gray-600'}`}
+                            className={`w-full ${theme === 'emerald' ? 'bg-white border-gray-300' :' border-gray-600'}`}
                         />
                       </div>
                       {!isInactive && hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
@@ -1239,21 +1239,30 @@ const EditMeeting = () => {
                 )}
               </div>
 
-              <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? 'border-gray-200' : 'border-gray-700'}`}>
+              <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? '' : 'border-gray-700'}`}>
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-800 text-gray-400'}>
+                    <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 font-medium border-b border-purple-100' : 'bg-gray-800 text-gray-400 font-medium'}>
                       <th className="p-3 text-sm font-medium">Attendee</th>
                       <th className="p-3 text-sm font-medium">Attendee Type</th>
                       <th className="p-3 text-sm font-medium">Attendance Status</th>
+                      <th className="p-3 text-sm font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {meeting.attendees.map((a, i) => (
-                      <tr key={i} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-yellow-300'}`}>{a.attendeeName || a.attendee}</td>
-                        <td className="p-3 text-sm text-gray-500">{a.attendeeTypeName || a.attendeeType}</td>
-                        <td className="p-3 text-sm text-gray-500">{a.attendanceStatusName || a.attendanceStatus}</td>
+                      <tr key={i} className={`transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-t border-purple-100 bg-purple-50 font-medium' : 'border-t border-gray-800 bg-gray-800 hover:bg-gray-700/50'}`}>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-yellow-300'}`}>{a.attendeeName || a.attendee}</td>
+                        <td className="p-3 text-sm text-purple-800 font-medium">{a.attendeeTypeName || a.attendeeType}</td>
+                        <td className="p-3 text-sm text-purple-800 font-medium">{a.attendanceStatusName || a.attendanceStatus}</td>
+                        <td className="p-3 text-right flex justify-end gap-2">
+                             <button onClick={() => editAttendee(i)} className="p-1 text-purple-800 hover:text-blue-400">
+                                 <Pencil size={16} />
+                             </button>
+                             <button onClick={() => deleteAttendee(i)} className="p-1 text-purple-800 hover:text-red-400">
+                                 <Trash2 size={16} />
+                             </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1300,30 +1309,30 @@ const EditMeeting = () => {
               </thead>
               <tbody>
                 {agendaItems.map(a => (
-                    <tr key={a.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                    <td className="px-4 py-3 text-sm text-gray-500">{a.id}</td>
+                    <tr key={a.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 bg-purple-50 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.id}</td>
                     <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.title}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{a.description}</td>
+                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.description}</td>
                     <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-0.5 rounded text-xs ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
+                        <span className={`text-sm font-medium ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : theme === 'purple' ? 'text-purple-800' : 'bg-blue-900/30 text-blue-300'}`}>
                          {agendaItemTypes.find(t => String(t.id) === String(a.itemTypeId || a.itemType))?.name || "-"}
                         </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{a.sequenceNo}</td>
+                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
+                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.sequenceNo}</td>
                     <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditAgendaItem(a)}
-                            className="p-1.5 text-gray-400 hover:text-blue-400 rounded transition-colors mr-2"
+                            className="p-1.5 text-purple-800 hover:text-blue-400 rounded transition-colors mr-2"
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteAgendaItem(a.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 rounded transition-colors"
+                            className="p-1.5 text-purple-800 hover:text-red-400 rounded transition-colors"
                             title="Delete"
                         >
                             <Trash2 size={15} />
@@ -1382,33 +1391,33 @@ const EditMeeting = () => {
               </thead>
               <tbody>
                 {agendaDecisions.map(d => (
-                   <tr key={d.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                     <td className="px-4 py-3 text-sm text-gray-500">{d.id}</td>
+                   <tr key={d.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 bg-purple-50 hover:bg-purple-50 text-sm font-medium text-purple-800' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                     <td className="px-4 py-3 text-sm  text-purple-800">{d.id}</td>
                      <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{d.description}</td>
-                     <td className="px-4 py-3 text-sm text-gray-500">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
+                     <td className="px-4 py-3 text-sm text-purple-800">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-0.5 rounded text-xs ${
+                        <span className={`text-sm font-medium ${
                             d.resolutionStatusName === 'Adopted' 
                             ? (theme === 'emerald' ? 'bg-green-50 text-green-700' : 'bg-green-900/30 text-green-300')
-                            : (theme === 'emerald' ? 'bg-gray-100 text-gray-600' : 'bg-gray-700 text-gray-300')
+                            : theme === 'purple' ? 'text-purple-800' : ' text-dark'
                         }`}>
                          {resolutionStatuses.find(s => String(s.id) === String(d.resolutionStatus || d.resolutionStatusId))?.name || "-"}
                         </span>
                      </td>
-                     <td className="px-4 py-3 text-sm text-gray-500">{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
+                     <td className="px-4 py-3 text-sm text-purple-800">{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
                      <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditDecision(d)}
-                            className="p-1.5 text-gray-400 hover:text-blue-400 rounded transition-colors mr-2"
+                            className="p-1.5 text-purple-800 hover:text-blue-400 rounded transition-colors mr-2"
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteDecision(d.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 rounded transition-colors"
+                            className="p-1.5 text-purple-800 hover:text-red-400 rounded transition-colors"
                             title="Delete"
                         >
                             <Trash2 size={15} />
@@ -1468,7 +1477,7 @@ const EditMeeting = () => {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Item Type *</label>
+                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Item Type *</label>
                                          <div className="flex-1 font-medium">
                                             <SearchableSelect 
                                                 className="w-full" 
@@ -1490,7 +1499,7 @@ const EditMeeting = () => {
                                     </div>
 
                                     <div>
-                                         <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Requested By</label>
+                                         <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Requested By</label>
                                          <div className="flex-1 font-medium">
                                             <SearchableSelect 
                                                 className="w-full"
@@ -1524,7 +1533,7 @@ const EditMeeting = () => {
                                     
                                     {/* Attachment Input */}
                                      <div>
-                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attachment</label>
+                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Attachment</label>
                                         <div className="flex items-center gap-2">
                                              <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded cursor-pointer transition-colors text-sm ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50' : theme === 'purple' ? 'bg-[#6448AE] text-white border-none hover:opacity-90' : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}`}>
                                                 📎 {newAgendaItem.attachmentFile || newAgendaItem.attachments ? "Change File" : "Select File"}
@@ -1549,9 +1558,9 @@ const EditMeeting = () => {
                             
                             {/* Image Preview Section (Relocated to Bottom) */}
                             <div className="space-y-1">
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Image</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Image</label>
                                 
-                                <div className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden h-[200px] w-full ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
+                                <div className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden h-[200px] w-full ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : theme === 'purple' ? 'border-gray-700 bg-white' : 'border-gray-700 bg-gray-800/50'}`}>
                                     {newAgendaItem.imageFile ? (
                                         <>
                                             <img 
@@ -1560,7 +1569,7 @@ const EditMeeting = () => {
                                                 className="absolute inset-0 w-full h-full object-contain p-2"
                                             />
                                             <div className="absolute top-2 right-2 flex gap-1">
-                                                 <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
+                                                 <label className="p-1.5 bg-white border-purple-700 rounded cursor-pointer hover:bg-black text-white">
                                                     <Pencil size={14} />
                                                     <input type="file" className="hidden" accept="image/*" onChange={e => setNewAgendaItem({...newAgendaItem, imageFile: e.target.files[0]})} />
                                                  </label>
@@ -1661,14 +1670,14 @@ const EditMeeting = () => {
                             </div>
 
                             <InputField
-                                label="Due Date"
+                                label="Due Date *"
                                 type="date"
                                 value={newDecision.dueDate}
                                 onChange={e => setNewDecision({...newDecision, dueDate: e.target.value})}
                             />
 
                             <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Assigned To</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Assigned To</label>
                                 <SearchableSelect
                                     options={employees.map(e => ({ id: e.id, name: e.name }))}
                                     value={newDecision.assignedTo}
@@ -1685,7 +1694,7 @@ const EditMeeting = () => {
                             />
 
                             <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Related Agenda Item</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Related Agenda Item</label>
                                 <SearchableSelect
                                     options={agendaItems.map(item => ({ 
                                         id: item.id, 
@@ -1699,7 +1708,7 @@ const EditMeeting = () => {
                             </div>
 
                             <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Resolution Status</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Resolution Status</label>
                                  <div className="flex-1 font-medium">
                                      <div className="flex-1 font-medium">
                                         <SearchableSelect
@@ -1724,9 +1733,9 @@ const EditMeeting = () => {
                             
                             {/* Images Input */}
                             <div className="space-y-1">
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Images</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Images</label>
                                 <div className="flex flex-col gap-2">
-                                     <div className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden min-h-[160px] ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
+                                     <div className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden min-h-[160px] ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : theme === 'purple' ? 'border-gray-500 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
                                         {newDecision.imageFile ? (
                                             <>
                                                 <img 
@@ -1792,7 +1801,7 @@ const EditMeeting = () => {
 
                              {/* Attachments Input */}
                              <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Attachments</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Attachments</label>
                                 <div className="flex items-center gap-2">
                                      <label className={`flex items-center gap-2 px-4 py-2 border rounded cursor-pointer transition ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'}`}>
                                         <Pencil size={14} /> {newDecision.attachmentFile || newDecision.attachments ? "Change File" : "Select File"}
@@ -1838,6 +1847,7 @@ const EditMeeting = () => {
                         value={newResolutionStatus.name}
                         onChange={e => setNewResolutionStatus({...newResolutionStatus, name: e.target.value})}
                         required
+                        direction="up"
                     />
                 </div>
             </AddModal>
@@ -2052,7 +2062,7 @@ const EditMeeting = () => {
                 value={attendeeForm.attendee}
                 onChange={(val) => setAttendeeForm({ ...attendeeForm, attendee: val })}
                 placeholder="--select--"
-                className="w-full"
+                className="w-full font-medium"
               />
             </div>
 

@@ -11,6 +11,7 @@ import {
   Search,
   ArchiveRestore
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import MasterTable from "../../components/MasterTable";
 import { useTheme } from "../../context/ThemeContext";
 import Swal from "sweetalert2";
@@ -283,32 +284,10 @@ const Roles = () => {
     setSortConfig({ key, direction });
   };
 
-  const sortedRoles = useMemo(() => {
-    let sortableItems = [...roles];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-        
-         if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-         if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [roles, sortConfig]);
-
   // LOAD ACTIVE ROLES
   const loadRoles = async () => {
     setSearchText("");
-    const res = await getRolesApi(page, limit);
+    const res = await getRolesApi(page, limit, sortConfig.key, sortConfig.direction);
     if (res?.status === 200) {
       const rawRecords = res.data.records || [];
       const normalized = normalizeRows(rawRecords);
@@ -325,7 +304,7 @@ const Roles = () => {
 
   useEffect(() => {
     loadRoles();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // LOAD INACTIVE
   const loadInactive = async () => {
@@ -355,6 +334,7 @@ const Roles = () => {
   // ADD
   const handleAddRole = async () => {
     if (!newRole.trim()) return toast.error("Role name required");
+    if (newRole.trim().length < 2 || newRole.trim().length > 20) return toast.error("Role Name must be 2-20 characters");
 
     // Check duplicates
     try {
@@ -390,8 +370,8 @@ const Roles = () => {
 
   // UPDATE
   const handleUpdateRole = async () => {
-    if (!editRole.roleName.trim())
-      return toast.error("Name cannot be empty");
+    if (!editRole.roleName.trim()) return toast.error("Name cannot be empty");
+    if (editRole.roleName.trim().length < 2 || editRole.roleName.trim().length > 20) return toast.error("Role Name must be 2-20 characters");
 
     // Check duplicates
     try {
@@ -786,7 +766,7 @@ const Roles = () => {
                     visibleColumns.id && { key: "id", label: "ID", sortable: true },
                     visibleColumns.roleName && { key: "name", label: "Role Name", sortable: true },
                 ].filter(Boolean)}
-                data={sortedRoles}
+                data={roles}
                 inactiveData={inactiveRoles}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

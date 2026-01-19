@@ -466,6 +466,9 @@ const NewPurchase = () => {
        return;
     }
 
+    const descLen = newItem.description?.trim().length || 0;
+    if (newItem.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
+
     if (editingIndex !== null) {
         const updatedRows = [...rows];
         updatedRows[editingIndex] = newItem;
@@ -790,6 +793,11 @@ const NewPurchase = () => {
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
+    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
     const payload = {
       supplierId: supplier,
       invoiceNo,
@@ -862,6 +870,11 @@ const NewPurchase = () => {
     if (!paymentAccount) return toast.error("Please select a payment account");
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
+
+    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+    const detailsLen = details?.trim().length || 0;
+    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
 
     const payload = {
       supplierId: supplier,
@@ -1013,7 +1026,7 @@ const NewPurchase = () => {
             {id ? (
                 <>
                 {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
-                <button onClick={handleUpdatePurchase}  className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6448AE]  text-white shadow-md hover:bg-purple-300' : 'bg-gray-700 border-gray-800 text-blue-300 hover:bg-gray-600'}`}>
+                <button onClick={handleUpdatePurchase}  className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border-gray-800 text-blue-300 hover:bg-gray-600'}`}>
                     <Save size={18} /> Update
                 </button>
                 )}
@@ -1030,7 +1043,7 @@ const NewPurchase = () => {
                 </>
             ) : (
                 hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
-                <button onClick={handleSavePurchase} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md hover:bg-purple-300' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
+                <button onClick={handleSavePurchase} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
                 <Save size={18} /> Save
                 </button>
                 )
@@ -1479,6 +1492,7 @@ const NewPurchase = () => {
           {/* Description */}
           <div className="col-span-2">
             <InputField
+              textarea
               label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
@@ -1489,7 +1503,7 @@ const NewPurchase = () => {
           <div>
             <InputField
                type="number"
-               label="Quantity"
+               label="Quantity *"
                value={newItem.quantity}
                onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />

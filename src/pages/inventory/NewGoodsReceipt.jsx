@@ -317,6 +317,9 @@ if (isRestoreMode || inactiveFromDb) {
   }
 
   const addItemToTable = () => {
+    const descLen = newItem.description?.trim().length || 0;
+    if (newItem.description && (descLen < 2 || descLen > 300)) return showErrorToast('Description must be between 2 and 300 characters');
+
     if (!newItem.productId || !newItem.warehouseId || newItem.quantity <= 0) {
       showErrorToast('Please fill all fields and ensure quantity > 0')
       return
@@ -359,6 +362,12 @@ if (isRestoreMode || inactiveFromDb) {
     if (!supplier) return showErrorToast('Please select a supplier')
     if (!employee) return showErrorToast('Please select an employee')
     if (rows.length === 0) return showErrorToast('Please add at least one item')
+
+    const remarksLen = remarks?.trim().length || 0;
+    if (remarks && (remarksLen < 2 || remarksLen > 300)) return showErrorToast('Remarks must be between 2 and 300 characters');
+
+    const journalLen = journalRemarks?.trim().length || 0;
+    if (journalRemarks && (journalLen < 2 || journalLen > 300)) return showErrorToast('Journal Remarks must be between 2 and 300 characters');
 
     const payload = {
       supplierId: supplier,
@@ -406,6 +415,12 @@ navigate('/app/inventory/goodsreceipts', {
     if (!supplier) return showErrorToast('Please select a supplier')
     if (!employee) return showErrorToast('Please select an employee')
     if (rows.length === 0) return showErrorToast('Please add at least one item')
+
+    const remarksLen = remarks?.trim().length || 0;
+    if (remarks && (remarksLen < 2 || remarksLen > 300)) return showErrorToast('Remarks must be between 2 and 300 characters');
+
+    const journalLen = journalRemarks?.trim().length || 0;
+    if (journalRemarks && (journalLen < 2 || journalLen > 300)) return showErrorToast('Journal Remarks must be between 2 and 300 characters');
 
     const payload = {
       supplierId: supplier,

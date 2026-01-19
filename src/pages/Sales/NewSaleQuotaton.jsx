@@ -446,6 +446,9 @@ useEffect(() => {
       toast.error("Quantity must be greater than 0");
       return;
     }
+
+    const descLen = newItem.description?.trim().length || 0;
+    if (newItem.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
     
     // STOCK CHECK
     if (Number(newItem.quantity) > Number(newItem.unitsInStock)) {
@@ -677,6 +680,11 @@ const handleSaveQuotation = async () => {
   if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
   if (rows.length === 0) return toast.error("Please add at least one item");
 
+  if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+  const detailsLen = details?.trim().length || 0;
+  if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
   const payload = {
     customerId: customer,
     quotationNo,
@@ -748,6 +756,11 @@ const handleUpdateQuotation = async () => {
   if (!expiryDate) return toast.error("Please select expiry date");
   if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
   if (rows.length === 0) return toast.error("Please add at least one item");
+
+  if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+
+  const detailsLen = details?.trim().length || 0;
+  if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
 
   const payload = {
     customerId: customer,
@@ -1360,6 +1373,7 @@ const handleRestoreQuotation = async () => {
           {/* Description */}
           <div className="col-span-2">
             <InputField
+              textarea
               label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
@@ -1370,7 +1384,7 @@ const handleRestoreQuotation = async () => {
           <div>
             <InputField
               type="number"
-              label="Quantity"
+              label="Quantity *"
               value={newItem.quantity}
               onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />

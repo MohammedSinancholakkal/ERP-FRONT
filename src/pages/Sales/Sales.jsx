@@ -80,7 +80,12 @@ const Sales = () => {
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    // Trigger server-side fetch on sort change will happen via useEffect if we depend on sortConfig? 
+    // Or we call fetchAllData(page, limit, newConfig) directly?
+    // Better to just call fetchAllData with new config or add sortConfig to dependency array of useEffect.
+    // Adding to useEffect dependency is cleaner.
   };
 
   // --- PAYMENT ACCOUNTS DROPDOWN ---
@@ -89,10 +94,11 @@ const Sales = () => {
     { id: "Cash at Bank", name: "Cash at Bank" }
   ];
 
-  // --- INITIAL LOAD ---
+  // --- INITIAL LOAD & SORT CHANGE ---
   useEffect(() => {
     fetchAllData();
-  }, [page, limit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, sortConfig]);
 
   const normalizeSale = (r = {}) => ({
     id: r.id ?? r.Id ?? r.SaleId ?? null,
@@ -127,7 +133,7 @@ const Sales = () => {
       // Fetch both in parallel
       const [customersRes, salesRes] = await Promise.all([
         getCustomersApi(1, 1000),
-        getSalesApi(page, limit)
+        getSalesApi(page, limit, sortConfig.key, sortConfig.direction)
       ]);
 
       // PROCESS CUSTOMERS
@@ -205,7 +211,6 @@ const Sales = () => {
     if (showInactive) {
       loadInactiveSales();
     }
-    toast.success("Refreshed");
   };
 
   const handleExportExcel = () => {
@@ -278,35 +283,9 @@ const Sales = () => {
   // Combine lists if showing inactive
   const displayList = showInactive ? [...filteredList, ...inactiveRows] : filteredList;
 
-  // --- SORTING LOGIC ---
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...displayList];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        // Handle numeric values
-        if (['discount', 'totalDiscount', 'igstRate', 'cgstRate', 'sgstRate', 'totalTax', 'shippingCost', 'grandTotal', 'netTotal', 'paidAmount', 'due', 'change', 'id'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             // String comparison
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [displayList, sortConfig]);
+  // --- DATA LIST ---
+  // Use direct list instead of sortedList since sorting is server-side
+  // const displayList = showInactive ? [...filteredList, ...inactiveRows] : filteredList; // Already defined above
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -410,7 +389,7 @@ const Sales = () => {
                     visibleColumns.change && { key: "change", label: "Change", sortable: true, render: (s) => parseFloat(s.change || 0).toFixed(2) },
                     visibleColumns.details && { key: "details", label: "Details", sortable: true, render: (s) => <div className="max-w-xs truncate">{s.details || "-"}</div> },
                 ].filter(Boolean)}
-                data={sortedList}
+                data={displayList}
                 inactiveData={inactiveRows}
                 showInactive={showInactive}
                 sortConfig={sortConfig}

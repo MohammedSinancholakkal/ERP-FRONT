@@ -194,8 +194,8 @@ const Settings = () => {
       newErrors.companyEmail = "Invalid email format";
     }
 
-    if (phone && (phone.length < 10 || isNaN(phone))) {
-      newErrors.phone = "Invalid phone number (min 10 digits)";
+    if (phone && (phone.length !== 10 || isNaN(phone))) {
+      newErrors.phone = "Invalid phone number (must be exactly 10 digits)";
     }
 
     setErrors(newErrors);
@@ -353,7 +353,7 @@ if (response?.status === 200) {
                   errors.phone ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
                 }`}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               />
               {errors.phone && (
                 <p className="text-red-400 text-sm mt-1">{errors.phone}</p>

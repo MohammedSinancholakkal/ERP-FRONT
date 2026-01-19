@@ -542,7 +542,7 @@ const NewCustomer = () => {
     // 1. Company Name
     if (!form.companyName?.trim()) return "Company Name required";
     if (form.companyName.trim().length < 2) return "Company Name must be at least 2 characters";
-    if (form.companyName.length > 150) return "Company Name cannot exceed 150 characters";
+    if (form.companyName.length > 50) return "Company Name cannot exceed 50 characters";
     
     // 2. Location
     if (!form.countryId) return "Country required";
@@ -576,19 +576,16 @@ const NewCustomer = () => {
     
     if (form.phone) {
          if (form.phone.length !== 10) return "Phone number must be exactly 10 digits";
+         if (!/^\d+$/.test(form.phone)) return "Phone number can only contain digits";
     }
     
-    if (form.postalCode && form.postalCode.length < 6) return "Zip Code must be 6 digits";
+    
+    if (form.postalCode && form.postalCode.length !== 6) return "Zip Code must be exactly 6 digits";
 
-    const urlRegex = /^(https?:\/\/)/; 
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    const urlRegex = /^(https?:\/\/)/;
 
     if (form.email && !emailRegex.test(form.email)) return "Email is not valid (must contain @ and . domain)";
     if (form.website && !urlRegex.test(form.website)) return "Website must start with http:// or https://";
-    
-    if (form.pan && !panRegex.test(form.pan)) return "Invalid PAN format";
-    if (form.gstin && !gstinRegex.test(form.gstin)) return "Invalid GSTIN format";
 
     return null;
   };
@@ -896,7 +893,7 @@ const handleRestore = async () => {
                     onChange={(e) => update("companyName", e.target.value)}
                     disabled={isInactive}
                     placeholder="e.g. Acme Corp"
-                    maxLength={150}
+                    maxLength={50}
                   />
                 </div>
                  {/* Spacer */}

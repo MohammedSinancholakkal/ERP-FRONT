@@ -80,7 +80,8 @@ const Products = () => {
   // UI state
   // UI state
   const [brandModalOpen, setBrandModalOpen] = useState(false); 
-  const [columnModal, setColumnModal] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // data
@@ -117,7 +118,7 @@ const Products = () => {
   const currentUserId = user?.userId || 1;
 
   // sort/search/filters
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'asc' });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -125,7 +126,9 @@ const Products = () => {
       direction = 'desc';
     }
     setPage(1); // Reset to page 1 on sort
-    setSortConfig({ key, direction });
+    const newConfig = { key, direction };
+    setSortConfig(newConfig);
+    loadProducts(1, limit, newConfig);
   };
 
   const [searchText, setSearchText] = useState("");
@@ -197,10 +200,11 @@ const Products = () => {
   /* --------------------
      Loaders
      -------------------- */
-  const loadProducts = async (p = page, l = limit) => {
+  const loadProducts = async (p = page, l = limit, currentSort = sortConfig) => {
     setLoading(true);
     try {
-      const res = await getProductsApi(p, l);
+      const { key, direction } = currentSort;
+      const res = await getProductsApi(p, l, key, direction); // PASS SORT PARAMS
       if (res.status === 200) {
         setProducts(res.data.records || []);
         setTotalRecords(res.data.total || 0);
@@ -264,7 +268,11 @@ const Products = () => {
     loadProducts();
     loadDropdowns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit]);
+  }, [page, limit]); // DEPENDENCY ARRAY SHOULD IDEALLY INCLUDE SORTCONFIG BUT WE HANDLE IT IN HANDLESORT MANUALLY OR ADD IT HERE. 
+  // BETTER PATTERN: ADD sortConfig TO DEP ARRAY AND REMOVE MANUAL CALL IN handleSort, BUT KEEPING SAME PATTERN AS OTHERS FOR NOW.
+  // Wait, previous pattern was manual call. Let's stick to that or add to useEffect. 
+  // Adding to useEffect is cleaner.
+
 
   useEffect(() => {
     if (showInactive) {
@@ -774,16 +782,16 @@ const Products = () => {
 
     if (filterBrand) list = list.filter((p) => String(p.BrandId) === String(filterBrand));
 
-    // Sorting
-    if (sortConfig.key) {
-      list.sort((a, b) => {
-        const valA = String(a[sortConfig.key] || "").toLowerCase();
-        const valB = String(b[sortConfig.key] || "").toLowerCase();
-        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
+    // Sorting handled by backend
+    // if (sortConfig.key) {
+    //   list.sort((a, b) => {
+    //     const valA = String(a[sortConfig.key] || "").toLowerCase();
+    //     const valB = String(b[sortConfig.key] || "").toLowerCase();
+    //     if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    //     if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    //     return 0;
+    //   });
+    // }
 
     return list;
   };
@@ -795,34 +803,8 @@ const Products = () => {
   }, [products, searchText, filterCategory, filterUnit, filterBrand, products.length]);
 
   // --- SORTING LOGIC ---
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...displayedProducts];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
+  // const sortedList = React.useMemo(() => { ... }); // REMOVED CLIENT SIDE SORT
 
-        // Handle numeric values
-        if (['unitPrice', 'unitsInStock', 'reorderLevel', 'id'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             // String comparison
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [displayedProducts, sortConfig]);
 
   // --- FILTER BAR CONFIG ---
   const filters = [
@@ -873,9 +855,9 @@ const Products = () => {
     setFilterCategory("");
     setFilterUnit("");
     setFilterBrand("");
-    setSortConfig({ key: null, direction: 'asc' });
+    setSortConfig({ key: "id", direction: 'asc' });
     setPage(1);
-    loadProducts(1, limit);
+    loadProducts(1, limit, { key: "id", direction: 'asc' });
   };
 
   /* --------------------
@@ -973,20 +955,43 @@ const Products = () => {
                 visibleColumns.unitName && { key: "unitName", label: "Unit", sortable: true },
                 visibleColumns.brandName && { key: "brandName", label: "Brand", sortable: true },
                 visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true },
-                visibleColumns.hsnCode && { key: "hsnCode", label: "HSN", sortable: true }, // NEW
-                visibleColumns.colour && { key: "colour", label: "Colour", sortable: true }, // NEW
-                visibleColumns.grade && { key: "grade", label: "Grade", sortable: true }, // NEW
+                visibleColumns.hsnCode && { key: "hsnCode", label: "HSN", sortable: true },
+                visibleColumns.colour && { key: "colour", label: "Colour", sortable: true },
+                visibleColumns.grade && { key: "grade", label: "Grade", sortable: true },
               ].filter(Boolean)}
-              data={sortedList} // Use sortedList
-              inactiveData={inactiveProducts}
-              showInactive={showInactive}
+              data={displayedProducts}
               sortConfig={sortConfig}
               onSort={handleSort}
-              onRowClick={(p, inactive) => openEditModal(p, inactive)}
+              isLoading={loading}
+              
+              // Row renderer to fix missing columns map
+              renderRow={(row) => ({
+                    ...row,
+                    hsnCode: row.HSNCode || row.hsnCode || "-",
+                    colour: row.Colour || row.colour || "-",
+                    grade: row.Grade || row.grade || "-",
+                    categoryName: row.categoryName || "-",
+                    unitName: row.unitName || "-",
+                    brandName: row.brandName || "-",
+                    supplierName: row.supplierName || "-",
+                    quantityIn: row.QuantityIn || 0,
+                    quantityOut: row.QuantityOut || 0,
+              })}
+
+              actions={{
+                 onEdit: (r) => navigate(`/app/inventory/editproduct/${r.id}`),
+                 onDelete: (r) => {
+                    setEditProduct(r);
+                    handleDeleteProduct(); 
+                 }
+              }}
+              inactiveData={inactiveProducts}
+              showInactive={showInactive}
+              onRowClick={(p) => navigate(`/app/inventory/editproduct/${p.id}`)}
               // Action Bar
               search={searchText}
               onSearch={setSearchText}
-              onCreate={openAddModal}
+              onCreate={() => navigate("/app/inventory/newproduct")}
               createLabel="New Product"
               permissionCreate={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE)}
               onRefresh={() => {
@@ -1000,7 +1005,7 @@ const Products = () => {
                 loadProducts(1, limit);
                 // No toast here, MasterTable/Pagination handles it
               }}
-              onColumnSelector={() => setColumnModal(true)}
+              onColumnSelector={() => setColumnModalOpen(true)}
               onToggleInactive={async () => {
                 if (!showInactive) await loadInactive();
                 setShowInactive(!showInactive);

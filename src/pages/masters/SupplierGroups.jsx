@@ -68,7 +68,7 @@ const SupplierGroups = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -80,28 +80,22 @@ const SupplierGroups = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedRows = [...rows];
-  if (sortConfig.key) {
-    sortedRows.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+  // REMOVED CLIENT SIDE SORT LOGIC
+  const sortedRows = rows;
 
   // ===============================
   // Helpers
   // ===============================
+  const capitalize = (str) => {
+    if (typeof str !== 'string' || !str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const normalizeRows = (items = []) =>
     items.map((r) => ({
       id: r.Id ?? r.id ?? r.supplierGroupId ?? null,
-      name: r.GroupName ?? r.groupName ?? r.name ?? "",
-      description: r.Description ?? r.description ?? "",
+      name: capitalize(r.GroupName ?? r.groupName ?? r.name ?? ""),
+      description: capitalize(r.Description ?? r.description ?? ""),
     }));
 
   // ===============================
@@ -109,7 +103,7 @@ const SupplierGroups = () => {
   // ===============================
   const loadRows = async () => {
     try {
-      const res = await getSupplierGroupsApi(page, limit);
+      const res = await getSupplierGroupsApi(page, limit, sortConfig.key, sortConfig.direction);
       if (res?.status === 200) {
         const data = res.data;
         let items = [];
@@ -150,7 +144,7 @@ const SupplierGroups = () => {
 
   useEffect(() => {
     loadRows();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // ===============================
   // Search
@@ -184,6 +178,8 @@ const SupplierGroups = () => {
   const handleAdd = async () => {
     if (!newItem.name?.trim())
       return toast.error("Group Name is required");
+
+    if (newItem.description && newItem.description.length > 200) return toast.error("Description must be at most 200 characters");
 
     // Check for duplicates
     try {
@@ -239,6 +235,7 @@ const SupplierGroups = () => {
 
   const handleUpdate = async () => {
     if (!editItem.name?.trim()) return toast.error("Group Name is required");
+    if (editItem.description && editItem.description.length > 200) return toast.error("Description must be at most 200 characters");
 
     // Check for duplicates
     try {
@@ -358,6 +355,8 @@ const SupplierGroups = () => {
             onRefresh={() => {
                 setSearchText("");
                 setPage(1);
+                setSortConfig({ key: "id", direction: "asc" });
+                setShowInactive(false);
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -375,6 +374,8 @@ const SupplierGroups = () => {
           onRefresh={() => {
             setSearchText("");
             setPage(1);
+            setSortConfig({ key: "id", direction: "asc" });
+            setShowInactive(false);
             loadRows();
           }}
         />

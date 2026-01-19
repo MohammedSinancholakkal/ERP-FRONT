@@ -325,6 +325,9 @@ useEffect(() => {
   }
 
   const addItemToTable = () => {
+    const descLen = newItem.description?.trim().length || 0;
+    if (newItem.description && (descLen < 2 || descLen > 300)) return showErrorToast('Description must be between 2 and 300 characters');
+
     if (!newItem.productId || !newItem.warehouseId || newItem.quantity <= 0) {
       showErrorToast('Please fill all fields and ensure quantity > 0')
       return
@@ -412,6 +415,12 @@ useEffect(() => {
     if (!customer) return showErrorToast('Please select a customer')
     if (!salesPerson) return showErrorToast('Please select a sales person')
     if (rows.length === 0) return showErrorToast('Please add at least one item')
+
+    const remarksLen = remarks?.trim().length || 0;
+    if (remarks && (remarksLen < 2 || remarksLen > 300)) return showErrorToast('Remarks must be between 2 and 300 characters');
+
+    const journalLen = journalRemarks?.trim().length || 0;
+    if (journalRemarks && (journalLen < 2 || journalLen > 300)) return showErrorToast('Journal Remarks must be between 2 and 300 characters');
 
     const payload = {
       saleId: sales,

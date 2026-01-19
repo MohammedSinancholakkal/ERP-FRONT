@@ -82,25 +82,7 @@ const Designations = () => {
   // SORT
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  const sortedDesignations = React.useMemo(() => {
-    let sortableItems = [...designations];
-    if (sortConfig.key) {
-      sortableItems.sort((a, b) => {
-          let aVal = a[sortConfig.key] || "";
-          let bVal = b[sortConfig.key] || "";
-          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-          
-          if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-          if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-          return 0;
-      });
-    } else {
-        // default sort by id
-        sortableItems.sort((a,b) => (a.id || 0) - (b.id || 0));
-    }
-    return sortableItems;
-  }, [designations, sortConfig]);
+
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -114,7 +96,7 @@ const Designations = () => {
   // LOADERS
   // =============================
   const loadDesignations = async () => {
-    const res = await getDesignationsApi(page, limit);
+    const res = await getDesignationsApi(page, limit, sortConfig.key, sortConfig.direction);
     if (res.status === 200) {
       setDesignations(res.data.records);
       setTotalRecords(res.data.total);
@@ -130,7 +112,7 @@ const Designations = () => {
 
   useEffect(() => {
     loadDesignations();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // =============================
   // SEARCH HANDLER
@@ -150,6 +132,9 @@ const Designations = () => {
   // =============================
   const handleAdd = async () => {
     if (!newDesignation.designation.trim()) return toast.error("Designation required");
+
+    if (newDesignation.designation.trim().length < 2 || newDesignation.designation.trim().length > 50) return toast.error("Designation Name must be between 2 and 50 characters");
+    if (newDesignation.description && (newDesignation.description.trim().length < 2 || newDesignation.description.trim().length > 300)) return toast.error("Description must be between 2 and 300 characters");
 
     // Check duplicates
     try {
@@ -183,6 +168,9 @@ const Designations = () => {
   // =============================
   const handleUpdate = async () => {
     if (!editDesignation.designation.trim()) return toast.error("Designation required");
+
+    if (editDesignation.designation.trim().length < 2 || editDesignation.designation.trim().length > 50) return toast.error("Designation Name must be between 2 and 50 characters");
+    if (editDesignation.description && (editDesignation.description.trim().length < 2 || editDesignation.description.trim().length > 300)) return toast.error("Description must be between 2 and 300 characters");
 
     // Check duplicates
     try {
@@ -425,7 +413,7 @@ const Designations = () => {
                     visibleColumns.description && { key: "description", label: "Description", sortable: true },
                     visibleColumns.parentName && { key: "parentName", label: "Parent Designation", sortable: true, render: (r) => r.parentName || "-" },
                 ].filter(Boolean)}
-                data={sortedDesignations}
+                data={designations}
                 inactiveData={inactiveDesignations}
                 showInactive={showInactive}
                 sortConfig={sortConfig}
