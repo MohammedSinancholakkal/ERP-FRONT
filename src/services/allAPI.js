@@ -115,8 +115,8 @@ export const setUserPermissionsApi = (userId, data) =>
 export const addCountryApi = (data) =>
   commonAPI("POST", `${serverURL}/countries/add`, data, "");
 
-export const getCountriesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/countries?page=${page}&limit=${limit}`, "", "");
+export const getCountriesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/countries?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const updateCountryApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/countries/update/${id}`, data, "");
@@ -144,8 +144,8 @@ export const restoreCountryApi = (id, data) =>
 
   
 // STATES
-export const getStatesApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/states/all?page=${page}&limit=${limit}`, "", "");
+export const getStatesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/states/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 export const addStateApi = (data) =>
   commonAPI("POST", `${serverURL}/states/add`, data, "");
@@ -174,8 +174,8 @@ export const restoreStateApi = (id, data) =>
 ============================================================ */
 
 // LIST
-export const getCitiesApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/cities/all?page=${page}&limit=${limit}`,"","");
+export const getCitiesApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/cities/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`,"","");
 
 // ADD
 export const addCityApi = (data) =>
@@ -309,8 +309,8 @@ export const restoreExpenseTypeApi = (id, data) =>
 
 // GET All Banks
 // BANKS — PAGINATED LIST
-export const getBanksApi = (page, limit) =>
-  commonAPI("GET",`${serverURL}/banks/all?page=${page}&limit=${limit}`,"","");
+export const getBanksApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET",`${serverURL}/banks/all?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`,"","");
 
 
 export const addBankApi = (data) => {
@@ -1642,6 +1642,12 @@ export const searchSaleApi = (query) =>
 // ======================= Quotation APIs =======================
 
 // LIST (paginated)
+export const getNextQuotationNoApi = () =>
+  commonAPI("GET", `${serverURL}/quotations/next-number`, "", "");
+
+export const getNextInvoiceNoApi = () =>
+  commonAPI("GET", `${serverURL}/sales/next-number`, "", "");
+
 export const getQuotationsApi = (page, limit) =>
   commonAPI("GET",`${serverURL}/quotations?page=${page}&limit=${limit}`);
 

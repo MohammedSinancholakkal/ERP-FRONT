@@ -12,10 +12,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import AddModal from "../../components/modals/AddModal";
+import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
 
 // APIs
 import {
@@ -41,9 +43,11 @@ import {
   searchProductApi
 } from "../../services/allAPI";
 import { useDashboard } from "../../context/DashboardContext";
+import { useTheme } from "../../context/ThemeContext";
 import { useParams, useLocation } from "react-router-dom";
 
 const NewPurchaseOrder = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams(); // Get ID from URL
@@ -140,6 +144,7 @@ const NewPurchaseOrder = () => {
           const res = await getNextPONumberApi();
           if(res.status === 200 && res.data?.nextNo) {
               setInvoiceNo(res.data.nextNo);
+              setPoSequence(res.data.nextSeq);
           }
       } catch(e) {
           console.error("Error fetching next PO number", e);
@@ -779,6 +784,16 @@ const NewPurchaseOrder = () => {
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
+
+    // --- DETERMINE SEQ ---
+    let seqToSend = poSequence;
+    if (!seqToSend && invoiceNo) {
+        // Fallback: try to integer parse the invoice number 
+        // Example: "00008" -> 8
+        const parsed = parseInt(invoiceNo, 10);
+        if (!isNaN(parsed)) seqToSend = parsed;
+    }
+
     const payload = {
       supplierId: supplier,
       date,
@@ -793,7 +808,7 @@ const NewPurchaseOrder = () => {
       details,
       employeeId: null, // Optional
       vno: invoiceNo, // Added PO Number
-      poSequence: poSequence, // SEND SEQUENCE
+      poSequence: seqToSend, // SEND SEQUENCE
       vehicleNo, // Added
       vat: parseFloat(taxAmount) || 0,
       totalTax: parseFloat(taxAmount) || 0,
@@ -816,7 +831,8 @@ const NewPurchaseOrder = () => {
         discount: parseFloat(r.discount) || 0,
         total: parseFloat(r.total) || 0
       })),
-      userId: currentUserId
+      userId: currentUserId,
+      poNumber: invoiceNo // SEND PO NUMBER
     };
 
     try {
@@ -875,6 +891,7 @@ const NewPurchaseOrder = () => {
       igstRate: parseFloat(igstRate) || 0,
       cgstRate: parseFloat(cgstRate) || 0,
       sgstRate: parseFloat(sgstRate) || 0,
+      poNumber: invoiceNo, // SEND PO NUMBER
       items: rows.map(r => ({
         productId: r.productId,
         productName: r.productName,
@@ -917,16 +934,7 @@ const NewPurchaseOrder = () => {
   // --- DELETE PURCHASE ORDER ---
   // --- DELETE PURCHASE ORDER ---
   const handleDeletePurchaseOrder = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "Do you really want to delete this purchase order?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showDeleteConfirm('purchase order');
   
     if (!result.isConfirmed) return;
   
@@ -941,39 +949,20 @@ const NewPurchaseOrder = () => {
       Swal.close();
   
       if (res.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: "Purchase Order deleted successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Purchase Order deleted successfully.");
         navigate("/app/purchasing/purchaseorders");
       } else {
-        Swal.fire("Failed", "Failed to delete purchase order", "error");
+        showErrorToast("Failed to delete purchase order");
       }
     } catch (error) {
       Swal.close();
       console.error("DELETE ORDER ERROR", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Error deleting purchase order",
-      });
+      showErrorToast("Error deleting purchase order");
     }
   };
 
   const handleRestorePurchaseOrder = async () => {
-    const result = await Swal.fire({
-      title: "Restore purchase order?",
-      text: "Do you want to restore this purchase order?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981", 
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm('purchase order');
   
     if (!result.isConfirmed) return;
   
@@ -988,195 +977,227 @@ const NewPurchaseOrder = () => {
       Swal.close();
   
       if (res.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Restored!",
-          text: "Purchase Order restored successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Purchase Order restored successfully.");
         navigate("/app/purchasing/purchaseorders");
       } else {
-        Swal.fire("Failed", "Failed to restore purchase order", "error");
+        showErrorToast("Failed to restore purchase order");
       }
     } catch (error) {
       Swal.close();
       console.error("RESTORE ERROR", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Error restoring purchase order",
-      });
+      showErrorToast("Error restoring purchase order");
     }
   };
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 overflow-y-auto">
+      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         
-        {/* HEADER */}
+        <ContentCard className="!h-auto !overflow-visible">
+        {/* HEADER & ACTIONS */}
+        {/* HEADER & ACTIONS */}
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => {
-            if (location.state?.returnTo) {
-                navigate(location.state.returnTo);
-            } else {
-                navigate("/app/purchasing/purchaseorders");
-            }
-          }} className="text-white-500 hover:text-white-400">
-            <ArrowLeft size={24} />
-          </button>
-          <h2 className="text-xl text-white-500 font-medium">
-            {id ? (inactiveView ? "View Inactive Purchase Order" : "Edit Purchase Order") : "New Purchase Order"}
-          </h2>
+            <button onClick={() => {
+                if (location.state?.returnTo) {
+                    navigate(location.state.returnTo);
+                } else {
+                    navigate("/app/purchasing/purchaseorders");
+                }
+            }} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                <ArrowLeft size={24} />
+            </button>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white-500'}`}>
+                {id ? (inactiveView ? "View Inactive Purchase Order" : "Edit Purchase Order") : "New Purchase Order"}
+            </h2>
         </div>
 
         {/* ACTIONS BAR */}
         <div className="flex gap-2 mb-6">
-          {id ? (
-            <>
-              {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
-              <button onClick={handleUpdatePurchaseOrder}  className="flex items-center gap-2 bg-gray-700 border border-gray-800 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
-                <Save size={18} /> Update
-              </button>
-              )}
-              {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.DELETE) && (
-              <button onClick={handleDeletePurchaseOrder} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
-                <Trash2 size={18} /> Delete
-              </button>
-              )}
-              {inactiveView && (
-                  <button onClick={handleRestorePurchaseOrder} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
-                      <ArchiveRestore size={18} /> Restore
-                  </button>
-              )}
-            </>
-          ) : (
-            hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
-            <button onClick={handleSavePurchaseOrder} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
-              <Save size={18} /> Save
-            </button>
-            )
-          )}
-          
-          {/* <button className="flex items-center justify-center bg-gray-700 border border-gray-600 w-10 h-10 rounded text-white hover:bg-gray-600">
-            <Check size={18} />
-          </button> */}
+            {id ? (
+                <>
+                {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
+                <button onClick={handleUpdatePurchaseOrder}  className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? 'bg-[#6448ae] hover:bg-[#6e55b6] text-white shadow-md hover:bg-purple-300' : 'bg-gray-700 border border-gray-800 text-blue-300 hover:bg-gray-600'}`}>
+                    <Save size={18} /> Update
+                </button>
+                )}
+                {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.DELETE) && (
+                <button onClick={handleDeletePurchaseOrder} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
+                    <Trash2 size={18} /> Delete
+                </button>
+                )}
+                {inactiveView && (
+                    <button onClick={handleRestorePurchaseOrder} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
+                        <ArchiveRestore size={18} /> Restore
+                    </button>
+                )}
+                </>
+            ) : (
+                hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
+                <button onClick={handleSavePurchaseOrder} className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? '  bg-[#6448AE] hover:bg-[#6E55B6]  border border-purple-400 text-white shadow-md ' : 'bg-gray-700 border border-gray-600 text-white hover:bg-gray-600'}`}>
+                <Save size={18} /> Save
+                </button>
+                )
+            )}
         </div>
+        <hr className="mb-4 border-gray-300" />
 
         {/* TOP SECTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+
+        {/* TOP SECTION - 2 COLUMNS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* LEFT COL */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="flex items-center">
-              <label className="w-32 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Supplier
-              </label>
-              <div className="flex-1 flex items-center gap-2">
-                <div className="flex-1">
-                  <SearchableSelect
-                    options={suppliersList.map(s => ({ id: s.id, name: s.companyName }))}
-                    value={supplier}
-                    onChange={(val) => setSupplier(val)}
-                    placeholder="--select--"
-                    disabled={inactiveView} 
-                  />
-                </div>
-                {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && !inactiveView && (
-                <Star size={20} className="text-white cursor-pointer hover:text-yellow-400" onClick={() => navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname } })} />
-                )}
-              </div>
-            </div>
+          <div className="space-y-4">
+             {/* Supplier */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 Supplier <span className="text-dark">*</span>
+               </label>
+               <div className="flex-1 flex items-center gap-2">
+                 <SearchableSelect
+                   options={suppliersList.map(s => ({ id: s.id, name: s.companyName }))}
+                   value={supplier}
+                   onChange={setSupplier}
+                   placeholder="Select supplier..."
+                   className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                 />
+                 {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && (
+                 <button
+                    type="button"
+                    className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                    onClick={() => navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname } })}
+                 >
+                     <Star size={16} />
+                 </button>
+                 )}
+               </div>
+             </div>
 
+             {/* Date */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Date</label>
+               <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 font-medium">
+                       <InputField
+                         type="date"
+                         value={date}
+                         onChange={(e) => setDate(e.target.value)}
+                         disabled={inactiveView}
+                       />
+                   </div>
+                   {/* Spacer to align inputs */}
+                   <div className="p-2 border border-transparent rounded invisible">
+                       <Star size={16} />
+                   </div>
+               </div>
+             </div>
 
-          </div>
-
-          {/* MIDDLE COL */}
-          <div className="lg:col-span-4">
-            <div className="flex items-center">
-              <label className="w-32 text-sm text-gray-300">
-                 Tax Type
-              </label>
-              <div className="flex-1">
-                  <SearchableSelect
+             {/* Tax Type */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                  Tax Type <span className="text-dark">*</span>
+               </label>
+               <div className="flex-1 flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                 <SearchableSelect
                     options={taxTypesList}
                     value={taxTypeId}
-                    onChange={(val) => setTaxTypeId(val)}
-                    placeholder="--select--"
+                    onChange={setTaxTypeId}
+                    placeholder="Select Tax Type..."
+                    className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
                     disabled={inactiveView || noTax}
-                  />
-              </div>
-            </div>
-
-            <div className="flex items-center mt-4">
-              <label className="w-32 text-sm text-gray-300">Vehicle No</label>
-              <input
-                type="text"
-                value={vehicleNo}
-                onChange={(e) => setVehicleNo(e.target.value)}
-                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                placeholder="Vehicle Number"
-                disabled={inactiveView}
-              />
+                 />
+                 </div>
+                 {/* Spacer to align inputs */}
+                 <div className="p-2 border border-transparent rounded invisible">
+                     <Star size={16} />
+                 </div>
+               </div>
             </div>
           </div>
 
           {/* RIGHT COL */}
-          <div className="lg:col-span-3">
-            <div className="flex items-center justify-end">
-              <label className="mr-3 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Date
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
+          <div className="space-y-4">
+             {/* PO Number (Was Invoice No) */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>PO Number</label>
+               <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 font-medium">
+                       <InputField
+                         value={invoiceNo}
+                         onChange={(e) => setInvoiceNo(e.target.value)}
+                         placeholder="Auto-generated"
+                         readOnly={true}
+                         className="bg-gray-100 text-gray-500 cursor-not-allowed"
+                       />
+                   </div>
+                   {/* Spacer to align inputs */}
+                   <div className="p-2 border border-transparent rounded invisible">
+                       <Star size={16} />
+                   </div>
+               </div>
+             </div>
+
+             {/* Vehicle No */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Vehicle No</label>
+               <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 font-medium">
+                       <InputField
+                         value={vehicleNo}
+                         onChange={(e) => setVehicleNo(e.target.value)}
+                         placeholder="Vehicle/Transport No"
+                         disabled={inactiveView}
+                       />
+                   </div>
+                   {/* Spacer to align inputs */}
+                   <div className="p-2 border border-transparent rounded invisible">
+                       <Star size={16} />
+                   </div>
+               </div>
+             </div>
           </div>
         </div>
 
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <label className="text-sm text-gray-300">Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Line Items</label>
             {!inactiveView && (
             <button
               onClick={openItemModal}
-                className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300"
+              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
             >
               <Plus size={16} /> Add
             </button>
             )}
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[800px]">
+          <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-700 text-gray-300 font-medium">
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
                 <tr>
-                  <th className="p-3">Product Name</th>
-                  <th className="p-3">Description</th>
-                  <th className="p-3">Unit Name</th>
-                  <th className="p-3">Quantity</th>
-                  <th className="p-3">Unit Price</th>
-                  <th className="p-3">Discount (%)</th>
-                  <th className="p-3">Total</th>
-                  <th className="p-3 w-10"></th>
+                   <th className="p-3">Product Name</th>
+                   <th className="p-3">Description</th>
+                   <th className="p-3">Unit Name</th>
+                   <th className="p-3">Quantity</th>
+                   <th className="p-3">Unit Price</th>
+                   <th className="p-3">Discount (%)</th>
+                   <th className="p-3">Total</th>
+                   <th className="p-3 w-20"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className={`divide-y ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-100' : 'divide-gray-700'}`}>
                 {rows.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-750">
+                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-200 hover:bg-gray-750'}`}>
                     <td className="p-3">{row.productName}</td>
                     <td className="p-3">{row.description}</td>
                     <td className="p-3">{row.unitName}</td>
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className="p-3 text-gray-300">{parseFloat(row.total).toFixed(2)}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toFixed(2)}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
-                     {!inactiveView && (
+                      {!inactiveView && (
                        <>
                       <Edit 
                         size={18} 
@@ -1189,7 +1210,7 @@ const NewPurchaseOrder = () => {
                         onClick={() => deleteRow(i)}
                       />
                       </>
-                     )}
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1205,132 +1226,170 @@ const NewPurchaseOrder = () => {
 
         {/* BOTTOM SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Grand Total</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 font-bold">
-                {grandTotal.toFixed(2)}
+          {/* LEFT COLUMN - DETAILS (Span 4) */}
+          <div className="lg:col-span-4 flex flex-col">
+              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                Details
+              </label>
+               <div className="flex-1 font-medium">
+                <InputField
+                    textarea
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    className="w-full h-full min-h-[440px] resize-none"
+                    disabled={inactiveView}
+                />
               </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Paid Amount</label>
-           <input
-              type="number"
-              value={paidAmount}
-              onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
-              className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-              disabled={inactiveView} 
-            />
-
-            </div>
-            <div className="pt-2">
-              <label className="text-sm text-gray-300 block mb-1">Details</label>
-              <textarea
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
-                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none disabled:opacity-50"
-                disabled={inactiveView}
-              ></textarea>
-            </div>
           </div>
 
-          {/* MIDDLE COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Discount</label>
-              <input
-                type="number"
-                value={globalDiscount}
-                onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            {/* TAX FIELDS */}
-            {!noTax && taxTypeId && (() => {
-               const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
-               if(!selectedTax) return null;
-               
-               if(selectedTax.isInterState) {
-                   return (
-                     <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">IGST ({igstRate}%)</label>
-                       <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                         {taxAmount.toFixed(2)}
-                       </div>
-                     </div>
-                   );
-               } else {
-                   return (
-                     <>
-                      <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">CGST ({cgstRate}%)</label>
-                       <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                         {(taxAmount / 2).toFixed(2)}
-                       </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">SGST ({sgstRate}%)</label>
-                       <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                         {(taxAmount / 2).toFixed(2)}
-                       </div>
-                      </div>
-                     </>
-                   );
-               }
-            })()}
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Due</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {dueAmount.toFixed(2)}
-              </div>
-            </div>
-          </div>
+          {/* RIGHT COLUMN - TOTALS (Span 8) -> 2-Col Grid */}
+          <div className="lg:col-span-8">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Grand Total */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Grand Total</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {grandTotal.toFixed(2)}
+                  </div>
+                </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Total Discount</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {totalDiscount.toFixed(2)}
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Shipping Cost</label>
-              <input
-                type="number"
-                value={shippingCost}
-                onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Change</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {changeAmount.toFixed(2)}
-              </div>
-            </div>
-             <div className="flex items-center justify-end gap-2 py-1">
-              <label className="text-sm text-gray-300">No Tax</label>
-              <input
-                type="checkbox"
-                checked={noTax}
-                onChange={(e) => setNoTax(e.target.checked)}
-                className="w-5 h-5 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <label className="text-sm text-gray-300 font-semibold">Net Total</label>
-              <div className="w-32 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-right text-white font-bold text-lg">
-                {netTotal.toFixed(2)}
-              </div>
-            </div>
+                {/* Total Tax */}
+                <div>
+                   <div className="flex justify-between mb-1">
+                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
+                      <div className="flex items-center gap-2">
+                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>No Tax</label>
+                          <input
+                            type="checkbox"
+                            checked={noTax}
+                            onChange={(e) => setNoTax(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
+                            disabled={inactiveView}
+                          />
+                      </div>
+                   </div>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {noTax ? "0.00" : taxAmount.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Discount (Input) */}
+                <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Discount</label>
+                    <InputField
+                        type="number"
+                        value={globalDiscount}
+                        onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
+
+                {/* Total Discount (ReadOnly) */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {totalDiscount.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Shipping Cost */}
+                <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Shipping Cost</label>
+                    <InputField
+                        type="number"
+                        value={shippingCost}
+                        onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
+
+                {/* Paid Amount */}
+                <div>
+                    <InputField
+                        type="number"
+                        label="Paid Amount"
+                        value={paidAmount}
+                        onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
+
+                {/* Change */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {changeAmount.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Due */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {dueAmount.toFixed(2)}
+                  </div>
+                </div>
+                
+                {/* Tax Breakdown */}
+                {!noTax && taxTypeId && (() => {
+                   const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+                   if(!selectedTax) return null;
+                   
+                   if(selectedTax.isInterState) {
+                       return (
+                         <div className="md:col-span-2">
+                           <label className="block text-sm mb-1 text-gray-500">IGST %</label>
+                           <input
+                              type="number"
+                              value={igstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                         </div>
+                       );
+                   } else {
+                       return (
+                         <>
+                           <div>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
+                           <input
+                              type="number"
+                              value={cgstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                          </div>
+                          <div>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
+                           <input
+                              type="number"
+                              value={sgstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                          </div>
+                         </>
+                       );
+                   }
+                })()}
+
+                {/* Net Total (Full Width) */}
+                <div className="md:col-span-2 mt-2">
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Net Total</label>
+                  <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
+                    {netTotal.toFixed(2)}
+                  </div>
+                </div>
+
+             </div>
           </div>
         </div>
 
+       </ContentCard>
       </div>
 
 
@@ -1345,51 +1404,60 @@ const NewPurchaseOrder = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1"> * Brand</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Brand *</label>
             <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <SearchableSelect
-                  options={brandsList.map(b => ({ id: b.id, name: b.name }))}
-                  value={newItem.brandId}
-                  onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
-                  placeholder="--select--"
-                />
-              </div>
-              {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
-              <Star
-                size={20}
-                className="text-yellow-500 cursor-pointer hover:scale-110"
-                onClick={() => setIsBrandModalOpen(true)}
-              />
-              )}
+                 <SearchableSelect
+                   options={brandsList.map(b => ({ id: b.id, name: b.name }))}
+                   value={newItem.brandId}
+                   onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
+                   placeholder="--select brand--"
+                   className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                 />
+               {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
+               <button
+                  type="button"
+                  className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                  onClick={() => setIsBrandModalOpen(true)}
+               >
+                   <Star size={16} />
+               </button>
+               )}
             </div>
           </div>
 
           {/* Product */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1"> * Product</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Product *</label>
             <div className="flex items-center gap-2">
-              <div className="flex-1">
                 <SearchableSelect
                   options={productsList
                     .filter(p => String(p.BrandId) === String(newItem.brandId) || String(p.brandId) === String(newItem.brandId))
                     .map(p => ({ id: p.id, name: p.ProductName }))
                   }
                   value={newItem.productId}
-                  onChange={(val) => handleProductSelect(val)}
+                  onChange={handleProductSelect}
                   disabled={!newItem.brandId}
-                  placeholder="--select--"
-                  className={!newItem.brandId ? 'opacity-50 pointer-events-none' : ''}
+                  placeholder="--select product--"
+                  className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
                 />
-              </div>
               {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
               <button 
-                className={`flex items-center justify-center p-1 rounded-full transition-colors ${!newItem.brandId ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-gray-400 hover:text-yellow-400'}`}
-                onClick={handleGoToNewProduct}
-                disabled={!newItem.brandId}
-                title="Create New Product"
+                  type="button"
+                  disabled={!newItem.brandId}
+                  className={`p-2 border rounded flex items-center justify-center ${
+                      !newItem.brandId 
+                       ? 'opacity-50 cursor-not-allowed ' + (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-gray-500')
+                       : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
+                  }`}
+                  onClick={() => {
+                      if (newItem.brandId) {
+                          setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                          setIsProductModalOpen(true);
+                       }
+                  }}
+                  title="Create New Product"
               >
-                  <Star size={20} className={!newItem.brandId ? "" : "text-yellow-500"} />
+                  <Star size={16} />
               </button>
               )}
             </div>
@@ -1398,74 +1466,60 @@ const NewPurchaseOrder = () => {
 
           {/* Description */}
           <div className="col-span-2">
-            <label className="block text-sm text-gray-300 mb-1">Description</label>
-            <input
-              type="text"
+            <InputField
+              label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Quantity */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Quantity</label>
-            <input
+            <InputField
               type="number"
+              label="Quantity *"
               value={newItem.quantity}
-             onChange={(e) =>
-                setNewItem({ ...newItem, quantity: e.target.value === "" ? "" : Number(e.target.value) })
-              }
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+              onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />
           </div>
 
           {/* Unit Price */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
-            <input
+            <InputField
               type="number"
+              label="Unit Price"
               value={newItem.unitPrice}
-             onChange={(e) =>
-                setNewItem({ ...newItem, unitPrice: e.target.value === "" ? "" : Number(e.target.value) })
-              }
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+              onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
             />
           </div>
 
           {/* Discount */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
-            <input
+            <InputField
               type="number"
+              label="Discount (%)"
               value={newItem.discount}
-                             onChange={(e) =>
-                setNewItem({ ...newItem, discount: e.target.value === "" ? "" : Number(e.target.value) })
-              }
-
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+              onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
             />
           </div>
 
           {/* Tax Percentage (Read Only) */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Tax Percentage (%)</label>
-            <input
-              type="text"
-              value={newItem.taxPercentage}
-              readOnly
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            <InputField
+               label="Tax Percentage (%)"
+               value={newItem.taxPercentage}
+               disabled={true}
+               className="cursor-not-allowed text-gray-600"
             />
           </div>
 
           {/* Unit (Read Only) */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Unit</label>
-            <input
-              type="text"
-              value={newItem.unitName}
-              readOnly
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            <InputField
+               label="Unit"
+               value={newItem.unitName}
+               disabled={true}
+               className="cursor-not-allowed text-gray-600"
             />
           </div>
         </div>
@@ -1479,22 +1533,23 @@ const NewPurchaseOrder = () => {
         title="Add New Brand"
         width="400px"
       >
-        <label className="block text-sm text-gray-300 mb-1">Brand Name *</label>
-        <input
-          type="text"
+        <InputField
+          label="Brand Name"
+          required
           placeholder="Brand Name"
           value={newBrandName}
           onChange={(e) => setNewBrandName(e.target.value)}
-          className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
+          className="mb-4"
         />
 
-        <label className="block text-sm text-gray-300 mb-1">Description</label>
-        <textarea
+        <InputField
+            textarea
+            label="Description"
             rows={3}
             placeholder="Description"
             value={newBrandDescription}
             onChange={(e) => setNewBrandDescription(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4 resize-none"
+            className="mb-4 resize-none"
         />
       </AddModal>
 
@@ -1506,12 +1561,12 @@ const NewPurchaseOrder = () => {
         title="Add New Supplier"
         width="400px"
       >
-        <input
-          type="text"
+        <InputField
+          label="Company Name"
           placeholder="Company Name"
           value={newSupplierName}
           onChange={(e) => setNewSupplierName(e.target.value)}
-          className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
+          className="mb-4"
         />
       </AddModal>
 
@@ -1526,114 +1581,121 @@ const NewPurchaseOrder = () => {
         <div className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto">
             {/* LEFT COLUMN */}
             <div>
-                <label className="block text-sm text-gray-300 mb-1">Product Code</label>
-                <input
-                    type="text"
+                <InputField
+                    label="Product Code"
                     value={newProductData.productCode}
                     onChange={(e) => setNewProductData({...newProductData, productCode: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                    className="mb-2"
                 />
 
-                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Product Name</label>
-                <input
-                    type="text"
+                <InputField
+                    label="Product Name"
+                    required
                     value={newProductData.name}
                     onChange={(e) => setNewProductData({...newProductData, name: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                    className="mb-2"
                 />
 
-                <label className="block text-sm text-gray-300 mb-1">SN</label>
-                <input
-                    type="text"
+                <InputField
+                    label="SN"
                     value={newProductData.SN}
-                    disabled
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-gray-400 outline-none cursor-not-allowed"
+                    disabled={true}
+                    className="mb-2 cursor-not-allowed bg-gray-100 text-gray-600"
                 />
 
-                <label className="block text-sm text-gray-300 mb-1">Model</label>
-                <input
-                    type="text"
+                <InputField
+                    label="Model"
                     value={newProductData.Model}
                     onChange={(e) => setNewProductData({...newProductData, Model: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                    className="mb-2"
                 />
 
-                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Unit Price</label>
-                <input
+                <InputField
                     type="number"
                     step="0.01"
+                    label="Unit Price"
+                    required
                     value={newProductData.price}
                     onChange={(e) => setNewProductData({...newProductData, price: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                    className="mb-2"
                 />
 
-                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Reorder Level</label>
-                <input
+                <InputField
                     type="number"
                     step="0.01"
+                    label="Reorder Level"
+                    required
                     value={newProductData.ReorderLevel}
                     onChange={(e) => setNewProductData({...newProductData, ReorderLevel: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                    className="mb-2"
                 />
             </div>
             
             {/* RIGHT COLUMN */}
             <div>
-                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Category</label>
-                <select
+                <SearchableSelect
+                    label="Category"
+                    required
+                    options={categoriesList.map(c => ({ id: c.id, name: c.CategoryName }))}
                     value={newProductData.CategoryId}
-                    onChange={(e) => setNewProductData({...newProductData, CategoryId: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                >
-                    <option value="">--select--</option>
-                    {categoriesList.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                </select>
-
-                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Unit</label>
-                <select
-                    value={newProductData.unitId}
-                    onChange={(e) => setNewProductData({...newProductData, unitId: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                >
-                    <option value="">--select--</option>
-                    {unitsList.map(u => (
-                        <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                </select>
-
-                <label className="block text-sm text-gray-300 mb-1"><span className="text-red-400">*</span> Brand</label>
-                <select
-                    value={newProductData.brandId}
-                    onChange={(e) => setNewProductData({...newProductData, brandId: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
-                >
-                    <option value="">--select--</option>
-                    {brandsList.map(b => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                </select>
-
-                <label className="block text-sm text-gray-300 mb-1">Image</label>
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-white outline-none"
+                    onChange={(val) => setNewProductData({...newProductData, CategoryId: val})}
+                    placeholder="-- Select Category --"
+                    className="mb-2"
                 />
-                    {newProductData.Image && (
-                    <img src={newProductData.Image} alt="Preview" className="w-20 h-20 object-cover mt-2 rounded border border-gray-600" />
-                    )}
-            </div>
 
-            <div className="col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Description</label>
-                <textarea
+                <SearchableSelect
+                    label="Unit"
+                    required
+                    options={unitsList.map(u => ({ id: u.id, name: u.UnitName }))}
+                    value={newProductData.unitId}
+                    onChange={(val) => setNewProductData({...newProductData, unitId: val})}
+                    placeholder="-- Select Unit --"
+                    className="mb-2"
+                />
+
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="flex-1 font-medium">
+                     <SearchableSelect
+                        label="Brand"
+                        required
+                        options={brandsList.map(b => ({ id: b.id, name: b.name }))}
+                        value={newProductData.brandId}
+                        onChange={(val) => setNewProductData({...newProductData, brandId: val})}
+                        placeholder="-- Select Brand --"
+                     />
+                   </div>
+                   {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
+                   <button
+                      type="button"
+                      className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                      onClick={() => setIsBrandModalOpen(true)}
+                   >
+                       <Star size={16} />
+                   </button>
+                   )}
+                </div>
+
+                <InputField
+                    textarea
+                    label="Description"
+                    rows={3}
                     value={newProductData.description}
                     onChange={(e) => setNewProductData({...newProductData, description: e.target.value})}
-                    className="w-full h-20 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white outline-none resize-none"
+                    className="mb-2 resize-none"
                 />
+
+                <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Product Image</label>
+                   <input
+                       type="file"
+                       accept="image/*"
+                       onChange={handleImageChange}
+                       className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                   />
+                   {newProductData.Image && (
+                       <img src={newProductData.Image} alt="Preview" className="h-20 w-20 object-cover mt-2 rounded border" />
+                   )}
+                </div>
             </div>
         </div>
       </AddModal>

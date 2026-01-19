@@ -10,6 +10,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 // API
 import {
@@ -26,6 +27,8 @@ import Pagination from "../../components/Pagination";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
+import ContentCard from "../../components/ContentCard";
 
 const Languages = () => {
   const { theme } = useTheme();
@@ -256,16 +259,7 @@ const Languages = () => {
   // DELETE
   // DELETE
   const handleDeleteLanguage = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This language will be deleted!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showDeleteConfirm("this language");
 
     if (!result.isConfirmed) return;
 
@@ -275,13 +269,7 @@ const Languages = () => {
       });
 
       if (res?.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: "Language deleted successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Language deleted successfully.");
         setEditModalOpen(false);
         loadLanguages();
         if (showInactive) loadInactive();
@@ -289,27 +277,14 @@ const Languages = () => {
         throw new Error("Delete failed");
       }
     } catch {
-      Swal.fire({
-        icon: "error",
-        title: "Delete failed",
-        text: "Failed to delete language. Please try again.",
-      });
+      showErrorToast("Failed to delete language.");
     }
   };
 
   // RESTORE
   // RESTORE
   const handleRestoreLanguage = async () => {
-    const result = await Swal.fire({
-      title: "Restore language?",
-      text: "This language will be restored and made active again.",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#16a34a",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm("this language");
 
     if (!result.isConfirmed) return;
 
@@ -319,13 +294,7 @@ const Languages = () => {
       });
 
       if (res?.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Restored!",
-          text: "Language restored successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Language restored successfully.");
         setEditModalOpen(false);
         loadLanguages();
         loadInactive();
@@ -333,11 +302,7 @@ const Languages = () => {
         throw new Error("Restore failed");
       }
     } catch {
-      Swal.fire({
-        icon: "error",
-        title: "Restore failed",
-        text: "Failed to restore language. Please try again.",
-      });
+      showErrorToast("Failed to restore language.");
     }
   };
 
@@ -359,9 +324,8 @@ const Languages = () => {
       >
         <div className="p-0 space-y-4">
           <div>
-            <label className="block text-sm mb-1">Language ID *</label>
-            <input
-              type="text"
+            <InputField
+              label="Language ID"
               value={newLanguage.languageId}
               onChange={(e) =>
                 setNewLanguage((prev) => ({
@@ -370,14 +334,13 @@ const Languages = () => {
                 }))
               }
               placeholder="Enter Language ID"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+              required
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Language Name *</label>
-            <input
-              type="text"
+            <InputField
+              label="Language Name"
               value={newLanguage.languageName}
               onChange={(e) =>
                 setNewLanguage((prev) => ({
@@ -386,7 +349,7 @@ const Languages = () => {
                 }))
               }
               placeholder="Enter Language Name"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+              required
             />
           </div>
         </div>
@@ -411,9 +374,8 @@ const Languages = () => {
       >
         <div className="p-0 space-y-4">
           <div>
-            <label className="block text-sm mb-1">Language ID *</label>
-            <input
-              type="text"
+            <InputField
+              label="Language ID"
               value={editLanguage.languageId}
               onChange={(e) =>
                 setEditLanguage((prev) => ({
@@ -422,14 +384,13 @@ const Languages = () => {
                 }))
               }
               disabled={editLanguage.isInactive}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm disabled:opacity-50"
+              required
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Language Name *</label>
-            <input
-              type="text"
+            <InputField
+              label="Language Name"
               value={editLanguage.languageName}
               onChange={(e) =>
                 setEditLanguage((prev) => ({
@@ -438,7 +399,7 @@ const Languages = () => {
                 }))
               }
               disabled={editLanguage.isInactive}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm disabled:opacity-50"
+              required
             />
           </div>
         </div>
@@ -458,9 +419,11 @@ const Languages = () => {
       ============================== */}
 
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Languages</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Languages</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -511,6 +474,7 @@ const Languages = () => {
                 total={totalRecords}
               />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
 

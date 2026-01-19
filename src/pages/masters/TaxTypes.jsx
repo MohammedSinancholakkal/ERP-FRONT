@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
-import toast from "react-hot-toast";
 
 // API
 import {
@@ -14,12 +13,15 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import { useMasters } from "../../context/MastersContext";
 import MasterTable from "../../components/MasterTable";
-import Swal from "sweetalert2";
+import ContentCard from "../../components/ContentCard";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 // MODALS
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
+import SearchableSelect from "../../components/SearchableSelect";
 
 
 const TaxTypes = () => {
@@ -144,11 +146,11 @@ const TaxTypes = () => {
                 parseFloat(r.percentage || r.Percentage || 0) === parseFloat(newPercentage) &&
                 Boolean(r.isInterState || r.IsInterState) === Boolean(newIsInterState)
              );
-             if (existing) return toast.error("Tax Type with this percentage and category already exists");
+             if (existing) return showErrorToast("Tax Type with this percentage and category already exists");
         }
     } catch (err) {
         console.error(err);
-        return toast.error("Error checking duplicates");
+        return showErrorToast("Error checking duplicates");
     }
 
     const res = await addTaxTypeApi({
@@ -159,14 +161,14 @@ const TaxTypes = () => {
     });
 
     if (res?.status === 200) {
-      toast.success("Tax Type added");
+      showSuccessToast("Tax Type added");
       setNewTaxType("");
       setNewIsInterState(false);
       setNewPercentage("");
       setModalOpen(false);
       loadTaxTypes(true); // Force Reload
     } else {
-      toast.error("Failed to add");
+      showErrorToast("Failed to add");
     }
   };
 
@@ -182,11 +184,11 @@ const TaxTypes = () => {
                 Boolean(r.isInterState || r.IsInterState) === Boolean(editTaxType.isInterState) &&
                 (r.id || r.Id || r.typeId || r.TypeId) !== editTaxType.id
              );
-             if (existing) return toast.error("Tax Type with this percentage and category already exists");
+             if (existing) return showErrorToast("Tax Type with this percentage and category already exists");
         }
     } catch (err) {
         console.error(err);
-        return toast.error("Error checking duplicates");
+        return showErrorToast("Error checking duplicates");
     }
 
     const res = await updateTaxTypeApi(editTaxType.id, {
@@ -197,7 +199,7 @@ const TaxTypes = () => {
     });
 
     if (res?.status === 200) {
-      toast.success("Tax Type updated");
+      showSuccessToast("Tax Type updated");
       setEditModalOpen(false);
       loadTaxTypes(true);
       if (showInactive) {
@@ -205,28 +207,21 @@ const TaxTypes = () => {
           loadInactive();
       }
     } else {
-      toast.error("Update failed");
+      showErrorToast("Update failed");
     }
   };
 
   // DELETE
   const handleDeleteTaxType = async () => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
+    const result = await showDeleteConfirm();
+
+    if (result.isConfirmed) {
         const res = await deleteTaxTypeApi(editTaxType.id, {
           userId: user?.userId || 1,
         });
 
         if (res?.status === 200) {
-          toast.success("Tax Type deleted");
+          showSuccessToast("Tax Type deleted");
           setEditModalOpen(false);
           loadTaxTypes(true);
           if (showInactive) {
@@ -234,39 +229,30 @@ const TaxTypes = () => {
             loadInactive();
           }
         } else {
-          toast.error("Delete failed");
+          showErrorToast("Delete failed");
         }
-      }
-    });
+    }
   };
 
   // RESTORE
   const handleRestoreTaxType = async () => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "Do you want to restore this Tax Type?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, restore it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
+    const result = await showRestoreConfirm();
+
+    if (result.isConfirmed) {
         const res = await restoreTaxTypeApi(editTaxType.id, {
           userId: user?.userId || 1,
         });
 
         if (res?.status === 200) {
-          toast.success("Tax Type restored");
+          showSuccessToast("Tax Type restored");
           setEditModalOpen(false);
           loadTaxTypes(true);
           refreshInactiveTaxTypes();
           loadInactive();
         } else {
-          toast.error("Failed to restore");
+          showErrorToast("Failed to restore");
         }
-      }
-    });
+    }
   };
 
   const tableColumns = [
@@ -286,24 +272,27 @@ const TaxTypes = () => {
           title="New Tax Type"
         >
           <div className="mb-3">
+          <div className="mb-3">
             <label className="block text-sm mb-1">Tax Category</label>
-            <select
+            <SearchableSelect
+              options={[
+                { id: "intra", name: "Intra State (CGST + SGST)" },
+                { id: "inter", name: "Inter State (IGST)" }
+              ]}
               value={newIsInterState ? "inter" : "intra"}
-              onChange={(e) => setNewIsInterState(e.target.value === "inter")}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-            >
-              <option value="intra">Intra State (CGST + SGST)</option>
-              <option value="inter">Inter State (IGST)</option>
-            </select>
+              onChange={(val) => setNewIsInterState(val === "inter")}
+              className="w-full"
+            />
+          </div>
           </div>
 
-          <label className="block text-sm mb-1">Percentage (%)</label>
-          <input
+          <InputField
+            label="Percentage (%)"
             type="number"
             value={newPercentage}
             onChange={(e) => setNewPercentage(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none mb-3"
+            className="mb-3"
           />
         </AddModal>
 
@@ -318,29 +307,25 @@ const TaxTypes = () => {
           >
             <div className="mt-3">
               <label className="block text-sm mb-1">Tax Category</label>
-              <select
+              <SearchableSelect
+                options={[
+                    { id: "intra", name: "Intra State (CGST + SGST)" },
+                    { id: "inter", name: "Inter State (IGST)" }
+                ]}
                 value={editTaxType.isInterState ? "inter" : "intra"}
-                onChange={(e) => setEditTaxType(prev => ({ ...prev, isInterState: e.target.value === "inter" }))}
+                onChange={(val) => setEditTaxType(prev => ({ ...prev, isInterState: val === "inter" }))}
                 disabled={editTaxType.isInactive}
-                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none ${
-                    editTaxType.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                }`}
-              >
-                <option value="intra">Intra State (CGST + SGST)</option>
-                <option value="inter">Inter State (IGST)</option>
-              </select>
+                className="w-full"
+              />
             </div>
 
             <div className="mt-3">
-              <label className="block text-sm mb-1">Percentage (%)</label>
-              <input
+              <InputField
+                label="Percentage (%)"
                 type="number"
                 value={editTaxType.percentage}
                 onChange={(e) => setEditTaxType(prev => ({ ...prev, percentage: e.target.value }))}
                 disabled={editTaxType.isInactive}
-                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none ${
-                  editTaxType.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                }`}
               />
             </div>
         </EditModal>
@@ -355,9 +340,11 @@ const TaxTypes = () => {
         />
 
         {/* MAIN PAGE */}
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-          <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Tax Types</h2>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
+            <div className="flex flex-col h-full overflow-hidden gap-2">
+              <h2 className="text-xl font-bold text-[#6448AE] mb-2">Tax Types</h2>
+              <hr className="mb-4 border-gray-300" />
 
             {/* TABLE SECTION */}
             <MasterTable
@@ -408,6 +395,7 @@ const TaxTypes = () => {
               }}
             />
           </div>
+          </ContentCard>
         </div>
       </>
     </PageLayout>

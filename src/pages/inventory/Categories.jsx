@@ -3,9 +3,7 @@ import Pagination from "../../components/Pagination";
 import MasterTable from "../../components/MasterTable";
 import { useTheme } from "../../context/ThemeContext";
 import SearchableSelect from "../../components/SearchableSelect";
-
-import toast from "react-hot-toast";
-
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import {
   addCategoryApi,
   getCategoriesApi,
@@ -18,10 +16,13 @@ import {
 import PageLayout from "../../layout/PageLayout";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
-import Swal from "sweetalert2";
+
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import InputField from "../../components/InputField";
+import ContentCard from "../../components/ContentCard";
+
 
 const Categories = () => {
     const { theme } = useTheme();
@@ -75,7 +76,6 @@ const end = Math.min(page * limit, totalRecords);
     parentName: true
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [searchColumn, setSearchColumn] = useState("");
 
   // SORT
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
@@ -134,14 +134,12 @@ const end = Math.min(page * limit, totalRecords);
     }
   };
 
-  // =============================
-  // ADD CATEGORY
-  // =============================
+
   // =============================
   // ADD CATEGORY
   // =============================
   const handleAdd = async () => {
-    if (!newCategory.name.trim()) return toast.error("Name required");
+    if (!newCategory.name.trim()) return showErrorToast("Name required");
 
     try {
       // DUPLICATE CHECK
@@ -149,7 +147,7 @@ const end = Math.min(page * limit, totalRecords);
       if (searchRes?.status === 200) {
          const rows = searchRes.data.records || searchRes.data || [];
          const existing = rows.find(c => c.name.toLowerCase() === newCategory.name.trim().toLowerCase());
-         if (existing) return toast.error("Category with this name already exists");
+         if (existing) return showErrorToast("Category with this name already exists");
       }
     } catch (err) {
       console.error("Duplicate check error", err);
@@ -161,7 +159,7 @@ const end = Math.min(page * limit, totalRecords);
     });
 
     if (res.status === 200) { 
-      toast.success("Category added");
+      showSuccessToast("Category added");
       setNewCategory({ name: "", description: "", parentCategoryId: null });
       setModalOpen(false);
       loadCategories();
@@ -172,7 +170,7 @@ const end = Math.min(page * limit, totalRecords);
   // UPDATE
   // =============================
   const handleUpdate = async () => {
-    if (!editCategory.name.trim()) return toast.error("Name required");
+    if (!editCategory.name.trim()) return showErrorToast("Name required");
 
     try {
       // DUPLICATE CHECK
@@ -183,7 +181,7 @@ const end = Math.min(page * limit, totalRecords);
            c.name.toLowerCase() === editCategory.name.trim().toLowerCase() && 
            String(c.id) !== String(editCategory.id)
          );
-         if (existing) return toast.error("Category with this name already exists");
+         if (existing) return showErrorToast("Category with this name already exists");
       }
     } catch (err) {
       console.error("Duplicate check error", err);
@@ -199,7 +197,7 @@ const end = Math.min(page * limit, totalRecords);
     const res = await updateCategoryApi(editCategory.id, payload);
 
     if (res.status === 200) {
-      toast.success("Updated");
+      showSuccessToast("Updated");
       setEditModalOpen(false);
       loadCategories();
     }
@@ -209,16 +207,7 @@ const end = Math.min(page * limit, totalRecords);
   // DELETE
   // =============================
 const handleDelete = async () => {
-  const result = await Swal.fire({
-    title: "Are you sure?",
-    text: "This category will be deleted!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: "Yes, delete",
-    cancelButtonText: "Cancel",
-  });
+  const result = await showDeleteConfirm();
 
   if (!result.isConfirmed) return;
 
@@ -228,13 +217,7 @@ const handleDelete = async () => {
     });
 
     if (res.status === 200) {
-      await Swal.fire({
-        icon: "success",
-        title: "Deleted!",
-        text: "Category deleted successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showSuccessToast("Category deleted successfully.");
 
       setEditModalOpen(false);
       loadCategories();
@@ -243,11 +226,7 @@ const handleDelete = async () => {
   } catch (error) {
     console.error("Delete category failed:", error);
 
-    Swal.fire({
-      icon: "error",
-      title: "Delete failed",
-      text: "Failed to delete category. Please try again.",
-    });
+    showErrorToast("Failed to delete category. Please try again.");
   }
 };
 
@@ -256,16 +235,7 @@ const handleDelete = async () => {
   // RESTORE
   // =============================
 const handleRestore = async () => {
-  const result = await Swal.fire({
-    title: "Restore category?",
-    text: "This category will be restored and made active again.",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonColor: "#16a34a", // green
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: "Yes, restore",
-    cancelButtonText: "Cancel",
-  });
+  const result = await showRestoreConfirm();
 
   if (!result.isConfirmed) return;
 
@@ -275,13 +245,7 @@ const handleRestore = async () => {
     });
 
     if (res.status === 200) {
-      await Swal.fire({
-        icon: "success",
-        title: "Restored!",
-        text: "Category restored successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showSuccessToast("Category restored successfully.");
 
       setEditModalOpen(false);
       loadCategories();
@@ -290,27 +254,13 @@ const handleRestore = async () => {
   } catch (error) {
     console.error("Restore category failed:", error);
 
-    Swal.fire({
-      icon: "error",
-      title: "Restore failed",
-      text: "Failed to restore category. Please try again.",
-    });
+    showErrorToast("Failed to restore category. Please try again.");
   }
 };
 
 
-  // =============================
-  // FILTER FOR DROPDOWN
-  // =============================
-
-
-
-
   return (
     <>
-{/* =============================
-    ADD CATEGORY MODAL
-============================= */}
       {/* =============================
           ADD CATEGORY MODAL
       ============================= */}
@@ -321,28 +271,29 @@ const handleRestore = async () => {
         title="New Category"
       >
         {/* NAME */}
-        <label className="block text-sm mb-1">Name *</label>
-        <input
-          type="text"
+        <InputField
+          label="Name"
           value={newCategory.name}
           onChange={(e) =>
             setNewCategory((p) => ({ ...p, name: e.target.value }))
           }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white outline-none"
+          className="mb-4"
+          required
         />
 
         {/* DESCRIPTION */}
-        <label className="block text-sm mb-1">Description</label>
-        <textarea
+        <InputField
+          label="Description"
+          textarea
           value={newCategory.description}
           onChange={(e) =>
             setNewCategory((p) => ({ ...p, description: e.target.value }))
           }
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-20 mb-4 focus:border-white outline-none"
+          className="h-20 mb-4"
         />
 
         {/* PARENT CATEGORY */}
-        <label className="block text-sm mb-1">Parent Category</label>
+        <label className="block text-sm mb-1 font-medium">Parent Category</label>
         <div className="mt-1">
           <SearchableSelect
             options={categories.map(c => ({ id: c.id, name: c.name }))}
@@ -357,10 +308,6 @@ const handleRestore = async () => {
           />
         </div>
       </AddModal>
-
-{/* =============================
-    EDIT CATEGORY MODAL
-============================= */}
       {/* =============================
           EDIT CATEGORY MODAL
       ============================= */}
@@ -376,33 +323,31 @@ const handleRestore = async () => {
         permissionEdit={hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.EDIT)}
       >
         {/* NAME */}
-        <label className="block text-sm mb-1">Name *</label>
-        <input
+        <InputField
+          label="Name"
           value={editCategory.name}
           onChange={(e) =>
             setEditCategory((p) => ({ ...p, name: e.target.value }))
           }
           disabled={editCategory.isInactive}
-          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-4 text-sm focus:border-white outline-none ${
-            editCategory.isInactive ? "opacity-60 cursor-not-allowed" : ""
-          }`}
+          className="mb-4"
+          required
         />
 
         {/* DESCRIPTION */}
-        <label className="block text-sm mb-1">Description</label>
-        <textarea
+        <InputField
+          label="Description"
+          textarea
           value={editCategory.description}
           onChange={(e) =>
             setEditCategory((p) => ({ ...p, description: e.target.value }))
           }
           disabled={editCategory.isInactive}
-          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 mb-4 text-sm focus:border-white outline-none ${
-            editCategory.isInactive ? "opacity-60 cursor-not-allowed" : ""
-          }`}
+          className="h-20 mb-4"
         />
 
         {/* PARENT CATEGORY */}
-        <label className="block text-sm mb-1">Parent Category</label>
+        <label className="block text-sm mb-1 font-medium">Parent Category</label>
         <div className="mt-1">
           <SearchableSelect
             options={categories.map(c => ({ id: c.id, name: c.name }))}
@@ -435,9 +380,11 @@ const handleRestore = async () => {
               MAIN PAGE
       =================================== */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
   <div className="flex flex-col h-full overflow-hidden gap-2">
-          <h2 className="text-2xl font-semibold mb-4">Categories</h2>
+          <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Categories</h2>
+          <hr className="mb-4 border-gray-300" />
 
           {/* ACTION BAR & TABLE */}
           <MasterTable
@@ -495,8 +442,9 @@ const handleRestore = async () => {
               loadCategories();
             }}
           />
+          </div>       
           </div>
-          </div>
+          </ContentCard>
         </div>
       </PageLayout>
     </>

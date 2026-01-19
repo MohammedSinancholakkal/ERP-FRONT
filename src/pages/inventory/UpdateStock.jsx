@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import MasterTable from "../../components/MasterTable";
 import { useTheme } from "../../context/ThemeContext";
 
-import toast from "react-hot-toast";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 import {
   getStocksApi,
@@ -21,6 +21,7 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import ContentCard from "../../components/ContentCard";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
@@ -28,6 +29,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import InputField from "../../components/InputField";
 
 const UpdateStocks = () => {
   const { theme } = useTheme();
@@ -217,7 +219,7 @@ const UpdateStocks = () => {
       return normalized;
     } catch (err) {
       console.error("loadProducts", err);
-      toast.error("Failed to load products");
+      showErrorToast("Failed to load products");
       setProducts([]);
       return [];
     }
@@ -236,7 +238,7 @@ const UpdateStocks = () => {
       return normalized;
     } catch (err) {
       console.error("loadWarehouses", err);
-      toast.error("Failed to load warehouses");
+      showErrorToast("Failed to load warehouses");
       setWarehouses([]);
       return [];
     }
@@ -282,7 +284,7 @@ const UpdateStocks = () => {
       }
     } catch (err) {
       console.error("loadRows", err);
-      toast.error("Failed to load stocks");
+      showErrorToast("Failed to load stocks");
     }
   };
 
@@ -317,11 +319,11 @@ const UpdateStocks = () => {
         }));
         setInactiveRows(normalized);
       } else {
-        toast.error("Failed to load inactive stocks");
+        showErrorToast("Failed to load inactive stocks");
       }
     } catch (err) {
       console.error("loadInactiveRows", err);
-      toast.error("Failed to load inactive stocks");
+      showErrorToast("Failed to load inactive stocks");
     }
   };
 
@@ -367,11 +369,11 @@ const UpdateStocks = () => {
         setRows(normalized);
         setTotalRecords(normalized.length);
       } else {
-        toast.error("Search failed");
+        showErrorToast("Search failed");
       }
     } catch (err) {
       console.error("searchStock error", err);
-      toast.error("Search failed");
+      showErrorToast("Search failed");
     }
   };
 
@@ -379,12 +381,12 @@ const UpdateStocks = () => {
   const isInteger = (v) => Number.isInteger(Number(v)) && Number(v) >= 0;
 
   const handleAdd = async () => {
-    if (!newItem.productId) return toast.error("Select product");
+    if (!newItem.productId) return showErrorToast("Select product");
     if (!newItem.quantity || !isInteger(newItem.quantity))
-      return toast.error("Enter valid quantity");
-    if (!newItem.mode) return toast.error("Select mode (IN/OUT)");
-    if (!newItem.status) return toast.error("Select status");
-    if (!newItem.note || !newItem.note.trim()) return toast.error("Note is required");
+      return showErrorToast("Enter valid quantity");
+    if (!newItem.mode) return showErrorToast("Select mode (IN/OUT)");
+    if (!newItem.status) return showErrorToast("Select status");
+    if (!newItem.note || !newItem.note.trim()) return showErrorToast("Note is required");
 
     try {
       const payload = {
@@ -399,7 +401,7 @@ const UpdateStocks = () => {
       };
       const res = await addStockApi(payload);
       if (res?.status === 201 || res?.status === 200) {
-        toast.success("Stock record added");
+        showSuccessToast("Stock record added");
         setModalOpen(false);
         setNewItem({
           productId: "",
@@ -412,11 +414,11 @@ const UpdateStocks = () => {
         });
         await loadRows();
       } else {
-        toast.error(res?.data?.message || "Add failed");
+        showErrorToast(res?.data?.message || "Add failed");
       }
     } catch (err) {
       console.error("handleAdd error", err);
-      toast.error("Add failed");
+      showErrorToast("Add failed");
     }
   };
 
@@ -436,12 +438,12 @@ const UpdateStocks = () => {
   };
 
   const handleUpdate = async () => {
-    if (!editItem.productId) return toast.error("Select product");
+    if (!editItem.productId) return showErrorToast("Select product");
     if (!editItem.quantity || !isInteger(editItem.quantity))
-      return toast.error("Enter valid quantity");
-    if (!editItem.mode) return toast.error("Select mode");
-    if (!editItem.status) return toast.error("Select status");
-    if (!editItem.note || !editItem.note.trim()) return toast.error("Note is required");
+      return showErrorToast("Enter valid quantity");
+    if (!editItem.mode) return showErrorToast("Select mode");
+    if (!editItem.status) return showErrorToast("Select status");
+    if (!editItem.note || !editItem.note.trim()) return showErrorToast("Note is required");
 
     try {
       const payload = {
@@ -456,51 +458,59 @@ const UpdateStocks = () => {
       };
       const res = await updateStockApi(editItem.id, payload);
       if (res?.status === 200) {
-        toast.success("Stock updated");
+        showSuccessToast("Stock updated");
         setEditModalOpen(false);
         await loadRows();
         if (showInactive) loadInactiveRows();
       } else {
-        toast.error(res?.data?.message || "Update failed");
+        showErrorToast(res?.data?.message || "Update failed");
       }
     } catch (err) {
       console.error("handleUpdate error", err);
-      toast.error("Update failed");
+      showErrorToast("Update failed");
     }
   };
 
   const handleDelete = async () => {
+    const result = await showDeleteConfirm();
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await deleteStockApi(editItem.id, { userId: currentUserId });
       if (res?.status === 200) {
-        toast.success("Deleted");
+        showSuccessToast("Deleted");
         setEditModalOpen(false);
         await loadRows();
         if (showInactive) loadInactiveRows();
       } else {
-        toast.error(res?.data?.message || "Delete failed");
+        showErrorToast(res?.data?.message || "Delete failed");
       }
     } catch (err) {
       console.error("handleDelete error", err);
-      toast.error("Delete failed");
+      showErrorToast("Delete failed");
     }
   };
 
   const handleRestore = async () => {
+    const result = await showRestoreConfirm();
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await restoreStockApi(editItem.id, { userId: currentUserId });
       if (res?.status === 200) {
-        toast.success("Restored");
+        showSuccessToast("Restored");
         setEditModalOpen(false);
         await loadRows();
         await loadInactiveRows();
         setShowInactive(false);
       } else {
-        toast.error("Restore failed");
+        showErrorToast("Restore failed");
       }
     } catch (err) {
       console.error("handleRestore error", err);
-      toast.error("Restore failed");
+      showErrorToast("Restore failed");
     }
   };
 
@@ -530,6 +540,16 @@ const UpdateStocks = () => {
   };
 
   // ------------------- RENDER -------------------
+  const inputClass = `w-full px-3 py-2 rounded border outline-none transition-colors text-sm mt-1 ${
+    theme === 'emerald'
+      ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500'
+      : theme === 'purple'
+      ? 'bg-white border-purple-300 text-gray-900 focus:border-purple-500'
+      : 'bg-gray-900 border-gray-700 text-white focus:border-gray-500'
+  }`;
+
+  const labelClass = `block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`;
+
   return (
     <>
       {/* ADD MODAL */}
@@ -543,8 +563,9 @@ const UpdateStocks = () => {
         <div className="p-0 space-y-4">
           {/* Product (Add modal) */}
           <div>
-            <label className="text-sm">Product *</label>
             <SearchableSelect 
+                label="Product"
+                required
                 options={products.map(p => ({ id: p.id, name: p.name }))}
                 value={newItem.productId}
                 onChange={(v) => setNewItem((p) => ({ ...p, productId: v }))}
@@ -555,8 +576,9 @@ const UpdateStocks = () => {
 
           {/* Quantity */}
           <div>
-            <label className="text-sm">Quantity *</label>
-            <input
+            <InputField
+              label="Quantity"
+              required
               type="text"
               value={newItem.quantity}
               onChange={(e) => {
@@ -565,14 +587,13 @@ const UpdateStocks = () => {
                   setNewItem((p) => ({ ...p, quantity: v }));
               }}
               placeholder="0"
-              className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
             />
           </div>
 
           {/* Warehouse (Add modal) */}
           <div>
-            <label className="text-sm">Warehouse (optional)</label>
             <SearchableSelect
+                label="Warehouse"
                 options={warehouses.map(w => ({ id: w.id, name: w.name }))}
                 value={newItem.warehouseId}
                 onChange={(v) => setNewItem((p) => ({ ...p, warehouseId: v }))}
@@ -584,43 +605,35 @@ const UpdateStocks = () => {
           {/* Mode & Status */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm">Mode *</label>
-              <select
+              <SearchableSelect
+                label="Mode"
+                required
+                options={[{id: 'IN', name: 'IN'}, {id: 'OUT', name: 'OUT'}]}
                 value={newItem.mode}
-                onChange={(e) =>
-                  setNewItem((p) => ({ ...p, mode: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-              >
-                <option value="IN">IN</option>
-                <option value="OUT">OUT</option>
-              </select>
+                onChange={(v) => setNewItem((p) => ({ ...p, mode: v }))}
+                placeholder="Select Mode"
+              />
             </div>
 
             <div>
-              <label className="text-sm">Status *</label>
-              <select
+              <SearchableSelect
+                label="Status"
+                required
+                options={[{id: 'Pending', name: 'Pending'}, {id: 'Complete', name: 'Complete'}]}
                 value={newItem.status}
-                onChange={(e) =>
-                  setNewItem((p) => ({ ...p, status: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
-              >
-                <option value="Pending">Pending</option>
-                <option value="Complete">Complete</option>
-              </select>
+                onChange={(v) => setNewItem((p) => ({ ...p, status: v }))}
+                placeholder="Select Status"
+              />
             </div>
           </div>
 
           {/* Note */}
           <div>
-            <label className="text-sm"> * Note</label>
-            <textarea
+            <InputField
+              textarea
+              label="Note *"
               value={newItem.note}
-              onChange={(e) =>
-                setNewItem((p) => ({ ...p, note: e.target.value }))
-              }
-              className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              onChange={(e) => setNewItem((p) => ({ ...p, note: e.target.value }))}
             />
           </div>
         </div>
@@ -642,21 +655,22 @@ const UpdateStocks = () => {
         <div className="p-0 space-y-4">
           {/* Product (Edit modal) */}
           <div>
-            <label className="text-sm">Product *</label>
-             <SearchableSelect 
+            <SearchableSelect 
+                label="Product"
+                required
                 options={products.map(p => ({ id: p.id, name: p.name }))}
                 value={editItem.productId}
                 onChange={(v) => setEditItem((p) => ({ ...p, productId: v }))}
                 placeholder="Select Product"
                 disabled={editItem.isInactive}
-                className="mt-1"
             />
           </div>
 
           {/* Quantity */}
           <div>
-            <label className="text-sm">Quantity *</label>
-            <input
+            <InputField
+              label="Quantity"
+              required
               type="text"
               value={editItem.quantity}
               onChange={(e) => {
@@ -665,70 +679,65 @@ const UpdateStocks = () => {
                   setEditItem((p) => ({ ...p, quantity: v }));
               }}
               placeholder="0"
-              className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
-                editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-              }`}
               disabled={editItem.isInactive}
             />
           </div>
 
           {/* Warehouse (Edit modal) */}
           <div>
-            <label className="text-sm">Warehouse (optional)</label>
             <SearchableSelect
+                label="Warehouse"
                 options={warehouses.map(w => ({ id: w.id, name: w.name }))}
                 value={editItem.warehouseId}
                 onChange={(v) => setEditItem((p) => ({ ...p, warehouseId: v }))}
                 placeholder="Select Warehouse"
                 disabled={editItem.isInactive}
-                className="mt-1"
             />
           </div>
 
           {/* Mode & Status */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm">Mode *</label>
-              <select
+              <SearchableSelect
+                label="Mode"
+                required
+                options={[
+                    { id: 'IN', name: 'IN'},
+                    { id: 'OUT', name: 'OUT'}
+                ]}
                 value={editItem.mode}
-                onChange={(e) =>
-                  setEditItem((p) => ({ ...p, mode: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                onChange={(v) => setEditItem((p) => ({ ...p, mode: v }))}
+                placeholder="Mode"
                 disabled={editItem.isInactive}
-              >
-                <option value="IN">IN</option>
-                <option value="OUT">OUT</option>
-              </select>
+              />
             </div>
 
             <div>
-              <label className="text-sm">Status *</label>
-              <select
+              <SearchableSelect
+                label="Status"
+                required
+                options={[
+                    { id: 'Pending', name: 'Pending'},
+                    { id: 'Complete', name: 'Complete'}
+                ]}
                 value={editItem.status}
-                onChange={(e) =>
-                  setEditItem((p) => ({ ...p, status: e.target.value }))
-                }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                onChange={(v) => setEditItem((p) => ({ ...p, status: v }))}
+                placeholder="Status"
                 disabled={editItem.isInactive}
-              >
-                <option value="Pending">Pending</option>
-                <option value="Complete">Complete</option>
-              </select>
+              />
             </div>
           </div>
 
           {/* Note */}
           <div>
-            <label className="text-sm"> * Note</label>
-            <textarea
+            <InputField
+              label="Note"
+              required
+              textarea
               value={editItem.note}
               onChange={(e) =>
                 setEditItem((p) => ({ ...p, note: e.target.value }))
               }
-              className={`w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 ${
-                editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-              }`}
               disabled={editItem.isInactive}
             />
           </div>
@@ -746,9 +755,11 @@ const UpdateStocks = () => {
 
       {/* MAIN PAGE */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Update Stocks</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Update Stocks</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
               columns={[
@@ -804,6 +815,7 @@ const UpdateStocks = () => {
               onRefresh={() => loadRows()}
             />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
     </>

@@ -6,19 +6,34 @@ import { useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
 import { getEmployeesApi, getEmployeeByIdApi, getBanksApi, getIncomesApi, getDeductionsApi } from "../../services/allAPI";
-
-
-
-
+import { useTheme } from "../../context/ThemeContext";
 import SearchableSelect from "../../components/SearchableSelect";
-
-
+import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
 import AddModal from "../../components/modals/AddModal";
-
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const PayrollEmployee = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Access Check
+  const canCreate = hasPermission(PERMISSIONS.HR.PAYROLL.CREATE);
+  const canEdit = hasPermission(PERMISSIONS.HR.PAYROLL.EDIT);
+  const isEditing = location.state?.editEmployee;
+
+  if (isEditing ? !canEdit : !canCreate) {
+      return (
+        <div className="flex items-center justify-center h-full text-white">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+            <p className="text-gray-400">You do not have permission to {isEditing ? "edit" : "create"} payroll.</p>
+          </div>
+        </div>
+      );
+  }
 
   /* =========================
      EMPLOYEE INFO
@@ -344,6 +359,22 @@ const handleSave = () => {
   });
 };
 
+const handleBack = () => {
+  if (location.state?.payrollState) {
+      const targetPath = location.state.payrollId 
+          ? `/app/hr/editpayroll/${location.state.payrollId}`
+          : "/app/hr/newpayroll";
+      
+      navigate(targetPath, {
+          state: {
+              payrollState: location.state.payrollState
+          }
+      });
+  } else {
+      navigate(-1);
+  }
+};
+
 
 
   /* =========================
@@ -351,39 +382,37 @@ const handleSave = () => {
   ========================= */
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
-
+      <div className={`p-6 ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard>
+          
         {/* HEADER */}
-        <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate(-1)}>
-            <ArrowLeft size={22} />
-          </button>
-          <h2 className="text-xl font-medium">Employee Payroll</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
+          <div className="flex items-center gap-4">
+            <button onClick={handleBack} className="hover:text-gray-500">
+              <ArrowLeft size={24} />
+            </button>
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Employee Payroll</h2>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={handleSave}
+              className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]   text-white' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
+              <Save size={16} /> {location.state?.editEmployee ? "Update" : "Save"}
+            </button>
+          </div>
         </div>
-
-        {/* ACTION BAR */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded"
-          >
-            <Save size={16} /> {location.state?.editEmployee ? "Update" : "Save"}
-          </button>
-        </div>
+        
+        <hr className="mb-4 border-gray-300" />
 
         {/* EMPLOYEE INFO */}
-        <Section title="Employee Info">
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="w-full">
-                <label className="text-sm text-gray-300 block mb-1">
-                    <span className="text-red-400 mr-1">*</span>
-                    Employee
-                </label>
-                <SearchableSelect
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Left Column */}
+            <div className="space-y-4">
+               <SearchableSelect
+                    label={<>Employee <span className="text-dark">*</span></>}
                     options={employees}
                     value={employee?.id}
-                    name="employee"
-                    id="employee"
                     onChange={(val) => {
                         const emp = employees.find(e => e.id === val);
                         if (emp) {
@@ -399,36 +428,36 @@ const handleSave = () => {
                     }}
                     placeholder={employeesLoading ? "Loading..." : "Select Employee"}
                 />
+                
+                 <InputField 
+                    label="Bank Account" 
+                    value={bankAccount} 
+                    onChange={(e) => setBankAccount(e.target.value)} 
+                    required 
+                 />
             </div>
-            <Input label="Bank Account" value={bankAccount} onChange={setBankAccount} required name="bankAccount" />
-            <div className="w-full">
-                <label className="text-sm text-gray-300 block mb-1">
-                    <span className="text-red-400 mr-1">*</span>
-                    Bank Name
-                </label>
-                <input
-                    type="text"
+            
+            {/* Right Column */}
+            <div className="space-y-4">
+                 <InputField
+                    label={<>Bank Name <span className="text-dark">*</span></>}
                     value={bankName}
                     readOnly
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400 cursor-not-allowed"
-                    name="bankName"
-                    id="bankName"
                     placeholder={employee ? "Auto-filled from Employee Profile" : "Select Employee first..."}
-                />
+                 />
             </div>
-          </div>
-        </Section>
+        </div>
+
 
         {/* PAYROLL COMPONENTS */}
         <Section title="Payroll Components">
           <div className="mb-6">
-            <Input
-              label="Basic Salary"
+            <InputField
+              label={<>Basic Salary <span className="text-dark"></span></>}
               type="number"
               value={basicSalary}
               onChange={setBasicSalary}
               required
-              name="basicSalary"
             />
           </div>
 
@@ -442,15 +471,14 @@ const handleSave = () => {
                   setIncomeForm({ type: null, amount: "", note: "" });
                   setShowIncomeModal(true);
                 }}
-                className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-2 py-1 rounded text-sm"
-              >
+                className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]   text-white' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
                 <Plus size={12} /> Add
               </button>
             </div>
 
-            <div className="border border-gray-700 rounded p-2 w-1/2">
+            <div className={`border rounded p-2 w-full lg:w-1/2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
               <table className="w-full text-sm">
-                <thead className="bg-gray-900">
+                <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                   <tr>
                     <th className="p-2 text-left">Income</th>
                     <th className="p-2 text-right">Amount</th>
@@ -458,7 +486,7 @@ const handleSave = () => {
                     <th className="p-2 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-gray-800">
+                <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                   {incomes.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-4 text-center text-gray-400">
@@ -467,7 +495,7 @@ const handleSave = () => {
                     </tr>
                   ) : (
                     incomes.map((r) => (
-                      <tr key={r.id} className="border-t border-gray-700">
+                      <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
                         <td className="p-2">{r.type?.name ?? r.typeName}</td>
                         <td className="p-2 text-right">{Number(r.amount).toFixed(2)}</td>
                         <td className="p-2">{r.note || "-"}</td>
@@ -484,7 +512,7 @@ const handleSave = () => {
                           </button>
 
                           <button
-                            className="p-1 text-red-400"
+                            className="p-1 text-dark"
                             onClick={() => deleteIncome(r.id)}
                           >
                             <Trash2 size={14} />
@@ -508,16 +536,15 @@ const handleSave = () => {
                   setDeductionForm({ type: null, amount: "", note: "" });
                   setShowDeductionModal(true);
                 }}
-                className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-2 py-1 rounded text-sm"
-              >
+              className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]   text-white' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
                 <Plus size={12} /> Add
               </button>
             </div>
 
-            <div className="border border-gray-700 rounded p-2 overflow-x-auto w-1/2">
+            <div className={`border rounded p-2 overflow-x-auto w-full lg:w-1/2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
               <table className="w-full text-center text-sm">
-                <thead className="bg-gray-900">
-                  <tr className="text-gray-300">
+                <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+                  <tr className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
                     <th className="py-2 pr-4">Deduction</th>
                     <th className="py-2 w-24">Amount</th>
                     <th className="py-2">Short Note</th>
@@ -525,7 +552,7 @@ const handleSave = () => {
                   </tr>
                 </thead>
 
-                <tbody className="bg-gray-800">
+                <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                   {deductions.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-6 text-center text-gray-400">
@@ -534,7 +561,7 @@ const handleSave = () => {
                     </tr>
                   ) : (
                     deductions.map((r) => (
-                      <tr key={r.id} className="border-t border-gray-700">
+                      <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
                         <td className="py-2 pr-4">{r.type?.name ?? r.typeName}</td>
                         <td className="py-2 w-24 text-right">{Number(r.amount).toFixed(2)}</td>
                         <td className="py-2">{r.note || "-"}</td>
@@ -551,7 +578,7 @@ const handleSave = () => {
                           </button>
 
                           <button
-                            className="p-1 text-red-400"
+                            className="p-1 text-dark"
                             onClick={() => deleteDeduction(r.id)}
                           >
                             <Trash2 size={14} />
@@ -569,16 +596,33 @@ const handleSave = () => {
 
         {/* SUMMARY */}
         <Section title="Summary">
-          <div className="space-y-4">
-            <ReadOnly label="Total Income" value={summaryTotalIncome} name="summaryTotalIncome" />
-            <ReadOnly label="Total Deduction" value={totalDeduction} name="summaryTotalDeduction" />
-            <ReadOnly label="Take Home Pay" value={takeHomePay} bold name="summaryTakeHomePay" />
+          <div className="space-y-4 max-w-2xl">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
+                  <div className="flex-1 font-medium">
+                     <input value={Number(summaryTotalIncome).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                 </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
+                  <div className="flex-1 font-medium">
+                     <input value={Number(totalDeduction).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                 </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-bold' : 'text-gray-300'}`}>Take Home Pay</label>
+                  <div className="flex-1 font-medium">
+                     <input value={Number(takeHomePay).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right font-bold text-lg ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
+                 </div>
+              </div>
           </div>
         </Section>
-
+        
+        </ContentCard>
       </div>
 
-      {/* MODALS */}
       {/* MODALS */}
       {/* INCOME MODAL */}
       <AddModal
@@ -589,9 +633,9 @@ const handleSave = () => {
         width="500px"
       >
         <div className="space-y-3">
-          <label className="text-sm text-gray-300 block mb-1">
-             <span className="text-red-400 mr-1">*</span>
-             Income Name
+          <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
+            Income Name <span className="text-dark mr-1">*</span>
+             
           </label>
           <SearchableSelect
             options={incomeTypes}
@@ -609,33 +653,20 @@ const handleSave = () => {
 
           <div className="grid grid-cols-3 gap-2 items-end">
             <div>
-              <label className="text-sm text-gray-300 block mb-1">Amount *</label>
-              <input
-                type="number"
-                min="0"
-                value={incomeForm.amount}
-                onChange={(e) =>
-                  setIncomeForm((p) => ({ ...p, amount: e.target.value }))
-                }
-                name="incomeAmount"
-                id="incomeAmount"
-                className="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded px-2 py-2"
-              />
+               <InputField 
+                    label="Amount *" 
+                    type="number" 
+                    value={incomeForm.amount} 
+                    onChange={(e) => setIncomeForm((p) => ({ ...p, amount: e.target.value }))} 
+               />
             </div>
 
             <div className="col-span-2">
-              <label className="text-sm text-gray-300 block mb-1">
-                Short Note (optional)
-              </label>
-              <input
-                value={incomeForm.note}
-                onChange={(e) =>
-                  setIncomeForm((p) => ({ ...p, note: e.target.value }))
-                }
-                name="incomeNote"
-                id="incomeNote"
-                className="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded px-2 py-2"
-              />
+               <InputField 
+                    label="Short Note (optional)" 
+                    value={incomeForm.note} 
+                    onChange={(e) => setIncomeForm((p) => ({ ...p, note: e.target.value }))} 
+               />
             </div>
           </div>
         </div>
@@ -650,9 +681,8 @@ const handleSave = () => {
         width="500px"
       >
          <div className="space-y-3">
-           <label className="text-sm text-gray-300 block mb-1">
-             <span className="text-red-400 mr-1">*</span>
-             Deduction Name
+           <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
+             Deduction Name <span className="text-dark mr-1">*</span>
           </label>
           <SearchableSelect
              options={deductionTypes}
@@ -670,27 +700,20 @@ const handleSave = () => {
 
           <div className="grid grid-cols-3 gap-2 items-end">
             <div>
-              <label className="text-sm text-gray-300 block mb-1">Amount *</label>
-              <input
-                type="number"
-                min="0"
-                value={deductionForm.amount}
-                onChange={(e) => setDeductionForm((p) => ({ ...p, amount: e.target.value }))}
-                name="deductionAmount"
-                id="deductionAmount"
-                className="w-full bg-gray-800 border text-gray-200 border-gray-600 rounded px-2 py-2"
-              />
+              <InputField 
+                    label="Amount *" 
+                    type="number" 
+                    value={deductionForm.amount} 
+                    onChange={(e) => setDeductionForm((p) => ({ ...p, amount: e.target.value }))} 
+               />
             </div>
 
             <div className="col-span-2">
-              <label className="text-sm text-gray-300 block mb-1">Short Note (optional)</label>
-              <input
-                value={deductionForm.note}
-                onChange={(e) => setDeductionForm((p) => ({ ...p, note: e.target.value }))}
-                name="deductionNote"
-                id="deductionNote"
-                className="w-full bg-gray-800 border text-gray-200 border-gray-600 rounded px-2 py-2"
-              />
+              <InputField 
+                    label="Short Note (optional)" 
+                    value={deductionForm.note} 
+                    onChange={(e) => setDeductionForm((p) => ({ ...p, note: e.target.value }))} 
+               />
             </div>
           </div>
         </div>
@@ -705,44 +728,14 @@ export default PayrollEmployee;
    REUSABLE UI
 ========================= */
 
-const Section = ({ title, children }) => (
-  <div className="mb-10">
-    <h3 className="text-md font-medium mb-4 text-gray-200">{title}</h3>
-    <div className="bg-gray-900/40 border border-gray-700 rounded-lg p-5">
-      {children}
+const Section = ({ title, children }) => {
+  const { theme } = useTheme();
+  return (
+    <div className="mb-10">
+      <h3 className={`text-md font-medium mb-4 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>{title}</h3>
+      <div className={`border rounded-lg p-5 ${theme === 'emerald' || theme === 'purple' ? 'bg-white/50 border-gray-200 shadow-sm' : 'bg-gray-900/40 border-gray-700'}`}>
+        {children}
+      </div>
     </div>
-  </div>
-);
-
-const Input = ({ label, value, onChange, type = "text", required, name, id }) => (
-  <div>
-    <label className="text-sm text-gray-300 block mb-1" htmlFor={id || name}>
-      {required && <span className="text-red-400 mr-1">*</span>}
-      {label}
-    </label>
-    <input
-      type={type}
-      value={value}
-      required={required}
-      onChange={(e) => onChange(e.target.value)}
-      name={name}
-      id={id || name}
-      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2"
-    />
-  </div>
-);
-
-const ReadOnly = ({ label, value, bold, name, id }) => (
-  <div>
-    <label className="text-sm text-gray-300 block mb-1" htmlFor={id || name}>{label}</label>
-    <input
-      disabled
-      value={Number(value || 0).toFixed(2)}
-      name={name}
-      id={id || name}
-      className={`w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-right ${
-        bold ? "font-bold text-lg text-white" : "text-gray-300"
-      }`}
-    />
-  </div>
-);
+  );
+};

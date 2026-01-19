@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   X,
   ChevronRight,
@@ -13,9 +13,8 @@ import {
 } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
 import { useTheme } from "../../context/ThemeContext";
-
-import toast from "react-hot-toast";
 import Swal from "sweetalert2";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 // API
 import {
@@ -36,20 +35,22 @@ import Pagination from "../../components/Pagination";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
+import ContentCard from "../../components/ContentCard";
 
 
 
 // buildPermissionTree moved to backend
 
 
-const PermissionItem = ({ item, level = 0, onToggle }) => {
+const PermissionItem = ({ item, level = 0, onToggle, theme }) => {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = item.children && item.children.length > 0;
 
   return (
     <div className="select-none">
       <div 
-        className={`flex items-center gap-2 py-1 hover:bg-white/5 rounded px-2 ${level > 0 ? "ml-6" : ""}`}
+        className={`flex items-center gap-2 py-1 rounded px-2 ${level > 0 ? "ml-6" : ""} ${theme === 'emerald' || theme === 'purple' ? 'hover:bg-gray-100 text-gray-900' : 'hover:bg-white/5 text-gray-200'}`}
       >
         {/* Expand/Collapse */}
         <div 
@@ -69,7 +70,7 @@ const PermissionItem = ({ item, level = 0, onToggle }) => {
         )}
 
         {/* Name */}
-        <span className="text-sm text-gray-200 flex-1">{item.name}</span>
+        <span className="text-sm flex-1">{item.name}</span>
 
         {/* Checkbox */}
         <div 
@@ -84,7 +85,7 @@ const PermissionItem = ({ item, level = 0, onToggle }) => {
       {hasChildren && expanded && (
         <div>
           {item.children.map(child => (
-            <PermissionItem key={child.id} item={child} level={level + 1} onToggle={onToggle} />
+            <PermissionItem key={child.id} item={child} level={level + 1} onToggle={onToggle} theme={theme} />
           ))}
         </div>
       )}
@@ -99,6 +100,13 @@ const PermissionItem = ({ item, level = 0, onToggle }) => {
 
 const Roles = () => {
   const { theme } = useTheme();
+  
+  // Refs
+  const addModalRef = useRef(null);
+  const editModalRef = useRef(null);
+
+
+
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
@@ -121,6 +129,43 @@ const Roles = () => {
   const [permissionSearch, setPermissionSearch] = useState("");
   const [permissions, setPermissions] = useState([]);
   const [availablePermissions, setAvailablePermissions] = useState([]);
+
+  // Auto-focus and Enter key listeners
+  useEffect(() => {
+    if (modalOpen) {
+      setTimeout(() => {
+        const input = addModalRef.current?.querySelector('input, textarea, select');
+        if (input) input.focus();
+      }, 50);
+    }
+  }, [modalOpen]);
+
+  useEffect(() => {
+    if (editModalOpen) {
+      setTimeout(() => {
+        const input = editModalRef.current?.querySelector('input, textarea, select');
+        if (input) input.focus();
+      }, 50);
+    }
+  }, [editModalOpen]);
+
+  const handleAddKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (document.activeElement.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+      handleAddRole();
+    }
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (document.activeElement.tagName === 'TEXTAREA') return;
+      if (!editRole.isInactive && hasPermission(PERMISSIONS.ROLE.EDIT)) {
+        e.preventDefault();
+        handleUpdateRole();
+      }
+    }
+  };
 
   // Load System Permissions
   useEffect(() => {
@@ -384,16 +429,7 @@ const Roles = () => {
   // DELETE
   // DELETE
   const handleDeleteRole = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This role will be deleted!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showDeleteConfirm("this role");
 
     if (!result.isConfirmed) return;
 
@@ -403,13 +439,7 @@ const Roles = () => {
       });
 
       if (res?.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: "Role deleted successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Role deleted successfully.");
         setEditModalOpen(false);
         loadRoles();
         if (showInactive) loadInactive();
@@ -418,27 +448,14 @@ const Roles = () => {
       }
     } catch (error) {
       console.error("Delete role error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Delete failed",
-        text: "Failed to delete role. Please try again.",
-      });
+      showErrorToast("Failed to delete role. Please try again.");
     }
   };
 
   // RESTORE
   // RESTORE
   const handleRestoreRole = async () => {
-    const result = await Swal.fire({
-      title: "Restore role?",
-      text: "This role will be restored and made active again.",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#16a34a",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm("this role");
 
     if (!result.isConfirmed) return;
 
@@ -448,13 +465,7 @@ const Roles = () => {
       });
 
       if (res?.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Restored!",
-          text: "Role restored successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Role restored successfully.");
         setEditModalOpen(false);
         loadRoles();
         loadInactive();
@@ -463,11 +474,7 @@ const Roles = () => {
       }
     } catch (error) {
       console.error("Restore role error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Restore failed",
-        text: "Failed to restore role. Please try again.",
-      });
+      showErrorToast("Failed to restore role. Please try again.");
     }
   };
 
@@ -561,48 +568,47 @@ const Roles = () => {
       {/* =============================
           ADD ROLE MODAL
       ============================== */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
 
-            <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[110]">
+          <div ref={addModalRef} onKeyDown={handleAddKeyDown}             
+            className={`w-[700px] rounded-lg shadow-xl border ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-900 border-gray-700 text-white'}`}
+          >
+
+            <div className={`flex justify-between items-center px-5 py-3 border-b ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 text-white' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] text-white' : 'bg-gray-900 border-gray-700'}`}>
               <h2 className="text-lg font-semibold">New Role</h2>
 
-              <button onClick={() => setModalOpen(false)} className="text-gray-300 hover:text-white">
+              <button onClick={() => setModalOpen(false)} className="text-white/80 hover:text-white">
                 <X size={20} />
               </button>
             </div>
 
             {/* TOOLBAR */}
-            <div className="px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
+            <div className={`px-5 py-2 border-b flex items-center gap-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/50 border-gray-700'}`}>
               <button
                 onClick={handleAddRole}
-                className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
               >
-                <Save size={16} className="text-blue-400" /> Save
+                <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
               </button>
               
-              {/* <button className="p-1.5 border border-gray-500 rounded text-gray-400 hover:text-white hover:bg-gray-700">
-                <CheckCircle2 size={18} className="text-purple-400" />
-              </button> */}
-
               <button
                 disabled
-                className="flex items-center gap-2 bg-gray-800/50 border border-gray-700 px-3 py-1.5 rounded text-gray-500 cursor-not-allowed"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-200 text-gray-400 border border-gray-300' : 'bg-gray-800/50 border border-gray-700 text-gray-500'}`}
               >
                 <Lock size={16} /> Edit Permissions
               </button>
             </div>
 
             <div className="p-6">
-              <label className="block text-sm mb-1">Role Name *</label>
-
-              <input
-                type="text"
+              <InputField
+                label="Role Name"
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value)}
                 placeholder="Enter role name"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
+                required
+                className={`${theme === 'purple' ? 'border-purple-300 focus:border-purple-500' : ''}`}
+                labelClassName={`${theme === 'purple' ? 'text-purple-900' : ''}`}
               />
             </div>
           </div>
@@ -613,27 +619,29 @@ const Roles = () => {
           EDIT ROLE MODAL
       ============================== */}
       {editModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="w-[700px] bg-gray-900 text-white rounded-lg border border-gray-700">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[110]">
+          <div ref={editModalRef} onKeyDown={handleEditKeyDown} 
+               className={`w-[700px] rounded-lg border ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-900 border-gray-700 text-white'}`}
+          >
 
-            <div className="flex justify-between px-5 py-3 border-b border-gray-700">
+            <div className={`flex justify-between px-5 py-3 border-b ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 text-white' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] text-white' : 'bg-gray-900 border-gray-700'}`}>
               <h2 className="text-lg font-semibold">
                 {editRole.isInactive ? "Restore Role" : "Edit Role"} ({editRole.roleName})
               </h2>
 
-              <button onClick={() => setEditModalOpen(false)} className="text-gray-300 hover:text-white">
+              <button onClick={() => setEditModalOpen(false)} className="text-white/80 hover:text-white">
                 <X size={20} />
               </button>
             </div>
 
             {/* TOOLBAR */}
-            <div className="px-5 py-2 border-b border-gray-700 bg-gray-800/50 flex items-center gap-2">
+            <div className={`px-5 py-2 border-b flex items-center gap-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/50 border-gray-700'}`}>
               {hasPermission(PERMISSIONS.ROLE.EDIT) && !editRole.isInactive && (
                 <button
                   onClick={handleUpdateRole}
-                  className="flex items-center gap-2 bg-transparent border border-gray-500 text-gray-200 px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
                 >
-                  <Save size={16} className="text-blue-400" /> Save
+                  <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
                 </button>
               )}
 
@@ -646,17 +654,13 @@ const Roles = () => {
                 </button>
               )}
               
-              {/* <button className="p-1.5 border border-gray-500 rounded text-gray-400 hover:text-white hover:bg-gray-700">
-                <CheckCircle2 size={18} className="text-purple-400" />
-              </button> */}
-
               <button
                 onClick={handleEditPermissions}
                 disabled={editRole.isInactive}
-                className={`flex items-center gap-2 border border-gray-600 px-3 py-1.5 rounded transition-colors ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
                   editRole.isInactive
-                    ? "bg-gray-800/50 text-gray-500 cursor-not-allowed"
-                    : "bg-gray-700/50 text-green-300 hover:bg-gray-700 hover:text-grey-500"
+                    ? (theme === 'emerald' || theme === 'purple' ? "bg-gray-200 text-gray-400 border border-gray-300 cursor-not-allowed" : "bg-gray-800/50 text-gray-500 cursor-not-allowed")
+                    : (theme === 'emerald' || theme === 'purple' ? "bg-white border border-purple-300 text-purple-600 hover:bg-purple-50" : "bg-gray-700/50 text-green-300 hover:bg-gray-700 border border-gray-600")
                 }`}
               >
                 <Lock size={16} /> Edit Permissions
@@ -665,27 +669,25 @@ const Roles = () => {
               {hasPermission(PERMISSIONS.ROLE.DELETE) && !editRole.isInactive && (
                 <button
                   onClick={handleDeleteRole}
-                  className="ml-auto p-1.5 border border-red-900/50 bg-red-900/20 text-red-400 rounded hover:bg-red-900/40"
+                  className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-1.5 rounded text-white hover:bg-red-500 ms-auto"
                   title="Delete Role"
                 >
-                  <Trash2 size={16} />
+                 Delete
                 </button>
               )}
             </div>
 
             <div className="p-6">
-              <label className="block text-sm mb-1">Role Name *</label>
-
-              <input
-                type="text"
+              <InputField
+                label="Role Name"
                 value={editRole.roleName}
                 onChange={(e) =>
                   setEditRole((prev) => ({ ...prev, roleName: e.target.value }))
                 }
                 disabled={editRole.isInactive}
-                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none ${
-                  editRole.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                }`}
+                required
+                className={`${theme === 'purple' ? 'border-purple-300 focus:border-purple-500' : ''}`}
+                labelClassName={`${theme === 'purple' ? 'text-purple-900' : ''}`}
               />
             </div>
 
@@ -709,32 +711,32 @@ const Roles = () => {
           PERMISSIONS MODAL
       ============================== */}
       {permissionsModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[70]">
-          <div className="w-[600px] max-h-[85vh] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700 shadow-xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[120]">
+          <div className={`w-[600px] max-h-[85vh] rounded-lg shadow-xl overflow-hidden flex flex-col border ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gradient-to-b from-gray-900 to-gray-800 border-gray-700 text-white'}`}>
             {/* Header */}
-            <div className="flex justify-between items-center px-4 py-3 border-b border-gray-700 bg-gray-900/50">
-              <h3 className="text-lg text-white font-normal">Edit Role Permissions ({editRole.roleName})</h3>
+            <div className={`flex justify-between items-center px-4 py-3 border-b ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 text-white' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] text-white' : 'bg-gray-900/50 border-gray-700'}`}>
+              <h3 className={`text-lg font-normal ${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-white'}`}>Edit Role Permissions ({editRole.roleName})</h3>
               <button onClick={() => setPermissionsModalOpen(false)}>
-                <X size={20} className="text-gray-300 hover:text-white" />
+                <X size={20} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white/80 hover:text-white' : 'text-gray-300 hover:text-white'}`} />
               </button>
             </div>
 
             {/* Search */}
-            <div className="p-4 border-b border-gray-700 bg-gray-800/30">
-              <div className="flex items-center bg-gray-800/50 rounded px-3 border border-gray-600 focus-within:border-blue-500 transition-colors">
-                <Search size={16} className="text-gray-400" />
+            <div className={`p-4 border-b ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/30 border-gray-700'}`}>
+              <div className={`flex items-center rounded px-3 border transition-colors ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 focus-within:border-purple-500' : 'bg-gray-800/50 border-gray-600 focus-within:border-blue-500'}`}>
+                <Search size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-400' : 'text-gray-400'}`} />
                 <input
                   type="text"
                   placeholder="search..."
                   value={permissionSearch}
                   onChange={(e) => setPermissionSearch(e.target.value)}
-                  className="bg-transparent border-none outline-none text-sm p-2 w-full text-white placeholder-gray-500"
+                  className={`bg-transparent border-none outline-none text-sm p-2 w-full ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 placeholder-gray-400' : 'text-white placeholder-gray-500'}`}
                 />
               </div>
             </div>
 
             {/* Header for List */}
-            <div className="flex justify-between px-4 py-2 bg-gray-800/50 border-b border-gray-700 text-sm font-semibold text-gray-300">
+            <div className={`flex justify-between px-4 py-2 border-b text-sm font-semibold ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-200 text-gray-700' : 'bg-gray-800/50 border-gray-700 text-gray-300'}`}>
                 <span>Permission</span>
                 <span>Grant</span>
             </div>
@@ -743,24 +745,24 @@ const Roles = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-1">
               {filteredPermissions.length > 0 ? (
                 filteredPermissions.map(item => (
-                  <PermissionItem key={item.id} item={item} onToggle={togglePermission} />
+                  <PermissionItem key={item.id} item={item} onToggle={togglePermission} theme={theme} />
                 ))
               ) : (
-                <div className="text-gray-500 text-center py-4">No matching permissions found</div>
+                <div className="text-center py-4 text-gray-500">No matching permissions found</div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 p-4 border-t border-gray-700 bg-gray-900/50">
+            <div className={`flex justify-end gap-3 p-4 border-t ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-900/50 border-gray-700'}`}>
               <button
                 onClick={() => setPermissionsModalOpen(false)}
-                className="px-4 py-2 bg-transparent border border-gray-600 text-gray-300 rounded hover:bg-gray-800 hover:text-white text-sm transition-colors"
+                className={`px-4 py-2 bg-transparent border rounded text-sm transition-colors ${theme === 'emerald' || theme === 'purple' ? 'border-[#6448AE] text-dark' : 'border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'}`}
               >
                 Cancel
               </button>
               <button
                 onClick={savePermissions}
-                className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 text-sm shadow-lg shadow-gray-900/20 transition-colors"
+                className="px-6 py-2  bg-[#6448AE] hover:bg-[#6E55B6]  text-white rounded  text-sm shadow-lg transition-colors"
               >
                 Save Changes
               </button>
@@ -773,9 +775,11 @@ const Roles = () => {
               MAIN PAGE
       ============================== */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Roles</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Roles</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -824,6 +828,7 @@ const Roles = () => {
                 total={totalRecords}
               />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
 

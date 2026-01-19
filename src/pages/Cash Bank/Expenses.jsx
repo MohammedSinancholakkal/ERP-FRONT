@@ -575,7 +575,7 @@ const Expenses = () => {
               onChange={(e) =>
                 setNewExpense((p) => ({ ...p, date: e.target.value }))
               }
-              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
+              className={`w-full px-3 py-2 rounded border outline-none transition-colors ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
             />
           </div>
 
@@ -591,7 +591,7 @@ const Expenses = () => {
               onChange={(e) =>
                 setNewExpense((p) => ({ ...p, amount: e.target.value }))
               }
-              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
+              className={`w-full px-3 py-2 rounded border outline-none transition-colors ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
             />
           </div>
 
@@ -636,7 +636,7 @@ const Expenses = () => {
           value={expenseTypeCreateName}
           onChange={(e) => setExpenseTypeCreateName(e.target.value)}
           placeholder="Enter type"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+          className={`w-full px-3 py-2 rounded border outline-none text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
         />
       </div>
 
@@ -702,7 +702,7 @@ const Expenses = () => {
                 }));
               }}
               disabled={editExpense.isInactive}
-              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
+              className={`w-full px-3 py-2 rounded border outline-none disabled:opacity-50 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
             />
 
             <datalist id="expenseTypesListEdit">
@@ -723,7 +723,7 @@ const Expenses = () => {
                 setEditExpense((p) => ({ ...p, date: e.target.value }))
               }
               disabled={editExpense.isInactive}
-              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
+              className={`w-full px-3 py-2 rounded border outline-none disabled:opacity-50 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
             />
           </div>
 
@@ -738,7 +738,7 @@ const Expenses = () => {
                 setEditExpense((p) => ({ ...p, amount: e.target.value }))
               }
               disabled={editExpense.isInactive}
-              className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
+              className={`w-full px-3 py-2 rounded border outline-none disabled:opacity-50 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
             />
           </div>
 
@@ -779,7 +779,7 @@ const Expenses = () => {
 
       {/* ---------------- MAIN PAGE ---------------- */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-900' : theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <div className="flex flex-col h-full overflow-hidden gap-2"> 
 
             <h2 className="text-2xl font-semibold mb-4">Expenses</h2>

@@ -78,8 +78,6 @@ export const MastersProvider = ({ children }) => {
   // --- GENERIC LOADER HELPER ---
   const createLoadFunction = (state, setState, getApi, searchApi, name) => {
     return useCallback(async (page = 1, limit = 25, search = "", forceRefresh = false, ...args) => {
-      // Check cache (only if no search and no extra args, as args might change result)
-      // If args exist, we can't easily cache unless we cache by args key. For now, bypass cache if args exist.
       const hasArgs = args.length > 0 && args.some(a => a && Object.keys(a).length > 0);
       
       if (!forceRefresh && !search && !hasArgs && state.loaded && page === 1 && state.cachedLimit === limit) {
@@ -92,12 +90,7 @@ export const MastersProvider = ({ children }) => {
 
         if (res?.status === 200) {
           const records = res.data.records || res.data || [];
-          const total = res.data.total || (Array.isArray(records) ? records.length : 0);
-          
-          // Should we normalize? Ideally yes, but sticking to raw for generic support unless structure varies wildly.
-          // Most APIs return { Id/id, Name/name ... }
-          // We'll normalize keys to standard camelCase if needed, but currently pages handle data access.
-          // Let's pass raw records for compatibility with existing page logic.
+          const total = res.data.total || (Array.isArray(records) ? records.length : 0);        
           
           if (!search && page === 1) {
              setState(prev => ({ ...prev, data: records, total, loaded: true, cachedLimit: limit }));
@@ -138,37 +131,21 @@ export const MastersProvider = ({ children }) => {
   const refreshCountries = createRefresh(setCountriesData);
   const refreshInactiveCountries = createRefreshInactive(setCountriesData);
 
-  // 2. States (Has slight custom norm in original, but generic might work if pages adjust. Original did normalization.)
-  // We will replicate original custom normalization for States/Cities if deemed critical, or just rely on raw. 
-  // Original States logic normalized keys. Let's keep it generic for new ones, but maybe explicit for States/Cities if needed.
-  // Actually, checking previous States.jsx, it uses `data` from context. 
-  // Let's stick to generic raw data passing. If pages expect `name` but get `Name`, we might need normalization.
-  // Most new APIs on backend return `Id`, `Name`. Frontend needs to handle case insensitivity or we normalize here.
-  // I will add a `normalization` callback to generic loader if provided.
-  
-  const genericNormalize = (arr) => arr.map(r => {
-      // Basic normalization to camelCase for common fields if they exist as PascalCase
-      const newObj = { ...r };
-      if (r.Id) newObj.id = r.Id;
-      if (r.Name) newObj.name = r.Name;
-      // We don't delete original keys to be safe.
-      return newObj;
-  });
-
   const createLoadFunctionNorm = (state, setState, getApi, searchApi, name, normFn) => {
-    return useCallback(async (page = 1, limit = 25, search = "", forceRefresh = false) => {
-      if (!forceRefresh && !search && state.loaded && page === 1) return { data: state.data, total: state.total };
+    return useCallback(async (page = 1, limit = 25, search = "", forceRefresh = false, ...args) => {
+      const hasArgs = args.length > 0 && args.some(a => a && Object.keys(a).length > 0 || typeof a === 'string' || typeof a === 'number');
+      if (!forceRefresh && !search && !hasArgs && state.loaded && page === 1 && state.cachedLimit === limit) return { data: state.data, total: state.total };
       try {
         let res;
         if (search) res = await searchApi(search);
-        else res = await getApi(page, limit);
+        else res = await getApi(page, limit, ...args);
         if (res?.status === 200) {
           let records = res.data.records || res.data || [];
           if (normFn) records = normFn(records);
           // else records = genericNormalize(records); // Optional: auto-normalize?
 
           const total = res.data.total || (Array.isArray(records) ? records.length : 0);
-          if (!search && page === 1) setState(prev => ({ ...prev, data: records, total, loaded: true }));
+          if (!search && page === 1) setState(prev => ({ ...prev, data: records, total, loaded: true, cachedLimit: limit }));
           return { data: records, total };
         }
       } catch (err) { console.error(`Context Load ${name} Error`, err); }
@@ -187,8 +164,8 @@ export const MastersProvider = ({ children }) => {
 
   const loadStates = createLoadFunctionNorm(statesData, setStatesData, getStatesApi, searchStateApi, "States", normStates);
   const loadInactiveStates = createLoadInactiveFunction(statesData, setStatesData, getInactiveStatesApi, "States"); // Inactive also needs norm? standard func logic has reuse issue if norm needed. 
-  // Re-implementing loadInactive with norm support would be cleaner. 
-  // For now, let's just stick to "Load" fetchers having norm. Inactive usually just list.
+
+
 
   const refreshStates = createRefresh(setStatesData);
   const refreshInactiveStates = createRefreshInactive(setStatesData);

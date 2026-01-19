@@ -3,12 +3,12 @@ import React, { useEffect, useState, useRef } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import ContentCard from "../../components/ContentCard";
 import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
-import toast from "react-hot-toast";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import {
   getGoodsIssuesApi,
   getInactiveGoodsIssuesApi,
@@ -273,7 +273,7 @@ const readOnly = isRestoreMode;
       setRows(normalized);
     } catch (error) {
       console.error("Error fetching goods issues", error);
-      toast.error("Failed to load goods issues");
+      showErrorToast("Failed to load goods issues");
       // keep rows unchanged on error
     } finally {
       setLoading(false);
@@ -327,7 +327,7 @@ const fetchInactiveGoodsIssues = async () => {
     // setRows(normalized) // DO NOT REPLACE ACTIVE ROWS
   } catch (error) {
     console.error("Inactive goods issue fetch failed:", error)
-    toast.error("Inactive goods issues not available")
+    showErrorToast("Inactive goods issues not available")
     setInactiveRows([])
   } finally {
     // setLoading(false)
@@ -337,16 +337,7 @@ const fetchInactiveGoodsIssues = async () => {
 
 
 const handleRestoreIssue = async (id) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This goods issue will be restored!",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm();
 
     if (!result.isConfirmed) return;
 
@@ -354,15 +345,15 @@ const handleRestoreIssue = async (id) => {
     const res = await restoreGoodsIssueApi(id, { userId });
 
     if (res.status === 200) {
-      toast.success("Restored successfully");
+      showSuccessToast("Restored successfully");
       await fetchGoodsIssues();
       if(showInactive) await fetchInactiveGoodsIssues();
     } else {
-      toast.error("Restore failed");
+      showErrorToast("Restore failed");
     }
   } catch (error) {
     console.error("RESTORE ERROR", error);
-    toast.error("Error restoring goods issue");
+    showErrorToast("Error restoring goods issue");
   }
 };
 
@@ -402,9 +393,11 @@ const handleRestoreIssue = async (id) => {
   return (
     <>
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+           <ContentCard>
            <div className="flex flex-col h-full overflow-hidden gap-2">
-             <h2 className="text-2xl font-semibold mb-4">Goods Issue</h2>
+             <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Goods Issue</h2>
+             <hr className="mb-4 border-gray-300" />
             
              <MasterTable
                 columns={[
@@ -460,6 +453,7 @@ const handleRestoreIssue = async (id) => {
                }}
              />
            </div>
+           </ContentCard>
          </div>
 
          {/* COLUMN TYPE */}

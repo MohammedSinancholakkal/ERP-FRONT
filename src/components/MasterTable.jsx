@@ -52,6 +52,8 @@ const MasterTable = ({
             : `${
                 theme === "emerald"
                   ? "bg-gradient-to-r from-emerald-100 to-white hover:from-emerald-200 hover:to-white text-gray-900 border-emerald-300"
+                  : theme === "purple"
+                  ? "bg-white text-gray-900 border border-gray-200 shadow-sm hover:shadow-md transition-shadow hover:bg-gray-50 my-1"
                   : "bg-gray-900 hover:bg-gray-700 text-white"
               }`
         }
@@ -61,7 +63,7 @@ const MasterTable = ({
       {columns.map((col) => (
         <td
           key={col.key}
-          className={`px-4 py-1 text-center whitespace-nowrap ${
+          className={`px-4 py-1 text-left whitespace-nowrap ${
             theme === "emerald" && !isInactive ? "border-b border-emerald-200" : ""
           } ${col.className || ""}`}
         >
@@ -80,12 +82,14 @@ const MasterTable = ({
           className={`flex items-center px-2 py-1.5 rounded-md border w-full sm:w-60 ${
             theme === "emerald"
               ? "bg-gray-100 border-emerald-500"
+              : theme === "purple"
+              ? "bg-white border-gray-300 focus-within:border-gray-500 transition-colors"
               : "bg-gray-700 border-gray-600"
           }`}
         >
           <Search
             size={16}
-            className={theme === "emerald" ? "text-gray-500" : "text-gray-300"}
+            className={theme === "emerald" ? "text-gray-500" : theme === "purple" ? "text-gray-400" : "text-gray-300"}
           />
           <input
             type="text"
@@ -95,6 +99,8 @@ const MasterTable = ({
             className={`bg-transparent outline-none pl-2 w-full text-sm ${
               theme === "emerald"
                 ? "text-gray-900 placeholder-gray-500"
+                : theme === "purple"
+                ? "text-gray-900 placeholder-gray-400"
                 : "text-gray-200 placeholder-gray-500"
             }`}
           />
@@ -107,6 +113,8 @@ const MasterTable = ({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm ${
               theme === "emerald"
                 ? "bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700"
+                : theme === "purple"
+                ? "bg-[#6448AE] text-white border-[#6448AE] hover:bg-[#6E55B6]"
                 : "bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
             }`}
           >
@@ -122,12 +130,14 @@ const MasterTable = ({
             className={`p-1.5 rounded-md border ${
               theme === "emerald"
                 ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
+                : theme === "purple"
+                ? "bg-[#6448AE] border-[#6448AE] hover:bg-[#6E55B6] text-white"
                 : "bg-gray-700 border-gray-600 hover:bg-gray-600"
             }`}
           >
             <RefreshCw
               size={16}
-              className={`${theme === "emerald" ? "text-white" : "text-blue-400"} ${isRefreshing ? "animate-spin" : ""}`}
+              className={`${theme === "emerald" ? "text-white" : theme === "purple" ? "text-white" : "text-blue-400"} ${isRefreshing ? "animate-spin" : ""}`}
             />
           </button>
         )}
@@ -139,12 +149,14 @@ const MasterTable = ({
             className={`p-1.5 rounded-md border ${
               theme === "emerald"
                 ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
+                : theme === "purple"
+                ? "bg-[#6448AE] border-[#6448AE] hover:bg-[#6E55B6] text-white"
                 : "bg-gray-700 border-gray-600 hover:bg-gray-600"
             }`}
           >
             <List
               size={16}
-              className={theme === "emerald" ? "text-white" : "text-blue-300"}
+              className={theme === "emerald" ? "text-white" : theme === "purple" ? "text-white" : "text-blue-300"}
             />
           </button>
         )}
@@ -156,16 +168,18 @@ const MasterTable = ({
             className={`p-1.5 rounded-md border flex items-center gap-1 ${
               theme === "emerald"
                 ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
+                : theme === "purple"
+                ? "bg-[#6448AE] border-[#6448AE] hover:bg-[#6E55B6] text-white"
                 : "bg-gray-700 border-gray-600 hover:bg-gray-600"
             }`}
           >
             <ArchiveRestore
               size={16}
-              className={theme === "emerald" ? "text-white" : "text-yellow-300"}
+              className={theme === "emerald" ? "text-white" : theme === "purple" ? "text-white" : "text-yellow-300"}
             />
             <span
               className={`text-xs opacity-80 ${
-                theme === "emerald" ? "text-white" : ""
+                theme === "emerald" ? "text-white" : theme === "purple" ? "text-white" : ""
               }`}
             >
               Inactive
@@ -185,14 +199,14 @@ const MasterTable = ({
             minWidth: `${
               columns.length > 6 
                 ? 900 + (columns.length - 6) * 200 
-                : 500 + Math.max(0, columns.length - 2) * 100
+                : 250 + Math.max(0, columns.length - 2) * 100
             }px` 
           }}
           className="text-left border-separate border-spacing-y-1 text-sm w-auto"
         >
           <thead
             className={`sticky top-0 z-10 ${
-              theme === "emerald" ? "bg-emerald-700 text-white" : "bg-gray-900 text-white"
+              theme === "emerald" ? "bg-emerald-700 text-white" : theme === "purple" ? "bg-[#6448AE] text-white" : "bg-gray-900 text-white"
             }`}
           >
             <tr>
@@ -205,7 +219,7 @@ const MasterTable = ({
                     onClick={() => onSort && onSort(col.key)}
                   />
                 ) : (
-                  <th key={col.key} className="px-1 py-1 font-semibold text-center uppercase tracking-wider whitespace-nowrap">
+                  <th key={col.key} className="px-4 py-1 border-b border-white text-left whitespace-nowrap">
                     {col.label}
                   </th>
                 )

@@ -36,18 +36,18 @@ const Pagination = ({
   };
 
   return (
-    <div className={`sticky bottom-0 px-10 py-2 border-t z-30 ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-700 border-emerald-600' : 'bg-gray-900 border-gray-700'}`}>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+    <div className={`sticky bottom-0 px-1 py-1 z-30 ${theme === 'emerald' ? 'border-t bg-gradient-to-b from-emerald-800 to-emerald-700 border-emerald-600' : theme === 'purple' ? 'border-t bg-white border-[#6448AE] text-[#6448AE]' : 'border-t bg-gray-900 border-gray-700'}`}>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
         <select
           value={limit}
           onChange={(e) => {
             setLimit(Number(e.target.value));
             setPage(1);
           }}
-          className={`border rounded px-2 py-1 text-white outline-none focus:border-blue-500 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500' : 'bg-gray-800 border-gray-600'}`}
+          className={`border rounded px-2 py-1 outline-none focus:border-blue-500 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 text-white' : theme === 'purple' ? 'bg-white border-[#6448AE] text-[#6448AE]' : 'bg-gray-800 border-gray-600 text-white'}`}
         >
           {[10, 25, 50, 100].map((n) => (
-            <option key={n} value={n} className="bg-gray-900">
+            <option key={n} value={n} className={theme === 'emerald' ? "bg-emerald-800" : theme === 'purple' ? "bg-white text-gray-900" : "bg-gray-900"}>
               {n}
             </option>
           ))}
@@ -56,7 +56,7 @@ const Pagination = ({
         <button
           disabled={page === 1}
           onClick={() => setPage(1)}
-          className={`p-1 border rounded disabled:opacity-50 text-gray-300 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
         >
           <ChevronsLeft size={16} />
         </button>
@@ -64,16 +64,16 @@ const Pagination = ({
         <button
           disabled={page === 1}
           onClick={() => setPage(page - 1)}
-          className={`p-1 border rounded disabled:opacity-50 text-gray-300 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
         >
           <ChevronLeft size={16} />
         </button>
 
-        <span className="text-gray-400">Page</span>
+        <span className={`${theme === 'purple' ? 'text-[#6448AE]' : 'text-gray-400'}`}>Page</span>
 
         <input
           type="number"
-          className={`w-12 border rounded text-center text-white outline-none focus:border-blue-500 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500' : 'bg-gray-800 border-gray-600'}`}
+          className={`w-12 border rounded text-center outline-none focus:border-blue-500 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 text-white' : theme === 'purple' ? 'bg-white border-[#6448AE] text-[#6448AE]' : 'bg-gray-800 border-gray-600 text-white'}`}
           value={page}
           onChange={(e) => {
             const value = Number(e.target.value);
@@ -81,12 +81,12 @@ const Pagination = ({
           }}
         />
 
-        <span className="text-gray-400">/ {totalPages}</span>
+        <span className={`${theme === 'purple' ? 'text-[#6448AE]' : 'text-gray-400'}`}>/ {totalPages}</span>
 
         <button
           disabled={page === totalPages}
           onClick={() => setPage(page + 1)}
-          className={`p-1 border rounded disabled:opacity-50 text-gray-300 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
         >
           <ChevronRight size={16} />
         </button>
@@ -94,7 +94,7 @@ const Pagination = ({
         <button
           disabled={page === totalPages}
           onClick={() => setPage(totalPages)}
-          className={`p-1 border rounded disabled:opacity-50 text-gray-300 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
         >
           <ChevronsRight size={16} />
         </button>
@@ -103,16 +103,16 @@ const Pagination = ({
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className={`p-1 border rounded text-blue-400 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}
+            className={`p-1 border rounded ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-blue-400' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-blue-400'}`}
             title="Refresh"
           >
             <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
           </button>
         )}
 
-        <span className="text-gray-400">
-          Showing <b className="text-white">{start <= total ? start : 0}</b> to <b className="text-white">{end}</b>{" "}
-          of <b className="text-white">{total}</b> records
+        <span className={`${theme === 'purple' ? 'text-[#6448AE]' : 'text-gray-400'}`}>
+          Showing <b className={`${theme === 'purple' ? 'text-[#6448AE] hover:bg-[#6E55B6] ' : 'text-white'}`}>{start <= total ? start : 0}</b> to <b className={`${theme === 'purple' ? 'text-[#6448AE] hover:bg-[#6E55B6] ' : 'text-white'}`}>{end}</b>{" "}
+          of <b className={`${theme === 'purple' ? 'text-[#6448AE] hover:bg-[#6E55B6] ' : 'text-white'}`}>{total}</b> records
         </span>
       </div>
     </div>

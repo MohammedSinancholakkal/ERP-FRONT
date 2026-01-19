@@ -26,6 +26,7 @@ import {
   BarChart3,
   X,
 } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 /* =========================
    DATA
@@ -84,7 +85,7 @@ const ChartCard = ({
             <h3 className="font-semibold text-gray-800">{title}</h3>
           </div>
 
-          <div className="flex gap-2">
+           <div className="flex-1 font-medium">
             <button
               onClick={() => setMinimized(!minimized)}
               className="p-2 hover:bg-gray-100 rounded"
@@ -125,22 +126,34 @@ const ChartCard = ({
    CHARTS
 ========================= */
 
-export const YearlySalesChart = ({ data }) => (
+export const YearlySalesChart = ({ data }) => {
+  const { theme } = useTheme();
+  const isLight = theme === 'purple' || theme === 'emerald';
+  const axisColor = isLight ? "#4b5563" : "#9ca3af";
+  const gridColor = isLight ? "#e5e7eb" : "#4b5563";
+  const tooltipStyle = isLight ? {} : { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#fff' };
+
+  return (
   <ResponsiveContainer width="100%" height="100%">
     <LineChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="month" />
-      <YAxis />
-      <Tooltip />
-      <Legend />
+      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+      <XAxis dataKey="month" stroke={axisColor} />
+      <YAxis stroke={axisColor} />
+      <Tooltip contentStyle={tooltipStyle} />
+      <Legend wrapperStyle={{ color: axisColor }} />
       <Line type="monotone" dataKey="sale" stroke="#3498db" strokeWidth={3} activeDot={{ r: 8 }} name="Sales" />
       <Line type="monotone" dataKey="purchase" stroke="#e74c3c" strokeWidth={3} name="Purchase" />
       <Line type="monotone" dataKey="expense" stroke="#9b59b6" strokeWidth={3} name="Expense" />
     </LineChart>
   </ResponsiveContainer>
-);
+)};
 
-export const ExpenseChart = ({ data }) => (
+export const ExpenseChart = ({ data }) => {
+  const { theme } = useTheme();
+  const isLight = theme === 'purple' || theme === 'emerald';
+  const tooltipStyle = isLight ? {} : { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#fff' };
+
+  return (
   <ResponsiveContainer width="100%" height="100%">
     <PieChart>
       <Pie data={data} dataKey="value" label>
@@ -148,33 +161,47 @@ export const ExpenseChart = ({ data }) => (
           <Cell key={i} fill={e.color} />
         ))}
       </Pie>
-      <Tooltip />
+      <Tooltip contentStyle={tooltipStyle} />
     </PieChart>
   </ResponsiveContainer>
-);
+)};
 
-export const MonthlySalesChart = ({ data }) => (
+export const MonthlySalesChart = ({ data }) => {
+  const { theme } = useTheme();
+  const isLight = theme === 'purple' || theme === 'emerald';
+  const axisColor = isLight ? "#4b5563" : "#9ca3af";
+  const gridColor = isLight ? "#e5e7eb" : "#4b5563";
+  const tooltipStyle = isLight ? {} : { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#fff' };
+
+  return (
   <ResponsiveContainer width="100%" height="100%">
     <LineChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="day" />
-      <YAxis />
-      <Tooltip />
-      <Legend />
+      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+      <XAxis dataKey="day" stroke={axisColor} />
+      <YAxis stroke={axisColor} />
+      <Tooltip contentStyle={tooltipStyle} />
+      <Legend wrapperStyle={{ color: axisColor }} />
       <Line type="monotone" dataKey="sale" stroke="#3498db" strokeWidth={3} activeDot={{ r: 8 }} name="Sales" />
       <Line type="monotone" dataKey="purchase" stroke="#e74c3c" strokeWidth={3} activeDot={{ r: 8 }} name="Purchase" />
       <Line type="monotone" dataKey="expense" stroke="#9b59b6" strokeWidth={3} activeDot={{ r: 8 }} name="Expense" />
     </LineChart>
   </ResponsiveContainer>
-);
+)};
 
-export const BestProductChart = ({ data }) => (
+export const BestProductChart = ({ data }) => {
+  const { theme } = useTheme();
+  const isLight = theme === 'purple' || theme === 'emerald';
+  const axisColor = isLight ? "#4b5563" : "#9ca3af";
+  const gridColor = isLight ? "#e5e7eb" : "#4b5563";
+  const tooltipStyle = isLight ? {} : { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#fff' };
+
+  return (
   <ResponsiveContainer width="100%" height="100%">
     <BarChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="name" />
-      <YAxis />
-      <Tooltip />
+      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+      <XAxis dataKey="name" stroke={axisColor} />
+      <YAxis stroke={axisColor} />
+      <Tooltip contentStyle={tooltipStyle} />
       <Bar dataKey="value">
         {data && data.map((p, i) => (
           <Cell key={i} fill={p.color} />
@@ -182,7 +209,7 @@ export const BestProductChart = ({ data }) => (
       </Bar>
     </BarChart>
   </ResponsiveContainer>
-);
+)};
 
 /* =========================
    MAIN PAGE

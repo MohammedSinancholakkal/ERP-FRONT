@@ -5,9 +5,9 @@ import {
   ArchiveRestore,
 } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
 import { useTheme } from "../../context/ThemeContext";
-import toast from "react-hot-toast";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -24,6 +24,7 @@ import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import PageLayout from "../../layout/PageLayout";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import InputField from "../../components/InputField";
 
 const TaxPercentage = () => {
   const { theme } = useTheme();
@@ -138,7 +139,7 @@ const TaxPercentage = () => {
 
   // ================= ADD =================
   const handleAdd = async () => {
-    if (!newItem.percentage) return toast.error("Percentage is required");
+    if (!newItem.percentage) return showErrorToast("Percentage is required");
 
     // Check for duplicates
     try {
@@ -149,11 +150,11 @@ const TaxPercentage = () => {
         const existing = rows.find(r => 
            parseFloat(r.percentage || r.Percentage) === parseFloat(newItem.percentage)
         );
-        if (existing) return toast.error("This Tax Percentage already exists");
+        if (existing) return showErrorToast("This Tax Percentage already exists");
       }
     } catch (err) {
       console.error(err);
-      return toast.error("Error checking duplicates");
+      return showErrorToast("Error checking duplicates");
     }
 
     try {
@@ -163,16 +164,16 @@ const TaxPercentage = () => {
       });
 
       if (res?.status === 200) {
-        toast.success("Added Successfully");
+        showSuccessToast("Added Successfully");
         setModalOpen(false);
         setNewItem({ percentage: "" });
         loadData();
       } else {
-        toast.error("Failed to add");
+        showErrorToast("Failed to add");
       }
     } catch (error) {
       console.error(error);
-      toast.error("Server Error");
+      showErrorToast("Server Error");
     }
   };
 
@@ -188,7 +189,7 @@ const TaxPercentage = () => {
 
   // ================= UPDATE =================
   const handleUpdate = async () => {
-    if (!editItem.percentage) return toast.error("Percentage is required");
+    if (!editItem.percentage) return showErrorToast("Percentage is required");
 
     // Check for duplicates
     try {
@@ -199,11 +200,11 @@ const TaxPercentage = () => {
            parseFloat(r.percentage || r.Percentage) === parseFloat(editItem.percentage) &&
            (r.id || r.Id) !== editItem.id
         );
-        if (existing) return toast.error("This Tax Percentage already exists");
+        if (existing) return showErrorToast("This Tax Percentage already exists");
       }
     } catch (err) {
       console.error(err);
-      return toast.error("Error checking duplicates");
+      return showErrorToast("Error checking duplicates");
     }
 
     try {
@@ -212,56 +213,55 @@ const TaxPercentage = () => {
         userId: currentUserId
       });
       if (res?.status === 200) {
-        toast.success("Updated Successfully");
+        showSuccessToast("Updated Successfully");
         setEditModalOpen(false);
         if (showInactive) loadInactive();
         else loadData();
       }
     } catch (error) {
        console.error(error);
-       toast.error("Update Failed");
+       showErrorToast("Update Failed");
     }
   };
 
   // ================= DELETE =================
+  // ================= DELETE =================
   const handleDelete = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "Delete this record?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      confirmButtonText: "Yes, delete"
-    });
+    const result = await showDeleteConfirm();
 
     if (!result.isConfirmed) return;
 
     try {
       const res = await deleteTaxPercentageApi(editItem.id, { userId: currentUserId });
       if (res?.status === 200) {
-        toast.success("Deleted");
+        showSuccessToast("Deleted");
         setEditModalOpen(false);
         loadData();
       }
     } catch (error) {
        console.error(error);
-       toast.error("Delete Failed");
+       showErrorToast("Delete Failed");
     }
   };
 
   // ================= RESTORE =================
+  // ================= RESTORE =================
   const handleRestore = async () => {
-    try {
-       const res = await restoreTaxPercentageApi(editItem.id, { userId: currentUserId });
-       if (res?.status === 200) {
-         toast.success("Restored");
-         setEditModalOpen(false);
-         loadInactive();
-         loadData();
-       }
-    } catch (error) {
-        console.error(error);
-        toast.error("Restore Failed");
+    const result = await showRestoreConfirm();
+
+    if (result.isConfirmed) {
+        try {
+           const res = await restoreTaxPercentageApi(editItem.id, { userId: currentUserId });
+           if (res?.status === 200) {
+             showSuccessToast("Restored");
+             setEditModalOpen(false);
+             loadInactive();
+             loadData();
+           }
+        } catch (error) {
+            console.error(error);
+            showErrorToast("Restore Failed");
+        }
     }
   };
 
@@ -278,14 +278,14 @@ const TaxPercentage = () => {
       >
         <div className="space-y-4">
            <div>
-             <label className="block text-sm mb-1">Percentage % <span className="text-red-500">*</span></label>
-             <input 
-               type="number" 
+             <InputField
+               label="Percentage %"
+               type="number"
                step="0.01"
                value={newItem.percentage}
                onChange={(e) => setNewItem({ ...newItem, percentage: e.target.value })}
-               className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
                placeholder="e.g. 18.00"
+               required
              />
            </div>
         </div>
@@ -305,14 +305,14 @@ const TaxPercentage = () => {
       >
          <div className="space-y-4">
            <div>
-             <label className="block text-sm mb-1">Percentage % <span className="text-red-500">*</span></label>
-             <input 
-               type="number" 
+             <InputField
+               label="Percentage %"
+               type="number"
                step="0.01"
                value={editItem.percentage}
                onChange={(e) => setEditItem({ ...editItem, percentage: e.target.value })}
                disabled={editItem.isInactive}
-               className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded disabled:opacity-50"
+               required
              />
            </div>
         </div>
@@ -328,9 +328,11 @@ const TaxPercentage = () => {
       />
 
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-            <div className="flex flex-col h-full overflow-hidden gap-2">
-             <h2 className="text-2xl font-semibold mb-4">Tax Percentage</h2>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+            <ContentCard>
+              <div className="flex flex-col h-full overflow-hidden gap-2">
+                 <h2 className="text-xl font-bold text-[#6448AE] mb-2">Tax Percentage</h2>
+                 <hr className="mb-4 border-gray-300" />
              
              <MasterTable
                 columns={[
@@ -366,7 +368,8 @@ const TaxPercentage = () => {
                 setPage={setPage}
                 totalPages={Math.ceil(totalRecords / limit)}
              />
-             </div>
+              </div>
+            </ContentCard>
         </div>
       </PageLayout>
     </>

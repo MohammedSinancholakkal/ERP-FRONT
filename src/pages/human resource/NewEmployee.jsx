@@ -12,7 +12,7 @@ import {
   Image as ImageIcon,
   ArrowLeft,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { showDeleteConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import {
@@ -33,6 +33,8 @@ import {
   addCityApi,
   addRegionApi,
   addTerritoryApi,
+  addDepartmentApi,
+  addDesignationApi,
  addEmployeeApi,
 updateEmployeeApi,
 getEmployeeByIdApi,
@@ -42,12 +44,14 @@ searchEmployeeApi,
 } from "../../services/allAPI";
 import { serverURL } from "../../services/serverURL";
 import SearchableSelect from "../../components/SearchableSelect";
-import Swal from "sweetalert2";
+
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
 import AddModal from "../../components/modals/AddModal";
+import ContentCard from "../../components/ContentCard";
 
+// 1. Update EmpSearchableSelect Star and Asterisk
 const EmpSearchableSelect = ({
   label,
   value,
@@ -56,13 +60,15 @@ const EmpSearchableSelect = ({
   required = false,
   onAdd,
   placeholder = "Select...",
-  disabled = false
+  disabled = false,
+  ...props
 }) => {
+  const { theme } = useTheme();
   return (
     <div className="w-full">
-      <label className="text-sm text-gray-300 block mb-1">
+      <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
         {label} 
-        {required && <span className="text-red-400"> *</span>}
+        {required && <span className="text-dark"> *</span>}
       </label>
       <div className="flex gap-2 items-start">
         <div className="flex-grow">
@@ -72,25 +78,54 @@ const EmpSearchableSelect = ({
             onChange={onChange}
             placeholder={placeholder}
             disabled={disabled}
+            {...props}
           />
         </div>
         
-        {onAdd && (
+        {onAdd ? (
           <button
             type="button"
             onClick={onAdd}
             disabled={disabled}
-            className={`flex-shrink-0 h-[38px] w-[38px] flex items-center justify-center rounded bg-gray-800 border border-gray-600 transition ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+            className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-800 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
             title="Add"
           >
-            <Star size={20} className="text-yellow-400" />
+            <Star size={16}/>
           </button>
+        ) : (
+           <div className="flex-shrink-0 w-[38px] h-[38px]"></div>
         )}
       </div>
     </div>
   );
 };
 
+const FormInput = ({ label, value, onChange, placeholder, required, type = "text", disabled, autoFocus }) => {
+  const { theme } = useTheme();
+  return (
+    <div className="w-full">
+      <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
+        {label} 
+        {required && <span className="text-dark"> *</span>}
+      </label>
+      <div className="flex gap-2 items-start">
+        <div className="flex-grow">
+          <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            autoFocus={autoFocus}
+            className={`w-full border rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-200'}`}
+          />
+        </div>
+        {/* Spacer to match EmpSearchableSelect button width */}
+        <div className="flex-shrink-0 w-[38px] h-[38px]"></div>
+      </div>
+    </div>
+  );
+};
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
  
@@ -116,6 +151,7 @@ const fullImageURL = (path) => {
   return `${host}${normalizedPath}`;
 };
 const NewEmployee = () => {
+  const { theme } = useTheme();
 
   const { id } = useParams();        
   const navigate = useNavigate();
@@ -198,7 +234,7 @@ const loadEmployeeForEdit = async () => {
     })));
   } catch (err) {
     console.error("Edit load failed:", err);
-    toast.error("Failed to load employee");
+    showErrorToast("Failed to load employee");
   } finally {
     setIsEditLoading(false);
   }
@@ -284,27 +320,63 @@ const loadEmployeeForEdit = async () => {
   // Lifted Logic for Lookup Save
   const handleLookupSave = async () => {
     const { key, callback, mode } = lookupCreateContext;
-    if (!lookupName || !lookupName.trim()) return toast.error("Name required");
+    if (!lookupName || !lookupName.trim()) return showErrorToast("Name required");
 
     try {
       let created = null;
+      let wasDuplicate = false;
+
       if (!mode || mode === "add") {
         const userId = form.userId || 1;
         
-        if (key === "country") {
+         if (key === "country") {
           const res = await addCountryApi({ name: lookupName.trim(), userId });
+          if (res?.data?.message?.includes("already exists")) {
+             showSuccessToast("Country already exists, selected existing.");
+             wasDuplicate = true;
+          }
           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === "state") {
           const res = await addStateApi({ name: lookupName.trim(), countryId: Number(form.countryId), userId });
+          if (res?.data?.message?.includes("already exists")) {
+             showSuccessToast("State already exists, selected existing.");
+             wasDuplicate = true;
+          }
           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === "city") {
            const res = await addCityApi({ name: lookupName.trim(), countryId: Number(form.countryId), stateId: Number(form.stateId), userId });
+           if (res?.data?.message?.includes("already exists")) {
+             showSuccessToast("City already exists, selected existing.");
+             wasDuplicate = true;
+           }
            created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === "region") {
-          const res = await addRegionApi({ name: lookupName.trim(), userId });
+          const res = await addRegionApi({ regionName: lookupName.trim(), userId });
+          if (res?.data?.message?.includes("already exists")) {
+            showSuccessToast("Region already exists, selected existing.");
+            wasDuplicate = true;
+          }
           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === "territory") {
-           const res = await addTerritoryApi({ name: lookupName.trim(), regionId: Number(form.regionId), userId });
+           const res = await addTerritoryApi({ territoryDescription: lookupName.trim(), regionId: Number(form.regionId), userId });
+           if (res?.data?.message?.includes("already exists")) {
+            showSuccessToast("Territory already exists, selected existing.");
+            wasDuplicate = true;
+          }
+           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
+        } else if (key === "department") {
+           const res = await addDepartmentApi({ department: lookupName.trim(), userId });
+           if (res?.data?.message?.includes("already exists")) {
+            showSuccessToast("Department already exists, selected existing.");
+            wasDuplicate = true;
+          }
+           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
+        } else if (key === "designation") {
+           const res = await addDesignationApi({ designation: lookupName.trim(), userId });
+           if (res?.data?.message?.includes("already exists")) {
+            showSuccessToast("Designation already exists, selected existing.");
+            wasDuplicate = true;
+          }
            created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else {
            created = { id: `t_${Date.now()}`, name: lookupName.trim() };
@@ -330,17 +402,20 @@ const loadEmployeeForEdit = async () => {
       if (typeof callback === "function") callback(created);
       setShowLookupCreateModal(false);
       setLookupName("");
-      toast.success(`${mode === "edit" ? "Updated" : "Added"} ${key}`);
+      
+      if (!wasDuplicate) {
+        showSuccessToast(`${mode === "edit" ? "Updated" : "Added"} ${key}`);
+      }
     } catch (err) {
       console.error("lookup create error:", err);
-      toast.error("Save failed");
+      showErrorToast("Save failed");
     }
   };
 
   // Lifted Logic for Income Save
   const handleIncomeSave = () => {
-      if (!incomeForm.typeId) return toast.error("Income required");
-      if (!incomeForm.amount) return toast.error("Amount required");
+      if (!incomeForm.typeId) return showErrorToast("Income required");
+      if (!incomeForm.amount) return showErrorToast("Amount required");
 
       const typeName = incomeTypes.find(t => String(t.id) === String(incomeForm.typeId))?.name || "";
 
@@ -356,8 +431,8 @@ const loadEmployeeForEdit = async () => {
 
   // Lifted Logic for Deduction Save
    const handleDeductionSave = () => {
-      if (!deductionForm.typeId) return toast.error("Deduction required");
-      if (!deductionForm.amount) return toast.error("Amount required");
+      if (!deductionForm.typeId) return showErrorToast("Deduction required");
+      if (!deductionForm.amount) return showErrorToast("Amount required");
 
       const typeName = deductionTypes.find(t => String(t.id) === String(deductionForm.typeId))?.name || "";
 
@@ -406,7 +481,7 @@ const loadEmployeeForEdit = async () => {
       return arr;
     } catch (err) {
       console.error("loadCountries error", err);
-      toast.error("Failed to load countries");
+      showErrorToast("Failed to load countries");
       setCountries([]);
       return [];
     }
@@ -427,7 +502,7 @@ const loadEmployeeForEdit = async () => {
       return arr;
     } catch (err) {
       console.error("loadStates error", err);
-      toast.error("Failed to load states");
+      showErrorToast("Failed to load states");
       setStates([]);
       return [];
     }
@@ -448,7 +523,7 @@ const loadEmployeeForEdit = async () => {
       return arr;
     } catch (err) {
       console.error("loadCities error", err);
-      toast.error("Failed to load cities");
+      showErrorToast("Failed to load cities");
       setCities([]);
       return [];
     }
@@ -477,7 +552,7 @@ const loadEmployeeForEdit = async () => {
       return filtered;
     } catch (err) {
       console.error("LOAD REGIONS ERROR:", err);
-      toast.error("Failed to load regions");
+      showErrorToast("Failed to load regions");
       setRegions([]);
       return [];
     }
@@ -492,7 +567,7 @@ const loadEmployeeForEdit = async () => {
       return filtered;
     } catch (err) {
       console.error("loadTerritories error", err);
-      toast.error("Failed to load territories");
+      showErrorToast("Failed to load territories");
       setTerritories([]);
       return [];
     }
@@ -511,7 +586,7 @@ const loadEmployeeForEdit = async () => {
       }
     } catch (err) {
       console.error("loadBanks error", err);
-      toast.error("Error loading banks");
+      showErrorToast("Error loading banks");
     }
   };
 
@@ -565,7 +640,7 @@ const loadUsers = async () => {
     return arr;
   } catch (err) {
     console.error("loadUsers error", err);
-    toast.error("Failed to load users");
+    showErrorToast("Failed to load users");
     setUsers([]);
     return [];
   }
@@ -603,11 +678,11 @@ const loadUsers = async () => {
 
   // ---------- submit employee ----------
 const submitEmployee = async () => {
-  if (!form.firstName.trim()) return toast.error("First name required");
-  if (!form.lastName.trim()) return toast.error("Last name required");
-  if (!String(form.salary).trim()) return toast.error("Basic Salary required");
-  if (!form.payrollBankId) return toast.error("Payroll Bank required");
-  if (!form.payrollBankAccount.trim()) return toast.error("Bank Account required");
+  if (!form.firstName.trim()) return showErrorToast("First name required");
+  // Last Name is not required anymore
+  if (!String(form.salary).trim()) return showErrorToast("Basic Salary required");
+  if (!form.payrollBankId) return showErrorToast("Payroll Bank required");
+  if (!form.payrollBankAccount.trim()) return showErrorToast("Bank Account required");
 
   // DUPLICATE VALIDATION
   try {
@@ -620,7 +695,7 @@ const submitEmployee = async () => {
                 e.Phone === form.phone.trim() && 
                 (!isEditMode || String(e.Id) !== String(id))
             );
-            if (existing) return toast.error("Phone number already exists");
+            if (existing) return showErrorToast("Phone number already exists");
         }
       }
 
@@ -633,7 +708,7 @@ const submitEmployee = async () => {
               e.LastName.toLowerCase() === form.lastName.trim().toLowerCase() &&
               (!isEditMode || String(e.Id) !== String(id))
           );
-          if (existing) return toast.error("Employee with this Name already exists");
+          if (existing) return showErrorToast("Employee with this Name already exists");
       }
 
       // 3. Account Number Check
@@ -645,7 +720,7 @@ const submitEmployee = async () => {
                 e.BankAccountForPayroll === form.payrollBankAccount.trim() &&
                 (!isEditMode || String(e.Id) !== String(id))
             );
-            if (existing) return toast.error("Account number already exists");
+            if (existing) return showErrorToast("Account number already exists");
         }
       }
 
@@ -658,7 +733,7 @@ const submitEmployee = async () => {
                 e.Email?.toLowerCase() === form.email.trim().toLowerCase() &&
                 (!isEditMode || String(e.Id) !== String(id))
             );
-            if (existing) return toast.error("Email already exists");
+            if (existing) return showErrorToast("Email already exists");
         }
       }
 
@@ -679,62 +754,41 @@ const submitEmployee = async () => {
     }
 
     if (res?.status === 201 || res?.status === 200) {
-      toast.success(isEditMode ? "Employee updated" : "Employee created");
+      showSuccessToast(isEditMode ? "Employee updated" : "Employee created");
       if (location.state?.returnTo) {
         navigate(location.state.returnTo, { 
           state: { 
             newEmployeeId: res.data?.record?.id || res.data?.id || res.data?.Id,
-            field: location.state.field 
+            field: location.state.field,
+            preservedState: location.state.preservedState // Pass back state
           } 
         });
       } else {
         navigate("/app/hr/employees");          // ✅ REDIRECT
       }
     } else {
-      toast.error(res?.data?.message || "Save failed");
+      showErrorToast(res?.data?.message || "Save failed");
     }
   } catch (err) {
     console.error("submitEmployee error", err);
-    toast.error("Server error");
+    showErrorToast("Server error");
   }
 };
 
 
 
 const handleDelete = async () => {
-  const result = await Swal.fire({
-    title: "Are you sure?",
-    text: "This employee will be deleted!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: "Yes, delete",
-    cancelButtonText: "Cancel",
-  });
+  const result = await showDeleteConfirm("employee");
 
   if (!result.isConfirmed) return;
 
   try {
     await deleteEmployeeApi(id, { userId: form.userId });
-
-    await Swal.fire({
-      icon: "success",
-      title: "Deleted!",
-      text: "Employee deleted successfully.",
-      timer: 1500,
-      showConfirmButton: false,
-    });
-
+    showSuccessToast("Employee deleted successfully.");
     navigate("/app/hr/employees");
   } catch (err) {
-    console.error("Delete failed", err);
-
-    Swal.fire({
-      icon: "error",
-      title: "Delete failed",
-      text: "Something went wrong while deleting the employee.",
-    });
+    console.error("delete employee error", err);
+    showErrorToast("Failed to delete employee");
   }
 };
 
@@ -754,44 +808,54 @@ const handleDelete = async () => {
 
   if (isEditMode && isEditLoading) {
   return (
-    <div className="h-[90vh] flex items-center  bg-gray-900 justify-center text-white">
-      <div className="flex flex-col items-center  gap-3">
-        <div className="w-10 h-10 border-4 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-        <span className="text-gray-300">Loading employee data...</span>
+    <div className={`h-[90vh] flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
+      <div className="flex flex-col items-center gap-3">
+        <div className={`w-10 h-10 border-4 border-t-transparent rounded-full animate-spin ${theme === 'emerald' || theme === 'purple' ? 'border-gray-800' : 'border-gray-400'}`}></div>
+        <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-300'}`}>Loading employee data...</span>
       </div>
     </div>
   );
 }
 
   // PART 3 â€” Final JSX UI (main page)
-  const { theme } = useTheme();
 
   return (
     <PageLayout>
-      <div className={`p-4 text-white h-full overflow-y-auto ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between mb-3">
+      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard>
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between mb-3">
            <div className="flex items-center gap-3">
               <button 
                 onClick={() => {
-                  if (location.state?.from) {
+                  if (location.state?.returnTo) {
+                      navigate(location.state.returnTo, {
+                          state: { preservedState: location.state.preservedState }
+                      });
+                  } else if (location.state?.from) {
                       navigate(location.state.from);
                   } else {
                       navigate("/app/hr/employees");
                   }
                 }} 
-                className="text-white hover:text-white-400"
+                className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-600 hover:text-gray-900' : 'text-white hover:text-white-400'}`}
               >
             <ArrowLeft size={24} />
           </button>
-           <h2 className="text-2xl font-semibold">
+           <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
             {isEditMode ? "Edit Employee" : "New Employee"}
           </h2>
            </div>
 
             <div className="flex gap-3">
             {(isEditMode ? hasPermission(PERMISSIONS.HR.EMPLOYEES.EDIT) : hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)) && (
-            <button onClick={submitEmployee} className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded text-blue-300">
+            <button onClick={submitEmployee}  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                  theme === 'emerald'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : theme === 'purple'
+                  ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                  : 'bg-gray-800 border border-gray-600 text-blue-300'
+              }`}>
               <Save size={16} /> {isEditMode ? "Update" : "Save"}
             </button>
             )}
@@ -799,7 +863,7 @@ const handleDelete = async () => {
             {isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.DELETE) && (
               <button
                 onClick={handleDelete}
-                className="flex items-center gap-2 bg-red-800 border border-red-600 px-3 py-2 rounded text-red-200"
+                className={`flex items-center gap-2 border px-3 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? 'flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500' : 'bg-red-800 border-red-600 text-red-200'}`}
               >
                 <Trash2 size={16} /> Delete
               </button>
@@ -808,12 +872,13 @@ const handleDelete = async () => {
           </div>
 
           </div>
+          <hr className="mb-4 border-gray-300" />
 
           {/* tabs */}
-          <div className="mb-3 border-b border-gray-700">
-            <div className="flex gap-3">
-              <button onClick={() => setBasicTab(true)} className={`px-3 py-1 ${basicTab ? "border-b-2 border-yellow-400 text-yellow-300" : "text-gray-300"}`}>Basic Information</button>
-              <button onClick={() => setBasicTab(false)} className={`px-3 py-1 ${!basicTab ? "border-b-2 border-yellow-400 text-yellow-300" : "text-gray-300"}`}>Payroll</button>
+          <div className={`mb-3 border-b ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
+            <div className="flex gap-3 font-medium">
+              <button onClick={() => setBasicTab(true)} className={`px-3 py-1 ${basicTab ? (theme === 'purple' ? "border-b-2 border-[#6448AE] text-[#6448AE] font-medium" : theme === 'emerald' ? "border-b-2 border-emerald-500 text-emerald-600 font-medium" : "border-b-2 border-yellow-400 text-yellow-300") : (theme === 'emerald' || theme === 'purple' ? "text-gray-500 hover:text-gray-700" : "text-gray-300")}`}>Basic Information</button>
+              <button onClick={() => setBasicTab(false)} className={`px-3 py-1 ${!basicTab ? (theme === 'purple' ? "border-b-2 border-[#6448AE] text-[#6448AE] font-medium" : theme === 'emerald' ? "border-b-2 border-emerald-500 text-emerald-600 font-medium" : "border-b-2 border-yellow-400 text-yellow-300") : (theme === 'emerald' || theme === 'purple' ? "text-gray-500 hover:text-gray-700" : "text-gray-300")}`}>Payroll</button>
             </div>
           </div>
 
@@ -822,43 +887,40 @@ const handleDelete = async () => {
               {basicTab ? (
                 <div className="p-4">
                   {/* UNIFIED GRID for better Tab Order (Left->Right) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-w-full font-medium">
                     
                     {/* Row 1: Names */}
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">First Name <span className="text-red-400">*</span></label>
-                      <input 
-                        value={form.firstName} 
-                        onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors"
-                        placeholder="John" 
+                      <FormInput
+                        label="First Name"
+                        value={form.firstName}
+                        onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))}
+                        placeholder="John"
+                        required
                       />
                     </div>
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">Last Name <span className="text-red-400">*</span></label>
-                      <input 
-                        value={form.lastName} 
-                        onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors"
-                        placeholder="Doe" 
+                      <FormInput
+                        label="Last Name"
+                        value={form.lastName}
+                        onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))}
+                        required={false}
                       />
                     </div>
 
                     {/* Row 2: Contact */}
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">Phone</label>
-                      <input 
-                        value={form.phone} 
-                        onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
+                      <FormInput
+                        label="Phone"
+                        value={form.phone}
+                        onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))}
                       />
                     </div>
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">Email</label>
-                      <input 
-                        value={form.email} 
-                        onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none transition-colors" 
+                      <FormInput
+                        label="Email"
+                        value={form.email}
+                        onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
                       />
                     </div>
 
@@ -871,12 +933,12 @@ const handleDelete = async () => {
                         onChange={(val) => setForm({ ...form, designationId: val })}
                         required
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.HR.DESIGNATIONS.CREATE) ? null : () => {
-                           setLookupCreateContext({ key: 'designation', callback: (c) => setForm(p=>({...p, designationId: c.id})) });
+                           setLookupCreateContext({ key: 'designation', callback: (c) => setForm(p=>({...p, designationId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
                         }}
                         onEdit={isEditMode && hasPermission(PERMISSIONS.HR.DESIGNATIONS.EDIT) ? () => {
                            const item = designations.find(x => String(x.id??x.Id) === String(form.designationId));
-                           setLookupCreateContext({ key: 'designation', item, mode: 'edit', callback: (c) => setForm(p=>({...p, designationId: c.id})) });
+                           setLookupCreateContext({ key: 'designation', item, mode: 'edit', callback: (c) => setForm(p=>({...p, designationId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
                         } : null}
                       />
@@ -889,12 +951,12 @@ const handleDelete = async () => {
                         onChange={(val) => setForm({ ...form, departmentId: val })}
                         required
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) ? null : () => {
-                           setLookupCreateContext({ key: 'department', callback: (c) => setForm(p=>({...p, departmentId: c.id})) });
+                           setLookupCreateContext({ key: 'department', callback: (c) => setForm(p=>({...p, departmentId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
                         }}
                         onEdit={isEditMode && hasPermission(PERMISSIONS.HR.DEPARTMENTS.EDIT) ? () => {
                            const item = departments.find(x => String(x.id??x.Id) === String(form.departmentId));
-                           setLookupCreateContext({ key: 'department', item, mode: 'edit', callback: (c) => setForm(p=>({...p, departmentId: c.id})) });
+                           setLookupCreateContext({ key: 'department', item, mode: 'edit', callback: (c) => setForm(p=>({...p, departmentId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
                         } : null}
                       />
@@ -902,8 +964,8 @@ const handleDelete = async () => {
 
                     {/* Row 4: Compensation */}
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">Rate Type</label>
-                      <SearchableSelect
+                      <EmpSearchableSelect
+                         label="Rate Type"
                          options={[{id: 'hourly', name: 'Hourly'}, {id: 'salary', name: 'Salary'}]}
                          value={form.rateType}
                          onChange={(val) => setForm(p => ({ ...p, rateType: val }))}
@@ -911,19 +973,18 @@ const handleDelete = async () => {
                       />
                     </div>
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">Hour Rate / Salary</label>
-                      <input 
-                        value={form.hourlyRate} 
-                        onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none" 
+                      <FormInput
+                        label="Hour Rate / Salary"
+                        value={form.hourlyRate}
+                        onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))}
                       />
                     </div>
 
                     {/* Row 5: Details & Picture */}
                     {/* Details: Blood Group & Zip Code */ }
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">Blood Group</label>
-                      <SearchableSelect
+                      <EmpSearchableSelect
+                         label="Blood Group"
                          options={BLOOD_GROUPS.map(b => ({ id: b, name: b }))}
                          value={form.bloodGroup}
                          onChange={(val) => setForm(p => ({ ...p, bloodGroup: val }))}
@@ -933,16 +994,15 @@ const handleDelete = async () => {
                     </div>
                     
                     <div>
-      <label className="text-sm text-gray-300 block mb-1">Zip Code</label>
-                      <input 
-                        value={form.zipCode} 
-                        onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))} 
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none" 
+                      <FormInput
+                        label="Zip Code"
+                        value={form.zipCode}
+                        onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))}
                       />
                     </div>
 
                     {/* DIVIDER */}
-                    <div className="col-span-1 md:col-span-2 my-2 border-t border-gray-800"></div>
+                    <div className={`col-span-1 md:col-span-2 my-2 border-t ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-800'}`}></div>
 
                     {/* LOCATION SECTION */}
                     <div className="z-[40]">
@@ -957,8 +1017,8 @@ const handleDelete = async () => {
                         required
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.COUNTRIES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'country', callback: (c) => {
-                             setForm(p=>({...p, countryId: c.id}));
-                             awaitLoadStatesForCountry(c.id);
+                             setForm(p=>({...p, countryId: c.id || c.Id}));
+                             awaitLoadStatesForCountry(c.id || c.Id);
                            }});
                            setShowLookupCreateModal(true);
                         }}
@@ -982,8 +1042,8 @@ const handleDelete = async () => {
                         disabled={!form.countryId}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.STATES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'state', callback: (c) => {
-                             setForm(p=>({...p, stateId: c.id}));
-                             awaitLoadCitiesForState(c.id);
+                             setForm(p=>({...p, stateId: c.id || c.Id}));
+                             awaitLoadCitiesForState(c.id || c.Id);
                            }});
                            setShowLookupCreateModal(true);
                         }}
@@ -1004,7 +1064,7 @@ const handleDelete = async () => {
                         required
                         disabled={!form.stateId}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.CITIES.CREATE) ? null : () => {
-                           setLookupCreateContext({ key: 'city', callback: (c) => setForm(p=>({...p, cityId: c.id})) });
+                           setLookupCreateContext({ key: 'city', callback: (c) => setForm(p=>({...p, cityId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
                         }}
                         onEdit={() => {
@@ -1025,8 +1085,8 @@ const handleDelete = async () => {
                         }}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.REGIONS.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'region', callback: (c) => {
-                              setForm(p=>({...p, regionId: c.id}));
-                              awaitLoadTerritoriesForRegion(c.id);
+                              setForm(p=>({...p, regionId: c.id || c.Id || c.RegionId}));
+                              awaitLoadTerritoriesForRegion(c.id || c.Id || c.RegionId);
                            }});
                            setShowLookupCreateModal(true);
                         }}
@@ -1045,7 +1105,7 @@ const handleDelete = async () => {
                           value={form.territoryId}
                           onChange={(val) => setForm({ ...form, territoryId: val })}
                           onAdd={isEditMode ? null : () => {
-                             setLookupCreateContext({ key: 'territory', callback: (c) => setForm(p=>({...p, territoryId: c.id})) });
+                             setLookupCreateContext({ key: 'territory', callback: (c) => setForm(p=>({...p, territoryId: c.id || c.Id || c.TerritoryId})) });
                              setShowLookupCreateModal(true);
                           }}
                           onEdit={() => {
@@ -1074,12 +1134,12 @@ const handleDelete = async () => {
                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                         {/* Address */}
                         <div className="flex flex-col h-full">
-          <label className="text-sm text-gray-300 block mb-1">Address</label>
+           <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Address</label>
                            <div className="flex-grow">
                             <textarea 
                               value={form.address} 
                               onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} 
-                              className="w-full h-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 text-sm focus:border-blue-500 focus:outline-none resize-none"
+                              className={`w-full h-full border rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-200'}`}
                               style={{ minHeight: '120px' }}
                             />
                            </div>
@@ -1087,10 +1147,10 @@ const handleDelete = async () => {
 
                         {/* Picture */}
                         <div className="flex flex-col h-full">
-           <label className="text-sm text-gray-300 block mb-1">Picture</label>
-                           <div className="flex-grow flex items-center justify-center bg-gray-800 border border-gray-600 rounded p-4 h-full" style={{ minHeight: '120px' }}>
+            <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Picture</label>
+                           <div className={`flex-grow flex items-center justify-center border rounded p-4 h-full ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300' : 'bg-gray-800 border-gray-600'}`} style={{ minHeight: '120px' }}>
                               <div className="flex flex-col items-center gap-2">
-                                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-700 flex-shrink-0 border border-gray-600">
+                                <div className={`w-20 h-20 rounded-full overflow-hidden flex-shrink-0 border ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-200' : 'bg-gray-700 border-gray-600'}`}>
                                   {form.picturePreview ? (
                                     <img src={form.picturePreview} alt="" className="w-full h-full object-cover" />
                                   ) : (
@@ -1116,10 +1176,14 @@ const handleDelete = async () => {
               ) : (
                 /* PAYROLL tab */
                 <div>
-                  <div className="grid grid-cols-3 gap-3 items-end mb-3 ms-3 me-3">
+                  <div className="grid grid-cols-3 gap-3 items-end mb-3 ms-3 me-3 font-medium">
                     <div>
-                      <label className="text-sm text-gray-300">Basic Salary *</label>
-                      <input value={form.salary} onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm  h-[38px]" />
+                      <FormInput
+                        label="Basic Salary"
+                        value={form.salary}
+                        onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))}
+                        required
+                      />
                     </div>
 
                     {/* Payroll Bank */}
@@ -1131,29 +1195,39 @@ const handleDelete = async () => {
                         onChange={(val) => setForm({ ...form, payrollBankId: val })}
                         required
                         onAdd={() => {
-                           setLookupCreateContext({ key: 'bank', callback: (c) => setForm(p=>({...p, payrollBankId: c.id})) });
+                           setLookupCreateContext({ key: 'bank', callback: (c) => setForm(p=>({...p, payrollBankId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
                         }}
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm text-gray-300">Bank Account *</label>
-                      <input value={form.payrollBankAccount} onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm h-[38px]" />
+                      <FormInput
+                        label="Bank Account"
+                        value={form.payrollBankAccount}
+                        onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value }))}
+                        required
+                      />
                     </div>
                   </div>
 
                   {/* INCOMES card */}
                   <div className="mb-3">
                     <div className="flex items-center gap-5 mb-2">
-                      <h3 className="text-lg">Incomes</h3>
+                      <h3 className="text-sm font-medium">Incomes</h3>
                       <button
                         onClick={() => {
                           setEditingIncomeId(null);
                           setIncomeForm({ typeId: null, amount: "", description: "" });
                           setShowIncomeModal(true);
                         }}
-                        className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-2 py-1 rounded text-sm"
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                  theme === 'emerald'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : theme === 'purple'
+                  ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                  : 'bg-gray-800 border border-gray-600 text-blue-300'
+              }`}
                       >
                         <Plus size={12} /> Add
                       </button>
@@ -1162,8 +1236,8 @@ const handleDelete = async () => {
                     {/* 50% WIDTH TABLE */}
                     <div className=" border border-gray-700 rounded p-2 overflow-x-auto w-1/2">
                       <table className="w-full text-center text-sm">
-                        <thead className="bg-gray-900">
-                          <tr className="text-gray-300">
+                        <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-gray-700' : 'bg-gray-900 text-white'}`}>
+                          <tr className="text-purple-800">
                             <th className="py-2 pr-4">Income</th>
                             <th className="py-2 w-24">Amount</th>
                             <th className="py-2">Description</th>
@@ -1171,16 +1245,16 @@ const handleDelete = async () => {
                           </tr>
                         </thead>
 
-                        <tbody className="bg-gray-800">
+                        <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                           {incomes.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="py-6 text-center text-white-500">
+                              <td colSpan={4} className={`py-6 text-center ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-white-500'}`}>
                                 No incomes added
                               </td>
                             </tr>
                           ) : (
                             incomes.map((r) => (
-                              <tr key={r.id} className="border-t border-gray-700">
+                              <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'}`}>
                                 <td className="py-2 pr-4">{r.typeName}</td>
                                 <td className="py-2 w-24 text-right">{r.amount}</td>
                                 <td className="py-2">{r.description || "-"}</td>
@@ -1219,25 +1293,31 @@ const handleDelete = async () => {
                   {/* DEDUCTIONS card */}
                   <div>
                     <div className="flex items-center gap-5 mb-2">
-                      <h3 className="text-lg">Deductions</h3>
-                      <button onClick={() => { setEditingDeductionId(null); setDeductionForm({ typeId: null, amount: "", description: "" }); setShowDeductionModal(true); }} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-2 py-1 rounded text-sm"><Plus size={12} /> Add</button>
+                       <h3 className="text-sm font-medium">Deductions</h3>
+                       <button onClick={() => { setEditingDeductionId(null); setDeductionForm({ typeId: null, amount: "", description: "" }); setShowDeductionModal(true); }}   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                  theme === 'emerald'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : theme === 'purple'
+                  ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                  : 'bg-gray-800 border border-gray-600 text-blue-300'
+              }`}><Plus size={12} /> Add</button>
                     </div>
 
                     <div className=" border border-gray-700 rounded p-2 overflow-x-auto w-1/2">
                       <table className="w-full text-center text-sm">
-                        <thead className="bg-gray-900">
-                          <tr className="text-gray-300">
+                        <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+                          <tr className="text-purple-800">
                             <th className="py-2 pr-4">Deduction</th>
                             <th className="py-2 w-24">Amount</th>
                             <th className="py-2">Description</th>
                             <th className="py-2 w-28">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="bg-gray-800">
+                        <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                           {deductions.length === 0 ? (
-                            <tr><td colSpan={4} className="py-6 text-center text-white-500">No deductions added</td></tr>
+                            <tr><td colSpan={4} className={`py-6 text-center ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-white-500'}`}>No deductions added</td></tr>
                           ) : deductions.map(r => (
-                            <tr key={r.id} className="border-t border-gray-900">
+                            <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-900'}`}>
                               <td className="py-2 pr-4">{r.typeName}</td>
                               <td className="py-2 w-24 text-right">{r.amount}</td>
                               <td className="py-2">{r.description || "-"}</td>
@@ -1255,7 +1335,8 @@ const handleDelete = async () => {
               )}
             </div>
           </div>
-        </div>
+          </div>
+        </ContentCard>
       </div>
 
 
@@ -1271,7 +1352,7 @@ const handleDelete = async () => {
       >
           <div className="space-y-3">
             <div>
-              <label className="text-sm block mb-1 text-gray-300">Income *</label>
+                <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Income <span className="text-dark">*</span></label>
               <SearchableSelect
                 options={incomeTypes}
                 value={incomeForm.typeId}
@@ -1281,23 +1362,23 @@ const handleDelete = async () => {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-sm text-gray-300">Amount *</label>
-                <input 
-                  type="number" 
-                  value={incomeForm.amount} 
-                  onChange={(e) => setIncomeForm(p => ({ ...p, amount: e.target.value }))} 
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-                  autoFocus 
-                />
+                 <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Amount <span className="text-dark">*</span></label>
+                 <input 
+                   type="number" 
+                   value={incomeForm.amount} 
+                   onChange={(e) => setIncomeForm(p => ({ ...p, amount: e.target.value }))} 
+                   className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
+                   autoFocus 
+                 />
               </div>
               <div className="col-span-2">
-                <label className="text-sm text-gray-300">Description</label>
-                <input 
-                  type="text" 
-                  value={incomeForm.description} 
-                  onChange={(e) => setIncomeForm(p => ({ ...p, description: e.target.value }))} 
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-                />
+                 <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Description</label>
+                 <input 
+                   type="text" 
+                   value={incomeForm.description} 
+                   onChange={(e) => setIncomeForm(p => ({ ...p, description: e.target.value }))} 
+                   className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
+                 />
               </div>
             </div>
           </div>
@@ -1313,7 +1394,7 @@ const handleDelete = async () => {
       >
          <div className="space-y-3">
             <div>
-              <label className="text-sm block mb-1 text-gray-300">Deduction *</label>
+               <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Deduction <span className="text-dark">*</span></label>
               <SearchableSelect
                 options={deductionTypes}
                 value={deductionForm.typeId}
@@ -1323,23 +1404,23 @@ const handleDelete = async () => {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-sm text-gray-300">Amount *</label>
-                <input 
-                  type="number" 
-                  value={deductionForm.amount} 
-                  onChange={(e) => setDeductionForm(p => ({ ...p, amount: e.target.value }))} 
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-                  autoFocus
-                />
+                 <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Amount <span className="text-dark">*</span></label>
+                 <input 
+                   type="number" 
+                   value={deductionForm.amount} 
+                   onChange={(e) => setDeductionForm(p => ({ ...p, amount: e.target.value }))} 
+                   className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
+                   autoFocus
+                 />
               </div>
               <div className="col-span-2">
-                <label className="text-sm text-gray-300">Description</label>
-                <input 
-                  type="text" 
-                  value={deductionForm.description} 
-                  onChange={(e) => setDeductionForm(p => ({ ...p, description: e.target.value }))} 
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-                />
+                 <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Description</label>
+                 <input 
+                   type="text" 
+                   value={deductionForm.description} 
+                   onChange={(e) => setDeductionForm(p => ({ ...p, description: e.target.value }))} 
+                   className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
+                 />
               </div>
             </div>
          </div>
@@ -1354,12 +1435,12 @@ const handleDelete = async () => {
         width="500px"
       >
         <div className="space-y-3">
-           <label className="text-sm text-gray-300">Name *</label>
-           <input 
-             value={lookupName} 
-             onChange={(e) => setLookupName(e.target.value)} 
-             className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 text-sm" 
-           />
+            <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Name <span className="text-dark">*</span></label>
+            <input 
+              value={lookupName} 
+              onChange={(e) => setLookupName(e.target.value)} 
+              className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
+            />
         </div>
       </AddModal>
     </PageLayout>

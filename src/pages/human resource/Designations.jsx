@@ -3,8 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import MasterTable from "../../components/MasterTable";
 
 
-import toast from "react-hot-toast";
-import Swal from "sweetalert2";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 import {
   addDesignationApi,
@@ -24,6 +23,8 @@ import { useTheme } from "../../context/ThemeContext";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import InputField from "../../components/InputField";
+import ContentCard from "../../components/ContentCard";
 
 const Designations = () => {
   // =============================
@@ -221,17 +222,7 @@ const Designations = () => {
   // DELETE
   // =============================
   const handleDelete = async () => {
-    const result = await Swal.fire({
-      title: "Delete Designation?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-      reverseButtons: true
-    });
+    const result = await showDeleteConfirm("this designation");
 
     if (!result.isConfirmed) return;
 
@@ -239,30 +230,16 @@ const Designations = () => {
       const res = await deleteDesignationApi(editDesignation.id, { userId: currentUserId });
 
       if (res.status === 200) {
-        Swal.fire({
-          title: "Deleted!",
-          text: "Designation has been deleted.",
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Designation deleted successfully.");
         setEditModalOpen(false);
         loadDesignations();
         if (showInactive) loadInactive();
       } else {
-        Swal.fire({
-            title: "Error!",
-            text: res.data?.message || "Failed to delete designation",
-            icon: "error",
-         });
+        showErrorToast(res.data?.message || "Failed to delete designation");
       }
     } catch(err) {
         console.error("Delete failed", err);
-         Swal.fire({
-            title: "Error!",
-            text: "An error occurred while deleting.",
-            icon: "error",
-         });
+        showErrorToast("An error occurred while deleting.");
     }
   };
 
@@ -270,17 +247,7 @@ const Designations = () => {
   // RESTORE
   // =============================
   const handleRestore = async () => {
-     const result = await Swal.fire({
-      title: "Restore Designation?",
-      text: "This designation will be restored",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-      reverseButtons: true
-    });
+     const result = await showRestoreConfirm("this designation");
 
     if (!result.isConfirmed) return;
 
@@ -288,30 +255,16 @@ const Designations = () => {
       const res = await restoreDesignationApi(editDesignation.id, { userId: currentUserId });
 
       if (res.status === 200) {
-        Swal.fire({
-            title: "Restored!",
-            text: "Designation has been restored.",
-            icon: "success",
-            timer: 1500,
-            showConfirmButton: false,
-          });
+        showSuccessToast("Designation restored successfully.");
         setEditModalOpen(false);
         loadDesignations();
         loadInactive();
       } else {
-        Swal.fire({
-            title: "Error!",
-            text: "Failed to restore designation",
-            icon: "error",
-         });
+        showErrorToast("Failed to restore designation");
       }
     } catch(err) {
         console.error("Restore failed", err);
-        Swal.fire({
-            title: "Error!",
-            text: "An error occurred while restoring.",
-            icon: "error",
-         });
+        showErrorToast("An error occurred while restoring.");
     }
   };
 
@@ -338,26 +291,26 @@ const Designations = () => {
   <div className="p-0 space-y-4">
     {/* DESIGNATION */}
     <div>
-      <label className="block text-sm mb-1">Designation *</label>
-      <input
-        type="text"
+      <InputField
+        label="Designation"
         value={newDesignation.designation}
         onChange={(e) =>
           setNewDesignation((p) => ({ ...p, designation: e.target.value }))
         }
-        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
+        required
       />
     </div>
 
     {/* DESCRIPTION */}
     <div>
-      <label className="block text-sm mb-1">Description</label>
-      <textarea
+      <InputField
+        label="Description"
+        textarea
         value={newDesignation.description}
         onChange={(e) =>
           setNewDesignation((p) => ({ ...p, description: e.target.value }))
         }
-        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 focus:border-blue-500 focus:outline-none"
+        className="h-20"
       />
     </div>
 
@@ -399,27 +352,28 @@ const Designations = () => {
   <div className="p-0 space-y-4">
     {/* DESIGNATION */}
     <div>
-      <label className="block text-sm mb-1">Designation *</label>
-      <input
+      <InputField
+        label="Designation"
         value={editDesignation.designation}
         onChange={(e) =>
           setEditDesignation((p) => ({ ...p, designation: e.target.value }))
         }
         disabled={editDesignation.isInactive}
-        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+        required
       />
     </div>
 
     {/* DESCRIPTION */}
     <div>
-      <label className="block text-sm mb-1">Description</label>
-      <textarea
+      <InputField
+        label="Description"
+        textarea
         value={editDesignation.description}
         onChange={(e) =>
           setEditDesignation((p) => ({ ...p, description: e.target.value }))
         }
         disabled={editDesignation.isInactive}
-        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-20 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+        className="h-20"
       />
     </div>
 
@@ -458,9 +412,11 @@ const Designations = () => {
               MAIN PAGE
       =================================== */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>  
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Designations</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Designations</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -508,6 +464,7 @@ const Designations = () => {
                 total={totalRecords}
               />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
 

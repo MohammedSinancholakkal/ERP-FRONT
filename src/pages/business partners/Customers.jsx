@@ -3,7 +3,7 @@ import Pagination from "../../components/Pagination";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import FilterBar from "../../components/FilterBar";
-import toast from "react-hot-toast";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import {
   getCountriesApi,
   getStatesApi,
@@ -15,15 +15,17 @@ import {
   getInactiveCustomersApi,
   restoreCustomerApi,
 } from "../../services/allAPI";
-import Swal from "sweetalert2";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { useEffect, useState } from "react";
+import { useTheme } from "../../context/ThemeContext";
 import { useDashboard } from "../../context/DashboardContext";
+import ContentCard from "../../components/ContentCard";
 
 
 const Customers = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const { invalidateDashboard } = useDashboard();
 
@@ -190,7 +192,7 @@ const Customers = () => {
         (c) => (c[field] || "").toLowerCase() === val.toLowerCase()
       );
       if (exists) {
-        toast.error(`Cannot restore: Active customer with this ${label} already exists.`);
+        showErrorToast(`Cannot restore: Active customer with this ${label} already exists.`);
         return true;
       }
       return false;
@@ -203,38 +205,21 @@ const Customers = () => {
     if (checkDuplicate("gstin", "GSTIN")) return;
     // --- DUPLICATE CHECKS END ---
 
-    const result = await Swal.fire({
-      title: "Restore Customer?",
-      text: `Are you sure you want to restore ${customer.companyName}?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm(customer.companyName);
 
     if (!result.isConfirmed) return;
 
     try {      
       await restoreCustomerApi(customer.id, { userId: 1 }); 
       
-      Swal.fire({
-        icon: "success",
-        title: "Restored!",
-        text: "Customer has been restored successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showSuccessToast("Customer has been restored successfully.");
       setInactiveRows(prev => prev.filter(r => r.id !== customer.id));
       invalidateDashboard();
       loadCustomers(); 
       // Also reload lookups if needed, but usually not critical for list
     } catch (err) {
       console.error("restore customer error", err);
-      Swal.fire({
-        icon: "error",
-        title: "Restore Failed",
-        text: "Could not restore customer. Please try again.",
-      });
+      showErrorToast("Could not restore customer. Please try again.");
     }
   };
 
@@ -417,7 +402,7 @@ const Customers = () => {
       setAllCustomers(records.map(normalizeRow));
     } catch (err) {
       console.error("load customers error", err);
-      toast.error("Failed to load customers");
+      showErrorToast("Failed to load customers");
     } finally {
       setLoading(false);
     }
@@ -496,9 +481,11 @@ const Customers = () => {
 
       {/* MAIN PAGE */}
          <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
+      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard>
         <div className="flex flex-col h-full overflow-hidden gap-2">
-        <h2 className="text-2xl font-semibold mb-4">Customers</h2>
+        <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Customers</h2>
+        <hr className="mb-4 border-gray-300" />
 
         <MasterTable
           columns={[
@@ -606,8 +593,10 @@ const Customers = () => {
               loadCustomers();
             }}
           />
-        </div>
+          </div>
+        </ContentCard>
       </div>
+    
       </PageLayout>
     </>
   );

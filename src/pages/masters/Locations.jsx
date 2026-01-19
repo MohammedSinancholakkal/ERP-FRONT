@@ -3,7 +3,10 @@ import { Star } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 import {
   addLocationApi,
@@ -25,6 +28,7 @@ import {
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
 import SearchableSelect from "../../components/SearchableSelect";
 import FilterBar from "../../components/FilterBar";
 
@@ -32,8 +36,10 @@ import FilterBar from "../../components/FilterBar";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
 
 const Locations = () => {
+  const { theme } = useTheme();
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -261,14 +267,12 @@ const Locations = () => {
       value: filters.stateId,
       options: states.filter(s => !filters.countryId || s.countryId == filters.countryId),
       onChange: (val) => setFilters(prev => ({ ...prev, stateId: val, cityId: "" })),
-      disabled: !filters.countryId
     },
     {
       label: "City",
       value: filters.cityId,
       options: cities.filter(c => !filters.stateId || c.stateId == filters.stateId),
       onChange: (val) => setFilters(prev => ({ ...prev, cityId: val })),
-      disabled: !filters.stateId
     }
   ];
 
@@ -380,36 +384,44 @@ const Locations = () => {
   };
 
   const handleDelete = async () => {
-    try {
-      const res = await deleteLocationApi(editData.id, { userId });
-      if (res?.status === 200) {
-        toast.success("Deleted");
-        setEditModalOpen(false);
-        loadRows();
-        if (showInactive) loadInactive();
-      } else {
-        toast.error("Delete failed");
-      }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
+    const result = await showDeleteConfirm();
+
+    if (result.isConfirmed) {
+        try {
+          const res = await deleteLocationApi(editData.id, { userId });
+          if (res?.status === 200) {
+            showSuccessToast("Deleted");
+            setEditModalOpen(false);
+            loadRows();
+            if (showInactive) loadInactive();
+          } else {
+            showErrorToast("Delete failed");
+          }
+        } catch (err) {
+            console.error(err);
+            showErrorToast("Server error");
+        }
     }
   };
 
   const handleRestore = async () => {
-    try {
-      const res = await restoreLocationApi(editData.id, { userId });
-      if (res?.status === 200) {
-        toast.success("Restored");
-        setEditModalOpen(false);
-        loadRows();
-        loadInactive();
-      } else {
-        toast.error("Restore failed");
-      }
-    } catch (err) {
-        console.error(err);
-        toast.error("Server error");
+    const result = await showRestoreConfirm();
+
+    if (result.isConfirmed) {
+        try {
+          const res = await restoreLocationApi(editData.id, { userId });
+          if (res?.status === 200) {
+            showSuccessToast("Restored");
+            setEditModalOpen(false);
+            loadRows();
+            loadInactive();
+          } else {
+            showErrorToast("Restore failed");
+          }
+        } catch (err) {
+            console.error(err);
+            showErrorToast("Server error");
+        }
     }
   };
 
@@ -419,10 +431,7 @@ const Locations = () => {
 
       // Check duplicates
       try {
-        const searchRes = await searchLocationApi(newCountryName.trim()); // WRONG API - should be searchCountryApi
-        // Wait, I need to import searchCountryApi if I use it. 
-        // Checking imports... yes it is imported as searchCountryApi is NOT imported in Locations.jsx based on lines 8-22.
-        // I need to check imports in Locations.jsx first.
+        const searchRes = await searchCountryApi(newCountryName.trim());
       } catch(e) {}
       // ...
   };
@@ -529,9 +538,11 @@ const Locations = () => {
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-        <div className="flex flex-col h-full overflow-hidden gap-2">
-          <h2 className="text-2xl font-semibold mb-4">Locations</h2>
+      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-black-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-black-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard>
+          <div className="flex flex-col h-full overflow-hidden gap-2">
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Locations</h2>
+            <hr className="mb-4 border-gray-300" />
 
           <MasterTable
             columns={[
@@ -588,7 +599,8 @@ const Locations = () => {
                 loadRows();
             }}
             />
-        </div>
+          </div>
+        </ContentCard>
       </div>
 
        {/* ADD MODAL */}
@@ -599,13 +611,18 @@ const Locations = () => {
          title="New Location"
        >
            <div className="space-y-4">
-              <div>
-                  <label className="text-sm text-gray-300">Name *</label>
-                  <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
-               </div>
+               <div>
+                   <InputField
+                        label="Name"
+                        value={newData.name}
+                        onChange={(e) => setNewData({...newData, name: e.target.value})}
+                        className="mt-1"
+                        required
+                   />
+                </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-gray-300">Country</label>
+                       <label className="text-sm text-black-300">Country</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
                                options={countries}
@@ -614,13 +631,13 @@ const Locations = () => {
                                className="w-full"
                                direction="down"
                            />
-                           {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                               <Star size={18} className="text-yellow-400" />
+                           {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                               <Star size={16} className="" />
                            </button>)}
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-gray-300">State</label>
+                       <label className="text-sm text-black-300">State</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
                                options={states.filter(s => s.countryId == newData.countryId)}
@@ -630,15 +647,15 @@ const Locations = () => {
                                className="w-full"
                                direction="down"
                            />
-                           {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                               <Star size={18} className="text-yellow-400" />
+                           {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                               <Star size={16} className="" />
                            </button>)}
                        </div>
                    </div>
                </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-gray-300">City</label>
+                       <label className="text-sm text-black-300">City</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
                                options={cities.filter(c => c.stateId == newData.stateId)}
@@ -648,26 +665,40 @@ const Locations = () => {
                                className="w-full"
                                direction="down"
                            />
-                           {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                               <Star size={18} className="text-yellow-400" />
+                           {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                               <Star size={16} className="" />
                            </button>)}
                        </div>
                    </div>
                </div>
-               <div>
-                   <label className="text-sm text-gray-300">Address</label>
-                   <textarea value={newData.address} onChange={e => setNewData({...newData, address: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" rows="2" />
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                   <div>
-                       <label className="text-sm text-gray-300">Latitude</label>
-                       <input value={newData.latitude} onChange={e => setNewData({...newData, latitude: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
-                   </div>
-                   <div>
-                       <label className="text-sm text-gray-300">Longitude</label>
-                       <input value={newData.longitude} onChange={e => setNewData({...newData, longitude: e.target.value})} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" />
-                   </div>
-               </div>
+                <div>
+                    <InputField
+                         label="Address"
+                         value={newData.address}
+                         onChange={(e) => setNewData({...newData, address: e.target.value})}
+                         className="mt-1"
+                         textarea
+                         rows={2}
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <InputField
+                             label="Latitude"
+                             value={newData.latitude}
+                             onChange={(e) => setNewData({...newData, latitude: e.target.value})}
+                             className="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <InputField
+                             label="Longitude"
+                             value={newData.longitude}
+                             onChange={(e) => setNewData({...newData, longitude: e.target.value})}
+                             className="mt-1"
+                        />
+                    </div>
+                </div>
            </div>
        </AddModal>
 
@@ -683,14 +714,20 @@ const Locations = () => {
           permissionDelete={hasPermission(PERMISSIONS.LOCATIONS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.LOCATIONS.EDIT)}
        >
-           <div className="space-y-4">
-              <div>
-                  <label className="text-sm text-gray-300">Name *</label>
-                  <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
-               </div>
+            <div className="space-y-4">
+               <div>
+                   <InputField
+                        label="Name"
+                        value={editData.name}
+                        onChange={(e) => setEditData({...editData, name: e.target.value})}
+                        disabled={editData.isInactive}
+                        className="mt-1"
+                        required
+                   />
+                </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-gray-300">Country</label>
+                       <label className="text-sm text-black-300">Country</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
                                options={countries}
@@ -701,14 +738,14 @@ const Locations = () => {
                                direction="down"
                            />
                            {!editData.isInactive && (
-                               <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                                   <Star size={18} className="text-yellow-400" />
+                               <button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                   <Star size={16} className="" />
                                </button>
                            )}
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-gray-300">State</label>
+                       <label className="text-sm text-black-300">State</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
                                options={states.filter(s => s.countryId == editData.countryId)}
@@ -719,8 +756,8 @@ const Locations = () => {
                                direction="down"
                            />
                            {!editData.isInactive && (
-                               <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                   <Star size={18} className="text-yellow-400" />
+                               <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                   <Star size={16} className="" />
                                </button>
                            )}
                        </div>
@@ -728,7 +765,7 @@ const Locations = () => {
                </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-gray-300">City</label>
+                       <label className="text-sm text-black-300">City</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
                                options={cities.filter(c => c.stateId == editData.stateId)}
@@ -739,27 +776,44 @@ const Locations = () => {
                                direction="down"
                            />
                            {!editData.isInactive && (
-                               <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50">
-                                   <Star size={18} className="text-yellow-400" />
+                               <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                   <Star size={16} className="" />
                                </button>
                            )}
                        </div>
                    </div>
                </div>
-               <div>
-                   <label className="text-sm text-gray-300">Address</label>
-                   <textarea value={editData.address} onChange={e => setEditData({...editData, address: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" rows="2" />
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                   <div>
-                       <label className="text-sm text-gray-300">Latitude</label>
-                       <input value={editData.latitude} onChange={e => setEditData({...editData, latitude: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
-                   </div>
-                   <div>
-                       <label className="text-sm text-gray-300">Longitude</label>
-                       <input value={editData.longitude} onChange={e => setEditData({...editData, longitude: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 disabled:opacity-50" />
-                   </div>
-               </div>
+                <div>
+                    <InputField
+                         label="Address"
+                         value={editData.address}
+                         onChange={(e) => setEditData({...editData, address: e.target.value})}
+                         disabled={editData.isInactive}
+                         className="mt-1"
+                         textarea
+                         rows={2}
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <InputField
+                             label="Latitude"
+                             value={editData.latitude}
+                             onChange={(e) => setEditData({...editData, latitude: e.target.value})}
+                             disabled={editData.isInactive}
+                             className="mt-1"
+                        />
+                    </div>
+                    <div>
+                         <InputField
+                             label="Longitude"
+                             value={editData.longitude}
+                             onChange={(e) => setEditData({...editData, longitude: e.target.value})}
+                             disabled={editData.isInactive}
+                             className="mt-1"
+                        />
+                    </div>
+                </div>
            </div>
        </EditModal>
 
@@ -772,24 +826,19 @@ const Locations = () => {
           defaultColumns={defaultColumns}
        />
 
-       {/* --- QUICK ADD SUB-MODALS --- */}
-       {/* (Inline implementation for now, can be refactored to separate components if needed) */}
        {addCountryModalOpen && (
            <AddModal isOpen={true} onClose={() => setAddCountryModalOpen(false)} onSave={handleAddCountry} title="Quick Add Country">
-               <label className="text-sm text-gray-300">Country Name *</label>
-               <input value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+               <InputField label="Country Name" value={newCountryName} onChange={e => setNewCountryName(e.target.value)} className="mt-1" autoFocus required />
            </AddModal>
        )}
        {addStateModalOpen && (
            <AddModal isOpen={true} onClose={() => setAddStateModalOpen(false)} onSave={handleAddState} title="Quick Add State">
-               <label className="text-sm text-gray-300">State Name *</label>
-               <input value={newStateName} onChange={e => setNewStateName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+               <InputField label="State Name" value={newStateName} onChange={e => setNewStateName(e.target.value)} className="mt-1" autoFocus required />
            </AddModal>
        )}
        {addCityModalOpen && (
            <AddModal isOpen={true} onClose={() => setAddCityModalOpen(false)} onSave={handleAddCity} title="Quick Add City">
-               <label className="text-sm text-gray-300">City Name *</label>
-               <input value={newCityName} onChange={e => setNewCityName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1" autoFocus />
+               <InputField label="City Name" value={newCityName} onChange={e => setNewCityName(e.target.value)} className="mt-1" autoFocus required />
            </AddModal>
        )}
 

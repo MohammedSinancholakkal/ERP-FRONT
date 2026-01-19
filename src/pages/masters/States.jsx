@@ -10,26 +10,30 @@ import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
 import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { useTheme } from "../../context/ThemeContext";
 import { useMasters } from "../../context/MastersContext";
 
 import {
   addStateApi,
-//   getStatesApi,
+  getStatesApi,
   updateStateApi,
   deleteStateApi,
-//   searchStateApi,
-//   getInactiveStatesApi,
+  searchStateApi,
+  getInactiveStatesApi,
   restoreStateApi,
   getCountriesApi,
   addCountryApi,
+  searchCountryApi,
 } from "../../services/allAPI";
 
 // MODALS
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
 
 const States = () => {
   const { theme } = useTheme();
@@ -81,12 +85,10 @@ const States = () => {
     country: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  // const [searchColumn, setSearchColumn] = useState(""); // Moved to Modal
 
-  // const toggleColumn = (col) => { ... } // Moved to Modal
-  // const restoreDefaultColumns = () => { ... } // Moved to Modal
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -98,19 +100,8 @@ const States = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedStates = [...states];
-  if (sortConfig.key) {
-    sortedStates.sort((a, b) => {
-      let valA = a[sortConfig.key] || "";
-      let valB = b[sortConfig.key] || "";
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+ 
+  const sortedStates = states; 
 
   // LOAD DROPDOWNS
   const loadCountries = async () => {
@@ -131,14 +122,14 @@ const States = () => {
 
   // LOAD STATES
   const loadStates = async (forceRefresh = false) => {
-    const { data, total } = await loadStatesCtx(page, limit, searchText, forceRefresh);
+    const { data, total } = await loadStatesCtx(page, limit, searchText, forceRefresh, sortConfig.key, sortConfig.direction);
     setStates(data || []);
     setTotalRecords(total || 0);
   };
 
   useEffect(() => {
     loadStates();
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   const loadInactive = async () => {
     const data = await loadInactiveCtx();
@@ -162,22 +153,6 @@ const States = () => {
     if (!newData.name.trim()) return toast.error("Name required");
     if (!newData.countryId) return toast.error("Country required");
     
-    // Check for duplicates
-    try {
-        const searchRes = await searchStateApi(newData.name.trim());
-        if (searchRes?.status === 200) {
-            const rows = searchRes.data || [];
-            const existing = rows.find(r => 
-                (r.Name || r.name || "").toLowerCase() === newData.name.trim().toLowerCase() && 
-                String(r.CountryId || r.countryId) === String(newData.countryId)
-            );
-            if (existing) return toast.error("State with this name already exists in selected country");
-        }
-    } catch(err) {
-        console.error(err);
-        return toast.error("Error checking duplicates");
-    }
-
     try {
       const res = await addStateApi({ ...newData, userId });
       if (res?.status === 200 || res?.status === 201) {
@@ -188,7 +163,11 @@ const States = () => {
         // refreshStates();
         loadStates(true);
       } else {
-        toast.error("Failed to add");
+        if (res?.status === 409) {
+            toast.error(res?.data?.message || "State already exists");
+        } else {
+            toast.error("Failed to add");
+        }
       }
     } catch (err) {
         console.error(err);
@@ -200,23 +179,6 @@ const States = () => {
     if (!editData.name.trim()) return toast.error("Name required");
     if (!editData.countryId) return toast.error("Country required");
 
-    // Check for duplicates
-    try {
-        const searchRes = await searchStateApi(editData.name.trim());
-        if (searchRes?.status === 200) {
-            const rows = searchRes.data || [];
-            const existing = rows.find(r => 
-                (r.Name || r.name || "").toLowerCase() === editData.name.trim().toLowerCase() && 
-                String(r.CountryId || r.countryId) === String(editData.countryId) &&
-                (r.Id || r.id) !== editData.id
-            );
-            if (existing) return toast.error("State with this name already exists in selected country");
-        }
-    } catch(err) {
-        console.error(err);
-        return toast.error("Error checking duplicates");
-    }
-    
     try {
       const res = await updateStateApi(editData.id, {
         name: editData.name,
@@ -233,7 +195,11 @@ const States = () => {
             loadInactive();
         }
       } else {
-        toast.error("Update failed");
+        if (res?.status === 409) {
+             toast.error(res?.data?.message || "State already exists");
+        } else {
+            toast.error("Update failed");
+        }
       }
     } catch (err) {
         console.error(err);
@@ -242,67 +208,51 @@ const States = () => {
   };
 
   const handleDelete = async () => {
-    Swal.fire({
-        title: "Are you sure?",
-        text: "You won't be able to revert this!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#3085d6",
-        confirmButtonText: "Yes, delete it!",
-      }).then(async (result) => {
-        if (result.isConfirmed) {
-          try {
-            const res = await deleteStateApi(editData.id, { userId });
-            if (res?.status === 200) {
-              toast.success("Deleted");
-              setEditModalOpen(false);
-              // refreshStates();
-              loadStates(true);
-              if (showInactive) {
-                  refreshInactiveStates();
-                  loadInactive();
-              }
-            } else {
-              toast.error("Delete failed");
-            }
-          } catch (err) {
-              console.error(err);
-              toast.error("Server error");
+    const result = await showDeleteConfirm();
+
+    if (result.isConfirmed) {
+      try {
+        const res = await deleteStateApi(editData.id, { userId });
+        if (res?.status === 200) {
+          showSuccessToast("Deleted");
+          setEditModalOpen(false);
+          // refreshStates();
+          loadStates(true);
+          if (showInactive) {
+              refreshInactiveStates();
+              loadInactive();
           }
+        } else {
+          showErrorToast("Delete failed");
         }
-      });
+      } catch (err) {
+          console.error(err);
+          showErrorToast("Server error");
+      }
+    }
   };
 
   const handleRestore = async () => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "Do you want to restore this state?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, restore it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const res = await restoreStateApi(editData.id, { userId });
-          if (res?.status === 200) {
-            toast.success("Restored");
-            setEditModalOpen(false);
-            // refreshStates();
-            loadStates(true);
-            refreshInactiveStates();
-            loadInactive();
-          } else {
-            toast.error("Restore failed");
-          }
-        } catch (err) {
-            console.error(err);
-            toast.error("Server error");
+    const result = await showRestoreConfirm();
+
+    if (result.isConfirmed) {
+      try {
+        const res = await restoreStateApi(editData.id, { userId });
+        if (res?.status === 200) {
+          showSuccessToast("Restored");
+          setEditModalOpen(false);
+          // refreshStates();
+          loadStates(true);
+          refreshInactiveStates();
+          loadInactive();
+        } else {
+          showErrorToast("Restore failed");
         }
+      } catch (err) {
+          console.error(err);
+          showErrorToast("Server error");
       }
-    });
+    }
 
   };
 
@@ -359,9 +309,11 @@ const States = () => {
 
   return (
     <PageLayout>
-      <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-        <div className="flex flex-col h-full overflow-hidden gap-2">
-          <h2 className="text-2xl font-semibold mb-4">States</h2>
+      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard>
+          <div className="flex flex-col h-full overflow-hidden gap-2">
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">States</h2>
+            <hr className="mb-4 border-gray-300" />
 
           <MasterTable
             columns={tableColumns}
@@ -409,7 +361,8 @@ const States = () => {
               loadStates();
             }}
           />
-        </div>
+          </div>
+        </ContentCard>
       </div>
 
        {/* ADD STATE MODAL */}
@@ -421,8 +374,18 @@ const States = () => {
        >
           <div className="space-y-4">
               <div>
-                  <label className="text-sm">Name *</label>
-                  <input value={newData.name} onChange={e => setNewData({...newData, name: e.target.value})} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2" />
+                  <div className="flex gap-2 items-start">
+                    <div className="flex-grow">
+                      <InputField
+                        label="Name"
+                        value={newData.name}
+                        onChange={e => setNewData({...newData, name: e.target.value})}
+                        className=""
+                        required
+                      />
+                    </div>
+                    <div className="w-[34px] h-[34px]"></div>
+                  </div>
               </div>
               <div>
                   <label className="text-sm">Country *</label>
@@ -435,8 +398,8 @@ const States = () => {
                         className="w-full"
                         direction="up"
                       />
-                      {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                            <Star size={18} className="text-yellow-400" />
+                      {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                            <Star size={16} />
                         </button>)}
                   </div>
               </div>
@@ -457,8 +420,19 @@ const States = () => {
        >
            <div className="space-y-4">
               <div>
-                  <label className="text-sm">Name *</label>
-                  <input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} disabled={editData.isInactive} className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 disabled:opacity-50" />
+                  <div className="flex gap-2 items-start">
+                    <div className="flex-grow">
+                      <InputField
+                        label="Name"
+                        value={editData.name}
+                        onChange={e => setEditData({...editData, name: e.target.value})}
+                        disabled={editData.isInactive}
+                        className=""
+                        required
+                      />
+                    </div>
+                    <div className="w-[34px] h-[34px]"></div>
+                  </div>
               </div>
                <div>
                   <label className="text-sm">Country *</label>
@@ -473,8 +447,8 @@ const States = () => {
                         direction="up"
                       />
                       {!editData.isInactive && (
-                          <button onClick={() => setAddCountryModalOpen(true)} className="p-2 border border-gray-600 rounded bg-gray-800 hover:bg-gray-700">
-                               <Star size={18} className="text-yellow-400" />
+                          <button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                               <Star size={16} className="" />
                            </button>
                       )}
                   </div>
@@ -490,12 +464,13 @@ const States = () => {
           title="Add Country"
        >
             <div className="">
-                <label className="text-sm">Country Name *</label>
-                <input 
-                    value={newCountryName} 
-                    onChange={e => setNewCountryName(e.target.value)} 
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 mt-1"
+                <InputField
+                    label="Country Name"
+                    value={newCountryName}
+                    onChange={e => setNewCountryName(e.target.value)}
+                    className="mt-1"
                     autoFocus
+                    required
                 />
             </div>
        </AddModal>

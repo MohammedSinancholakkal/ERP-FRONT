@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { hasPermission } from "../utils/permissionUtils";
 import { PERMISSIONS } from "../constants/permissions";
@@ -22,31 +23,34 @@ import DashboardCard from "../components/DashboardCard";
 
 const LatestOrders = ({ orders = [] }) => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isLight = theme === 'purple' || theme === 'emerald';
+
   return (
     <DashboardCard title="Latest Orders" color="bg-cyan-400">
       <div className="max-h-64 overflow-auto">
-      <table className="w-full text-sm">
+      <table className={`w-full text-sm ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
         <thead>
-          <tr className="border-b border-gray-500 text-left">
-            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Order ID</th>
-            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Item</th>
-            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Quantity</th>
-            <th className="pb-2 sticky top-0 bg-cyan-400 z-10">Total</th>
+          <tr className={`border-b text-left ${isLight ? 'border-gray-200' : 'border-gray-500'}`}>
+            <th className={`pb-2 sticky top-0 z-10 ${isLight ? 'bg-gray-50 text-gray-900' : 'bg-cyan-400 text-black'}`}>Order ID</th>
+            <th className={`pb-2 sticky top-0 z-10 ${isLight ? 'bg-gray-50 text-gray-900' : 'bg-cyan-400 text-black'}`}>Item</th>
+            <th className={`pb-2 sticky top-0 z-10 ${isLight ? 'bg-gray-50 text-gray-900' : 'bg-cyan-400 text-black'}`}>Quantity</th>
+            <th className={`pb-2 sticky top-0 z-10 ${isLight ? 'bg-gray-50 text-gray-900' : 'bg-cyan-400 text-black'}`}>Total</th>
           </tr>
         </thead>
         <tbody>
           {orders.length > 0 ? (
             orders.map((order, i) => (
-              <tr key={i} className="border-b border-gray-700">
-                <td className="py-2 text-orange-400">{order.Id}</td>
-                <td>{order.ItemName || "N/A"}</td>
-                <td>{order.Quantity || 0}</td>
-                <td>{order.GrandTotal ? order.GrandTotal.toFixed(2) : "0.00"}</td>
+              <tr key={i} className={`border-b ${isLight ? 'border-gray-100 hover:bg-gray-50' : 'border-gray-700'}`}>
+                <td className={`py-2 ${isLight ? 'text-orange-600 font-medium' : 'text-orange-400'}`}>{order.Id}</td>
+                <td className={isLight ? 'text-gray-900' : ''}>{order.ItemName || "N/A"}</td>
+                <td className={isLight ? 'text-gray-900' : ''}>{order.Quantity || 0}</td>
+                <td className={isLight ? 'text-gray-900' : ''}>{order.GrandTotal ? order.GrandTotal.toFixed(2) : "0.00"}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan="4" className="py-4 text-center text-gray-300">
+              <td colSpan="4" className={`py-4 text-center ${isLight ? 'text-gray-400' : 'text-gray-300'}`}>
                 No recent orders
               </td>
             </tr>
@@ -58,13 +62,13 @@ const LatestOrders = ({ orders = [] }) => {
       <div className="flex justify-between items-center mt-4">
         <button 
           onClick={() => navigate("/app/sales/newsale")} // Assuming newsale route
-          className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm"
+          className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm shadow-sm"
         >
           Place New Order
         </button>
         <button 
           onClick={() => navigate("/app/sales/sales")}
-          className="border border-gray-400 px-4 py-2 rounded text-sm hover:bg-gray-700"
+          className={`border px-4 py-2 rounded text-sm transition-colors ${isLight ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-gray-400 text-gray-200 hover:bg-gray-700'}`}
         >
           View All Orders
         </button>
@@ -75,6 +79,9 @@ const LatestOrders = ({ orders = [] }) => {
 
 const RecentlyAddedProducts = ({ products = [] }) => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isLight = theme === 'purple' || theme === 'emerald';
+
   return (
     <DashboardCard title="Recently Added Products" color="bg-purple-400">
       <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
@@ -82,16 +89,16 @@ const RecentlyAddedProducts = ({ products = [] }) => {
           products.map((p, i) => (
             <div
               key={i}
-              className="flex items-center justify-between border-b border-gray-600 pb-3"
+              className={`flex items-center justify-between border-b pb-3 ${isLight ? 'border-gray-100' : 'border-gray-600'}`}
             >
               <div className="flex gap-3 items-center">
-                <div className="w-12 h-12 bg-gray-300 text-gray-700 flex items-center justify-center text-xs rounded overflow-hidden">
+                <div className={`w-12 h-12 flex items-center justify-center text-xs rounded overflow-hidden ${isLight ? 'bg-gray-100 text-gray-500' : 'bg-gray-300 text-gray-700'}`}>
                   {/* Placeholder or Image if available */}
                   IMG
                 </div>
                 <div>
-                  <p className="text-yellow-400 font-semibold">{p.ProductName}</p>
-                  <p className="text-gray-300 text-xs truncate w-40">
+                  <p className={`font-semibold ${isLight ? 'text-gray-800' : 'text-yellow-400'}`}>{p.ProductName}</p>
+                  <p className={`text-xs truncate w-40 ${isLight ? 'text-gray-500' : 'text-gray-300'}`}>
                     {p.ProductDetails || "No description"}
                   </p>
                 </div>
@@ -102,7 +109,7 @@ const RecentlyAddedProducts = ({ products = [] }) => {
             </div>
           ))
         ) : (
-          <div className="text-center text-gray-300 py-4">
+          <div className={`text-center py-4 ${isLight ? 'text-gray-400' : 'text-gray-300'}`}>
             No recently added products
           </div>
         )}
@@ -110,7 +117,7 @@ const RecentlyAddedProducts = ({ products = [] }) => {
 
       <button 
         onClick={() => navigate("/app/inventory/products")}
-        className="w-full text-center mt-4 text-yellow-400 text-sm cursor-pointer hover:text-yellow-300"
+        className={`w-full text-center mt-4 text-sm cursor-pointer ${isLight ? 'text-purple-600 hover:text-purple-700' : 'text-yellow-400 hover:text-yellow-300'}`}
       >
         View All Products
       </button>
@@ -131,11 +138,13 @@ import { useDashboard } from "../context/DashboardContext";
 
 
 const Dashboard = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
   const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
 
   const { dashboardData, loading, fetchDashboardData } = useDashboard();
+  const isLight = theme === 'purple' || theme === 'emerald';
   
   // Default stats structure to avoid crash while loading context
   const stats = dashboardData || {
@@ -175,50 +184,50 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-700 p-6 text-white text-sm">
+    <div className={`h-full overflow-y-auto p-6 text-sm ${isLight ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
       <h2 className="text-2xl font-semibold mb-4">Dashboard</h2>
 
       {/* ================= TOP STATS ================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">{stats.todaysSale.toFixed(2)}</h3>
-          <p>Today's Sale</p>
+        <div className="p-4 rounded-lg shadow bg-blue-500">
+          <h3 className="text-3xl font-bold text-white">{stats.todaysSale.toFixed(2)}</h3>
+          <p className="text-blue-100">Today's Sale</p>
           <button
             onClick={() => navigate("/app/sales/sales")}
-            className="text-xs mt-2 underline"
+            className="text-xs mt-2 underline text-white"
           >
             More info
           </button>
         </div>
 
-        <div className="bg-green-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">{stats.totalSuppliers}</h3>
-          <p>Total Suppliers</p>
+        <div className="p-4 rounded-lg shadow bg-green-500">
+          <h3 className="text-3xl font-bold text-white">{stats.totalSuppliers}</h3>
+          <p className="text-green-100">Total Suppliers</p>
           <button
             onClick={() => navigate("/app/businesspartners/suppliers")}
-            className="text-xs mt-2 underline"
+            className="text-xs mt-2 underline text-white"
           >
             More info
           </button>
         </div>
 
-        <div className="bg-yellow-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">{stats.totalCustomers}</h3>
-          <p>Total Customers</p>
+        <div className="p-4 rounded-lg shadow bg-yellow-500">
+          <h3 className="text-3xl font-bold text-white">{stats.totalCustomers}</h3>
+          <p className="text-yellow-100">Total Customers</p>
           <button
             onClick={() => navigate("/app/businesspartners/customers")}
-            className="text-xs mt-2 underline"
+            className="text-xs mt-2 underline text-white"
           >
             More info
           </button>
         </div>
 
-        <div className="bg-red-500 p-4 rounded-lg shadow">
-          <h3 className="text-3xl font-bold">{stats.totalProducts}</h3>
-          <p>Total Products</p>
+        <div className="p-4 rounded-lg shadow bg-red-500">
+          <h3 className="text-3xl font-bold text-white">{stats.totalProducts}</h3>
+          <p className="text-red-100">Total Products</p>
           <button
             onClick={() => navigate("/app/inventory/products")}
-            className="text-xs mt-2 underline"
+            className="text-xs mt-2 underline text-white"
           >
             More info
           </button>

@@ -1,5 +1,6 @@
 // src/pages/accounts/ChartOfAccounts.jsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useTheme } from "../../context/ThemeContext";
 import PageLayout from "../../layout/PageLayout";
 import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
@@ -19,6 +20,7 @@ import Swal from "sweetalert2";
 import { X, ChevronRight, ChevronDown } from "lucide-react";
 
 const ChartOfAccounts = () => {
+  const { theme } = useTheme();
   // -----------------------------------
   // VISIBILITY COLS
   // -----------------------------------
@@ -505,7 +507,7 @@ const ChartOfAccounts = () => {
         />
 
         {/* PAGE CONTENT */}
-        <div className="p-4 h-full bg-gradient-to-b from-gray-900 to-gray-700 text-white">
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
             <h2 className="text-2xl font-semibold mb-4">Chart of Accounts</h2>
             
             <MasterTable

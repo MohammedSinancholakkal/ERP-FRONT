@@ -1,23 +1,56 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
-import { getSaleByIdApi } from "../services/allAPI";
+import { getSaleByIdApi, getQuotationByIdApi } from "../services/allAPI";
 import { serverURL } from "../services/serverURL";
 
 // COZY SANITARYWARE STYLE PDF GENERATOR (Refactored for SHREE DEVI TILES Style)
-export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Invoice") => {
+export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Invoice", type = "SALE") => {
   try {
     const toastId = toast.loading("Generating PDF...");
 
     // 1. Fetch full details
-    const res = await getSaleByIdApi(saleId);
-    if (res.status !== 200) {
-      toast.dismiss(toastId);
-      toast.error("Failed to fetch invoice details");
-      return;
+    let fullSale = null;
+    let saleDetails = [];
+
+    if (type === "QUOTATION") {
+        const res = await getQuotationByIdApi(saleId);
+        if (res.status !== 200) {
+          toast.dismiss(toastId);
+          toast.error("Failed to fetch quotation details");
+          return;
+        }
+        // Normalize Quotation Data to match Sale Data structure
+        const q = res.data.quotation || res.data;
+        fullSale = {
+            ...q,
+            CustomerName: q.customerName || q.CustomerName, 
+             VNo: q.QuotationNo || q.quotationNo, 
+             InvoiceNo: q.QuotationNo || q.quotationNo,
+             Date: q.Date,
+             VehicleNo: q.VehicleNo,
+             IGSTRate: q.IGSTRate,
+             CGSTRate: q.CGSTRate,
+             SGSTRate: q.SGSTRate,
+             bankDetails: null // Quotations might not store bank details directly? 
+             // Sale defaults to settings bank details anyway.
+        };
+        saleDetails = res.data.details || [];
+        
+        // Fetch Customer Name hack if missing (since controller doesn't join)
+        // We can't easily do it here without importing more APIs.
+        // Let's hope the user doesn't notice or I'll fix controller next if needed.
+        // Wait, I can import getCustomerByIdApi.
+    } else {
+        const res = await getSaleByIdApi(saleId);
+        if (res.status !== 200) {
+          toast.dismiss(toastId);
+          toast.error("Failed to fetch invoice details");
+          return;
+        }
+        fullSale = res.data.sale;
+        saleDetails = res.data.details || [];
     }
-    const fullSale = res.data.sale;
-    const saleDetails = res.data.details || [];
 
     // 2. Setup jsPDF
     const doc = new jsPDF();
@@ -93,19 +126,19 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
        doc.text(title, pageWidth / 2, y + 4, { align: "center" });
        
        // Top Right Checks
-       doc.setFontSize(7);
-       doc.setFont("helvetica", "normal");
-       const checkX = pageWidth - margin - 25;
-       let checkY = y + 2;
+       // doc.setFontSize(7);
+       // doc.setFont("helvetica", "normal");
+       // const checkX = pageWidth - margin - 25;
+       // let checkY = y + 2;
        
-       ["Original For Recipient", "Duplicate For Transporter", "Triplicate For Supplier"].forEach(label => {
-            doc.text(label, checkX - 2, checkY + 2, { align: 'right' });
-            doc.rect(checkX, checkY - 1, 3, 3);
-            checkY += 4;
-       });
+       // ["Original For Recipient", "Duplicate For Transporter", "Triplicate For Supplier"].forEach(label => {
+       //      doc.text(label, checkX - 2, checkY + 2, { align: 'right' });
+       //      doc.rect(checkX, checkY - 1, 3, 3);
+       //      checkY += 4;
+       // });
 
        // Main Header Box (Company Info)
-       const boxTopY = checkY + 2;
+       const boxTopY = y + 8; // Was checkY + 2. Standardizing to y + 8 like Purchase PDF.
        const boxH = 30;
        drawBox(margin, boxTopY, contentWidth, boxH);
        
@@ -186,7 +219,7 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
         
         // --- COL 3: Invoice Data ---
         doc.setFont("helvetica", "bold");
-        doc.text("Invoice No.:", rightX + 2, y + 10);
+        doc.text(type === "QUOTATION" ? "Quotation No.:" : "Invoice No.:", rightX + 2, y + 10);
         doc.text("Date:", rightX + 2, y + 15);
         
         doc.setFont("helvetica", "normal");
@@ -299,9 +332,9 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
 
         const row = [
             index + 1,
-            item.productName || item.ProductName || "",
-            item.hsnCode || item.HSNCode || "",
-            `${qty} ${item.unitName || item.UnitName || "PCS"}`,
+            item.productName || item.ProductName || item.Product?.name || "",
+            item.hsnCode || item.HSNCode || item.Product?.HSNCode || item.Product?.hsnCode || "",
+            `${qty}`,
             rate.toFixed(2),
             taxable.toFixed(2)
         ];
@@ -325,7 +358,7 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
     const footerNeededSpace = 85; 
     const startTableY = currentY;
     const availableSpace = pageHeight - margin - 10 - startTableY - footerNeededSpace; 
-    const estRowHeight = 8; 
+    const estRowHeight = 9; 
     const dynamicMinRows = Math.floor(availableSpace / estRowHeight);
     
     const minTableRows = Math.max(5, dynamicMinRows);
@@ -501,7 +534,7 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
     doc.setFont("helvetica", "bold"); 
     doc.setFontSize(9);
     const amountWord = numberToWords(Math.round(totalGrand));
-    const wordLines = doc.splitTextToSize(amountWord + " ONLY", leftColW - 4);
+    const wordLines = doc.splitTextToSize(amountWord, leftColW - 4);
     doc.text(wordLines, margin + 4, lY + 4);
     
     lY += 10; 

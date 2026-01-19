@@ -3,7 +3,6 @@ import FilterBar from "../../components/FilterBar";
 import Pagination from "../../components/Pagination";
 import PageLayout from "../../layout/PageLayout";
 import { useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
 import { 
   getMeetingsApi, 
   getInactiveMeetingsApi, 
@@ -12,11 +11,15 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import toast from "react-hot-toast";
+import { showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { useEffect, useState } from "react";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 
 
 const Meetings = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
 
   /* Column Visibility State */
@@ -131,30 +134,18 @@ const Meetings = () => {
      RESTORE MEETING
   =================================  /* RESTORE MEETING */
   const handleRestore = async (id) => {
-    const result = await Swal.fire({
-      title: "Restore Meeting?",
-      text: "This meeting will be moved back to the active list.",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981", // Green for restore
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-      reverseButtons: true,
-      background: "#1f2937", // Dark mode
-      color: "#fff"
-    });
+    const result = await showRestoreConfirm("meeting");
 
     if (!result.isConfirmed) return;
 
     try {
       await restoreMeetingApi(id, { userId: 1 });
-      toast.success("Meeting restored successfully");
+      showSuccessToast("Meeting restored successfully");
       loadMeetings(false);
       setInactiveMeetings(prev => prev.filter(m => m.id !== id));
     } catch (error) {
       console.error("RESTORE ERROR:", error);
-      toast.error("Failed to restore meeting");
+      showErrorToast("Failed to restore meeting");
     }
   };
 
@@ -248,9 +239,10 @@ const Meetings = () => {
       />
 
       <PageLayout>
-        <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full flex flex-col">
-          <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Meetings</h2>
+        <div className="p-6 h-full">
+            <ContentCard>
+                <h2 className="text-xl font-bold text-[#6448AE] mb-2">Meetings</h2>
+                <hr className="mb-4 border-gray-300" />
 
             {/* MASTER TABLE */}
             <MasterTable
@@ -309,7 +301,7 @@ const Meetings = () => {
                 loadMeetings();
               }}
             />
-          </div>
+            </ContentCard>
         </div>
       </PageLayout>
     </>

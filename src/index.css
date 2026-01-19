@@ -1,4 +1,4 @@
-*{
+* {
   margin: 0px;
   padding: 0px;
   box-sizing: border-box;
@@ -13,8 +13,15 @@
 
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fadeIn {
@@ -29,40 +36,50 @@
 
 /* Chrome, Edge, Safari */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 3px;
+  height: 30px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f1724; /* dark track (matches your theme) */
-  border-radius: 8px;
+  background: #0f1724;
+  /* dark track (matches your theme) */
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #6b7280; /* gray-500 */
-  border-radius: 8px;
+  background: #6b7280;
+  /* gray-500 */
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af; /* gray-400 */
+  background: #9ca3af;
+  /* gray-400 */
 }
 
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #6b7280 #0f1724; /* thumb, track */
+  scrollbar-color: #6b7280 #0f1724;
+  /* thumb, track */
 }
 
 /* EMERALD THEME SCROLLBARS */
 body.theme-emerald ::-webkit-scrollbar-track {
-  background: #ecfdf5; /* emerald-50 */
+  background: #ecfdf5;
+  /* emerald-50 */
 }
+
 body.theme-emerald ::-webkit-scrollbar-thumb {
-  background: #047857; /* emerald-700 */
+  background: #047857;
+  /* emerald-700 */
 }
+
 body.theme-emerald ::-webkit-scrollbar-thumb:hover {
-  background: #065f46; /* emerald-800 */
+  background: #065f46;
+  /* emerald-800 */
 }
+
 body.theme-emerald * {
   scrollbar-color: #047857 #ecfdf5;
 }
@@ -72,3 +89,48 @@ body.theme-emerald * {
 
 
 
+
+/* PURPLE THEME SCROLLBARS */
+body.theme-purple ::-webkit-scrollbar-track {
+  background: #faf5ff;
+  /* purple-50 */
+}
+
+body.theme-purple ::-webkit-scrollbar-thumb {
+  background: #6448AE;
+  /* The requested purple */
+  border-radius: 8px;
+}
+
+body.theme-purple ::-webkit-scrollbar-thumb:hover {
+  background: #7e67a3;
+}
+
+body.theme-purple * {
+  scrollbar-color: #6448AE #faf5ff;
+}
+
+/* Sidebar Specific Scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+  
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: #0f1724; /* dark track (matches bg-gray-900) */
+    border-radius: 8px;
+}
+  
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: #6b7280; /* gray-500 */
+    border-radius: 8px;
+}
+  
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af; /* lighter on hover */
+}
+  
+/* Firefox */
+.sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #6b7280 #0f1724; /* thumb track */
+}

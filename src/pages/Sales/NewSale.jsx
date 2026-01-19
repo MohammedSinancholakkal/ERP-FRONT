@@ -11,7 +11,7 @@ import {
   Check,
   ArchiveRestore
 } from "lucide-react";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
@@ -19,6 +19,8 @@ import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import AddModal from "../../components/modals/AddModal";
+import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
 
 // APIs
 import {
@@ -38,11 +40,14 @@ import {
   getTaxTypesApi,
   searchSaleApi,
   searchBrandApi,
-  searchProductApi
+  searchProductApi,
+  getNextInvoiceNoApi
 } from "../../services/allAPI";
 import { useDashboard } from "../../context/DashboardContext";
+import { useTheme } from "../../context/ThemeContext";
 
 const NewSale = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -55,6 +60,16 @@ const NewSale = () => {
       setInactiveView(true);
     }
   }, [location.state]);
+  
+  useEffect(() => {
+    if (!id) {
+       getNextInvoiceNoApi().then(res => {
+           if(res.status === 200 && res.data?.nextNo) {
+               setInvoiceNo(res.data.nextNo);
+           }
+       }).catch(err => console.error(err));
+    }
+  }, [id]);
 
   const userData = JSON.parse(localStorage.getItem("user"));
   const userId = userData?.userId || userData?.id || userData?.Id;
@@ -415,7 +430,8 @@ useEffect(() => {
         quantity: "", 
         brandId: product.BrandId || product.brandId || prev.brandId,
         brandName: product.brandName || product.BrandName || prev.brandName,
-        taxPercentage: product.taxPercentageValue ?? 0
+        taxPercentage: product.taxPercentageValue ?? 0,
+        unitsInStock: product.UnitsInStock ?? 0
       }));
     } else {
       setNewItem(prev => ({ ...prev, productId }));
@@ -442,6 +458,16 @@ useEffect(() => {
     if (newItem.quantity <= 0) {
       toast.error("Quantity must be greater than 0");
       return;
+    }
+    
+    // STOCK CHECK
+    if (Number(newItem.quantity) > Number(newItem.unitsInStock)) {
+        if (Number(newItem.unitsInStock) <= 0) {
+            toast.error("Out of Stock");
+        } else {
+            toast.error(`Insufficient stock. Available: ${newItem.unitsInStock}`);
+        }
+        return;
     }
 
     if (editingIndex !== null) {
@@ -759,11 +785,20 @@ const openProductModal = () => {
         invalidateDashboard();
         navigate("/app/sales/sales"); 
       } else {
-        toast.error("Failed to add sale");
+        toast.error("Failed to add sale or Out of Stock");
       }
     } catch (error) {
       console.error("SAVE ERROR", error);
-      toast.error("Error saving sale");
+      if (error.response && error.response.data && error.response.data.message) {
+        const msg = error.response.data.message.toLowerCase();
+        if (msg.includes("insufficient stock") || msg.includes("out of stock") || msg.includes("not enough stock")) {
+            toast.error("Out of Stock");
+        } else {
+            toast.error(error.response.data.message);
+        }
+      } else {
+        toast.error("Error saving sale");
+      }
     }
   };
 
@@ -841,21 +876,20 @@ const openProductModal = () => {
       }
     } catch (error) {
       console.error("UPDATE ERROR", error);
-      toast.error("Error updating sale");
+      if (error.response && error.response.data && error.response.data.message) {
+        if (error.response.data.message.includes("Insufficient stock")) {
+            toast.error("Out of Stock");
+        } else {
+            toast.error(error.response.data.message);
+        }
+      } else {
+        toast.error("Error updating sale");
+      }
     }
   };
 
   const handleDeleteSale = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "Do you really want to delete this sale?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showDeleteConfirm('sale');
 
     if (!result.isConfirmed) return;
 
@@ -870,39 +904,20 @@ const openProductModal = () => {
       Swal.close();
 
       if (res.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: "Sale deleted successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Sale deleted successfully.");
         navigate("/app/sales/sales");
       } else {
-        Swal.fire("Failed", "Failed to delete sale", "error");
+        showErrorToast("Failed to delete sale");
       }
     } catch (error) {
       Swal.close();
       console.error("DELETE SALE ERROR", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Error deleting sale",
-      });
+      showErrorToast("Error deleting sale");
     }
   };
 
   const handleRestoreSale = async () => {
-    const result = await Swal.fire({
-      title: "Restore Sale?",
-      text: "Do you want to restore this sale?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981", // green-500
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm('sale');
 
     if (!result.isConfirmed) return;
 
@@ -916,25 +931,15 @@ const openProductModal = () => {
       const res = await restoreSaleApi(id, { userId });
       Swal.close();
       if (res.status === 200) {
-        await Swal.fire({
-          icon: "success",
-          title: "Restored!",
-          text: "Sale restored successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccessToast("Sale restored successfully.");
         navigate("/app/sales/sales");
       } else {
-        Swal.fire("Failed", "Failed to restore sale", "error");
+        showErrorToast("Failed to restore sale");
       }
     } catch (error) {
       Swal.close();
       console.error("RESTORE ERROR", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Error restoring sale",
-      });
+      showErrorToast("Error restoring sale");
     }
   };
 
@@ -952,7 +957,8 @@ const openProductModal = () => {
       unitPrice: 0,
       discount: 0,
       taxPercentage: taxTypeId ? (igstRate + cgstRate + sgstRate) : 0,
-      total: 0
+      total: 0,
+      unitsInStock: 0
     });
     setIsItemModalOpen(true);
   };
@@ -960,56 +966,65 @@ const openProductModal = () => {
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
+      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         
+        <ContentCard className="!h-auto !overflow-visible">
+        {/* HEADER */}
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate("/app/sales/sales")} className="text-white hover:text-white-400">
-            <ArrowLeft size={24} />
-          </button>
+            <button onClick={() => navigate("/app/sales/sales")} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                <ArrowLeft size={24} />
+            </button>
 
-          <h2 className="text-xl text-white font-medium">
-            {inactiveView ? "View Inactive Sale" : (id ? "Edit Sale" : "New Sale")}
-          </h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>
+                {inactiveView ? "View Inactive Sale" : (id ? "Edit Sale" : "New Sale")}
+            </h2>
         </div>
 
         {/* ACTIONS BAR */}
         <div className="flex gap-2 mb-6">
-
-          {id ? (
-            <>
-              {!inactiveView && hasPermission(PERMISSIONS.SALES.EDIT) && (
-              <button onClick={handleUpdateSale} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
-                <Save size={18} /> Update
-              </button>
-              )}
-              {!inactiveView && hasPermission(PERMISSIONS.SALES.DELETE) && (
-              <button onClick={handleDeleteSale} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
-                <Trash2 size={18} /> Delete
-              </button>
-              )}
-              {inactiveView && (
-                  <button onClick={handleRestoreSale} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
-                      <ArchiveRestore size={18} /> Restore
-                  </button>
-              )}
-            </>
-          ) : (
-            hasPermission(PERMISSIONS.SALES.CREATE) && (
-            <button onClick={handleSaveSale} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
-              <Save size={18} /> Save
-            </button>
-            )
-          )}
+            {id ? (
+                <>
+                {!inactiveView && hasPermission(PERMISSIONS.SALES.EDIT) && (
+                <button 
+                    onClick={handleUpdateSale} 
+                    className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'}`}
+                >
+                    <Save size={18} /> Update
+                </button>
+                )}
+                {!inactiveView && hasPermission(PERMISSIONS.SALES.DELETE) && (
+                <button onClick={handleDeleteSale} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
+                    <Trash2 size={18} /> Delete
+                </button>
+                )}
+                {inactiveView && (
+                    <button onClick={handleRestoreSale} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
+                        <ArchiveRestore size={18} /> Restore
+                    </button>
+                )}
+                </>
+            ) : (
+                hasPermission(PERMISSIONS.SALES.CREATE) && (
+                <button 
+                onClick={handleSaveSale} 
+                className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-white hover:bg-gray-600'}`}
+                >
+                <Save size={18} /> Save
+                </button>
+                )
+            )}
         </div>
+        <hr className="mb-4 border-gray-300" />
 
-        {/* TOP SECTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        {/* TOP SECTION - 2 COLUMNS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* LEFT COL */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="space-y-4">
+            {/* Customer */}
             <div className="flex items-center">
-              <label className="w-32 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Customer
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                Customer <span className="text-dark">*</span>
               </label>
               <div className="flex-1 flex items-center gap-2">
                 <SearchableSelect
@@ -1017,119 +1032,152 @@ const openProductModal = () => {
                   value={customer}
                   onChange={setCustomer}
                   placeholder="Select customer..."
-                  className="w-full"
+                  className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
                   disabled={inactiveView}
                 />
                 {!inactiveView && (
-                <Star
-                  size={20}
-                  className="text-white cursor-pointer hover:text-yellow-400"
-                  onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
-                />
+                <button
+                    type="button"
+                    className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                    onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                >
+                    <Star size={16} />
+                </button>
                 )}
               </div>
             </div>
 
+            {/* Payment Account */}
             <div className="flex items-center">
-              <label className="w-32 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Payment Account
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                Payment Account <span className="text-dark">*</span>
               </label>
-              <div className="flex-1">
+              <div className="flex-1 flex items-center gap-2">
                 <select
                   value={paymentAccount}
                   onChange={(e) => setPaymentAccount(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
+                  className={`flex-1 border-2 rounded px-3 py-1.5 outline-none disabled:opacity-50 text-sm ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400' : theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-gray-500' : 'bg-gray-900 border-gray-700 text-white focus:border-gray-500'}`}
                   disabled={inactiveView}
                 >
                   <option value="">--select--</option>
                   <option value="Cash at Hand">Cash at Hand</option>
                   <option value="Cash at Bank">Cash at Bank</option>
                 </select>
+                {!inactiveView && (
+                  <div className="p-2 border border-transparent rounded invisible">
+                      <Star size={16} />
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* MIDDLE COL */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center">
-              <label className="w-24 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Invoice No
-              </label>
-              <input
-                type="text"
-                value={invoiceNo}
-                onChange={(e) => setInvoiceNo(e.target.value)}
-                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            
-            <div className="flex items-center">
-               <label className="w-24 text-sm text-gray-300">
-                  <span className="text-red-400">*</span> Tax Type
+            {/* Tax Type */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                  Tax Type <span className="text-dark">*</span>
                </label>
-               <div className="flex-1">
-                <SearchableSelect
-                   options={taxTypesList}
-                   value={taxTypeId}
-                   onChange={setTaxTypeId}
-                   placeholder="Select Tax Type..."
-                   className="w-full"
-                   disabled={inactiveView || noTax}
-                />
+               <div className="flex-1 flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                 <SearchableSelect
+                    options={taxTypesList}
+                    value={taxTypeId}
+                    onChange={setTaxTypeId}
+                    placeholder="Select Tax Type..."
+                    className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                    disabled={inactiveView || noTax}
+                 />
+                 </div>
+                 {!inactiveView && (
+                  <div className="p-2 border border-transparent rounded invisible">
+                      <Star size={16} />
+                  </div>
+                 )}
                </div>
             </div>
-
-            <div className="flex items-center">
-               <label className="w-24 text-sm text-gray-300">
-                  Vehicle No.
-               </label>
-               <input
-                 type="text"
-                 value={vehicleNo}
-                 onChange={(e) => setVehicleNo(e.target.value)}
-                 className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                 disabled={inactiveView}
-                 placeholder="Vehicle/Transport No"
-               />
-            </div>
-
           </div>
 
           {/* RIGHT COL */}
-          <div className="lg:col-span-3">
-            <div className="flex items-center justify-end">
-              <label className="mr-3 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Date
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
+          <div className="space-y-4">
+             {/* Invoice No */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Invoice No</label>
+               <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 font-medium">
+                       <InputField
+                         value={invoiceNo}
+                         onChange={(e) => setInvoiceNo(e.target.value)}
+                         placeholder="Auto-generated"
+                         readOnly={true}
+                         className="bg-gray-100 text-gray-500 cursor-not-allowed" // Make it look read-only
+                       />
+                   </div>
+                   {!inactiveView && (
+                    <div className="p-2 border border-transparent rounded invisible">
+                        <Star size={16} />
+                    </div>
+                   )}
+               </div>
+             </div>
+
+             {/* Vehicle No */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Vehicle No</label>
+               <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 font-medium">
+                       <InputField
+                         value={vehicleNo}
+                         onChange={(e) => setVehicleNo(e.target.value)}
+                         placeholder="Vehicle/Transport No"
+                         disabled={inactiveView}
+                       />
+                   </div>
+                   {!inactiveView && (
+                    <div className="p-2 border border-transparent rounded invisible">
+                        <Star size={16} />
+                    </div>
+                   )}
+               </div>
+             </div>
+
+             {/* Date */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Date</label>
+               <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 font-medium">
+                       <InputField
+                         type="date"
+                         value={date}
+                         onChange={(e) => setDate(e.target.value)}
+                         disabled={inactiveView}
+                       />
+                   </div>
+                   {!inactiveView && (
+                    <div className="p-2 border border-transparent rounded invisible">
+                        <Star size={16} />
+                    </div>
+                   )}
+               </div>
+             </div>
           </div>
         </div>
 
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <label className="text-sm text-gray-300">Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Line Items</label>
             {!inactiveView && (
             <button
               onClick={openItemModal}
-              className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
+              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
             >
               <Plus size={16} /> Add
             </button>
             )}
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[900px]">
+          <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-700 text-gray-300 font-medium">
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
                 <tr>
                   <th className="p-3">Product Name</th>
                   <th className="p-3">Description</th>
@@ -1141,16 +1189,16 @@ const openProductModal = () => {
                   <th className="p-3 w-20"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className={`divide-y ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-100' : 'divide-gray-700'}`}>
                 {rows.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-750">
+                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-200 hover:bg-gray-750'}`}>
                     <td className="p-3">{row.productName}</td>
                     <td className="p-3">{row.description}</td>
                     <td className="p-3">{row.unitName}</td>
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className="p-3 text-gray-300">{parseFloat(row.total).toFixed(2)}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toFixed(2)}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                      {!inactiveView && (
                        <>
@@ -1181,150 +1229,171 @@ const openProductModal = () => {
 
         {/* BOTTOM SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Grand Total</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 font-bold">
-                {grandTotal.toFixed(2)}
+          {/* LEFT COLUMN - DETAILS (Span 4) */}
+          <div className="lg:col-span-4 flex flex-col">
+              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                Details
+              </label>
+               <div className="flex-1 font-medium">
+                <InputField
+                    textarea
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    className="w-full h-full min-h-[440px] resize-none"
+                    disabled={inactiveView}
+                />
               </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">{noTax ? "No Tax" : "Total Tax"}</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {taxAmount.toFixed(2)}
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Paid Amount</label>
-              <input
-                type="number"
-                value={paidAmount}
-                onChange={(e) => setPaidAmount(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            <div className="pt-2">
-              <label className="text-sm text-gray-300 block mb-1">Details</label>
-              <textarea
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
-                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none disabled:opacity-50"
-                disabled={inactiveView}
-              ></textarea>
-            </div>
           </div>
 
-          {/* MIDDLE COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Discount</label>
-              <input
-                type="number"
-                value={globalDiscount}
-                onChange={(e) => setGlobalDiscount(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
+          {/* RIGHT COLUMN - TOTALS (Span 8) -> 2-Col Grid */}
+          <div className="lg:col-span-8">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Grand Total */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Grand Total</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {grandTotal.toFixed(2)}
+                  </div>
+                </div>
 
-            {/* CONDITIONAL TAX INPUTS */}
-            {!noTax && taxTypeId && (() => {
-               const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
-               if(!selectedTax) return null;
-               
-               if(selectedTax.isInterState) {
-                   return (
-                     <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">IGST %</label>
-                       <input
-                          type="number"
-                          value={igstRate}
-                          readOnly
-                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
-                       />
-                     </div>
-                   );
-               } else {
-                   return (
-                     <>
-                      <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">CGST %</label>
-                       <input
-                          type="number"
-                          value={cgstRate}
-                          readOnly
-                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
-                       />
+                {/* Total Tax */}
+                <div>
+                   <div className="flex justify-between mb-1">
+                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
+                      <div className="flex items-center gap-2">
+                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>No Tax</label>
+                          <input
+                            type="checkbox"
+                            checked={noTax}
+                            onChange={(e) => setNoTax(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
+                            disabled={inactiveView}
+                          />
                       </div>
-                      <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">SGST %</label>
-                       <input
-                          type="number"
-                          value={sgstRate}
-                          readOnly
-                          className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
-                       />
-                      </div>
-                     </>
-                   );
-               }
-            })()}
+                   </div>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {noTax ? "0.00" : taxAmount.toFixed(2)}
+                  </div>
+                </div>
 
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Due</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {dueAmount.toFixed(2)}
-              </div>
-            </div>
-          </div>
+                {/* Discount (Input) */}
+                <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Discount</label>
+                    <InputField
+                        type="number"
+                        value={globalDiscount}
+                        onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Total Discount</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {totalDiscount.toFixed(2)}
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Shipping Cost</label>
-              <input
-                type="number"
-                value={shippingCost}
-                onChange={(e) => setShippingCost(e.target.value)}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Change</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {changeAmount.toFixed(2)}
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 py-1">
-              <label className="text-sm text-gray-300">No Tax</label>
-              <input
-                type="checkbox"
-                checked={noTax}
-                onChange={(e) => setNoTax(e.target.checked)}
-                className="w-5 h-5 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
-                disabled={inactiveView}
-              />
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <label className="text-sm text-gray-300 font-semibold">Net Total</label>
-              <div className="w-32 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-right text-white font-bold text-lg">
-                {netTotal.toFixed(2)}
-              </div>
-            </div>
+                {/* Total Discount (ReadOnly) */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {totalDiscount.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Shipping Cost */}
+                <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Shipping Cost</label>
+                    <InputField
+                        type="number"
+                        value={shippingCost}
+                        onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
+
+                {/* Paid Amount */}
+                <div>
+                    <InputField
+                        type="number"
+                        label="Paid Amount"
+                        value={paidAmount}
+                        onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
+
+                {/* Change */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {changeAmount.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Due */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {dueAmount.toFixed(2)}
+                  </div>
+                </div>
+                
+                {/* Tax Breakdown */}
+                {!noTax && taxTypeId && (() => {
+                   const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+                   if(!selectedTax) return null;
+                   
+                   if(selectedTax.isInterState) {
+                       return (
+                         <div className="md:col-span-2">
+                           <label className="block text-sm mb-1 text-gray-500">IGST %</label>
+                           <input
+                              type="number"
+                              value={igstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                         </div>
+                       );
+                   } else {
+                       return (
+                         <>
+                           <div>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
+                           <input
+                              type="number"
+                              value={cgstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                          </div>
+                          <div>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
+                           <input
+                              type="number"
+                              value={sgstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                          </div>
+                         </>
+                       );
+                   }
+                })()}
+
+                {/* Net Total (Full Width) */}
+                <div className="md:col-span-2 mt-2">
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Net Total</label>
+                  <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
+                    {netTotal.toFixed(2)}
+                  </div>
+                </div>
+
+             </div>
           </div>
         </div>
 
+    </ContentCard>
       </div>
-
 
       {/* --- ADD ITEM MODAL --- */}
       <AddModal
@@ -1337,26 +1406,28 @@ const openProductModal = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1"> * Brand</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}> Brand *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                 value={newItem.brandId}
                 onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
                 placeholder="--select brand--"
-                className="flex-1"
+                className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
               />
-              <Star
-                size={20}
-                className="text-yellow-500 cursor-pointer hover:scale-110"
-                onClick={() => setIsBrandModalOpen(true)}
-              />
+              <button
+                 type="button"
+                 className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                 onClick={() => setIsBrandModalOpen(true)}
+              >
+                  <Star size={16} />
+              </button>
             </div>
           </div>
 
           {/* Product */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1"> * Product</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}> Product *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={productsList
@@ -1367,84 +1438,82 @@ const openProductModal = () => {
                 onChange={handleProductSelect}
                 placeholder="--select product--"
                 disabled={!newItem.brandId}
-                className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''}`}
+                className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
               />
-              <Star
-                size={20}
-                className={`cursor-pointer hover:scale-110 ${newItem.brandId ? 'text-yellow-500' : 'text-gray-500'}`}
-                onClick={() => {
-                  if (newItem.brandId) {
-                    setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
-                    openProductModal();
-                  }
-                }}
-              />
+               <button
+                  type="button"
+                  disabled={!newItem.brandId}
+                  className={`p-2 border rounded flex items-center justify-center ${
+                      !newItem.brandId 
+                       ? 'opacity-50 cursor-not-allowed ' + (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-gray-500')
+                       : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
+                  }`}
+                  onClick={() => {
+                    if (newItem.brandId) {
+                      setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                      openProductModal();
+                    }
+                  }}
+               >
+                   <Star size={16} />
+               </button>
             </div>
           </div>
 
           {/* Description */}
           <div className="col-span-2">
-            <label className="block text-sm text-gray-300 mb-1">Description</label>
-            <input
-              type="text"
+            <InputField
+              label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Quantity */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Quantity</label>
-            <input
+            <InputField
               type="number"
+              label="Quantity"
               value={newItem.quantity}
               onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Unit Price */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Unit Price</label>
-            <input
+            <InputField
               type="number"
+              label="Unit Price"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Discount */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
-            <input
+            <InputField
               type="number"
+              label="Discount (%)"
               value={newItem.discount}
               onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Unit (Read Only) */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Unit</label>
-            <input
-              type="text"
-              value={newItem.unitName}
-              readOnly
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            <InputField
+               label="Unit"
+               value={newItem.unitName}
+               disabled={true} // Read only style
             />
           </div>
 
           {/* Tax Percentage (Read Only) */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Tax Percentage (%)</label>
-            <input
-              type="text"
-              value={newItem.taxPercentage}
-              readOnly
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 outline-none cursor-not-allowed"
+            <InputField
+               label="Tax Percentage (%)"
+               value={newItem.taxPercentage}
+               disabled={true}
             />
           </div>
         </div>
@@ -1458,11 +1527,12 @@ const openProductModal = () => {
         title="Add New Brand"
         width="400px"
       >
-        <input
+        <InputField
+          label="Brand Name"
           value={newBrandName}
           onChange={(e) => setNewBrandName(e.target.value)}
           placeholder="Brand Name"
-          className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none mb-4"
+          className="mb-4"
         />
       </AddModal>
 
@@ -1477,182 +1547,97 @@ const openProductModal = () => {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Product Code */}
-          <input
+          <InputField
+            label="Product Code"
             value={newProductData.productCode}
             onChange={(e) => setNewProductData({ ...newProductData, productCode: e.target.value })}
             placeholder="Product Code"
-            className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
           />
 
           {/* Product Name */}
-          <input
-            value={newProductData.name}
-            onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
-            placeholder="Product Name *"
-            className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+          <InputField
+             label="Product Name *"
+             value={newProductData.name}
+             onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
+             placeholder="Product Name"
           />
 
           {/* SN */}
-          <input
-            value={newProductData.SN}
-            readOnly
-            className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-400 cursor-not-allowed"
+          <InputField
+             label="SN"
+             readOnly
+             value={newProductData.SN}
+             disabled
           />
 
           {/* Model */}
-          <input
-            value={newProductData.Model}
-            onChange={(e) => setNewProductData({ ...newProductData, Model: e.target.value })}
-            placeholder="Model"
-            className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+          <InputField
+             label="Model"
+             value={newProductData.Model}
+             onChange={(e) => setNewProductData({ ...newProductData, Model: e.target.value })}
+             placeholder="Model"
           />
 
           {/* CATEGORY DROPDOWN */}
-          <div ref={categoryRef} className="relative">
-            <div
-              onClick={() => setOpenCategory(o => !o)}
-              className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer"
-            >
-              {categoriesList.find(c => c.id === newProductData.CategoryId)?.name || "Select Category"}
-            </div>
-
-            {openCategory && (
-              <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 rounded mt-1">
-                <input
-                  autoFocus
-                  value={categorySearch}
-                  onChange={(e) => setCategorySearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full px-3 py-2 bg-gray-900 text-white border-b border-gray-700 outline-none"
-                />
-                <div className="max-h-40 overflow-y-auto">
-                  {categoriesList
-                    .filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase()))
-                    .map(c => (
-                      <div
-                        key={c.id}
-                        onClick={() => {
-                          setNewProductData({ ...newProductData, CategoryId: c.id });
-                          setOpenCategory(false);
-                          setCategorySearch("");
-                        }}
-                        className="px-3 py-2 text-white hover:bg-gray-700 cursor-pointer"
-                      >
-                        {c.name}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
+          <div className="relative">
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Category</label>
+             <SearchableSelect
+                options={categoriesList.map(c => ({ id: c.id, name: c.name }))}
+                value={newProductData.CategoryId}
+                onChange={(val) => setNewProductData({ ...newProductData, CategoryId: val })}
+                placeholder="Select Category"
+                className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+             />
           </div>
 
           {/* UNIT DROPDOWN */}
-          <div ref={unitRef} className="relative">
-            <div
-              onClick={() => setOpenUnit(o => !o)}
-              className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer"
-            >
-              {unitsList.find(u => u.id === newProductData.unitId)?.name || "Select Unit *"}
-            </div>
-
-            {openUnit && (
-              <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 rounded mt-1">
-                <input
-                  autoFocus
-                  value={unitSearch}
-                  onChange={(e) => setUnitSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full px-3 py-2 bg-gray-900 text-white border-b border-gray-700 outline-none"
-                />
-                <div className="max-h-40 overflow-y-auto">
-                  {unitsList
-                    .filter(u => u.name.toLowerCase().includes(unitSearch.toLowerCase()))
-                    .map(u => (
-                      <div
-                        key={u.id}
-                        onClick={() => {
-                          setNewProductData({ ...newProductData, unitId: u.id });
-                          setOpenUnit(false);
-                          setUnitSearch("");
-                        }}
-                        className="px-3 py-2 text-white hover:bg-gray-700 cursor-pointer"
-                      >
-                        {u.name}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
+          <div className="relative">
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Unit</label>
+             <SearchableSelect
+                options={unitsList.map(u => ({ id: u.id, name: u.name }))}
+                value={newProductData.unitId}
+                onChange={(val) => setNewProductData({ ...newProductData, unitId: val })}
+                placeholder="Select Unit"
+                className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+             />
           </div>
 
           {/* BRAND DROPDOWN */}
-          <div ref={brandProductRef} className="relative">
-            <div
-              onClick={() => setOpenBrandProduct(o => !o)}
-              className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white cursor-pointer"
-            >
-              {brandsList.find(b => b.id === newProductData.brandId)?.name || "Select Brand *"}
-            </div>
-
-            {openBrandProduct && (
-              <div className="absolute z-50 w-full bg-gray-900 border border-gray-700 rounded mt-1">
-                <input
-                  autoFocus
-                  value={brandProductSearch}
-                  onChange={(e) => setBrandProductSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full px-3 py-2 bg-gray-900 text-white border-b border-gray-700 outline-none"
-                />
-                <div className="max-h-40 overflow-y-auto">
-                  {brandsList
-                    .filter(b => b.name.toLowerCase().includes(brandProductSearch.toLowerCase()))
-                    .map(b => (
-                      <div
-                        key={b.id}
-                        onClick={() => {
-                          setNewProductData({ ...newProductData, brandId: b.id });
-                          setOpenBrandProduct(false);
-                          setBrandProductSearch("");
-                        }}
-                        className="px-3 py-2 text-white hover:bg-gray-700 cursor-pointer"
-                      >
-                        {b.name}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
+          <div className="relative">
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Brand</label>
+             <SearchableSelect
+                options={brandsList.map(b => ({ id: b.id, name: b.name }))}
+                value={newProductData.brandId}
+                onChange={(val) => setNewProductData({ ...newProductData, brandId: val })}
+                placeholder="Select Brand"
+                className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+             />
           </div>
 
           {/* Unit Price */}
-          <input
-            type="number"
-            value={newProductData.price}
-            onChange={(e) => setNewProductData({ ...newProductData, price: e.target.value })}
-            placeholder="Unit Price"
-            className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+          <InputField
+             type="number"
+             label="Unit Price *"
+             value={newProductData.price}
+             onChange={(e) => setNewProductData({ ...newProductData, price: e.target.value })}
           />
 
           {/* Reorder Level */}
-          <input
-            type="number"
-            value={newProductData.ReorderLevel}
-            onChange={(e) => setNewProductData({ ...newProductData, ReorderLevel: e.target.value })}
-            placeholder="Reorder Level"
-            className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
+           <InputField
+             type="number"
+             label="Reorder Level"
+             value={newProductData.ReorderLevel}
+             onChange={(e) => setNewProductData({ ...newProductData, ReorderLevel: e.target.value })}
           />
 
-
-           {/* DESCRIPTION */}
+           {/* Description */}
            <div className="md:col-span-2">
-            <textarea
-              value={newProductData.description}
-              onChange={(e) => setNewProductData({ ...newProductData, description: e.target.value })}
-              placeholder="Description"
-              className="w-full h-20 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none"
-            />
+              <InputField
+                 label="Description"
+                 value={newProductData.description}
+                 onChange={(e) => setNewProductData({ ...newProductData, description: e.target.value })}
+              />
            </div>
-
         </div>
       </AddModal>
 

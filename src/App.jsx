@@ -275,7 +275,7 @@ function App() {
 
           <Route path="meeting/meetings" element={<Meetings />} />
           <Route path="meeting/meetings/new" element={<NewMeeting />} />
-          <Route path="meeting/meetings/edit/:id" element={<NewMeeting />} />
+          <Route path="meeting/meetings/edit/:id" element={<EditMeeting />} />
           <Route path="meeting/meetings/edit/:id/agenda" element={<EditMeeting />} />
           <Route path="meeting/meetings/edit/:id/decisions" element={<EditMeeting />} />
 

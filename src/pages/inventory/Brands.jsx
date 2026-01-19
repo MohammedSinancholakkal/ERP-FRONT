@@ -4,8 +4,7 @@ import {
 } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
 
-import toast from "react-hot-toast";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import Pagination from "../../components/Pagination";
 
 // API
@@ -25,6 +24,8 @@ import { useTheme } from "../../context/ThemeContext";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import InputField from "../../components/InputField";
+import ContentCard from "../../components/ContentCard";
 
 const Brands = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -106,7 +107,7 @@ const Brands = () => {
       setBrands(res.data.records);
       setTotalRecords(res.data.total);
     } else {
-      toast.error("Failed to load brands");
+      showErrorToast("Failed to load brands");
     }
   };
 
@@ -136,7 +137,7 @@ const Brands = () => {
   // ADD
   const handleAddBrand = async () => {
     if (!newBrand.name.trim())
-      return toast.error("Brand name required");
+      return showErrorToast("Brand name required");
 
     // DUPLICATE CHECK
     try {
@@ -156,21 +157,21 @@ const Brands = () => {
     });
 
     if (res?.status === 200) {
-      toast.success("Brand added");
+      showSuccessToast("Brand added");
       setNewBrand({ name: "", description: "" });
       setModalOpen(false);
       loadBrands();
     } else if (res?.status === 409) {
-      toast.error(res.data.message || "Brand Name already exists");
+      showErrorToast(res.data.message || "Brand Name already exists");
     } else {
-      toast.error("Failed to add");
+      showErrorToast("Failed to add");
     }
   };
 
   // UPDATE
   const handleUpdateBrand = async () => {
     if (!editBrand.name.trim())
-      return toast.error("Brand name required");
+      return showErrorToast("Brand name required");
 
     // DUPLICATE CHECK
     try {
@@ -180,7 +181,7 @@ const Brands = () => {
             b.name.toLowerCase() === editBrand.name.trim().toLowerCase() && 
             String(b.id) !== String(editBrand.id)
         );
-        if (existing) return toast.error("Brand Name already exists");
+        if (existing) return showErrorToast("Brand Name already exists");
     }
     } catch(err) {
     console.error("Duplicate check error", err);
@@ -193,28 +194,19 @@ const Brands = () => {
     });
 
     if (res?.status === 200) {
-      toast.success("Brand updated");
+      showSuccessToast("Brand updated");
       setEditModalOpen(false);
       loadBrands();
     } else if (res?.status === 409) {
-      toast.error(res.data.message || "Brand Name already exists");
+      showErrorToast(res.data.message || "Brand Name already exists");
     } else {
-      toast.error("Update failed");
+      showErrorToast("Update failed");
     }
   };
 
   // DELETE BRAND
   const handleDeleteBrand = async () => {
-    const result = await Swal.fire({
-        title: "Are you sure?",
-        text: "This brand will be deleted!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#6b7280",
-        confirmButtonText: "Yes, delete",
-        cancelButtonText: "Cancel",
-      });
+    const result = await showDeleteConfirm();
   
       if (!result.isConfirmed) return;
   
@@ -224,47 +216,38 @@ const Brands = () => {
         });
   
         if (res?.status === 200) {
-          toast.success("Brand deleted");
+          showSuccessToast("Brand deleted");
           setEditModalOpen(false);
           loadBrands();
           if (showInactive) loadInactive();
         } else {
-          toast.error("Delete failed");
+          showErrorToast("Delete failed");
         }
       } catch(err) {
         console.error("Delete failed", err);
-        toast.error("Delete failed");
+        showErrorToast("Delete failed");
       }
   };
 
   // RESTORE BRAND
   const handleRestoreBrand = async () => {
-    const result = await Swal.fire({
-        title: "Are you sure?",
-        text: "This brand will be restored!",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonColor: "#10b981",
-        cancelButtonColor: "#6b7280",
-        confirmButtonText: "Yes, restore",
-        cancelButtonText: "Cancel",
-      });
+    const result = await showRestoreConfirm();
   
       if (!result.isConfirmed) return;
   
       try {
         const res = await restoreBrandApi(editBrand.id, { userId: user?.userId || 1 });
         if (res?.status === 200) {
-          toast.success("Brand restored");
+          showSuccessToast("Brand restored");
           setEditModalOpen(false);
           loadBrands();
           loadInactive();
         } else {
-          toast.error("Restore failed");
+          showErrorToast("Restore failed");
         }
       } catch(err) {
         console.error("Restore failed", err);
-        toast.error("Restore failed");
+        showErrorToast("Restore failed");
       }
   };
 
@@ -294,26 +277,27 @@ const Brands = () => {
         title="New Brand"
       >
         {/* NAME */}
-        <label className="block text-sm mb-1">Name *</label>
-        <input
-          type="text"
+        <InputField
+          label="Name"
           value={newBrand.name}
           onChange={(e) =>
             setNewBrand((prev) => ({ ...prev, name: e.target.value }))
           }
           placeholder="Enter brand name"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none"
+          required
+          className="mb-4"
         />
 
         {/* DESCRIPTION */}
-        <label className="block text-sm mb-1">Description</label>
-        <textarea
+        <InputField
+          label="Description"
+          textarea
           value={newBrand.description}
           onChange={(e) =>
             setNewBrand((prev) => ({ ...prev, description: e.target.value }))
           }
           placeholder="Enter description"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none"
+          className="h-24"
         />
       </AddModal>
 
@@ -335,29 +319,26 @@ const Brands = () => {
         permissionEdit={hasPermission(PERMISSIONS.INVENTORY.BRANDS.EDIT)}
       >
         {/* NAME */}
-        <label className="block text-sm mb-1">Name *</label>
-        <input
-          type="text"
+        <InputField
+          label="Name"
           value={editBrand.name}
           onChange={(e) =>
             setEditBrand((prev) => ({ ...prev, name: e.target.value }))
           }
-          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none ${
-            editBrand.isInactive ? "opacity-60 cursor-not-allowed" : ""
-          }`}
+          className="mb-4"
           disabled={editBrand.isInactive}
+          required
         />
 
         {/* DESCRIPTION */}
-        <label className="block text-sm mb-1">Description</label>
-        <textarea
+        <InputField
+          label="Description"
+          textarea
           value={editBrand.description}
           onChange={(e) =>
             setEditBrand((prev) => ({ ...prev, description: e.target.value }))
           }
-          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none ${
-            editBrand.isInactive ? "opacity-60 cursor-not-allowed" : ""
-          }`}
+          className="h-24"
           disabled={editBrand.isInactive}
         />
       </EditModal>
@@ -377,10 +358,11 @@ const Brands = () => {
           MAIN PAGE
       ======================================================= */}
       <PageLayout>
-        <div className={`p-4 text-white h-full ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-
-            <h2 className="text-2xl font-semibold mb-4">Brands</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Brands</h2>
+            <hr className="mb-4 border-gray-300" />
 
             {/* TABLE SECTION - Action Bar is now inside MasterTable */}
             <MasterTable
@@ -433,6 +415,7 @@ const Brands = () => {
             />
 
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
 

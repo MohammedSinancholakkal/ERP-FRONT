@@ -16,6 +16,7 @@ import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import MasterTable from "../../components/MasterTable"; // ADDED
+import ContentCard from "../../components/ContentCard";
 import { useTheme } from "../../context/ThemeContext"; // ADDED
 import ExportButtons from "../../components/ExportButtons"; // ADDED
 import { useSettings } from "../../contexts/SettingsContext";
@@ -351,39 +352,45 @@ const Sales = () => {
       />
 
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
             
-            <div className="flex justify-between items-center mb-4">
-               <h2 className="text-2xl font-semibold">Sales</h2>
+            <div className="flex justify-between items-center mb-2">
+               <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Sales</h2>
             </div>
+            <hr className="mb-4 border-gray-300" />
             
             <MasterTable
                 columns={[
-                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
-                    visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (s) => (
-                        <div className="flex items-center justify-center gap-2">
-                             <button
-                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
-                               title="Download PDF"
-                               disabled={s.isInactive}
-                               onClick={(e) => { e.stopPropagation(); handleExportRowPDF(s); }}
-                             >
-                               <FileText size={14} className="text-red-300" />
-                             </button>
-                             <button
-                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
-                               title="View Sale"
-                               disabled={s.isInactive}
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 navigate(`/app/sales/invoice/preview/${s.id}`);
-                               }}
-                             >
-                               <Eye size={14} className="text-blue-300" />
-                             </button>
-                             <span className={theme === 'emerald' ? 'text-gray-900' : 'text-gray-300'}>{s.customerName || "-"}</span>
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true, className: "min-w-[50px]", render: (s) => (
+                        <div className="flex items-center justify-between w-full">
+                           <span>{s.id}</span>
+                           <div className="flex gap-1">
+                              <button
+                                className={`p-1 rounded border bg-white border-gray-700 hover:bg-white ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
+                                title="Download PDF"
+                                disabled={s.isInactive}
+                                onClick={(e) => { e.stopPropagation(); handleExportRowPDF(s); }}
+                              >
+                                <FileText size={14} className="text-red-300 bg-white" />
+                              </button>
+                              <button
+                                className={`p-1 rounded border bg-white border-gray-700 hover:bg-white ${s.isInactive || isNaN(s.id) ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
+                                title="View Sale"
+                                disabled={s.isInactive}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/app/sales/invoice/preview/${s.id}`);
+                                }}
+                              >
+                                <Eye size={14} className="text-purple-900" />
+                              </button>
+                           </div>
                         </div>
+                    )},
+                    visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (s) => (
+                        <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300'}>{s.customerName || "-"}</span>
                     )},
                     visibleColumns.invoiceNo && { key: "invoiceNo", label: "Invoice No", sortable: true, render: (s) => s.invoiceNo || s.VNo || "" },
                     visibleColumns.vehicleNo && { key: "vehicleNo", label: "Vehicle No", sortable: true, render: (s) => s.vehicleNo || "" },
@@ -445,6 +452,7 @@ const Sales = () => {
                 onRefresh={handleRefresh}
               />
             </div>
+          </ContentCard>
         </div>
       </PageLayout>
     </>

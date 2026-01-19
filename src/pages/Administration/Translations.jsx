@@ -2,8 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import { Search, Save } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Translation = () => {
+  if (!hasPermission(PERMISSIONS.SETTINGS)) { // Using SETTINGS permission for translations
+      return (
+        <div className="flex items-center justify-center h-full text-white">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+            <p className="text-gray-400">You do not have permission to view this page.</p>
+          </div>
+        </div>
+      );
+  }
   // MOCK LANGUAGES
   const languagesMock = [
     { code: "en", name: "English" },
@@ -105,7 +117,12 @@ const Translation = () => {
               {/* SAVE BUTTON */}
               <button
                 onClick={handleSave}
-                className="flex items-center gap-2 bg-gray-700 px-3 py-1.5 rounded-md border border-gray-600 text-sm text-blue-300 hover:bg-gray-600"
+                disabled={!hasPermission(PERMISSIONS.SETTINGS)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm ${
+                   !hasPermission(PERMISSIONS.SETTINGS) 
+                    ? "bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-700 border-gray-600 text-blue-300 hover:bg-gray-600"
+                }`}
               >
                 <Save size={16} /> Save Changes
               </button>

@@ -1,4 +1,5 @@
 import React from "react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 export default function SortableHeader({ label, sortKey, currentSort, onSort, sortOrder, onClick }) {
   let direction = null;
@@ -17,17 +18,16 @@ export default function SortableHeader({ label, sortKey, currentSort, onSort, so
 
   return (
     <th
-      className="px-4 py-1 border-b text-center cursor-pointer select-none transition border-white whitespace-nowrap"
+      className="px-4 py-1 border-b text-left cursor-pointer select-none transition border-white whitespace-nowrap"
       onClick={handleClick}
     >
-      <div className="flex items-center justify-center gap-1">
-        {/* icon */}
-        {direction === "asc" && <span>▲</span>}
-        {direction === "desc" && <span>▼</span>}
-        {!direction && <span className="opacity-40">⬍</span>}
-
+      <div className="flex items-center justify-start gap-1">
         {/* title */}
         <span>{label}</span>
+
+        {/* icon */}
+        {direction === "asc" && <ChevronUp size={16} className="opacity-80" />}
+        {direction === "desc" && <ChevronDown size={16} className="opacity-80" />}
       </div>
     </th>
   );

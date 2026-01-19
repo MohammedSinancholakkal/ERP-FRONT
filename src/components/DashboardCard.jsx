@@ -1,16 +1,18 @@
 import { Minus, Plus, X } from "lucide-react";
 import { useState } from "react";
+import { useTheme } from "../context/ThemeContext";
 
 const DashboardCard = ({ title, color, children }) => {
+  const { theme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [visible, setVisible] = useState(true);
 
   if (!visible) return null;
 
   return (
-    <div className="rounded-lg overflow-hidden shadow border border-gray-700 bg-gradient-to-b from-[#3a3344] to-[#2b2533]">
+    <div className={`rounded-lg overflow-hidden shadow border ${theme === 'emerald' ? 'bg-white border-emerald-200 text-gray-900' : theme === 'purple' ? 'bg-white border-gray-200 text-gray-900' : 'border-gray-700 bg-gradient-to-b from-[#3a3344] to-[#2b2533] text-white'}`}>
       {/* Header */}
-      <div className="relative px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+      <div className={`relative px-4 py-3 border-b flex justify-between items-center ${theme === 'purple' || theme === 'emerald' ? 'border-gray-100' : 'border-gray-700'}`}>
         <div className={`absolute top-0 left-0 h-[3px] w-full ${color}`} />
 
         <h3 className="font-semibold text-lg">{title}</h3>

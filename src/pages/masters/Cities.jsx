@@ -19,11 +19,13 @@ import {
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import ContentCard from "../../components/ContentCard";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import MasterTable from "../../components/MasterTable";
 import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { useTheme } from "../../context/ThemeContext";
 import { useMasters } from "../../context/MastersContext";
 
@@ -31,6 +33,7 @@ import { useMasters } from "../../context/MastersContext";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
 import { Pencil, Star } from "lucide-react";
 
 const Cities = () => {
@@ -119,32 +122,8 @@ const Cities = () => {
     setSortConfig({ key: direction ? key : null, direction });
   };
 
-  const sortedCities = [...cities];
-  if (sortConfig.key) {
-    sortedCities.sort((a, b) => {
-      let valA = a[sortConfig.key];
-      let valB = b[sortConfig.key];
-
-      if (sortConfig.key === "countryName") {
-         valA = a.countryName || getCountryName(a.countryId);
-         valB = b.countryName || getCountryName(b.countryId);
-      }
-      if (sortConfig.key === "stateName") {
-         valA = a.stateName || getStateName(a.stateId);
-         valB = b.stateName || getStateName(b.stateId);
-      }
-
-      valA = valA || "";
-      valB = valB || "";
-
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-      
-      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
+  // Client-side sort logic removed
+  const sortedCities = cities;
 
   // ========== LOADERS ==========
   const loadCountries = async () => {
@@ -185,7 +164,7 @@ const Cities = () => {
 
   const loadCities = async (forceRefresh = false) => {
     // Context handles caching if not searching
-    const { data, total } = await loadCitiesCtx(page, limit, searchText, forceRefresh);
+    const { data, total } = await loadCitiesCtx(page, limit, searchText, forceRefresh, sortConfig.key || "", sortConfig.direction || "");
     setCities(data || []);
     setTotalRecords(total || 0);
   };
@@ -200,7 +179,7 @@ const Cities = () => {
     loadCountries();
     loadCities();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit]);
+  }, [page, limit, sortConfig]);
 
   // ========== SEARCH HANDLER ==========
   const handleSearch = async (value) => {
@@ -223,22 +202,6 @@ const Cities = () => {
       return toast.error("All fields are required");
     }
 
-    // Check Duplicates
-    try {
-        const searchRes = await searchCityApi(newCity.name.trim());
-        if (searchRes?.status === 200) {
-            const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
-            const existing = rows.find(r => 
-                (r.Name || r.name).toLowerCase() === newCity.name.trim().toLowerCase() && 
-                String(r.StateId || r.stateId) === String(newCity.stateId)
-            );
-            if (existing) return toast.error("City with this name already exists in selected state");
-        }
-    } catch(err) {
-        console.error(err);
-        return toast.error("Error checking duplicates");
-    }
-
     try {
       const payload = {
         ...newCity,
@@ -256,7 +219,11 @@ const Cities = () => {
         // refreshCities();
         loadCities(true);
       } else {
-        toast.error(res?.data?.message || "Add failed");
+        if (res?.status === 409) {
+            toast.error(res?.data?.message || "City already exists");
+        } else {
+            toast.error(res?.data?.message || "Add failed");
+        }
       }
     } catch (err) {
       console.error("ADD CITY ERROR:", err);
@@ -294,23 +261,6 @@ const Cities = () => {
     if (!name?.trim() || !countryId || !stateId)
       return toast.error("All fields are required");
 
-     // Check Duplicates
-     try {
-        const searchRes = await searchCityApi(name.trim());
-        if (searchRes?.status === 200) {
-            const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
-            const existing = rows.find(r => 
-                (r.Name || r.name).toLowerCase() === name.trim().toLowerCase() && 
-                String(r.StateId || r.stateId) === String(stateId) &&
-                (r.Id || r.id) !== id
-            );
-            if (existing) return toast.error("City with this name already exists in selected state");
-        }
-    } catch(err) {
-        console.error(err);
-        return toast.error("Error checking duplicates");
-    }
-
     try {
       const payload = {
         name: name.trim(),
@@ -326,7 +276,11 @@ const Cities = () => {
         // refreshCities();
         loadCities(true);
       } else {
-        toast.error(res?.data?.message || "Update failed");
+        if (res?.status === 409) {
+             toast.error(res?.data?.message || "City already exists");
+        } else {
+             toast.error(res?.data?.message || "Update failed");
+        }
       }
     } catch (err) {
       console.error("UPDATE CITY ERROR:", err);
@@ -336,66 +290,51 @@ const Cities = () => {
 
   // ========== DELETE CITY ==========
   const handleDeleteCity = async () => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        const id = editCity.id;
-        try {
-          const res = await deleteCityApi(id, { userId: currentUserId });
-          if (res?.status === 200) {
-            toast.success("City deleted");
-            setEditModalOpen(false);
-    
-            // refreshCities();
-            loadCities(true);
-          } else {
-            toast.error(res?.data?.message || "Delete failed");
-          }
-        } catch (err) {
-          console.error("DELETE CITY ERROR:", err);
-          toast.error("Server error");
+    const result = await showDeleteConfirm();
+
+    if (result.isConfirmed) {
+      const id = editCity.id;
+      try {
+        const res = await deleteCityApi(id, { userId: currentUserId });
+        if (res?.status === 200) {
+          showSuccessToast("City deleted");
+          setEditModalOpen(false);
+  
+          // refreshCities();
+          loadCities(true);
+        } else {
+          showErrorToast(res?.data?.message || "Delete failed");
         }
+      } catch (err) {
+        console.error("DELETE CITY ERROR:", err);
+        showErrorToast("Server error");
       }
-    });
+    }
   };
 
   // ========== RESTORE CITY ==========
+  // ========== RESTORE CITY ==========
   const handleRestoreCity = async () => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "Do you want to restore this city?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, restore it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const res = await restoreCityApi(editCity.id, { userId: currentUserId });
-          if (res?.status === 200) {
-            toast.success("City restored");
-            setEditModalOpen(false);
-            // refreshCities();
-            await loadCities(true);
-            refreshInactiveCities();
-            await loadInactiveCities();
-          } else {
-            toast.error("Restore failed");
-          }
-        } catch (err) {
-          console.error("RESTORE CITY ERROR:", err);
-          toast.error("Server error");
+    const result = await showRestoreConfirm();
+
+    if (result.isConfirmed) {
+      try {
+        const res = await restoreCityApi(editCity.id, { userId: currentUserId });
+        if (res?.status === 200) {
+          showSuccessToast("City restored");
+          setEditModalOpen(false);
+          // refreshCities();
+          await loadCities(true);
+          refreshInactiveCities();
+          await loadInactiveCities();
+        } else {
+          showErrorToast("Restore failed");
         }
+      } catch (err) {
+        console.error("RESTORE CITY ERROR:", err);
+        showErrorToast("Server error");
       }
-    }); 
+    } 
   };
 
   // ========== COUNTRY / STATE create helpers ==========
@@ -590,9 +529,11 @@ const Cities = () => {
 
   return (
     <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-xl sm:text-2xl font-semibold mb-4">Cities</h2>
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Cities</h2>
+            <hr className="mb-4 border-gray-300" />
 
             {/* TABLE */}
             <MasterTable
@@ -635,6 +576,7 @@ const Cities = () => {
               }}
             />
         </div>
+          </ContentCard>
         </div>
 
     {/* ADD CITY MODAL */}
@@ -645,15 +587,14 @@ const Cities = () => {
          title="New City"
        >
            <div className="space-y-4">
-               <div>
-                  <label className="text-sm">Name *</label>
-                  <input
-                    type="text"
-                    value={newCity.name}
-                    onChange={(e) => setNewCity((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
-                  />
-               </div>
+                <div>
+                   <InputField
+                     label="Name"
+                     value={newCity.name}
+                     onChange={(e) => setNewCity((p) => ({ ...p, name: e.target.value }))}
+                     required
+                   />
+                </div>
                <div>
                   <label className="text-sm">Country *</label>
                   <div className="flex items-center gap-2">
@@ -668,8 +609,8 @@ const Cities = () => {
                       className="w-full"
                     />
                     {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
-                    <button type="button" className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition" onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}>
-                      <Star size={18} className="text-yellow-400" />
+                    <button type="button"  className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`} onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}>
+                      <Star size={16} />
                     </button>
                     )}
                   </div>
@@ -689,11 +630,11 @@ const Cities = () => {
                     {hasPermission(PERMISSIONS.STATES.CREATE) && (
                     <button
                       type="button"
-                      className={`p-2 rounded-lg border border-gray-600 bg-gray-800 transition ${!newCity.countryId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+                     className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                       onClick={() => { setStateFormName(""); setStateModalCallback(null); setAddStateModalOpen(true); }}
                       disabled={!newCity.countryId}
                     >
-                      <Star size={18} className="text-yellow-400" />
+                      <Star size={16} />
                     </button>
                     )}
                   </div>
@@ -714,10 +655,15 @@ const Cities = () => {
           permissionEdit={hasPermission(PERMISSIONS.CITIES.EDIT)}
        >
            <div className="space-y-4">
-              <div>
-                  <label className="text-sm">Name *</label>
-                  <input type="text" value={editCity.name} onChange={(e) => setEditCity((p) => ({ ...p, name: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm" />
-              </div>
+               <div>
+                   <InputField
+                     label="Name"
+                     value={editCity.name}
+                     onChange={(e) => setEditCity((p) => ({ ...p, name: e.target.value }))}
+                     disabled={editCity.isInactive}
+                     required
+                   />
+               </div>
               <div>
                   <label className="text-sm">Country *</label>
                   <div className="flex items-center gap-2">
@@ -735,7 +681,7 @@ const Cities = () => {
                      {editCity.countryId && (
                      <button
                         type="button"
-                        className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                         className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         onClick={() => { 
                             setCountryEditData({ id: editCity.countryId, name: getCountryName(editCity.countryId) });
                             setEditCountryModalOpen(true); 
@@ -748,10 +694,10 @@ const Cities = () => {
                     {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                     <button
                         type="button"
-                        className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                       className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}
                     >
-                        <Star size={18} className="text-yellow-400" />
+                        <Star size={16} />
                     </button>
                     )}
                   </div>
@@ -771,7 +717,7 @@ const Cities = () => {
                      {editCity.stateId && (
                      <button
                         type="button"
-                        className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                        className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         onClick={() => { 
                             setStateEditData({ id: editCity.stateId, name: getStateName(editCity.stateId), countryId: editCity.countryId });
                             setEditStateModalOpen(true); 
@@ -784,10 +730,10 @@ const Cities = () => {
                      {hasPermission(PERMISSIONS.STATES.CREATE) && (
                     <button
                         type="button"
-                        className="p-2 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 transition"
+                        className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         onClick={() => { setStateFormName(""); setStateModalCallback(null); setAddStateModalOpen(true); }}
                     >
-                        <Star size={18} className="text-yellow-400" />
+                        <Star size={16} />
                     </button>
                      )}
                   </div>
@@ -801,12 +747,12 @@ const Cities = () => {
           onClose={() => { setAddCountryModalOpen(false); setCountryModalCallback(null); }}
           onSave={handleAddCountryModalSave}
           title="Create Country"
-          zIndex={60}
+          zIndex={1100}
           saveText="Add"
        >
           <div>
             <label className="block text-sm mb-1">Country Name</label>
-            <input value={countryFormName} onChange={(e) => setCountryFormName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm" />
+            <InputField value={countryFormName} onChange={(e) => setCountryFormName(e.target.value)} required />
           </div>
        </AddModal>
 
@@ -816,12 +762,12 @@ const Cities = () => {
           onClose={() => setEditCountryModalOpen(false)}
           onSave={handleEditCountryModalSave}
           title={`Edit Country (${countryEditData.name})`}
-          zIndex={60}
+          zIndex={1100}
           saveText="Save"
        >
           <div>
             <label className="block text-sm mb-1">Country Name</label>
-            <input value={countryEditData.name} onChange={(e) => setCountryEditData((p) => ({ ...p, name: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm" />
+            <InputField value={countryEditData.name} onChange={(e) => setCountryEditData((p) => ({ ...p, name: e.target.value }))} required />
           </div>
        </AddModal>
 
@@ -831,12 +777,12 @@ const Cities = () => {
           onClose={() => { setAddStateModalOpen(false); setStateModalCallback(null); }}
           onSave={() => handleAddStateModalSave(newCity.countryId || editCity.countryId)}
           title="Create State"
-          zIndex={60}
+          zIndex={1100}
           saveText="Add"
        >
           <div>
             <label className="block text-sm mb-1">State Name</label>
-            <input value={stateFormName} onChange={(e) => setStateFormName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm" />
+            <InputField value={stateFormName} onChange={(e) => setStateFormName(e.target.value)} required />
             <p className="text-xs text-gray-400 mt-2">State will be created for the currently selected country.</p>
           </div>
        </AddModal>
@@ -847,12 +793,12 @@ const Cities = () => {
           onClose={() => setEditStateModalOpen(false)}
           onSave={handleEditStateModalSave}
           title={`Edit State (${stateEditData.name})`}
-          zIndex={60}
+          zIndex={1100}
           saveText="Save"
        >
           <div>
             <label className="block text-sm mb-1">State Name</label>
-            <input value={stateEditData.name} onChange={(e) => setStateEditData((p) => ({ ...p, name: e.target.value }))} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm" />
+            <InputField value={stateEditData.name} onChange={(e) => setStateEditData((p) => ({ ...p, name: e.target.value }))} required />
           </div>
        </AddModal>
 
@@ -870,3 +816,4 @@ const Cities = () => {
 };
 
 export default Cities;
+

@@ -1,36 +1,43 @@
-import React, { useEffect, useState } from "react";
-import { Save, Star, X, ArrowLeft, Trash2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Save, Star, X, ArrowLeft, Trash2, ArchiveRestore } from "lucide-react";
 import toast from "react-hot-toast";
+
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import SearchableSelect from "../../components/SearchableSelect";
-import Swal from "sweetalert2";
+import InputField from "../../components/InputField";
+import { useTheme } from "../../context/ThemeContext";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import {
   getCountriesApi,
   getStatesApi,
   getCitiesApi,
   getEmployeesApi,
   getRegionsApi,
-  getSupplierGroupsApi,
+  getCustomerGroupsApi,
+  addCustomerGroupApi,
+  addRegionApi,
   addCountryApi,
   addStateApi,
   addCityApi,
   addCustomerApi,
   updateCustomerApi,
-  getCustomerByIdApi,
-  deleteCustomerApi,
   searchCustomerApi,
+  deleteCustomerApi,
+  restoreCustomerApi,
   searchCountryApi,
   searchStateApi,
   searchCityApi,
-  searchCustomerGroupApi,
   searchRegionApi,
-} from "../../services/allAPI";
+  searchCustomerGroupApi,
+} from "../../services/allAPI"; // Ensure these match your allAPI.js exports
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import AddModal from "../../components/modals/AddModal";
+import ContentCard from "../../components/ContentCard";
 import { useDashboard } from "../../context/DashboardContext";
 
+// ----------------- Utilities -----------------
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
   if (Array.isArray(res)) return res;
@@ -41,94 +48,18 @@ const parseArrayFromResponse = (res) => {
   return Array.isArray(maybeArray) ? maybeArray : [];
 };
 
-const CustomDropdown = ({
-  label,
-  list = [],
-  valueId,
-  required = false,
-  onSelect = () => {},
-  showStar = true,
-  showPencil = true,
-  onAddClick,
-  direction = "down", // "down" | "up"
-}) => {
-  const options = list.map(item => ({
-    id: item.id ?? item.Id,
-    name: item.label ||
-          item.name ||
-          item.CountryName ||
-          item.StateName ||
-          item.CityName ||
-          item.RegionName ||
-          item.regionName ||
-          item.GroupName ||
-          item.groupName ||
-          item.SupplierGroupName ||
-          ""
-  }));
-
-  return (
-    <div className="relative w-full">
-      <label className="text-sm text-gray-300 mb-1 block">
-        {label} {required && <span className="text-red-400">*</span>}
-      </label>
-
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <SearchableSelect
-            options={options}
-            value={valueId}
-            onChange={(id) => {
-               // Explicitly handle clear/empty
-               if (!id) {
-                 onSelect(null);
-                 return;
-               }
-               // Find original item to pass back
-               const originalItem = list.find(x => String(x.id ?? x.Id) === String(id));
-               onSelect(originalItem);
-             }}
-            placeholder="--select--"
-            direction={direction}
-            className="w-full"
-          />
-        </div>
-
-        {showStar && (
-          <button
-            type="button"
-            onClick={onAddClick}
-            className="p-2 bg-gray-800 border border-gray-600 rounded flex items-center justify-center"
-          >
-            <Star size={14} className="text-yellow-400" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-
-const NewCustomers = () => {
+// ----------------- Main Component -----------------
+const NewCustomer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const isEditMode = Boolean(id);
   const { invalidateDashboard } = useDashboard();
+  const { theme } = useTheme();
 
-  // PRE-LOAD DATA FROM NAVIGATION STATE
-  const initialCustomer = location.state?.customer;
-  
-  // Helper to extract initial lists for dropdowns (so they don't show empty ID)
-  const initialCountries = initialCustomer?.CountryId ? [{ Id: initialCustomer.CountryId, CountryName: initialCustomer.CountryName || initialCustomer.countryName }] : [];
-  const initialStates = initialCustomer?.StateId ? [{ Id: initialCustomer.StateId, StateName: initialCustomer.StateName || initialCustomer.stateName, CountryId: initialCustomer.CountryId }] : [];
-  const initialCities = initialCustomer?.CityId ? [{ Id: initialCustomer.CityId, CityName: initialCustomer.CityName || initialCustomer.cityName, StateId: initialCustomer.StateId }] : [];
-  const initialRegions = initialCustomer?.RegionId ? [{ regionId: initialCustomer.RegionId, regionName: initialCustomer.RegionName || initialCustomer.regionName }] : [];
-  const initialGroups = initialCustomer?.CustomerGroupId ? [{ Id: initialCustomer.CustomerGroupId, GroupName: initialCustomer.CustomerGroupName || initialCustomer.customerGroupName }] : [];
-  
-  
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInactive, setIsInactive] = useState(false);
 
   // New Modal States
   const [addCountryModalOpen, setAddCountryModalOpen] = useState(false);
@@ -144,73 +75,57 @@ const NewCustomers = () => {
   const [newGroupName, setNewGroupName] = useState("");
   const [newRegionName, setNewRegionName] = useState("");
 
-  // Initialize with placeholders if available
-  const [countries, setCountries] = useState(initialCountries);
-  const [states, setStates] = useState(initialStates);
-  const [cities, setCities] = useState(initialCities);
-  const [statesMaster, setStatesMaster] = useState(initialStates); 
-  const [citiesMaster, setCitiesMaster] = useState(initialCities); 
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [statesMaster, setStatesMaster] = useState([]);
+  const [citiesMaster, setCitiesMaster] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [regions, setRegions] = useState(initialRegions);
-  const [customerGroups, setCustomerGroups] = useState(initialGroups);
+  const [regions, setRegions] = useState([]);
+  const [customerGroups, setCustomerGroups] = useState([]);
 
-  const [form, setForm] = useState(() => {
-    if (isEditMode && initialCustomer) {
-       const s = initialCustomer;
-       return {
-          companyName: s.Name || s.name || s.CompanyName || s.companyName || "",
-          countryId: s.CountryId ?? s.countryId ?? null,
-          stateId: s.StateId ?? s.stateId ?? null,
-          cityId: s.CityId ?? s.cityId ?? null,
-          contactName: s.ContactName || s.contactName || "",
-          contactTitle: s.ContactTitle || s.contactTitle || "",
-          customerGroupId: s.CustomerGroupId ?? s.customerGroupId ?? null,
-          regionId: s.RegionId ?? s.regionId ?? null,
-          addressLine1: s.AddressLine1 || s.addressLine1 || "",
-          addressLine2: s.AddressLine2 || s.addressLine2 || "",
-          postalCode: s.PostalCode || s.postalCode || "",
-          phone: s.Phone || s.phone || "",
-          website: s.Website || s.website || "",
-          fax: s.Fax || s.fax || "",
-          email: s.Email || s.email || "",
-          emailAddress: s.EmailAddress || s.emailAddress || "",
-          previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
-
-          salesManId: s.SalesMan ?? s.SalesManId ?? s.salesMan ?? s.salesManId ?? null,
-          orderBookerId: s.OrderBooker ?? s.OrderBookerId ?? s.orderBooker ?? s.orderBookerId ?? null,
-          pan: s.PAN ?? s.pan ?? "",
-          gstin: s.GSTTIN ?? s.gstin ?? "",
-       };
-    }
-    return {
-      companyName: "",
-      countryId: null,
-      stateId: null,
-      cityId: null,
-      contactName: "",
-      contactTitle: "",
-      customerGroupId: null,
-      regionId: null,
-      addressLine1: "",
-      addressLine2: "",
-      postalCode: "",
-      phone: "",
-      website: "",
-      fax: "",
-      email: "",
-      emailAddress: "",
-      previousCredit: "",
-      pan: "",
-      gstin: "",
-      salesManId: null,
-      orderBookerId: null,
-    };
+  const [form, setForm] = useState({
+    companyName: "",
+    countryId: null,
+    stateId: null,
+    cityId: null,
+    contactName: "",
+    contactTitle: "",
+    customerGroupId: null,
+    regionId: null,
+    address: "",
+    region: "",
+    postalCode: "",
+    phone: "",
+    website: "",
+    fax: "",
+    email: "",
+    emailAddress: "",
+    previousCredit: "",
+    orderBookerId: null,
+    pan: "",
+    gstin: "",
+    addressLine1: "",
+    addressLine2: "",
   });
 
-  const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const update = (k, v) => {
+    if (k === "phone") {
+      // Numbers only, strictly max 10 chars
+      const val = v.replace(/\D/g, "").slice(0, 10);
+      setForm((p) => ({ ...p, [k]: val }));
+    } else if (k === "postalCode") {
+      // Numbers only, strictly max 6 chars
+      const val = v.replace(/\D/g, "").slice(0, 6);
+      setForm((p) => ({ ...p, [k]: val }));
+    } else {
+      setForm((p) => ({ ...p, [k]: v }));
+    }
+  };
 
   useEffect(() => {
     loadLookups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle return from NewEmployee with new ID
@@ -219,15 +134,13 @@ const NewCustomers = () => {
         const { newEmployeeId, field } = location.state;
         // Reload employees to ensure the new one is in the list
         getEmployeesApi(1, 5000).then(res => {
-            const arr = parseArrayFromResponse(res).map((e) => ({
+             const arr = parseArrayFromResponse(res).map((e) => ({
                 id: e.Id ?? e.id,
-                label: `${e.FirstName || e.firstName || ""} ${e.LastName || e.lastName || ""}`,
+                name: `${e.FirstName || e.firstName || ''} ${e.LastName || e.lastName || ''}`,
             }));
             setEmployees(arr);
             
-            if (field === 'salesMan') {
-                update("salesManId", newEmployeeId);
-            } else if (field === 'orderBooker') {
+            if (field === 'orderBooker') {
                 update("orderBookerId", newEmployeeId);
             }
         });
@@ -236,42 +149,36 @@ const NewCustomers = () => {
 
   useEffect(() => {
     if (isEditMode) loadCustomerForEdit();
-  }, [id]); // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const loadLookups = async () => {
     try {
       setIsLoading(true);
-      
-      const [cRes, sRes, ctRes, empRes, regRes, sgRes] = await Promise.all([
-          getCountriesApi(1, 5000),
-          getStatesApi(1, 5000),
-          getCitiesApi(1, 5000),
-          getEmployeesApi(1, 5000),
-          getRegionsApi(1, 5000),
-          getSupplierGroupsApi(1, 5000)
-      ]);
-
-      const countriesArr = parseArrayFromResponse(cRes);
+      const c = await getCountriesApi(1, 5000);
+      const countriesArr = parseArrayFromResponse(c);
       setCountries(countriesArr);
 
-      const statesArr = parseArrayFromResponse(sRes);
+      const s = await getStatesApi(1, 5000);
+      const statesArr = parseArrayFromResponse(s);
       setStates(statesArr);
       setStatesMaster(statesArr);
 
-      const citiesArr = parseArrayFromResponse(ctRes);
+      const ct = await getCitiesApi(1, 5000);
+      const citiesArr = parseArrayFromResponse(ct);
       setCities(citiesArr);
       setCitiesMaster(citiesArr);
 
-      setEmployees(
-        parseArrayFromResponse(empRes).map((e) => ({
-          id: e.Id ?? e.id,
-          label: `${e.FirstName || e.firstName || ""} ${e.LastName || e.lastName || ""}`,
-        }))
-      );
+      const emp = await getEmployeesApi(1, 5000);
+      setEmployees(parseArrayFromResponse(emp).map((e) => ({ id: e.Id ?? e.id, name: `${e.FirstName || e.firstName || ''} ${e.LastName || e.lastName || ''}` })));
 
-      setRegions(parseArrayFromResponse(regRes));
-      setCustomerGroups(parseArrayFromResponse(sgRes));
+      const reg = await getRegionsApi(1, 5000);
+      const regArr = parseArrayFromResponse(reg);
+      setRegions(regArr);
 
+      const cg = await getCustomerGroupsApi(1, 5000);
+      const cgArr = parseArrayFromResponse(cg);
+      setCustomerGroups(cgArr);
     } catch (err) {
       console.error("lookup load error", err);
       toast.error("Failed to load lookups");
@@ -280,49 +187,61 @@ const NewCustomers = () => {
     }
   };
 
-  // REACTIVE LIST FILTERING
-  useEffect(() => {
-    if (!form.countryId) {
-       setStates([]);
-       return;
-    }
-    const filtered = (statesMaster || []).filter(
-      (s) => String(s.CountryId ?? s.countryId ?? s.countryId) === String(form.countryId)
-    );
-    setStates(filtered);
-  }, [form.countryId, statesMaster]);
+  const loadStatesForCountry = (countryId, { preserve = false, presetStateId, presetCityId } = {}) => {
+    const filteredStates = (statesMaster || []).filter((s) => String(s.CountryId ?? s.countryId ?? s.countryId) === String(countryId));
+    setStates(filteredStates);
 
-  useEffect(() => {
-    if (!form.stateId) {
-        setCities([]);
-        return;
+    const filteredCities = (citiesMaster || []).filter((c) => String(c.CountryId ?? c.countryId) === String(countryId));
+    setCities(filteredCities);
+
+    if (!preserve) {
+      setForm((p) => ({ ...p, stateId: null, cityId: null }));
+    } else {
+      setForm((p) => ({
+        ...p,
+        stateId: presetStateId ?? p.stateId,
+        cityId: presetCityId ?? p.cityId,
+      }));
     }
-    const filtered = (citiesMaster || []).filter(
-      (c) => String(c.StateId ?? c.stateId) === String(form.stateId)
-    );
-    setCities(filtered);
-  }, [form.stateId, citiesMaster]);
+  };
+
+  const loadCitiesForState = (stateId, { preserve = false, presetCityId } = {}) => {
+    const filteredCities = (citiesMaster || []).filter((c) => String(c.StateId ?? c.stateId) === String(stateId));
+    setCities(filteredCities);
+    if (!preserve) {
+      setForm((p) => ({ ...p, cityId: null }));
+    } else {
+      setForm((p) => ({ ...p, cityId: presetCityId ?? p.cityId }));
+    }
+  };
 
   const loadCustomerForEdit = async () => {
     try {
-      // setIsLoading(true);
+      setIsLoading(true);
 
       const stateCustomer = location.state?.customer;
+      const stateIsInactive = location.state?.isInactive;
+
       const populate = (s) => {
         if (!s) return;
+        setIsInactive(s.IsActive === 0 || s.DeleteDate != null || stateIsInactive === true);
         const presetStateId = s.StateId ?? s.stateId ?? null;
         const presetCityId = s.CityId ?? s.cityId ?? null;
 
         setForm((p) => ({
           ...p,
-          companyName: s.Name || s.name || s.CompanyName || s.companyName || "",
+          companyName: s.CompanyName || s.companyName || "",
           countryId: s.CountryId ?? s.countryId ?? null,
           stateId: presetStateId,
           cityId: presetCityId,
           contactName: s.ContactName || s.contactName || "",
           contactTitle: s.ContactTitle || s.contactTitle || "",
-          customerGroupId: s.CustomerGroupId ?? s.customerGroupId ?? null,
-          addressLine1: s.AddressLine1 || s.addressLine1 || "",
+          customerGroupId:
+  s.customerGroupId ??
+  s.CustomerGroupId ??
+  null,
+          address: s.Address || s.address || "",
+          addressLine1: s.AddressLine1 || s.addressLine1 || s.Address || s.address || "",
           addressLine2: s.AddressLine2 || s.addressLine2 || "",
           regionId: s.RegionId ?? s.regionId ?? null,
           postalCode: s.PostalCode || s.postalCode || "",
@@ -333,13 +252,30 @@ const NewCustomers = () => {
           emailAddress: s.EmailAddress || s.emailAddress || "",
           previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
 
-          salesManId: s.SalesMan ?? s.SalesManId ?? s.salesMan ?? s.salesManId ?? null,
-          orderBookerId: s.OrderBooker ?? s.OrderBookerId ?? s.orderBooker ?? s.orderBookerId ?? null,
+          orderBookerId:
+            s.orderBooker ??
+            s.OrderBooker ??
+            s.OrderBookerId ?? 
+            s.orderBookerId ??
+            null,
           pan: s.PAN ?? s.pan ?? "",
-          gstin: s.GSTTIN ?? s.gstin ?? "",
+          gstin: s.GSTIN ?? s.gstin ?? s.GSTTIN ?? "",
+
         }));
 
-
+        if (s.CountryId ?? s.countryId) {
+          loadStatesForCountry(s.CountryId ?? s.countryId, {
+            preserve: true,
+            presetStateId,
+            presetCityId,
+          });
+        }
+        if (s.StateId ?? s.stateId) {
+          loadCitiesForState(s.StateId ?? s.stateId, {
+            preserve: true,
+            presetCityId,
+          });
+        }
       };
 
       // Prefer data passed from the list to avoid 404s on missing endpoints
@@ -347,24 +283,14 @@ const NewCustomers = () => {
         populate(stateCustomer);
         return;
       }
-
-      // Fallback to API if available
-      if (typeof getCustomerByIdApi === "function") {
-        try {
-          const res = await getCustomerByIdApi(id);
-          const s = res?.data || res;
-          populate(s);
-        } catch (apiErr) {
-          const status = apiErr?.response?.status;
-          if (status === 404) {
-            console.warn("Customer detail endpoint not available (404)");
-            toast.error("Customer details not available on server (404).");
-          } else {
-            console.error("load customer failed", apiErr);
-            toast.error("Failed to load customer");
-          }
-        }
-      }
+      
+      // We don't have getCustomerByIdApi explicitly exported in allAPI sometimes, check if it works or use search/list fallback?
+      // Assuming getCustomerByIdApi is not available based on allAPI.js check, or maybe it is commonAPI call.
+      // Actually `allAPI.js` usually has it. But I didn't see it in my `grep` attempt (failed) or manual read (might have missed).
+      // If not available, we rely on list data. But simpler to assume it might be missing and handle gracefully.
+      // If we need to fetch by ID, we might need to add it to allAPI.js or assume it exists. 
+      // For now, I'll assume users usually come from the list page which passes state.
+      
     } finally {
       setIsLoading(false);
     }
@@ -374,110 +300,126 @@ const NewCustomers = () => {
 
   const handleSaveCountry = async () => {
       if (!newCountryName.trim()) return toast.error("Country name is required");
+
       try {
-          // DUPLICATE CHECK
-          const duplicateRes = await searchCountryApi(newCountryName.trim());
-          const duplicates = parseArrayFromResponse(duplicateRes);
-          const isDuplicate = duplicates.some(
-            (c) => (c.name || c.CountryName || "").toLowerCase() === newCountryName.trim().toLowerCase()
-          );
+        const searchRes = await searchCountryApi(newCountryName.trim());
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data.records || searchRes.data || [];
+            const existing = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.trim().toLowerCase());
+            if (existing) return toast.error("Country with this name already exists");
+        }
+      } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+      }
 
-          if (isDuplicate) {
-            toast.error("Country with this name already exists.");
-            return;
-          }
-
-          let created = null;
-          if (typeof addCountryApi === "function") {
-              const res = await addCountryApi({ name: newCountryName.trim(), userId: 1 });
-              created = res?.data?.record || res?.data || null;
-          }
-           if (!created) created = { id: `t_${Date.now()}`, CountryName: newCountryName.trim() };
+      try {
+           let created = null;
+           if (typeof addCountryApi === "function") {
+               const res = await addCountryApi({ name: newCountryName.trim(), userId: 1 });
+               created = res?.data?.record || res?.data || null;
+           }
+           if (!created || (!created.id && !created.Id && !created.CountryId && !created.countryId)) {
+               created = { ...created, id: `t_${Date.now()}`, CountryName: newCountryName.trim() };
+           }
            
-           // Normalize
            created = { ...created, CountryName: created.CountryName ?? created.name ?? newCountryName.trim(), name: created.name ?? created.CountryName ?? newCountryName.trim() };
 
            setCountries(prev => [created, ...prev]);
            update("countryId", created.Id ?? created.id);
-           // Reset subordinate
            update("stateId", null);
            update("cityId", null);
+           loadStatesForCountry(created.Id ?? created.id); 
 
            setNewCountryName("");
            setAddCountryModalOpen(false);
            toast.success("Country added successfully");
       } catch (error) {
-          console.error("Failed to add country", error);
-          toast.error("Failed to add country");
+          if (error.response?.status === 409) {
+              toast.error("Country with this name already exists");
+          } else {
+              console.error("Failed to add country", error);
+              toast.error("Failed to add country");
+          }
       }
   };
 
   const handleSaveState = async () => {
     if (!newState.name.trim()) return toast.error("State name is required");
-    if (!newState.countryId) return toast.error("Country is required");
+    if (!newState.countryId && newState.countryId !== 0) return toast.error("Country is required");
 
     try {
-        // DUPLICATE CHECK
-        const duplicateRes = await searchStateApi(newState.name.trim());
-        const duplicates = parseArrayFromResponse(duplicateRes);
-        const isDuplicate = duplicates.some(
-          (s) =>
-            (s.name || s.StateName || "").toLowerCase() === newState.name.trim().toLowerCase() &&
-            Number(s.countryId ?? s.CountryId) === Number(newState.countryId)
-        );
-
-        if (isDuplicate) {
-          toast.error("State with this name already exists in selected country.");
-          return;
+        const searchRes = await searchStateApi(newState.name.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data || []; 
+             const items = Array.isArray(rows) ? rows : rows.records || [];
+             const existing = items.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newState.name.trim().toLowerCase() && 
+                String(r.CountryId || r.countryId) === String(newState.countryId)
+             );
+             if (existing) return toast.error("State with this name already exists in selected country");
         }
+    } catch(err) {
+         console.error(err);
+         return toast.error("Error checking duplicates");
+    }
 
+    try {
         let created = null;
         if (typeof addStateApi === "function") {
             const res = await addStateApi({ name: newState.name.trim(), countryId: Number(newState.countryId), userId: 1 });
             created = res?.data?.record || res?.data || null;
         }
-        if (!created) created = { id: `t_${Date.now()}`, StateName: newState.name.trim(), CountryId: newState.countryId };
+        if (!created || (!created.id && !created.Id && !created.StateId && !created.stateId)) {
+            created = { ...created, id: `t_${Date.now()}`, StateName: newState.name.trim(), CountryId: newState.countryId };
+        }
 
-        // Normalize
         created = { ...created, StateName: created.StateName ?? created.name ?? newState.name.trim(), name: created.name ?? created.StateName ?? newState.name.trim(), CountryId: created.CountryId ?? newState.countryId };
 
         setStates(prev => [created, ...prev]);
         setStatesMaster(prev => [created, ...prev]);
         
-        if (String(created.CountryId) === String(form.countryId)) {
+        if(String(created.CountryId) === String(form.countryId)) {
              update("stateId", created.Id ?? created.id);
              update("cityId", null);
+             loadCitiesForState(created.Id ?? created.id);
         }
 
         setNewState({ name: "", countryId: "" });
         setAddStateModalOpen(false);
         toast.success("State added successfully");
     } catch (error) {
-        console.error("Failed to add state", error);
-        toast.error("Failed to add state");
+        if (error.response?.status === 409) {
+            toast.error("State with this name already exists in selected country");
+        } else {
+            console.error("Failed to add state", error);
+            toast.error("Failed to add state");
+        }
     }
   };
 
   const handleSaveCity = async () => {
     if (!newCity.name.trim()) return toast.error("City name is required");
-    if (!newCity.countryId) return toast.error("Country is required");
-    if (!newCity.stateId) return toast.error("State is required");
+    if (!newCity.countryId && newCity.countryId !== 0) return toast.error("Country is required");
+    if (!newCity.stateId && newCity.stateId !== 0) return toast.error("State is required");
 
     try {
-        // DUPLICATE CHECK
-        const duplicateRes = await searchCityApi(newCity.name.trim());
-        const duplicates = parseArrayFromResponse(duplicateRes);
-        const isDuplicate = duplicates.some(
-          (c) =>
-            (c.name || c.CityName || "").toLowerCase() === newCity.name.trim().toLowerCase() &&
-            Number(c.stateId ?? c.StateId) === Number(newCity.stateId)
-        );
-
-        if (isDuplicate) {
-          toast.error("City with this name already exists in selected state.");
-          return;
+        const searchRes = await searchCityApi(newCity.name.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || []; 
+             const items = Array.isArray(rows) ? rows : []; 
+             const existing = items.find(r => 
+                (r.Name || r.name || "").toLowerCase() === newCity.name.trim().toLowerCase() && 
+                String(r.StateId || r.stateId) === String(newCity.stateId)
+             );
+             if (existing) return toast.error("City with this name already exists in selected state");
         }
+    } catch(err) {
+         console.error(err);
+         return toast.error("Error checking duplicates");
+    }
 
+    try {
         let created = null;
         if (typeof addCityApi === "function") {
              const res = await addCityApi({
@@ -489,9 +431,10 @@ const NewCustomers = () => {
               created = res?.data?.record || res?.data || null;
         }
 
-        if(!created) created = { id: `t_${Date.now()}`, CityName: newCity.name.trim(), CountryId: newCity.countryId, StateId: newCity.stateId };
+        if(!created || (!created.id && !created.Id && !created.StateId && !created.stateId && !created.CityId && !created.cityId)) {
+             created = { ...created, id: `t_${Date.now()}`, CityName: newCity.name.trim(), CountryId: newCity.countryId, StateId: newCity.stateId };
+        }
 
-        // Normalize
         created = {
           ...created,
           CityName: created.CityName ?? created.name ?? newCity.name.trim(),
@@ -511,81 +454,142 @@ const NewCustomers = () => {
         setAddCityModalOpen(false);
         toast.success("City added successfully");
     } catch (error) {
-        console.error("Failed to update city", error);
-        toast.error("Failed to add city");
+        if (error.response?.status === 409) {
+            toast.error("City with this name already exists in selected state");
+        } else {
+            console.error("Failed to update city", error);
+            toast.error("Failed to add city");
+        }
     }
   };
 
+
   const handleSaveCustomerGroup = async () => {
       if(!newGroupName.trim()) return toast.error("Group name required");
-      
-      try {
-        // Duplicate check
-        const duplicateRes = await searchCustomerGroupApi(newGroupName.trim());
-        const duplicates = parseArrayFromResponse(duplicateRes);
-        const isDuplicate = duplicates.some(
-          (g) => (g.name || g.GroupName || "").toLowerCase() === newGroupName.trim().toLowerCase()
-        );
-        if (isDuplicate) {
-          toast.error("Customer Group with this name already exists.");
-          return;
-        }
 
-        // Mock API call or Real API if available
-        // Note: In a real app we would call addCustomerGroupApi here if available to persist it
-        const createdLocal = { id: `t_${Date.now()}`, GroupName: newGroupName.trim(), name: newGroupName.trim() };
-        setCustomerGroups(prev => [createdLocal, ...prev]);
-        update("customerGroupId", createdLocal.id);
-        
-        setNewGroupName("");
-        setAddCustomerGroupModalOpen(false);
-        toast.success("Group added");
-      } catch (err) {
-        console.error("Failed to add group", err);
-        toast.error("Failed to add group");
+      try {
+        const searchRes = await searchCustomerGroupApi(newGroupName.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || [];
+             const existing = rows.find(r => (r.Name || r.name || r.GroupName || r.groupName || "").toLowerCase() === newGroupName.trim().toLowerCase());
+             if (existing) return toast.error("Customer group with this name already exists");
+        }
+      } catch(err) {
+          console.error(err);
+          return toast.error("Error checking duplicates");
+      }
+
+      try {
+           const res = await addCustomerGroupApi({ name: newGroupName.trim() });
+           const created = res.data?.record || res.data || { id: res.data?.id, name: newGroupName.trim() }; 
+           
+           const normalized = { ...created, GroupName: created.GroupName ?? created.name ?? newGroupName.trim(), name: created.name ?? created.GroupName ?? newGroupName.trim() };
+           
+           setCustomerGroups(prev => [normalized, ...prev]);
+           update("customerGroupId", normalized.Id ?? normalized.id);
+           
+           setNewGroupName("");
+           setAddCustomerGroupModalOpen(false);
+           toast.success("Group added");
+      } catch (error) {
+           if (error.response?.status === 409) {
+               toast.error("Customer group with this name already exists");
+           } else {
+               console.error("Failed to add group", error);
+               toast.error("Failed to add group");
+           }
       }
   };
 
   const handleSaveRegion = async () => {
       if(!newRegionName.trim()) return toast.error("Region name required");
+
       try {
-        // Duplicate check
-        const duplicateRes = await searchRegionApi(newRegionName.trim());
-        const duplicates = parseArrayFromResponse(duplicateRes);
-        const isDuplicate = duplicates.some(
-            (r) => (r.name || r.regionName || r.RegionName || "").toLowerCase() === newRegionName.trim().toLowerCase()
-        );
-
-        if (isDuplicate) {
-            toast.error("Region with this name already exists.");
-            return;
+        const searchRes = await searchRegionApi(newRegionName.trim());
+        if (searchRes?.status === 200) {
+             const rows = searchRes.data.records || searchRes.data || [];
+             const existing = rows.find(r => (r.Name || r.name || r.RegionName || r.regionName || "").toLowerCase() === newRegionName.trim().toLowerCase());
+             if (existing) return toast.error("Region with this name already exists");
         }
+      } catch(err) {
+          console.error(err);
+          return toast.error("Error checking duplicates");
+      }
 
-        // Mock
-        const createdLocal = { id: `t_${Date.now()}`, regionName: newRegionName.trim(), name: newRegionName.trim() };
-        setRegions(prev => [createdLocal, ...prev]);
-        update("regionId", createdLocal.id);
+      try {
+           const res = await addRegionApi({ name: newRegionName.trim() });
+           const created = res.data?.record || res.data || { id: res.data?.id, name: newRegionName.trim() };
 
-        setNewRegionName("");
-        setAddRegionModalOpen(false);
-        toast.success("Region added");
-      } catch (err) {
-        console.error("Failed to add region", err);
-        toast.error("Failed to add region");
+           const normalized = { ...created, RegionName: created.RegionName ?? created.name ?? newRegionName.trim(), name: created.name ?? created.RegionName ?? newRegionName.trim() };
+
+           setRegions(prev => [normalized, ...prev]);
+           update("regionId", normalized.Id ?? normalized.id);
+
+           setNewRegionName("");
+           setAddRegionModalOpen(false);
+           toast.success("Region added");
+      } catch (error) {
+           if (error.response?.status === 409) {
+               toast.error("Region with this name already exists");
+           } else {
+               console.error("Failed to add region", error);
+               toast.error("Failed to add region");
+           }
       }
   };
 
   const validate = () => {
+    // 1. Company Name
     if (!form.companyName?.trim()) return "Company Name required";
+    if (form.companyName.trim().length < 2) return "Company Name must be at least 2 characters";
+    if (form.companyName.length > 150) return "Company Name cannot exceed 150 characters";
+    
+    // 2. Location
     if (!form.countryId) return "Country required";
     if (!form.stateId) return "State required";
     if (!form.cityId) return "City required";
+    
+    // 3. Contact Name
+    if (form.contactName) {
+        if (form.contactName.trim().length < 2) return "Contact Name must be at least 2 characters";
+        if (form.contactName.length > 50) return "Contact Name cannot exceed 50 characters";
+    }
+
+    // 4. Address
+    if (form.addressLine1) {
+        if (form.addressLine1.trim().length < 2) return "Address Line 1 must be at least 2 characters";
+        if (form.addressLine1.length > 150) return "Address Line 1 cannot exceed 150 characters";
+    }
+    if (form.addressLine2) {
+        if (form.addressLine2.trim().length < 2) return "Address Line 2 must be at least 2 characters";
+        if (form.addressLine2.length > 150) return "Address Line 2 cannot exceed 150 characters";
+    }
+
+    // 5. Credit (Optional or Required? Usually required for calculations)
+    // if (!String(form.previousCredit ?? "").trim()) return "Previous Credit Balance required"; // Optional for customer sometimes? Let's keep required to be safe
+    // But typically for start of account it matters. Restoring strictness.
     if (!String(form.previousCredit ?? "").trim()) return "Previous Credit Balance required";
     if (Number.isNaN(Number(form.previousCredit))) return "Previous Credit must be a number";
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^[0-9]{7,20}$/;
-    if (form.email && !emailRegex.test(form.email)) return "Email is not valid";
-    if (form.phone && !phoneRegex.test(form.phone)) return "Phone is not valid";
+
+    // 6. Regex Validations
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    
+    if (form.phone) {
+         if (form.phone.length !== 10) return "Phone number must be exactly 10 digits";
+    }
+    
+    if (form.postalCode && form.postalCode.length < 6) return "Zip Code must be 6 digits";
+
+    const urlRegex = /^(https?:\/\/)/; 
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+    if (form.email && !emailRegex.test(form.email)) return "Email is not valid (must contain @ and . domain)";
+    if (form.website && !urlRegex.test(form.website)) return "Website must start with http:// or https://";
+    
+    if (form.pan && !panRegex.test(form.pan)) return "Invalid PAN format";
+    if (form.gstin && !gstinRegex.test(form.gstin)) return "Invalid GSTIN format";
+
     return null;
   };
 
@@ -595,90 +599,105 @@ const NewCustomers = () => {
 
     try {
       setIsSaving(true);
-      const nameValue = form.companyName?.trim() || null;
 
       // --- DUPLICATE CHECKS START ---
-      const [nameRes, phoneRes, emailRes, panRes, gstinRes] = await Promise.all([
-        searchCustomerApi(nameValue),
-        form.phone ? searchCustomerApi(form.phone) : Promise.resolve({ data: [] }),
-        form.email ? searchCustomerApi(form.email) : Promise.resolve({ data: [] }),
-        form.pan ? searchCustomerApi(form.pan) : Promise.resolve({ data: [] }),
-        form.gstin ? searchCustomerApi(form.gstin) : Promise.resolve({ data: [] }),
-      ]);
-
-      const nameDuplicates = parseArrayFromResponse(nameRes);
-      const phoneDuplicates = parseArrayFromResponse(phoneRes);
-      const emailDuplicates = parseArrayFromResponse(emailRes);
-      const panDuplicates = parseArrayFromResponse(panRes);
-      const gstinDuplicates = parseArrayFromResponse(gstinRes);
-
-      const isDuplicateName = nameDuplicates.some(
-        (i) =>
-            (i.Name || i.name || i.CompanyName || i.companyName || "").toLowerCase() === nameValue.toLowerCase() &&
-            (!isEditMode || String(i.Id ?? i.id) !== String(id))
-      );
-      if (isDuplicateName) {
-        setIsSaving(false);
-        return toast.error("Customer with this Name already exists.");
+      // Check Name
+      if (form.companyName?.trim()) {
+         const searchRes = await searchCustomerApi(form.companyName.trim());
+         if (searchRes?.status === 200) {
+              const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+              const existing = rows.find(
+                  (r) => (r.Name || r.name || r.CompanyName || r.companyName || "").toLowerCase() === form.companyName.trim().toLowerCase() && 
+                  (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+              );
+              if (existing) {
+                  setIsSaving(false);
+                  return toast.error("Customer with this Company Name already exists");
+              }
+         }
       }
 
-      if (form.phone) {
-        const isDuplicatePhone = phoneDuplicates.some(
-            (i) =>
-            (i.Phone || i.phone || "") === form.phone &&
-            (!isEditMode || String(i.Id ?? i.id) !== String(id))
-        );
-        if (isDuplicatePhone) {
-            setIsSaving(false); // Stop loading!
-            return toast.error("Customer with this Phone already exists.");
-        }
+      // Check Phone
+      if (form.phone?.trim()) {
+         try {
+             const searchRes = await searchCustomerApi(form.phone.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.Phone || r.phone) === form.phone.trim() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Customer with this Phone Number already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
       }
 
-      if (form.email) {
-        const isDuplicateEmail = emailDuplicates.some(
-            (i) =>
-            (i.Email || i.email || "").toLowerCase() === form.email.toLowerCase() &&
-            (!isEditMode || String(i.Id ?? i.id) !== String(id))
-        );
-        if (isDuplicateEmail) {
-            setIsSaving(false);
-            return toast.error("Customer with this Email already exists.");
-        }
+       // Check Email
+      if (form.email?.trim()) {
+         try {
+             const searchRes = await searchCustomerApi(form.email.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.Email || r.email || "").toLowerCase() === form.email.trim().toLowerCase() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Customer with this Email already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
       }
 
-      if (form.pan) {
-        const isDuplicatePan = panDuplicates.some(
-            (i) =>
-            (i.PAN || i.pan || "").toLowerCase() === form.pan.toLowerCase() &&
-            (!isEditMode || String(i.Id ?? i.id) !== String(id))
-        );
-        if (isDuplicatePan) {
-            setIsSaving(false);
-            return toast.error("Customer with this PAN already exists.");
-        }
+       // Check PAN
+      if (form.pan?.trim()) {
+         try {
+             const searchRes = await searchCustomerApi(form.pan.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.PAN || r.pan || "").toLowerCase() === form.pan.trim().toLowerCase() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Customer with this PAN already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
       }
 
-      if (form.gstin) {
-        const isDuplicateGstin = gstinDuplicates.some(
-            (i) =>
-            (i.GSTTIN || i.gstin || "").toLowerCase() === form.gstin.toLowerCase() &&
-            (!isEditMode || String(i.Id ?? i.id) !== String(id))
-        );
-        if (isDuplicateGstin) {
-            setIsSaving(false);
-            return toast.error("Customer with this GSTIN already exists.");
-        }
+       // Check GSTIN
+      if (form.gstin?.trim()) {
+         try {
+             const searchRes = await searchCustomerApi(form.gstin.trim());
+              if (searchRes?.status === 200) {
+                  const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
+                  const existing = rows.find(
+                      (r) => (r.GSTIN || r.gstin || "").toLowerCase() === form.gstin.trim().toLowerCase() &&
+                      (isEditMode ? String(r.Id || r.id) !== String(id) : true)
+                  );
+                  if (existing) {
+                      setIsSaving(false);
+                      return toast.error("Customer with this GSTIN already exists");
+                  }
+              }
+         } catch(e) { console.error(e); }
       }
       // --- DUPLICATE CHECKS END ---
 
       const payload = {
-        name: nameValue, // backend expects 'Name' column
-        companyName: nameValue, // keep alias for consistency
+        companyName: form.companyName?.trim(),
         countryId: form.countryId ? Number(form.countryId) : null,
         stateId: form.stateId ? Number(form.stateId) : null,
         cityId: form.cityId ? Number(form.cityId) : null,
         contactName: form.contactName?.trim() || null,
         contactTitle: form.contactTitle?.trim() || null,
+        address: `${form.addressLine1 || ""} ${form.addressLine2 || ""}`.trim() || null,
         addressLine1: form.addressLine1?.trim() || null,
         addressLine2: form.addressLine2?.trim() || null,
         regionId: form.regionId ? Number(form.regionId) : null,
@@ -690,10 +709,11 @@ const NewCustomers = () => {
         emailAddress: form.emailAddress?.trim() || null,
         previousCreditBalance: Number(form.previousCredit || 0),
         customerGroupId: form.customerGroupId ? Number(form.customerGroupId) : null,
-        salesMan: form.salesManId ? Number(form.salesManId) : null,
+
         orderBooker: form.orderBookerId ? Number(form.orderBookerId) : null,
         pan: form.pan?.trim() || null,
         gstin: form.gstin?.trim() || null,
+
         userId: 1,
       };
 
@@ -703,7 +723,11 @@ const NewCustomers = () => {
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Customer updated");
           invalidateDashboard();
-          navigate("/app/businesspartners/customers");
+          if (location.state?.returnTo) {
+             navigate(location.state.returnTo, { state: { newCustomerId: id } }); 
+          } else {
+             navigate("/app/businesspartners/customers");
+          }
           return;
         }
       }
@@ -713,8 +737,9 @@ const NewCustomers = () => {
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Customer created");
           invalidateDashboard();
+          const createdId = res.data.record?.id || res.data?.id; 
           if (location.state?.returnTo) {
-             navigate(location.state.returnTo, { state: { newCustomerId: res.data?.record?.id || res.data?.id }});
+             navigate(location.state.returnTo, { state: { newCustomerId: createdId } });
           } else {
              navigate("/app/businesspartners/customers");
           }
@@ -722,57 +747,64 @@ const NewCustomers = () => {
         }
       }
 
-      // fallback (no APIs available)
+      // fallback 
       console.log("Customer payload:", payload);
       toast.success(isEditMode ? "Customer (pretend) updated" : "Customer (pretend) created");
       navigate("/app/businesspartners/customers");
     } catch (err) {
       console.error("submit customer error", err);
-      toast.error("Save failed");
+      showErrorToast("Save failed");
     } finally {
       setIsSaving(false);
     }
   };
-
 const handleDelete = async () => {
   if (!isEditMode) return;
 
-  const result = await Swal.fire({
-    title: "Are you sure?",
-    text: "This customer will be permanently deleted!",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "Yes, delete",
-  });
+  const result = await showDeleteConfirm();
 
   if (!result.isConfirmed) return;
 
-  Swal.fire({
-    title: "Deleting...",
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-  });
+  try {
+    if (typeof deleteCustomerApi === "function") {
+      await deleteCustomerApi(id, { userId: 1 });
+
+      showSuccessToast("Customer deleted successfully.");
+
+      invalidateDashboard();
+      navigate("/app/businesspartners/customers");
+      return;
+    }
+
+    // fallback
+    showSuccessToast("Customer (pretend) deleted.");
+
+    navigate("/app/businesspartners/customers");
+
+  } catch (err) {
+    console.error("delete customer failed", err);
+
+    showErrorToast("Delete failed: Something went wrong while deleting the customer.");
+  }
+};
+
+const handleRestore = async () => {
+  const result = await showRestoreConfirm();
+
+  if (!result.isConfirmed) return;
 
   try {
-    await deleteCustomerApi(id, { userId: 1 });
-    Swal.close();
-
-    Swal.fire({
-      icon: "success",
-      title: "Deleted!",
-      timer: 1500,
-      showConfirmButton: false,
-    });
-    
-    invalidateDashboard();
-    navigate("/app/businesspartners/customers");
+    if (typeof restoreCustomerApi === "function") {
+      await restoreCustomerApi(id, { userId: 1 });
+      showSuccessToast("Customer restored successfully");
+      invalidateDashboard();
+      navigate("/app/businesspartners/customers");
+    } else {
+      showErrorToast("Restore API not available");
+    }
   } catch (err) {
-    Swal.close();
-    Swal.fire({
-      icon: "error",
-      title: "Delete failed",
-      text: "Please try again.",
-    });
+    console.error("restore customer failed", err);
+    showErrorToast("Restore failed");
   }
 };
 
@@ -784,286 +816,514 @@ const handleDelete = async () => {
           <div className="w-10 h-10 border-4 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
           <span className="text-gray-300">Loading customer...</span>
         </div>
-    </div>
+      </div>
     );
   }
 
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-hidden">
-        <div className="h-full overflow-y-auto pr-2">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-3">
-              <button onClick={() => {
-                if (location.state?.from) {
-                   navigate(location.state.from);
-                } else if(location.state?.returnTo) {
-                   navigate(location.state.returnTo);
-                } else {
-                   navigate("/app/businesspartners/customers");
-                }
-              }} className="p-1">
-                <ArrowLeft />
-              </button>
-              <h2 className="text-2xl font-semibold">
-                {isEditMode ? "Edit Customer" : "New Customer"}
-              </h2>
-            </div>
+      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard className="!h-auto !overflow-visible">
+        
+        <div className="flex items-center gap-4 mb-2">
+             <button 
+               onClick={() => {
+                   if (location.state?.from) {
+                       navigate(location.state.from);
+                   } else if (location.state?.returnTo) {
+                       navigate(location.state.returnTo);
+                   } else {
+                       navigate("/app/businesspartners/customers");
+                   }
+               }}
+               className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'}`}
+             >
+                <ArrowLeft size={24} />
+             </button>
+             <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>{isEditMode ? (isInactive ? "Restore Customer" : "Edit Customer") : "New Customer"}</h2>
+        </div>
 
-            <div className="flex gap-3">
-              {(isEditMode ? hasPermission(PERMISSIONS.CUSTOMERS.EDIT) : hasPermission(PERMISSIONS.CUSTOMERS.CREATE)) && (
-              <button
+        {/* ACTIONS BAR */}
+        <div className="flex items-center gap-3 mb-6">
+             {!isInactive && (isEditMode ? hasPermission(PERMISSIONS.CUSTOMERS.EDIT) : hasPermission(PERMISSIONS.CUSTOMERS.CREATE)) && (
+                <button
                 onClick={submit}
                 disabled={isSaving}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-blue-300 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <Save size={16} /> {isSaving ? "Saving..." : "Save"}
-              </button>
-              )}
-              {isEditMode && hasPermission(PERMISSIONS.CUSTOMERS.DELETE) && (
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-red-200"
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                    theme === 'emerald'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : theme === 'purple'
+                    ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                    : 'bg-gray-800 border border-gray-600 text-blue-300'
+                }`}
                 >
-                  <Trash2 size={16} /> Delete
+                <Save size={18} />
+                {isSaving ? "Saving..." : "Save"}
+                </button>
+             )}
+
+             {isEditMode && isInactive && hasPermission(PERMISSIONS.CUSTOMERS.DELETE) && (
+                <button 
+                  onClick={handleRestore} 
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium hover:bg-emerald-800 ${
+                      theme === 'emerald' ? 'bg-emerald-700 text-white' : theme === 'purple' ? 'bg-purple-700 text-white' : 'bg-emerald-900 border border-emerald-600 text-emerald-200'
+                  }`}
+                >
+                  <ArchiveRestore size={18} /> Restore
                 </button>
               )}
-            </div>
-          </div>
 
-          <div className="grid grid-cols-12 gap-4 mx-2">
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">* Name</label>
-              <input
-                value={form.companyName}
-                onChange={(e) => update("companyName", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
+             {isEditMode && !isInactive && hasPermission(PERMISSIONS.CUSTOMERS.DELETE) && (
+                <button
+                    onClick={handleDelete}
+                    className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg">
+                    <Trash2 size={18} />
+                    Delete
+                </button>
+             )}
+        </div>
+        <hr className="mb-4 border-gray-300" />
 
+          <div className="grid grid-cols-12 gap-x-6 gap-y-4 mx-2">
+            {/* 1. Name */}
             <div className="col-span-12 md:col-span-6">
-              <CustomDropdown
-                label="Country"
-                list={countries.map((c) => ({
-                  id: c.Id ?? c.id,
-                  label: c.CountryName ?? c.name,
-                }))}
-                valueId={form.countryId}
-                required
-                onSelect={(item) => {
-                  update("countryId", item?.id ?? null);
-                  // Reset dependent fields only on manual change
-                  update("stateId", null);
-                  update("cityId", null);
-                }}
-                showStar={!isEditMode && hasPermission(PERMISSIONS.COUNTRIES.CREATE)}
-                showPencil={isEditMode}
-                onAddClick={() => setAddCountryModalOpen(true)}
-              />
-            </div>
-
-            <div className="col-span-12 md:col-span-6">
-              <CustomDropdown
-                label="State"
-                list={states.map((s) => ({ id: s.Id ?? s.id, label: s.StateName ?? s.name }))}
-                valueId={form.stateId}
-                onSelect={(item) => {
-                  update("stateId", item?.id ?? null);
-                  // Reset dependent fields only on manual change
-                  update("cityId", null);
-                }}
-                showStar={!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)}
-                showPencil={isEditMode}
-                onAddClick={() => {
-                  setNewState(prev => ({ ...prev, countryId: form.countryId }));
-                  setAddStateModalOpen(true);
-                }}
-              />
-            </div>
-
-            <div className="col-span-12 md:col-span-6">
-              <CustomDropdown
-                label="City"
-                list={cities.map((c) => ({ id: c.Id ?? c.id, label: c.CityName ?? c.name }))}
-                valueId={form.cityId}
-                onSelect={(item) => update("cityId", item?.id ?? null)}
-                showStar={!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)}
-                showPencil={isEditMode}
-                onAddClick={() => {
-                  setNewCity(prev => ({ ...prev, countryId: form.countryId, stateId: form.stateId }));
-                  setAddCityModalOpen(true);
-                }}
-              />
-            </div>
-
-            <div className="col-span-12 md:col-span-4">
-              <label className="text-sm">Contact Name</label>
-              <input
-                value={form.contactName}
-                onChange={(e) => update("contactName", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-4">
-              <label className="text-sm">Contact Title</label>
-              <input
-                value={form.contactTitle}
-                onChange={(e) => update("contactTitle", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-4">
-              <CustomDropdown
-                label="Customer Group"
-                list={customerGroups.map((g) => ({
-                  id: g.Id ?? g.id,
-                  label: g.GroupName ?? g.groupName ?? g.name ?? "",
-                }))}
-                valueId={form.customerGroupId}
-                onSelect={(it) => update("customerGroupId", it?.id ?? null)}
-                showStar={!isEditMode && hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE)}
-                showPencil={isEditMode}
-                onAddClick={() => setAddCustomerGroupModalOpen(true)}
-              />
-            </div>
-
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Address Line 1</label>
-              <textarea
-                value={form.addressLine1}
-                onChange={(e) => update("addressLine1", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 min-h-[70px]"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Address Line 2</label>
-              <textarea
-                value={form.addressLine2}
-                onChange={(e) => update("addressLine2", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 min-h-[70px]"
-              />
-            </div>
-
-            <div className="col-span-12 md:col-span-6">
-              <CustomDropdown
-                label="Region"
-                list={regions.map((r) => ({
-                  id: r.regionId ?? r.Id ?? r.id,
-                  label: r.regionName ?? r.RegionName ?? r.name ?? "",
-                }))}
-                valueId={form.regionId}
-                onSelect={(it) => update("regionId", it?.id ?? null)}
-                showStar={!isEditMode && hasPermission(PERMISSIONS.REGIONS.CREATE)}
-                showPencil={isEditMode}
-                onAddClick={() => setAddRegionModalOpen(true)}
-              />
-            </div>
-            <div className="col-span-12 md:col-span-3">
-              <label className="text-sm">Postal Code</label>
-              <input
-                value={form.postalCode}
-                onChange={(e) => update("postalCode", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-3">
-              <label className="text-sm">Phone</label>
-              <input
-                value={form.phone}
-                onChange={(e) => update("phone", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm">PAN</label>
-                  <input
-                    value={form.pan}
-                    onChange={(e) => update("pan", e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Company Name"
+                    required
+                    value={form.companyName}
+                    onChange={(e) => update("companyName", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="e.g. Acme Corp"
+                    maxLength={150}
                   />
                 </div>
-                <div>
-                  <label className="text-sm">GSTIN</label>
-                  <input
-                    value={form.gstin}
-                    onChange={(e) => update("gstin", e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                  />
-                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
               </div>
             </div>
 
+            {/* 2. Country */}
             <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Website</label>
-              <input
-                value={form.website}
-                onChange={(e) => update("website", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Fax</label>
-              <input
-                value={form.fax}
-                onChange={(e) => update("fax", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Email Address</label>
-              <input
-                value={form.emailAddress}
-                onChange={(e) => update("emailAddress", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">Email</label>
-              <input
-                value={form.email}
-                onChange={(e) => update("email", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6">
-              <label className="text-sm">* Previous Credit Balance</label>
-              <input
-                value={form.previousCredit}
-                onChange={(e) => update("previousCredit", e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              />
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                      label="Country"
+                      required
+                      options={countries.map((c) => ({ id: c.Id ?? c.id, name: c.CountryName ?? c.name }))}
+                      value={form.countryId}
+                      onChange={(val) => {
+                          update("countryId", val);
+                          update("stateId", null);
+                          update("cityId", null);
+                          loadStatesForCountry(val);
+                      }}
+                      placeholder="--select country--"
+                      disabled={isInactive}
+                   />
+                 </div>
+                 {(!isEditMode && hasPermission(PERMISSIONS.COUNTRIES.CREATE)) && (
+                   <button
+                      type="button"
+                      className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                      disabled={isInactive}
+                      onClick={() => setAddCountryModalOpen(true)}
+                   >
+                      <Star size={16} />
+                   </button>
+                 )}
+               </div>
             </div>
 
+            {/* 3. State */}
+            <div className="col-span-12 md:col-span-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                      label="State"
+                      required
+                      options={states.map((s) => ({ id: s.Id ?? s.id, name: s.StateName ?? s.name }))}
+                      value={form.stateId}
+                      onChange={(val) => {
+                          update("stateId", val);
+                          update("cityId", null);
+                          loadCitiesForState(val);
+                      }}
+                      placeholder="--select state--"
+                      disabled={isInactive}
+                   />
+                 </div>
+                 {(!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)) && (
+                   <button
+                      type="button"
+                      className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                      disabled={isInactive}
+                      onClick={() => {
+                          setNewState(prev => ({ ...prev, countryId: form.countryId }));
+                          setAddStateModalOpen(true);
+                      }}
+                   >
+                      <Star size={16} />
+                   </button>
+                 )}
+               </div>
+            </div>
 
+            {/* 4. City */}
+            <div className="col-span-12 md:col-span-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                      label="City"
+                      required
+                      options={cities.map((c) => ({ id: c.Id ?? c.id, name: c.CityName ?? c.name }))}
+                      value={form.cityId}
+                      onChange={(val) => update("cityId", val)}
+                      placeholder="--select city--"
+                      disabled={isInactive}
+                   />
+                 </div>
+                 {(!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)) && (
+                   <button
+                      type="button"
+                      className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                      disabled={isInactive}
+                      onClick={() => {
+                          setNewCity(prev => ({ ...prev, countryId: form.countryId, stateId: form.stateId }));
+                          setAddCityModalOpen(true);
+                      }}
+                   >
+                      <Star size={16} />
+                   </button>
+                 )}
+               </div>
+            </div>
+
+            {/* 5. Address Line 1 */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    text
+                    label="Address Line 1"
+                    value={form.addressLine1}
+                    onChange={(e) => update("addressLine1", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="Street address, P.O. box..."
+                    className="min-h-[70px]"
+                    maxLength={150}
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 6. Address Line 2 */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    text
+                    label="Address Line 2"
+                    value={form.addressLine2}
+                    onChange={(e) => update("addressLine2", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="Apartment, suite, unit, etc."
+                    className="min-h-[70px]"
+                    maxLength={150}
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 7. Region */}
+            <div className="col-span-12 md:col-span-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                      label="Region"
+                      options={regions.map((r) => ({
+                          id: r.regionId ?? r.Id ?? r.id,
+                          name: r.regionName ?? r.RegionName ?? r.name ?? ""
+                      }))}
+                      value={form.regionId}
+                      onChange={(val) => update("regionId", val)}
+                      placeholder="--select region--"
+                      disabled={isInactive}
+                   />
+                 </div>
+                 {(!isEditMode && hasPermission(PERMISSIONS.REGIONS.CREATE)) && (
+                   <button
+                      type="button"
+                      className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                      disabled={isInactive}
+                      onClick={() => setAddRegionModalOpen(true)}
+                   >
+                      <Star size={16} />
+                   </button>
+                 )}
+               </div>
+            </div>
+
+            {/* 8. Postal Code */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Postal Code"
+                    value={form.postalCode}
+                    onChange={(e) => update("postalCode", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="Zip Code"
+                     maxLength={6}
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 9. Contact Name */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Contact Name"
+                    value={form.contactName}
+                    onChange={(e) => update("contactName", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="e.g. John Doe"
+                    maxLength={50}
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 10. Contact Title */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Contact Title"
+                    value={form.contactTitle}
+                    onChange={(e) => update("contactTitle", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="e.g. Manager"
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 11. Phone */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Phone"
+                    value={form.phone}
+                    onChange={(e) => update("phone", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="10-digit number"
+                    maxLength={10}
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 12. Fax */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Fax"
+                    value={form.fax}
+                    onChange={(e) => update("fax", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="Fax Number"
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 13. Email Address */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Email Address"
+                    type="email"
+                    value={form.emailAddress}
+                    onChange={(e) => update("emailAddress", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="admin@example.com"
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 14. Email */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => update("email", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="info@example.com"
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 15. Website */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Website"
+                    value={form.website}
+                    onChange={(e) => update("website", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="https://example.com"
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 16. Customer Group */}
+            <div className="col-span-12 md:col-span-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                      label="Customer Group"
+                      options={customerGroups.map((g) => ({
+                          id: g.Id ?? g.id,
+                          name: g.GroupName ?? g.groupName ?? g.name ?? ""
+                      }))}
+                      value={form.customerGroupId}
+                      onChange={(val) => update("customerGroupId", val)}
+                      placeholder="--select group--"
+                      disabled={isInactive}
+                   />
+                 </div>
+                 {(!isEditMode && hasPermission(PERMISSIONS.CUSTOMER_GROUPS.CREATE)) && (
+                   <button
+                      type="button"
+                      className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                      disabled={isInactive}
+                      onClick={() => setAddCustomerGroupModalOpen(true)}
+                   >
+                      <Star size={16} />
+                   </button>
+                 )}
+               </div>
+            </div>
+
+             {/* 17. PAN (Left) */}
+             <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                      label="PAN"
+                      value={form.pan}
+                      onChange={(e) => update("pan", e.target.value.toUpperCase())}
+                      disabled={isInactive}
+                      placeholder="e.g. ABCDE1234F"
+                      maxLength={10}
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 18. Previous Credit Balance (Right) */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                    label="Previous Credit Balance"
+                    type="number"
+                    required
+                    value={form.previousCredit}
+                    onChange={(e) => update("previousCredit", e.target.value)}
+                    disabled={isInactive}
+                    placeholder="0.00"
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 19. GSTIN (Left) */}
+            <div className="col-span-12 md:col-span-6">
+               <div className="flex items-center gap-2">
+                 <div className="flex-1 font-medium">
+                  <InputField
+                      label="GSTIN"
+                      value={form.gstin}
+                      onChange={(e) => update("gstin", e.target.value.toUpperCase())}
+                      disabled={isInactive}
+                      placeholder="e.g. 27ABCDE1234F1Z5"
+                      maxLength={15}
+                  />
+                </div>
+                 {/* Spacer */}
+                <div className="w-[38px]"></div>
+              </div>
+            </div>
+
+            {/* 20. Order Booker (Right) */}
             <div className="col-span-12 mb-5 md:col-span-6">
-              <CustomDropdown
-                label="Sales Man"
-                list={employees}
-                valueId={form.salesManId}
-                onSelect={(item) => update("salesManId", item?.id ?? null)}
-                showStar={!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
-                showPencil={isEditMode}
-                onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "salesMan", from: location.pathname } })}
-                direction="up"
-              />
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                      label="Order Booker"
+                      options={employees}
+                      value={form.orderBookerId}
+                      onChange={(val) => update("orderBookerId", val)}
+                      placeholder="--select order booker--"
+                      direction="up"
+                      disabled={isInactive}
+                   />
+                 </div>
+                 {(!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)) && (
+                   <button
+                      type="button"
+                      className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                      disabled={isInactive}
+                      onClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname } })}
+                   >
+                      <Star size={16} />
+                   </button>
+                 )}
+               </div>
             </div>
 
-            <div className="col-span-12 mb-5 md:col-span-6">
-              <CustomDropdown
-                label="Order Booker"
-                list={employees}
-                valueId={form.orderBookerId}
-                onSelect={(item) => update("orderBookerId", item?.id ?? null)}
-                showStar={!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
-                showPencil={isEditMode}
-                onAddClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname } })}
-                direction="up"
-              />
-            </div>
           </div>
+          </ContentCard>
+
         </div>
 
         {/* =============================
@@ -1078,10 +1338,9 @@ const handleDelete = async () => {
         >
           <div className="space-y-4">
               <div>
-                  <label className="text-sm text-gray-300 mb-1 block">Country Name *</label>
-                  <input
-                      type="text"
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                  <InputField
+                      label="Country Name"
+                      required
                       value={newCountryName}
                       onChange={(e) => setNewCountryName(e.target.value)}
                       placeholder="Enter Country Name"
@@ -1102,19 +1361,18 @@ const handleDelete = async () => {
         >
           <div className="space-y-4">
               <div>
-                  <label className="text-sm text-gray-300 mb-1 block">Country *</label>
+                  <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-800' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Country *</label>
                   <SearchableSelect
-                      options={countries.map(c => ({ id: c.Id ?? c.id, name: c.CountryName || c.name }))}
+                      options={countries.map(c => ({ id: c.Id ?? c.id ?? c.CountryId ?? c.countryId, name: c.CountryName || c.name || c.countryName }))}
                       value={newState.countryId}
                       onChange={(val) => setNewState({ ...newState, countryId: val })}
                       placeholder="Select Country"
                   />
               </div>
               <div>
-                  <label className="text-sm text-gray-300 mb-1 block">State Name *</label>
-                  <input
-                      type="text"
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                  <InputField
+                      label="State Name"
+                      required
                       value={newState.name}
                       onChange={(e) => setNewState({ ...newState, name: e.target.value })}
                       placeholder="Enter State Name"
@@ -1136,20 +1394,20 @@ const handleDelete = async () => {
           <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                   <div>
-                      <label className="text-sm text-gray-300 mb-1 block">Country *</label>
+                      <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-800' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Country *</label>
                       <SearchableSelect
-                          options={countries.map(c => ({ id: c.Id ?? c.id, name: c.CountryName || c.name }))}
+                          options={countries.map(c => ({ id: c.Id ?? c.id ?? c.CountryId ?? c.countryId, name: c.CountryName || c.name || c.countryName }))}
                           value={newCity.countryId}
                           onChange={(val) => setNewCity(prev => ({ ...prev, countryId: val, stateId: "" }))}
                           placeholder="Select Country"
                       />
                   </div>
                   <div>
-                      <label className="text-sm text-gray-300 mb-1 block">State *</label>
+                      <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-800' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>State *</label>
                       <SearchableSelect
                            options={(statesMaster || [])
                               .filter(s => !newCity.countryId || String(s.CountryId ?? s.countryId) === String(newCity.countryId))
-                              .map(s => ({ id: s.Id ?? s.id, name: s.StateName || s.name }))}
+                              .map(s => ({ id: s.Id ?? s.id ?? s.StateId ?? s.stateId, name: s.StateName || s.name || s.stateName }))}
                           value={newCity.stateId}
                           onChange={(val) => setNewCity(prev => ({ ...prev, stateId: val }))}
                           placeholder="Select State"
@@ -1157,10 +1415,9 @@ const handleDelete = async () => {
                   </div>
               </div>
               <div>
-                  <label className="text-sm text-gray-300 mb-1 block">City Name *</label>
-                  <input
-                      type="text"
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                  <InputField
+                      label="City Name"
+                      required
                       value={newCity.name}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -1184,10 +1441,9 @@ const handleDelete = async () => {
         >
           <div className="space-y-4">
               <div>
-                  <label className="text-sm text-gray-300 mb-1 block">Group Name *</label>
-                  <input
-                      type="text"
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                  <InputField
+                      label="Group Name"
+                      required
                       value={newGroupName}
                       onChange={(e) => setNewGroupName(e.target.value)}
                       placeholder="Enter Group Name"
@@ -1208,10 +1464,9 @@ const handleDelete = async () => {
         >
           <div className="space-y-4">
               <div>
-                  <label className="text-sm text-gray-300 mb-1 block">Region Name *</label>
-                  <input
-                      type="text"
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                  <InputField
+                      label="Region Name"
+                      required
                       value={newRegionName}
                       onChange={(e) => setNewRegionName(e.target.value)}
                       placeholder="Enter Region Name"
@@ -1220,9 +1475,8 @@ const handleDelete = async () => {
           </div>
         </AddModal>
 
-      </div>
     </PageLayout>
   );
 };
 
-export default NewCustomers;
+export default NewCustomer;

@@ -10,15 +10,17 @@ import {
   ArchiveRestore
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import Swal from "sweetalert2";
-import PageLayout from "../../layout/PageLayout";
-import toast from "react-hot-toast";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { getBanksApi, addPayrollApi, getPayrollByIdApi, updatePayrollApi, deletePayrollApi, restorePayrollApi } from "../../services/allAPI"; // adjust import path if needed
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
 
 const NewPayroll = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -147,7 +149,7 @@ const NewPayroll = () => {
       }
     } catch (err) {
       console.error("Error fetching payroll data", err);
-      toast.error("Failed to load payroll data");
+      showErrorToast("Failed to load payroll data");
     } finally {
       setLoading(false);
     }
@@ -166,7 +168,7 @@ const NewPayroll = () => {
     } catch (err) {
       console.error("Error loading banks", err);
       setBanks([]);
-      toast.error("Failed to load banks");
+      showErrorToast("Failed to load banks");
     } finally {
       setBanksLoading(false);
     }
@@ -206,9 +208,9 @@ const NewPayroll = () => {
   };
 
   const handleSavePayroll = async () => {
-    if (!paymentDate) return toast.error("Payment date required");
-    if (!cashBank) return toast.error("Cash/Bank required");
-    if (rows.length === 0) return toast.error("Add at least one employee");
+    if (!paymentDate) return showErrorToast("Payment date required");
+    if (!cashBank) return showErrorToast("Cash/Bank required");
+    if (rows.length === 0) return showErrorToast("Add at least one employee");
 
     setLoading(true);
     try {
@@ -251,18 +253,18 @@ const NewPayroll = () => {
         : await addPayrollApi(payload);
       
       if (resp.status === 200 || resp.status === 201) {
-        toast.success(isEdit ? "Payroll updated successfully!" : "Payroll saved successfully!");
+        showSuccessToast(isEdit ? "Payroll updated successfully!" : "Payroll saved successfully!");
         if (!isEdit && resp.data.payrollId) {
              navigate(`/app/hr/editpayroll/${resp.data.payrollId}`);
         } else {
              if (isEdit) navigate("/app/hr/payroll");
         }
       } else {
-        toast.error(resp.data?.message || `Failed to ${isEdit ? 'update' : 'save'} payroll`);
+        showErrorToast(resp.data?.message || `Failed to ${isEdit ? 'update' : 'save'} payroll`);
       }
     } catch (err) {
       console.error("Error saving payroll", err);
-      toast.error("Error saving payroll. Please try again.");
+      showErrorToast("Error saving payroll. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -270,32 +272,22 @@ const NewPayroll = () => {
 
   const handleDeletePayroll = async () => {
     if (!id) {
-      toast.error("Payroll not found");
+      showErrorToast("Payroll not found");
       return;
     }
   
-    const result = await Swal.fire({
-      title: "Delete Payroll?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-      reverseButtons: true,
-    });
+    const result = await showDeleteConfirm("this payroll record");
   
     if (!result.isConfirmed) return;
   
     try {
       setLoading(true);
       await deletePayrollApi(id, { userId: 1 });
-      toast.success("Payroll deleted successfully");
+      showSuccessToast("Payroll deleted successfully");
       navigate("/app/hr/payroll");
     } catch (error) {
       console.error("Delete payroll failed:", error);
-      toast.error("Failed to delete payroll");
+      showErrorToast("Failed to delete payroll");
     } finally {
       setLoading(false);
     }
@@ -304,17 +296,7 @@ const NewPayroll = () => {
   const handleRestorePayroll = async () => {
      if (!id) return;
 
-     const result = await Swal.fire({
-      title: "Restore Payroll?",
-      text: "This payroll record will be restored.",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-      reverseButtons: true
-    });
+     const result = await showRestoreConfirm("this payroll record");
 
     if (!result.isConfirmed) return;
 
@@ -322,22 +304,12 @@ const NewPayroll = () => {
         setLoading(true);
         const res = await restorePayrollApi(id, { userId: 1 });
         if (res.status === 200) {
-            Swal.fire({
-                title: "Restored!",
-                text: "Payroll restored successfully.",
-                icon: "success",
-                timer: 1500,
-                showConfirmButton: false,
-            });
+            showSuccessToast("Payroll restored successfully.");
             navigate("/app/hr/payroll");
         }
     } catch (err) {
         console.error("Restore failed", err);
-        Swal.fire({
-            title: "Error!",
-            text: "Failed to restore payroll.",
-            icon: "error",
-        });
+        showErrorToast("Failed to restore payroll.");
     } finally {
         setLoading(false);
     }
@@ -349,20 +321,24 @@ const NewPayroll = () => {
  
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+ <div className={`p-6 ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard>
+
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate("/app/hr/payroll")} className="text-gray-400 hover:text-white">
+            <button onClick={() => navigate("/app/hr/payroll")} className="hover:text-gray-500">
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-2xl font-bold">{isEdit ? "Edit Payroll" : "New Payroll"}</h1>
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">
+              {isEdit ? "Edit Payroll" : "New Payroll"}
+            </h2>
           </div>
         <div className="flex flex-wrap gap-3">
           {(isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && !location.state?.isInactive && (
           <button
             onClick={handleSavePayroll}
             disabled={loading}
-            className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded text-blue-300 hover:bg-gray-700"
+            className={`flex items-center gap-2 border px-3 py-2 rounded ${theme === 'emerald' || theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
           >
             <Save size={20} />
             {loading ? "Saving..." : isEdit ? "Update" : "Save"}
@@ -394,73 +370,57 @@ const NewPayroll = () => {
         </div>
 
           </div>
+        <hr className="mb-4 border-gray-300" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 mb-8">
-          <div className="lg:col-span-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-              <label className="w-32 text-sm text-gray-300">Number</label>
-              <input
-                disabled
-                value={number}
-                name="payrollNumber"
-                id="payrollNumber"
-                className="w-full sm:flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-300"
+        {/* TOP SECTION: 2-COLUMN GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+           {/* LEFT COLUMN */}
+           <div className="space-y-4">
+               {/* Number */}
+               <InputField
+                   label="Number"
+                   value={number}
+                   disabled
+               />
+
+               {/* Cash / Bank */}
+               <SearchableSelect
+                   label={<>Cash / Bank <span className="text-dark">*</span></>}
+                   options={banks}
+                   value={cashBank?.id}
+                   onChange={(val) => {
+                        const b = banks.find(x => x.id === val);
+                        if (b) setCashBank(b);
+                   }}
+                   placeholder="Select Bank..."
+                   disabled={inactiveView}
+               />
+           </div>
+
+           {/* RIGHT COLUMN */}
+           <div className="space-y-4">
+              {/* Description */}
+              <InputField
+                  label="Description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={inactiveView}
               />
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-               <label className="w-32 text-sm text-gray-300">
-                  <span className="text-red-400 mr-1">*</span> Cash / Bank
-               </label>
-               <div className="w-full sm:flex-1">
-                <SearchableSelect
-                    options={banks}
-                    value={cashBank?.id}
-                    name="cashBank"
-                    id="cashBank"
-                    onChange={(val) => {
-                         const b = banks.find(x => x.id === val);
-                         if (b) setCashBank(b);
-                    }}
-                    placeholder="Select Bank..."
-                    disabled={inactiveView}
-                />
-               </div>
-            </div>
-          </div>
-          <div className="lg:col-span-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-              <label className="w-24 text-sm text-gray-300">Description</label>
-              <input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={inactiveView}
-                name="description"
-                id="description"
-                className={`w-full sm:flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 ${inactiveView ? "opacity-50 cursor-not-allowed" : ""}`}
+
+              {/* Payment Date */}
+              <InputField
+                  type="date"
+                  label={<>Payment Date <span className="text-dark">*</span></>}
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  disabled={inactiveView}
               />
-            </div>
-          </div>
-          <div className="lg:col-span-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-start lg:justify-end gap-2 sm:gap-0">
-              <label className="w-32 sm:w-auto sm:mr-3 text-sm text-gray-300">
-                <span className="text-red-400">*</span> Payment Date
-              </label>
-              <input
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                disabled={inactiveView}
-                name="paymentDate"
-                id="paymentDate"
-                className={`w-full sm:w-48 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-200 ${inactiveView ? "opacity-50 cursor-not-allowed" : ""}`}
-              />
-            </div>
-          </div>
+           </div>
         </div>
 
         <div className="mb-8 overflow-x-auto">
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-sm text-gray-300">Employee List</label>
+          <div className="flex items-center gap-2 mb-2 font-medium">
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Employee List</label>
             {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
             <button
               onClick={() => navigate("/app/hr/employee", {
@@ -469,16 +429,16 @@ const NewPayroll = () => {
                   payrollId: id
                 }
               })}
-              className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
+              className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
             >
               <Plus size={16} /> Add
             </button>
             )}
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[900px]">
+          <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm">
-              <thead className="bg-gray-700">
+              <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-700 text-white'}`}>
                 <tr>
                   <th className="p-3">Employee</th>
                   <th className="p-3">Bank Account</th>
@@ -490,9 +450,9 @@ const NewPayroll = () => {
                   <th className="p-3"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700 text-center">
+              <tbody className={`divide-y text-center ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-200' : 'divide-gray-700'}`}>
                 {rows.map((r, i) => (
-                  <tr key={i} className="hover:bg-gray-750">
+                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'hover:bg-gray-50 border-gray-200' : 'hover:bg-gray-750 border-gray-700'}`}>
                     <td className="p-3">{r.employeeName}</td>
                     <td className="p-3">{r.bankAccount}</td>
                     <td className="p-3">{r.bankName}</td>
@@ -524,39 +484,68 @@ const NewPayroll = () => {
                 ))}
               </tbody>
             </table>
-            {rows.length === 0 && <div className="p-8 text-center text-gray-500">No employees added</div>}
+            {rows.length === 0 && <div className={`p-8 text-center ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-500'}`}>No employees added</div>}
           </div>
         </div>
 
-        <div className="mt-10 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-lg p-6">
-          <h3 className="text-lg font-medium mb-6 text-gray-200">Summary</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-3">
-              <label className="text-sm text-gray-300 block mb-1">Currency</label>
-              <input value={currency} disabled name="currency" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400 cursor-not-allowed" />
-            </div>
-            <div className="lg:col-span-3">
-              <label className="text-sm text-gray-300 block mb-1">Total Basic Salary</label>
-              <input value={Number(sumBasic).toFixed(2)} readOnly name="sumBasic" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
-            </div>
-            <div className="lg:col-span-3">
-              <label className="text-sm text-gray-300 block mb-1">Total Income</label>
-              <input value={Number(sumIncome).toFixed(2)} readOnly name="sumIncome" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
-            </div>
-            <div className="lg:col-span-3">
-              <label className="text-sm text-gray-300 block mb-1">Total Deduction</label>
-              <input value={Number(sumDeduction).toFixed(2)} readOnly name="sumDeduction" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
-            </div>
-            <div className="lg:col-span-3">
-              <label className="text-sm text-gray-300 block mb-1">Total Take Home Pay</label>
-              <input value={Number(sumTakeHome).toFixed(2)} readOnly name="sumTakeHome" className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-300 text-right" />
-            </div>
-            <div className="lg:col-span-3">
-              <label className="text-sm text-gray-300 block mb-1"><span className="text-red-400">*</span> Total Payment Amount</label>
-              <input value={Number(totalPaymentAmount).toFixed(2)} readOnly name="totalPaymentAmount" className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-right font-semibold" />
-            </div>
+        {/* BOTTOM SECTION (SUMMARY): 2-COLUMN GRID */}
+        <div className={`mt-10 border rounded-lg p-6 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200 shadow-sm' : 'bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-gray-700'}`}>
+          <h3 className={`text-lg font-medium mb-6 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>Summary</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             {/* LEFT COLUMN - Totals */}
+             <div className="space-y-4">
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Currency</label>
+                     <div className="flex-1 font-medium">
+                        <input value={currency} disabled className={`w-full border rounded px-3 py-2 cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-500' : 'bg-gray-800 border-gray-700 text-gray-400'}`} />
+                    </div>
+                 </div>
+                 
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Basic Salary</label>
+                     <div className="flex-1 font-medium">
+                        <input value={Number(sumBasic).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                    </div>
+                 </div>
+
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
+                      <div className="flex-1 font-medium">
+                        <input value={Number(sumIncome).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                     </div>
+                 </div>
+             </div>
+
+             {/* RIGHT COLUMN - Totals */}
+             <div className="space-y-4">
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
+                      <div className="flex-1 font-medium">
+                        <input value={Number(sumDeduction).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                     </div>
+                 </div>
+
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Take Home Pay</label>
+                      <div className="flex-1 font-medium">
+                        <input value={Number(sumTakeHome).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                     </div>
+                 </div>
+
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                         Total Payment Amount <span className="text-dark">*</span>
+                     </label>
+                      <div className="flex-1 font-medium">
+                        <input value={Number(totalPaymentAmount).toFixed(2)} readOnly className={`w-full border rounded px-3 py-2 text-right font-semibold ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
+                     </div>
+                 </div>
+             </div>
           </div>
         </div>
+
+      </ContentCard>
       </div>
     </PageLayout>
   );

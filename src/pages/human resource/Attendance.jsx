@@ -17,8 +17,7 @@ import {
   deleteAttendanceApi,
   restoreAttendanceApi,
 } from "../../services/allAPI";
-import Swal from "sweetalert2";
-import toast from "react-hot-toast";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -29,6 +28,7 @@ import SearchableSelect from "../../components/SearchableSelect";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import ContentCard from "../../components/ContentCard";
 
 const Attendance = () => {
   const { theme } = useTheme();
@@ -225,7 +225,7 @@ const Attendance = () => {
       setInactiveRows(formatted);
     } catch (err) {
       console.error("Failed to load inactive attendance", err);
-      toast.error("Failed to load inactive records");
+      showErrorToast("Failed to load inactive records");
     }
   };
 
@@ -260,86 +260,46 @@ const Attendance = () => {
         checkOut,
         userId: 1
       });
-      toast.success("Attendance updated");
+      showSuccessToast("Attendance updated");
       setActionModalOpen(false);
       loadAttendance();
     } catch(err) {
       console.error("Update failed", err);
-      toast.error("Update failed");
+      showErrorToast("Update failed");
     }
   };
 
   const handleDelete = async () => {
-    const result = await Swal.fire({
-      title: "Delete Attendance?",
-      text: "This record will be deleted!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-      reverseButtons: true,
-    });
+    const result = await showDeleteConfirm("this attendance record");
 
     if (!result.isConfirmed) return;
 
     try {
       await deleteAttendanceApi(editForm.id, { userId: 1 });
-      Swal.fire({
-        title: "Deleted!",
-        text: "Record has been deleted.",
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showSuccessToast("Attendance deleted successfully.");
       setActionModalOpen(false);
       loadAttendance();
       if (showInactive) loadInactiveAttendance();
     } catch (err) {
       console.error("Delete failed", err);
-      Swal.fire({
-        title: "Error!",
-        text: "Failed to delete record.",
-        icon: "error",
-      });
+      showErrorToast("Failed to delete record.");
     }
   };
 
   const handleRestore = async () => {
-    const result = await Swal.fire({
-        title: "Restore Attendance?",
-        text: "This record will be restored!",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonColor: "#10b981",
-        cancelButtonColor: "#6b7280",
-        confirmButtonText: "Yes, restore",
-        cancelButtonText: "Cancel",
-        reverseButtons: true,
-      });
+    const result = await showRestoreConfirm("this attendance record");
   
       if (!result.isConfirmed) return;
 
     try {
       await restoreAttendanceApi(editForm.id, { userId: 1 });
-      Swal.fire({
-        title: "Restored!",
-        text: "Record has been restored.",
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showSuccessToast("Attendance restored successfully.");
       setActionModalOpen(false);
       loadAttendance();
       loadInactiveAttendance();
     } catch (err) {
       console.error("Restore failed", err);
-      Swal.fire({
-        title: "Error!",
-        text: "Failed to restore record.",
-        icon: "error",
-      });
+      showErrorToast("Failed to restore record.");
     }
   };
 
@@ -349,7 +309,7 @@ const Attendance = () => {
 
   const saveAttendance = async () => {
     if (!form.employeeId) {
-      alert("Please select an employee");
+      showErrorToast("Please select an employee");
       return;
     }
 
@@ -364,6 +324,7 @@ const Attendance = () => {
         userId: 1,
       });
 
+      showSuccessToast("Attendance added successfully.");
       loadAttendance();
       setModalOpen(false);
 
@@ -377,7 +338,7 @@ const Attendance = () => {
       });
     } catch (err) {
       console.error("Failed to save attendance:", err);
-      alert("Failed to save attendance");
+      showErrorToast("Failed to save attendance");
     }
   };
 
@@ -439,7 +400,7 @@ const Attendance = () => {
                     checkInDate: e.target.value,
                   }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
 
@@ -454,7 +415,7 @@ const Attendance = () => {
                     checkInTime: e.target.value,
                   }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
           </div>
@@ -471,7 +432,7 @@ const Attendance = () => {
                     checkOutDate: e.target.value,
                   }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
 
@@ -486,7 +447,7 @@ const Attendance = () => {
                     checkOutTime: e.target.value,
                   }))
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               />
             </div>
           </div>
@@ -539,7 +500,7 @@ const Attendance = () => {
                 onChange={(e) =>
                   setEditForm({ ...editForm, checkInDate: e.target.value })
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                 disabled={editForm.isInactive}
               />
             </div>
@@ -551,7 +512,7 @@ const Attendance = () => {
                 onChange={(e) =>
                   setEditForm({ ...editForm, checkInTime: e.target.value })
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                 disabled={editForm.isInactive}
               />
             </div>
@@ -566,7 +527,7 @@ const Attendance = () => {
                 onChange={(e) =>
                   setEditForm({ ...editForm, checkOutDate: e.target.value })
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                 disabled={editForm.isInactive}
               />
             </div>
@@ -578,7 +539,7 @@ const Attendance = () => {
                 onChange={(e) =>
                   setEditForm({ ...editForm, checkOutTime: e.target.value })
                 }
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                 disabled={editForm.isInactive}
               />
             </div>
@@ -587,9 +548,11 @@ const Attendance = () => {
       </EditModal>
 
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Attendance</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Attendance</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -631,6 +594,7 @@ const Attendance = () => {
                 total={totalRecords}
               />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
 
@@ -639,6 +603,7 @@ const Attendance = () => {
 };
 
 export default Attendance;
+
 
 
 

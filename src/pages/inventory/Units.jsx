@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import toast from "react-hot-toast";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import {
   getUnitsApi,
   addUnitApi,
@@ -16,9 +15,11 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import InputField from "../../components/InputField";
 import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
 import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 
 const Units = () => {
     const { theme } = useTheme();
@@ -87,7 +88,7 @@ const Units = () => {
       setUnits(res.data.records);
       setTotalRecords(res.data.total);
     } else {
-      toast.error("Failed to load units");
+      showErrorToast("Failed to load units");
     }
   };
 
@@ -117,14 +118,14 @@ const Units = () => {
   // ADD UNIT
   const handleAddUnit = async () => {
     if (!newUnit.name.trim())
-      return toast.error("Unit name required");
+      return showErrorToast("Unit name required");
 
     // DUPLICATE CHECK
     try {
       const searchRes = await searchUnitsApi(newUnit.name.trim());
       if (searchRes?.status === 200) {
          const existing = searchRes.data.find(u => u.name.toLowerCase() === newUnit.name.trim().toLowerCase());
-         if (existing) return toast.error("Unit Name already exists");
+         if (existing) return showErrorToast("Unit Name already exists");
       }
     } catch(err) {
       console.error("Duplicate check error", err);
@@ -137,19 +138,19 @@ const Units = () => {
     });
 
     if (res?.status === 200) {
-      toast.success("Unit added");
+      showSuccessToast("Unit added");
       setNewUnit({ name: "", description: "" });
       setModalOpen(false);
       loadUnits();
     } else {
-      toast.error("Failed to add");
+      showErrorToast("Failed to add");
     }
   };
 
   // UPDATE UNIT
   const handleUpdateUnit = async () => {
     if (!editUnit.name.trim())
-      return toast.error("Unit name required");
+      return showErrorToast("Unit name required");
 
     // DUPLICATE CHECK
     try {
@@ -159,7 +160,7 @@ const Units = () => {
            u.name.toLowerCase() === editUnit.name.trim().toLowerCase() && 
            String(u.id) !== String(editUnit.id)
          );
-         if (existing) return toast.error("Unit Name already exists");
+         if (existing) return showErrorToast("Unit Name already exists");
       }
     } catch(err) {
       console.error("Duplicate check error", err);
@@ -172,26 +173,17 @@ const Units = () => {
     });
 
     if (res?.status === 200) {
-      toast.success("Unit updated");
+      showSuccessToast("Unit updated");
       setEditModalOpen(false);
       loadUnits();
     } else {
-      toast.error("Update failed");
+      showErrorToast("Update failed");
     }
   };
 
   // DELETE UNIT
   const handleDeleteUnit = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This unit will be deleted!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showDeleteConfirm();
 
     if (!result.isConfirmed) return;
 
@@ -201,47 +193,38 @@ const Units = () => {
       });
 
       if (res?.status === 200) {
-        toast.success("Unit deleted");
+        showSuccessToast("Unit deleted");
         setEditModalOpen(false);
         loadUnits();
         if (showInactive) loadInactive();
       } else {
-        toast.error("Delete failed");
+        showErrorToast("Delete failed");
       }
     } catch(err) {
       console.error("Delete failed", err);
-      toast.error("Delete failed");
+      showErrorToast("Delete failed");
     }
   };
 
   // RESTORE UNIT
   const handleRestoreUnit = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This unit will be restored!",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm();
 
     if (!result.isConfirmed) return;
 
     try {
       const res = await restoreUnitApi(editUnit.id, { userId: user?.userId || 1 });
       if (res?.status === 200) {
-        toast.success("Unit restored");
+        showSuccessToast("Unit restored");
         setEditModalOpen(false);
         loadUnits();
         loadInactive();
       } else {
-        toast.error("Restore failed");
+        showErrorToast("Restore failed");
       }
     } catch(err) {
       console.error("Restore failed", err);
-      toast.error("Restore failed");
+      showErrorToast("Restore failed");
     }
   };
 
@@ -276,26 +259,27 @@ const Units = () => {
         title="New Unit"
       >
         {/* NAME */}
-        <label className="block text-sm mb-1">Name *</label>
-        <input
-          type="text"
+        <InputField
+          label="Name"
           value={newUnit.name}
           onChange={(e) =>
             setNewUnit((prev) => ({ ...prev, name: e.target.value }))
           }
           placeholder="Enter unit name"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none"
+          required
+          className="mb-4"
         />
 
         {/* DESCRIPTION */}
-        <label className="block text-sm mb-1">Description</label>
-        <textarea
+        <InputField
+          label="Description"
+          textarea
           value={newUnit.description}
           onChange={(e) =>
             setNewUnit((prev) => ({ ...prev, description: e.target.value }))
           }
           placeholder="Enter description"
-          className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none"
+          className="h-24"
         />
       </AddModal>
 
@@ -311,29 +295,26 @@ const Units = () => {
         permissionEdit={hasPermission(PERMISSIONS.INVENTORY.UNITS.EDIT)}
       >
         {/* NAME */}
-        <label className="block text-sm mb-1">Name *</label>
-        <input
-          type="text"
+        <InputField
+          label="Name"
           value={editUnit.name}
           onChange={(e) =>
             setEditUnit((prev) => ({ ...prev, name: e.target.value }))
           }
-          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm mb-4 focus:border-white focus:outline-none ${
-            editUnit.isInactive ? "opacity-60 cursor-not-allowed" : ""
-          }`}
+          className="mb-4"
           disabled={editUnit.isInactive}
+          required
         />
 
         {/* DESCRIPTION */}
-        <label className="block text-sm mb-1">Description</label>
-        <textarea
+        <InputField
+          label="Description"
+          textarea
           value={editUnit.description}
           onChange={(e) =>
             setEditUnit((prev) => ({ ...prev, description: e.target.value }))
           }
-          className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm h-24 focus:border-white focus:outline-none ${
-            editUnit.isInactive ? "opacity-60 cursor-not-allowed" : ""
-          }`}
+          className="h-24"
           disabled={editUnit.isInactive}
         />
       </EditModal>
@@ -347,9 +328,11 @@ const Units = () => {
       />
 
       <PageLayout>
-        <div className={`p-4 text-white h-full ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-700' : 'bg-gradient-to-b from-gray-900 to-gray-700'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Units</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Units</h2>
+            <hr className="mb-4 border-gray-300" />
             
             <MasterTable
                 columns={columns}
@@ -387,6 +370,7 @@ const Units = () => {
               }}
             />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
     </>

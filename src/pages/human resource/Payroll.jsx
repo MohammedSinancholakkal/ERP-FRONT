@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import Pagination from "../../components/Pagination";
 // import SortableHeader from "../../components/SortableHeader"; // REMOVED
 import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
 import { useTheme } from "../../context/ThemeContext";
 import PageLayout from "../../layout/PageLayout";
 import {
@@ -14,10 +15,8 @@ import {
   getInactivePayrollsApi,
   restorePayrollApi
 } from "../../services/allAPI";
-import Swal from "sweetalert2";
-import toast from "react-hot-toast";
-import { format } from "date-fns";
 import { hasPermission } from "../../utils/permissionUtils";
+import { format } from "date-fns";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
@@ -246,9 +245,11 @@ const fetchPayrolls = async () => {
 
       {/* MAIN PAGE */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2"> 
-            <h2 className="text-2xl font-semibold mb-4">Payroll</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Payroll</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -293,6 +294,7 @@ const fetchPayrolls = async () => {
                 total={totalRecords}
               />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
 

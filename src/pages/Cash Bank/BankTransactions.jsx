@@ -1,23 +1,21 @@
 // src/pages/bank/BankTransactions.jsx
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-  X,
   Save,
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import EditModal from "../../components/modals/EditModal";
 import toast from "react-hot-toast";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 
 const BankTransactions = () => {
+  const { theme } = useTheme();
   // ------------------------- Columns -------------------------
   const defaultColumns = {
     id: true,
@@ -80,6 +78,7 @@ const BankTransactions = () => {
 
   // ------------------------- Add Modal -------------------------
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const today = new Date().toISOString().split("T")[0];
 
 const [newTx, setNewTx] = useState({
@@ -93,16 +92,18 @@ const [newTx, setNewTx] = useState({
   description: "",
 });
 
+const [editData, setEditData] = useState({
+  id: null,
+  date: today,
+  accountType: "Debit",
+  wdId: "",
+  bank: "",
+  amount: "0",
+  description: "",
+  isInactive: false,
+});
 
 
-  const handleRefresh = () => {
-    setSearchText("");
-    setFilterSupplier("");
-    setFilterDate("");
-    setPage(1);
-    fetchPurchases();
-    toast.success("Refreshed");
-  };
 
 
   const handleAdd = () => {
@@ -132,6 +133,40 @@ const [newTx, setNewTx] = useState({
       amount: "",
       description: "",
     });
+  };
+
+  const handleUpdate = () => {
+    // Basic validation
+    if (!editData.date || !editData.bank || !editData.amount) {
+        return toast.error("Please fill required fields");
+    }
+
+    setRows(rows.map(r => r.id === editData.id ? {
+      ...r,
+      date: editData.date,
+      coaHeadName: editData.bank,
+      description: editData.description,
+      debit: editData.accountType === "Debit" ? Number(editData.amount) : 0,
+      credit: editData.accountType === "Credit" ? Number(editData.amount) : 0,
+      wdId: editData.wdId, // Assuming WD ID is editable or display only
+    } : r));
+
+    setEditModalOpen(false);
+    toast.success("Transaction updated");
+  };
+
+  const openEditModal = (row) => {
+    setEditData({
+      id: row.id,
+      date: row.date,
+      accountType: row.debit > 0 ? "Debit" : "Credit",
+      wdId: row.wdId,
+      bank: row.coaHeadName,
+      amount: row.debit > 0 ? row.debit : row.credit,
+      description: row.description,
+      isInactive: false,
+    });
+    setEditModalOpen(true);
   };
 
   // ------------------------- Render -------------------------
@@ -284,136 +319,154 @@ const [newTx, setNewTx] = useState({
       />
 
       {/* ---------------------- MAIN ---------------------- */}
-      <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden gap-2"> 
-        <h2 className="text-2xl font-semibold mb-4">Bank Transactions</h2>
-
-        {/* Action Bar */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          {/* Search */}
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-60">
-            <Search size={16} className="text-gray-300" />
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdate}
+        title="Edit Bank Transaction"
+        width="750px"
+        permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
+        permissionDelete={false}
+        isInactive={editData.isInactive}
+      >
+        <div className="p-0 space-y-4">
+             {/* Date */}
+          <div>
+            <label className="text-sm">Date</label>
             <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search transactions..."
-              className="bg-transparent pl-2 text-sm w-full outline-none"
+              type="date"
+              value={editData.date}
+              onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+               disabled={editData.isInactive}
             />
           </div>
 
-          {/* New Transaction */}
-          {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-          >
-            <Plus size={16} />
-            New Transaction
-          </button>
-          )}
-
-          {/* Refresh */}
-          <button  onClick={handleRefresh} className="p-2 bg-gray-700 border border-gray-600 rounded">
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
-
-          {/* Column Picker */}
-          <button
-            onClick={() => {
-              setTempVisibleColumns(visibleColumns);
-              setColumnModalOpen(true);
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
-
-          {/* Inactive Button */}
-          <button
-            onClick={() => setShowInactive((s) => !s)}
-            className="flex items-center gap-2 p-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
-        </div>
-
-        {/* TABLE */}
-        <div className="flex-grow overflow-auto w-full">
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[1300px] border-separate border-spacing-y-1 text-sm table-fixed">
-              <thead className="sticky top-0 bg-gray-900 z-10">
-                <tr className="text-white text-center">
-                  {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-                  {visibleColumns.wdId && (
-                    <th className="pb-2 border-b">W/D ID</th>
-                  )}
-                  {visibleColumns.voucherType && (
-                    <th className="pb-2 border-b">Voucher Type</th>
-                  )}
-                  {visibleColumns.date && (
-                    <th className="pb-2 border-b">Date</th>
-                  )}
-                  {visibleColumns.coaHeadName && (
-                    <th className="pb-2 border-b">COA Head</th>
-                  )}
-                  {visibleColumns.coa && (
-                    <th className="pb-2 border-b">COA</th>
-                  )}
-                  {visibleColumns.description && (
-                    <th className="pb-2 border-b">Description</th>
-                  )}
-                  {visibleColumns.debit && (
-                    <th className="pb-2 border-b">Debit</th>
-                  )}
-                  {visibleColumns.credit && (
-                    <th className="pb-2 border-b">Credit</th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody className="text-center">
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                  >
-                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                    {visibleColumns.wdId && <td className="py-2">{r.wdId}</td>}
-                    {visibleColumns.voucherType && (
-                      <td className="py-2">{r.voucherType}</td>
-                    )}
-                    {visibleColumns.date && <td className="py-2">{r.date}</td>}
-                    {visibleColumns.coaHeadName && (
-                      <td className="py-2">{r.coaHeadName}</td>
-                    )}
-                    {visibleColumns.coa && <td className="py-2">{r.coa}</td>}
-                    {visibleColumns.description && (
-                      <td className="py-2">{r.description}</td>
-                    )}
-                    {visibleColumns.debit && <td className="py-2">{r.debit}</td>}
-                    {visibleColumns.credit && (
-                      <td className="py-2">{r.credit}</td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Account Type */}
+          <div>
+            <label className="text-sm">Account Type</label>
+            <select
+              value={editData.accountType}
+              onChange={(e) =>
+                setEditData({ ...editData, accountType: e.target.value })
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+               disabled={editData.isInactive}
+            >
+              <option value="Debit">Debit (-)</option>
+              <option value="Credit">Credit (+)</option>
+            </select>
           </div>
-        </div>
 
-        {/* PAGINATION */}
-           
-              <Pagination
+           {/* WD ID */}
+           <div>
+            <label className="text-sm">Withdraw / Deposit ID</label>
+            <input
+              value={editData.wdId}
+              onChange={(e) => setEditData({ ...editData, wdId: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+               disabled={editData.isInactive}
+            />
+          </div>
+
+          {/* Bank (Simple input for simplified logic) */}
+           <div>
+            <label className="text-sm">Bank</label>
+             <input
+              value={editData.bank}
+              onChange={(e) => setEditData({ ...editData, bank: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+               disabled={editData.isInactive}
+            />
+           </div>
+
+           {/* Amount */}
+          <div>
+            <label className="text-sm">Amount</label>
+            <input
+              value={editData.amount}
+              onChange={(e) =>
+                setEditData({ ...editData, amount: e.target.value })
+              }
+              type="number"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+               disabled={editData.isInactive}
+            />
+          </div>
+
+           {/* Description */}
+          <div>
+            <label className="text-sm">Description</label>
+            <textarea
+              value={editData.description}
+              onChange={(e) =>
+                setEditData({ ...editData, description: e.target.value })
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              rows={2}
+               disabled={editData.isInactive}
+            />
+          </div>
+
+        </div>
+      </EditModal>
+
+      <ColumnPickerModal
+        isOpen={columnModalOpen}
+        onClose={() => setColumnModalOpen(false)}
+        visibleColumns={visibleColumns}
+        setVisibleColumns={setVisibleColumns}
+        defaultColumns={defaultColumns}
+      />
+
+      {/* ---------------------- MAIN ---------------------- */}
+      <PageLayout>
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden gap-2">
+            <h2 className="text-2xl font-semibold mb-4">Bank Transactions</h2>
+
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.wdId && { key: "wdId", label: "W/D ID", sortable: true },
+                    visibleColumns.voucherType && { key: "voucherType", label: "Voucher Type", sortable: true },
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true },
+                    visibleColumns.coaHeadName && { key: "coaHeadName", label: "COA Head", sortable: true },
+                    visibleColumns.coa && { key: "coa", label: "COA", sortable: true },
+                    visibleColumns.description && { key: "description", label: "Description", sortable: true },
+                    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true },
+                    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true },
+                ].filter(Boolean)}
+                data={rows}
+                // inactiveData={inactiveRows}
+                showInactive={showInactive}
+                // sortConfig={sortConfig}
+                // onSort={handleSort}
+                onRowClick={(r) => openEditModal(r)}
+                // Action Bar
+                search={searchText}
+                onSearch={setSearchText}
+                onCreate={() => setModalOpen(true)}
+                createLabel="New Transaction"
+                permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    toast.success("Refreshed");
+                }}
+                onColumnSelector={() => setColumnModalOpen(true)}
+                onToggleInactive={() => setShowInactive((s) => !s)}
+            />
+
+            {/* PAGINATION */}
+            <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                onRefresh={handleRefresh}
-              />
-            </div>
+            />
+        </div>
       </div>
       </PageLayout>
     </>

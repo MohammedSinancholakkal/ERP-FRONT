@@ -14,6 +14,7 @@ import { useTheme } from "../../context/ThemeContext";
 
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import ContentCard from "../../components/ContentCard";
 import {
   getEmployeesApi,
   getDesignationsApi,
@@ -537,9 +538,11 @@ const columnModalRef = useRef(null);
 
       {/* MAIN */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Employees</h2>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Employees</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={tableColumns}
@@ -602,6 +605,7 @@ const columnModalRef = useRef(null);
                 total={totalRecords}
               />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
 

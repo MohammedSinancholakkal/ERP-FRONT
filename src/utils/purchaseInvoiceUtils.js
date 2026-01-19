@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
-import { getPurchaseOrderByIdApi } from "../services/allAPI";
+import { getPurchaseByIdApi, getSuppliersApi } from "../services/allAPI";
 import { serverURL } from "../services/serverURL";
 
 // Helper: Format Currency
@@ -9,22 +9,43 @@ const formatCurrency = (amount) => {
   return Number(amount || 0).toFixed(2);
 };
 
-// PURCHASE ORDER PDF GENERATOR
-export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Purchase Order") => {
+// PURCHASE INVOICE PDF GENERATOR
+export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "Purchase Invoice") => {
   try {
     const toastId = toast.loading("Generating PDF...");
 
     // 1. Fetch full details
-    const res = await getPurchaseOrderByIdApi(purchaseId);
+    const res = await getPurchaseByIdApi(purchaseId);
     if (res.status !== 200) {
       toast.dismiss(toastId);
-      toast.error("Failed to fetch purchase order details");
+      toast.error("Failed to fetch purchase details");
       return;
     }
     const purchase = res.data.purchase;
     const details = res.data.details || [];
 
-    // 2. Setup jsPDF
+    // 2. Fetch Supplier if name is missing (common in Purchase API)
+    if (!purchase.supplierName && !purchase.SupplierName && purchase.SupplierId) {
+        try {
+            // Using getSuppliersApi as fallback since getSupplierById might not be available or imported
+            const supRes = await getSuppliersApi(1, 1000); 
+            if (supRes.status === 200) {
+                 const records = supRes.data.records || supRes.data;
+                 const found = records.find(s => s.id == purchase.SupplierId);
+                 if (found) {
+                     purchase.supplierName = found.companyName;
+                     purchase.Address = found.address;
+                     purchase.Phone = found.phone;
+                     purchase.GSTIN = found.gstin || found.vatNo; 
+                     purchase.email = found.email;
+                 }
+            }
+        } catch(err) { 
+            console.error("Supplier fetch failed", err); 
+        }
+    }
+
+    // 3. Setup jsPDF
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width; 
     const pageHeight = doc.internal.pageSize.height;
@@ -70,8 +91,6 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
        doc.setFontSize(10);
        doc.text(title, pageWidth / 2, y + 4, { align: "center" });
        
-
-
        // Main Header Box (Company Info)
        const boxTopY = y + 8;
        const boxH = 30;
@@ -101,7 +120,6 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
        const addressLines = doc.splitTextToSize(address, 100);
        doc.text(addressLines, pageWidth - margin - 5, boxTopY + 14, { align: "right" });
        
-       // Contact
        // Contact
        doc.text(`Phone no: ${settings?.phone || ""} Email: ${settings?.companyEmail || ""}`, pageWidth - margin - 5, boxTopY + 22, { align: "right" });
        doc.text(`GSTIN: ${settings?.gstin || settings?.GSTIN || ""}`, pageWidth - margin - 5, boxTopY + 26, { align: "right" });
@@ -155,28 +173,22 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
         doc.text("Vehicle Number:", midX + 2, y + 10);
         doc.text(purchase.VehicleNo || purchase.vehicleNo || "-", midX + 2, y + 15);
         
-        // --- COL 3: PO Data ---
+        // --- COL 3: PO/Invoice Data ---
         doc.setFont("helvetica", "bold");
-        doc.text("PO No:", rightX + 2, y + 10);
+        doc.text("Invoice No:", rightX + 2, y + 10); // Changed from PO No to Invoice No
         doc.text("Date:", rightX + 2, y + 15);
         
         doc.setFont("helvetica", "normal");
-        const dbVNo = purchase.VNo || purchase.vno || purchase.voiceNo || purchase.InvoiceNo;
+        const dbVNo = purchase.InvoiceNo || purchase.invoiceNo || purchase.VNo || purchase.vno;
         const dbSeq = purchase.POSequence || purchase.poSequence;
         let finalDisp = "";
 
-        if (dbSeq) {
-             finalDisp = String(dbSeq).padStart(4, '0');
-        } else if (dbVNo) {
+        if (dbVNo) {
              finalDisp = dbVNo;
+        } else if (dbSeq) {
+             finalDisp = String(dbSeq).padStart(4, '0');
         } else {
-             // Fallback to purchaseId from argument (safest) or DB ID
-             const safeId = purchaseId || purchase.Id || purchase.id;
-             if (safeId) {
-                 finalDisp = String(safeId).padStart(4, '0');
-             } else {
-                 finalDisp = "N/A";
-             }
+             finalDisp = String(purchase.id || purchase.Id).padStart(4, '0');
         }
 
         doc.text(finalDisp, pageWidth - margin - 2, y + 10, { align: "right" });
@@ -280,9 +292,9 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
 
         const rowData = [
             index + 1,
-            item.Barcode || item.barcode || "", // NEW: Code/Barcode
-            item.productName || item.ProductName || "",
-            item.HSNCode || item.hsnCode || "",
+            item.Barcode || item.barcode || item.Product?.code || item.Product?.productCode || "", 
+            item.productName || item.ProductName || item.Product?.name || "",
+            item.HSNCode || item.hsnCode || item.Product?.hsnCode || item.Product?.HSNCode || "",
             `${qty}`,
             formatCurrency(rate),
             isTaxApplicable ? formatCurrency(taxable) : ""
@@ -302,24 +314,15 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
     const footerNeededSpace = 85; 
     const startTableY = currentY;
     const availableSpace = pageHeight - margin - 10 - startTableY - footerNeededSpace; 
-    const estRowHeight = 9; 
+    const estRowHeight = 8; 
     const dynamicMinRows = Math.floor(availableSpace / estRowHeight);
     
     const minTableRows = Math.max(5, dynamicMinRows);
     while(tableBody.length < minTableRows) {
-         // IGST: 9 cols. Non-IGST: 11 cols. (Purchase Order might have different standard, let me check headers)
-         // PO Headers: 
-         // IGST: Sr, Code, Name, HSN, Qty, Rate, Taxable (7) + IGST (2) + Total (1) = 10 cols?
-         // No, looking at head: 
-         // [Sr, Code, Name, HSN, Qty, Rate, Taxable, IGST (2 sub), Total]
-         // Actually jsPDF Autotable treats colSpan headers differently.
-         // Let's count body columns in map function:
-         // rowData = [index, barcode, name, hsn, qty, rate, taxable] (7)
-         // + IGST (2) OR CGST(2)+SGST(2)
-         // + Total (1)
         // Match column count! 
-        // IGST: Sr, Code, Name, HSN, Qty, Rate, Taxable, IGST(2), Total = 10 cols
-        // Non-IGST: Sr, Code, Name, HSN, Qty, Rate, Taxable, CGST(2), SGST(2), Total = 12 cols
+        // IGST: 9 columns. Non-IGST: 11 columns.
+        // Match column count! 
+        // IGST: 10 cols, Non-IGST: 12 cols
         const emptyRow = isIGST ? ["","","","","","","","","",""] : ["","","","","","","","","","","",""];
         tableBody.push(emptyRow);
     }
@@ -461,7 +464,8 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
     
     doc.setFont("helvetica", "normal");
     const terms = [
-        "1. Adherence to the product specification is a must."
+        "1. Adherence to the product specification is a must.",
+        "2. Goods once sold will not be taken back."
     ];
     terms.forEach(term => {
         doc.text(term, margin + 2, lY + 3);
@@ -473,7 +477,7 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
     
     // Signatory
     let rBotY = endTotalsY;
-    doc.line(midX, rBotY, pageWidth - margin, rBotY); // Already drawn?
+    doc.line(midX, rBotY, pageWidth - margin, rBotY); 
     
     // Right Bottom Box
     doc.rect(midX, endTotalsY, rightColW, finalFooterY - endTotalsY);
@@ -486,10 +490,8 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
     doc.setFont("helvetica", "normal");
     doc.text("Authorized Signatory", midX + (rightColW/2), signatureBaseY, { align: "center" });
 
-    // Use robust filename property. 
-    // purchase.VNo (Pascal) OR purchase.vno (Camel) OR purchase.Id (Pascal) OR purchase.id (Camel)
-    const fileId = purchase.VNo || purchase.vno || purchase.Id || purchase.id || "Document";
-    doc.save(`PurchaseOrder_${fileId}.pdf`);
+    const fileId = purchase.InvoiceNo || purchase.invoiceNo || purchase.VNo || purchase.vno || purchase.Id || purchase.id || "Document";
+    doc.save(`PurchaseInvoice_${fileId}.pdf`);
     toast.dismiss(toastId);
     toast.success("PDF Generated");
 

@@ -1,24 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  X,
-  Save,
-  Trash2,
-  ArchiveRestore,
-  Star,
   FileSpreadsheet, 
   FileText,        
-  Pencil
 } from "lucide-react";
-import Swal from "sweetalert2";
-import MasterTable from "../../components/MasterTable"; 
-import { useTheme } from "../../context/ThemeContext"; 
-import Pagination from "../../components/Pagination";
-import toast from "react-hot-toast";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
@@ -51,6 +37,10 @@ import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
+import MasterTable from "../../components/MasterTable";
+import Pagination from "../../components/Pagination";
 
 /* ------------------------------
    Small components
@@ -134,6 +124,7 @@ const Products = () => {
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
+    setPage(1); // Reset to page 1 on sort
     setSortConfig({ key, direction });
   };
 
@@ -233,7 +224,7 @@ const Products = () => {
       if (res.status === 200) setInactiveProducts(res.data.records || res.data || []);
     } catch (err) {
       console.error("LOAD INACTIVE ERR", err);
-      toast.error("Failed to load inactive products");
+      showErrorToast("Failed to load inactive products");
       setInactiveProducts([]);
     }
   };
@@ -377,16 +368,16 @@ const Products = () => {
     try {
       const res = await addProductApi(payload);
       if (res.status === 200) {
-        toast.success("Product added");
+        showSuccessToast("Product added");
         setModalOpen(false);
         loadProducts(1, limit);
         loadDropdowns();
       } else {
-        toast.error(res.message || "Add failed");
+        showErrorToast(res.message || "Add failed");
       }
     } catch (err) {
       console.error("ADD ERR", err);
-      toast.error("Server error");
+      showErrorToast("Server error");
     }
   };
 
@@ -416,9 +407,9 @@ const Products = () => {
   };
 
   const handleUpdateProduct = async () => {
-    if (!editProduct.ProductName?.trim()) return toast.error("Product Name required");
-    if (editProduct.UnitPrice === "" || isNaN(Number(editProduct.UnitPrice))) return toast.error("Unit Price required");
-    if (editProduct.ReorderLevel === "" || isNaN(Number(editProduct.ReorderLevel))) return toast.error("Reorder Level required");
+    if (!editProduct.ProductName?.trim()) return showErrorToast("Product Name required");
+    if (editProduct.UnitPrice === "" || isNaN(Number(editProduct.UnitPrice))) return showErrorToast("Unit Price required");
+    if (editProduct.ReorderLevel === "" || isNaN(Number(editProduct.ReorderLevel))) return showErrorToast("Reorder Level required");
 
     const payload = {
       Barcode: editProduct.productCode || null,
@@ -442,59 +433,54 @@ const Products = () => {
     try {
       const res = await updateProductApi(editProduct.id, payload);
       if (res.status === 200) {
-        toast.success("Updated");
+        showSuccessToast("Updated");
         setEditModalOpen(false);
         loadProducts();
         if (showInactive) loadInactive();
       } else {
-        toast.error("Update failed");
+        showErrorToast("Update failed");
       }
     } catch (err) {
       console.error("UPDATE ERR", err);
-      toast.error("Server error");
+      showErrorToast("Server error");
     }
   };
 
   const handleDeleteProduct = async () => {
+    const result = await showDeleteConfirm();
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await deleteProductApi(editProduct.id, { userId: currentUserId });
       if (res.status === 200) {
-        toast.success("Deleted");
+        showSuccessToast("Deleted");
         setEditModalOpen(false);
         loadProducts();
         if (showInactive) loadInactive();
       }
     } catch (err) {
       console.error("DELETE ERR", err);
-      toast.error("Server error");
+      showErrorToast("Server error");
     }
   };
 
   const handleRestoreProduct = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This product will be restored!",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm();
 
     if (!result.isConfirmed) return;
 
     try {
       const res = await restoreProductApi(editProduct.id, { userId: currentUserId });
       if (res.status === 200) {
-        toast.success("Restored");
+        showSuccessToast("Restored");
         setEditModalOpen(false); // Close if open
         loadProducts();
         if(showInactive) loadInactive();
       }
     } catch (err) {
       console.error("RESTORE ERR", err);
-      toast.error("Server error");
+      showErrorToast("Server error");
     }
   };
 
@@ -503,11 +489,11 @@ const Products = () => {
      Rendered inside Add/Edit modal so they appear over that modal.
      -------------------- */
   const handleAddBrand = async () => {
-    if (!newBrandName.trim()) return toast.error("Brand name required");
+    if (!newBrandName.trim()) return showErrorToast("Brand name required");
     try {
       const res = await addBrandApi({ name: newBrandName, userId: currentUserId });
       if (res.status === 200) {
-        toast.success("Brand added");
+        showSuccessToast("Brand added");
         setNewBrandName("");
         setBrandModalOpen(false);
         const b = await getBrandsApi();
@@ -515,16 +501,16 @@ const Products = () => {
       }
     } catch (err) {
       console.error("ADD BRAND ERR", err);
-      toast.error("Server error");
+      showErrorToast("Server error");
     }
   };
 
   const handleAddUnit = async () => {
-    if (!newUnitName.trim()) return toast.error("Unit name required");
+    if (!newUnitName.trim()) return showErrorToast("Unit name required");
     try {
       const res = await addUnitApi({ name: newUnitName, userId: currentUserId });
       if (res.status === 200) {
-        toast.success("Unit added");
+        showSuccessToast("Unit added");
         setNewUnitName("");
         setUnitModalOpen(false);
         const u = await getUnitsApi();
@@ -532,7 +518,7 @@ const Products = () => {
       }
     } catch (err) {
       console.error("ADD UNIT ERR", err);
-      toast.error("Server error");
+      showErrorToast("Server error");
     }
   };
 
@@ -540,7 +526,7 @@ const Products = () => {
      Country Handlers (Adapted from Countries.jsx)
      -------------------- */
   const handleAddCountry = async () => {
-    if (!newCountry.trim()) return toast.error("Country name required");
+    if (!newCountry.trim()) return showErrorToast("Country name required");
     try {
       // Check duplicate
       const searchRes = await searchCountryApi(newCountry);
@@ -548,28 +534,28 @@ const Products = () => {
         const existing = (searchRes.data.records || searchRes.data || []).find(
           c => c.name.toLowerCase() === newCountry.trim().toLowerCase()
         );
-        if (existing) return toast.error("Country already exists");
+        if (existing) return showErrorToast("Country already exists");
       }
 
       const res = await addCountryApi({ name: newCountry, userId: currentUserId });
       if (res?.status === 200) {
-        toast.success("Country added");
+        showSuccessToast("Country added");
         setNewCountry("");
         setCountryAddModal(false);
         // Reload global countries
         const c = await getCountriesApi(1, 1000);
         if (c.status === 200) setCountries(c.data.records || c.data || []);
       } else {
-        toast.error("Failed to add");
+        showErrorToast("Failed to add");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Error adding country");
+      showErrorToast("Error adding country");
     }
   };
 
   const handleUpdateCountry = async () => {
-    if (!editCountryData.name.trim()) return toast.error("Name cannot be empty");
+    if (!editCountryData.name.trim()) return showErrorToast("Name cannot be empty");
     try {
       // Check duplicate
       const searchRes = await searchCountryApi(editCountryData.name);
@@ -577,7 +563,7 @@ const Products = () => {
         const existing = (searchRes.data.records || searchRes.data || []).find(
           c => c.name.toLowerCase() === editCountryData.name.trim().toLowerCase() && c.id !== editCountryData.id
         );
-        if (existing) return toast.error("Name already exists");
+        if (existing) return showErrorToast("Name already exists");
       }
       
       const res = await updateCountryApi(editCountryData.id, {
@@ -585,59 +571,52 @@ const Products = () => {
         userId: currentUserId
       });
       if (res?.status === 200) {
-        toast.success("Country updated");
+        showSuccessToast("Country updated");
         setCountryEditModal(false);
         const c = await getCountriesApi(1, 1000);
         if (c.status === 200) setCountries(c.data.records || c.data || []);
       } else {
-        toast.error("Update failed");
+        showErrorToast("Update failed");
       }
     } catch(err) {
       console.error(err);
-      toast.error("Error updating country");
+      showErrorToast("Error updating country");
     }
   };
 
   const handleDeleteCountry = async () => {
-    Swal.fire({
-      title: "Delete Country?",
-      text: "Irreversible action!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      confirmButtonText: "Delete"
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const res = await deleteCountryApi(editCountryData.id, { userId: currentUserId });
-          if (res?.status === 200) {
-            toast.success("Country deleted");
-            setCountryEditModal(false);
-            const c = await getCountriesApi(1, 1000);
-            if (c.status === 200) setCountries(c.data.records || c.data || []);
-          } else {
-             toast.error("Delete failed");
-          }
-        } catch(err) {
-           toast.error("Error deleting");
+    const result = await showDeleteConfirm('country');
+
+    if (result.isConfirmed) {
+      try {
+        const res = await deleteCountryApi(editCountryData.id, { userId: currentUserId });
+        if (res?.status === 200) {
+          showSuccessToast("Country deleted");
+          setCountryEditModal(false);
+          const c = await getCountriesApi(1, 1000);
+          if (c.status === 200) setCountries(c.data.records || c.data || []);
+        } else {
+             showErrorToast("Delete failed");
         }
+      } catch(err) {
+         showErrorToast("Error deleting");
       }
-    });
+    }
   };
 
   const handleRestoreCountry = async () => {
      try {
         const res = await restoreCountryApi(editCountryData.id, { userId: currentUserId });
         if (res?.status === 200) {
-           toast.success("Country restored");
+           showSuccessToast("Country restored");
            setCountryEditModal(false);
            const c = await getCountriesApi(1, 1000);
            if (c.status === 200) setCountries(c.data.records || c.data || []);
         } else {
-           toast.error("Restore failed");
+           showErrorToast("Restore failed");
         }
      } catch(err) {
-        toast.error("Error restoring");
+        showErrorToast("Error restoring");
      }
   };
 
@@ -969,75 +948,91 @@ const Products = () => {
          ------------------------- */}
 
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
              
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Products</h2>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Products</h2>
             </div>
-
+            <hr className="mb-4 border-gray-300" />
+            {/* TABLE */}
             <MasterTable
-                columns={[
-                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
-                    visibleColumns.barcode && { key: "Barcode", label: "Code", sortable: true },
-                    visibleColumns.sn && { key: "SN", label: "SN", sortable: true },
-                    visibleColumns.productName && { key: "ProductName", label: "Product", sortable: true },
-                    visibleColumns.model && { key: "Model", label: "Model", sortable: true },
-                    visibleColumns.unitPrice && { key: "UnitPrice", label: "Price", sortable: true },
-                    visibleColumns.unitsInStock && { key: "UnitsInStock", label: "Stock", sortable: true, render: (r) => r.UnitsInStock ?? 0 },
-                    visibleColumns.quantityIn && { key: "QuantityIn", label: "Qty In", sortable: true, render: (r) => r.QuantityIn ?? 0 },
-                    visibleColumns.quantityOut && { key: "QuantityOut", label: "Qty Out", sortable: true, render: (r) => r.QuantityOut ?? 0 },
-                    visibleColumns.reorderLevel && { key: "ReorderLevel", label: "Reorder", sortable: true },
-                    visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true, render: (r) => r.categoryName || "-" },
-                    visibleColumns.unitName && { key: "unitName", label: "Unit", sortable: true, render: (r) => r.unitName || "-" },
-                    visibleColumns.brandName && { key: "brandName", label: "Brand", sortable: true, render: (r) => r.brandName || "-" },
-                    visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true, render: (r) => r.supplierName || "-" },
-                    visibleColumns.hsnCode && { key: "HSNCode", label: "HSN", sortable: true, render: (r) => r.HSNCode || "-" },
-                    visibleColumns.colour && { key: "Colour", label: "Colour", sortable: true, render: (r) => r.Colour || "-" },
-                    visibleColumns.grade && { key: "Grade", label: "Grade", sortable: true, render: (r) => r.Grade || "-" },
-                ].filter(Boolean)}
-                data={sortedList} 
-                inactiveData={inactiveProducts} 
-                
-                showInactive={showInactive}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-                onRowClick={(p, isInactive) => navigate(`/app/inventory/editproduct/${p.id}`)}
-                
-                // Action Bar
-                search={searchText}
-                onSearch={(val) => setSearchText(val)} 
-                
-                onCreate={() => navigate("/app/inventory/newproduct")}
-                createLabel="New Product"
-                permissionCreate={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE)}
-                
-                onRefresh={refreshAll}
-                
-                onColumnSelector={() => setColumnModalOpen(true)}
-                
-                onToggleInactive={async () => { 
-                    setShowInactive((s) => !s); 
-                }}
-                customActions={<ExportButtons onExcel={exportToExcel} onPDF={exportToPDF} />}
-            >
-               {/* FILTER BAR - Replaced custom manual filters with FilterBar */}
-               <div className="">
-                  <FilterBar filters={filters} onClear={handleClearFilters} />
-               </div>
-            </MasterTable>
-          {/* pagination */}
-          <Pagination
-            page={page}
-            setPage={setPage}
-            limit={limit}
-            setLimit={setLimit}
-            total={totalRecords}
-            onRefresh={() => {
-              refreshAll();
-            }}
-          />
+              columns={[
+                visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                visibleColumns.barcode && { key: "Barcode", label: "Barcode", sortable: true },
+                visibleColumns.sn && { key: "SN", label: "SN", sortable: true },
+                visibleColumns.productName && { key: "ProductName", label: "Product Name", sortable: true },
+                visibleColumns.model && { key: "Model", label: "Model", sortable: true },
+                visibleColumns.unitPrice && { key: "UnitPrice", label: "Unit Price", sortable: true },
+                visibleColumns.unitsInStock && { key: "UnitsInStock", label: "In Stock", sortable: true },
+                visibleColumns.quantityIn && { key: "QuantityIn", label: "Qty In", sortable: true },
+                visibleColumns.quantityOut && { key: "QuantityOut", label: "Qty Out", sortable: true },
+                visibleColumns.reorderLevel && { key: "ReorderLevel", label: "Reorder", sortable: true },
+                visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true },
+                visibleColumns.unitName && { key: "unitName", label: "Unit", sortable: true },
+                visibleColumns.brandName && { key: "brandName", label: "Brand", sortable: true },
+                visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true },
+                visibleColumns.hsnCode && { key: "hsnCode", label: "HSN", sortable: true }, // NEW
+                visibleColumns.colour && { key: "colour", label: "Colour", sortable: true }, // NEW
+                visibleColumns.grade && { key: "grade", label: "Grade", sortable: true }, // NEW
+              ].filter(Boolean)}
+              data={sortedList} // Use sortedList
+              inactiveData={inactiveProducts}
+              showInactive={showInactive}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(p, inactive) => openEditModal(p, inactive)}
+              // Action Bar
+              search={searchText}
+              onSearch={setSearchText}
+              onCreate={openAddModal}
+              createLabel="New Product"
+              permissionCreate={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE)}
+              onRefresh={() => {
+                setSearchText("");
+                setFilterCategory("");
+                setFilterUnit("");
+                setFilterBrand("");
+                setSortConfig({ key: null, direction: 'asc' });
+                setPage(1);
+                setShowInactive(false);
+                loadProducts(1, limit);
+                // No toast here, MasterTable/Pagination handles it
+              }}
+              onColumnSelector={() => setColumnModal(true)}
+              onToggleInactive={async () => {
+                if (!showInactive) await loadInactive();
+                setShowInactive(!showInactive);
+              }}
+              customActions={
+                <ExportButtons 
+                  onExcel={exportToExcel} 
+                  onPDF={exportToPDF} 
+                />
+              }
+            />
+
+            {/* PAGINATION */}
+            <Pagination
+              page={page}
+              setPage={setPage}
+              limit={limit}
+              setLimit={setLimit}
+              total={totalRecords}
+              onRefresh={() => {
+                setSearchText("");
+                setFilterCategory("");
+                setFilterUnit("");
+                setFilterBrand("");
+                setSortConfig({ key: null, direction: 'asc' });
+                setPage(1);
+                setShowInactive(false);
+                loadProducts(1, limit);
+              }}
+            />
         </div>
+        </ContentCard>
       </div>
       </PageLayout>
     </>

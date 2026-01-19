@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 import {
   getSupplierGroupsApi,
@@ -12,17 +14,21 @@ import {
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import ContentCard from "../../components/ContentCard";
 
 // MODALS
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
 
 const SupplierGroups = () => {
+  const { theme } = useTheme();
   // ===============================
   // State Declarations
   // ===============================
@@ -273,38 +279,48 @@ const SupplierGroups = () => {
   };
 
   const handleDelete = async () => {
-    try {
-      const res = await deleteSupplierGroupApi(editItem.id, {
-        userId: currentUserId,
-      });
+    const result = await showDeleteConfirm();
 
-      if (res?.status === 200) {
-        toast.success("Deleted");
-        setEditModalOpen(false);
-        loadRows();
-        if (showInactive) loadInactive();
+    if (result.isConfirmed) {
+      try {
+        const res = await deleteSupplierGroupApi(editItem.id, {
+          userId: currentUserId,
+        });
+
+        if (res?.status === 200) {
+          showSuccessToast("Deleted");
+          setEditModalOpen(false);
+          loadRows();
+          if (showInactive) loadInactive();
+        }
+      } catch (err) {
+        console.error(err);
+        showErrorToast("Delete failed");
       }
-    } catch (err) {
-      console.error(err);
-      toast.error("Delete failed");
     }
   };
 
   const handleRestore = async () => {
-    try {
-      const res = await restoreSupplierGroupApi(editItem.id, {
-        userId: currentUserId,
-      });
+    const result = await showRestoreConfirm();
 
-      if (res?.status === 200) {
-        toast.success("Restored");
-        setEditModalOpen(false);
-        loadRows();
-        loadInactive();
+    if (result.isConfirmed) {
+      if (result.isConfirmed) {
+        try {
+          const res = await restoreSupplierGroupApi(editItem.id, {
+            userId: currentUserId,
+          });
+
+          if (res?.status === 200) {
+            toast.success("Restored");
+            setEditModalOpen(false);
+            loadRows();
+            loadInactive();
+          }
+        } catch (err) {
+          console.error(err);
+          toast.error("Restore failed");
+        }
       }
-    } catch (err) {
-      console.error(err);
-      toast.error("Restore failed");
     }
   };
 
@@ -314,10 +330,12 @@ const SupplierGroups = () => {
   // ===============================
   return (
     <PageLayout>
-    <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-      <div className="flex flex-col h-full overflow-hidden gap-2">
+    <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+      <ContentCard>
+        <div className="flex flex-col h-full overflow-hidden gap-2">
 
-        <h2 className="text-2xl font-semibold mb-4">Supplier Groups</h2>
+          <h2 className="text-xl font-bold text-[#6448AE] mb-2">Supplier Groups</h2>
+          <hr className="mb-4 border-gray-300" />
 
         <MasterTable
             columns={[
@@ -360,7 +378,8 @@ const SupplierGroups = () => {
             loadRows();
           }}
         />
-      </div>
+        </div>
+      </ContentCard>
     </div>
 
        {/* ADD MODAL */}
@@ -372,21 +391,22 @@ const SupplierGroups = () => {
        >
           <div className="space-y-4">
             <div>
-                <label className="text-sm text-gray-300">Name *</label>
-                <input
-                    type="text"
-                    value={newItem.name}
-                    onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
+                <InputField
+                  label="Name"
+                  value={newItem.name}
+                  onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
+                  className="mt-1"
+                  required
                 />
             </div>
             <div>
-                <label className="text-sm text-gray-300">Description</label>
-                <textarea
-                    value={newItem.description}
-                    onChange={(e) => setNewItem((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
-                    rows={3}
+                <InputField
+                  label="Description"
+                  textarea
+                  value={newItem.description}
+                  onChange={(e) => setNewItem((p) => ({ ...p, description: e.target.value }))}
+                  className="mt-1"
+                  rows={3}
                 />
             </div>
           </div>
@@ -406,26 +426,23 @@ const SupplierGroups = () => {
        >
           <div className="space-y-4">
              <div>
-                <label className="text-sm text-gray-300">Name *</label>
-                <input
-                    type="text"
+                <InputField
+                    label="Name"
                     value={editItem.name}
                     onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
                     disabled={editItem.isInactive}
-                    className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 ${
-                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
+                    className="mt-1"
+                    required
                 />
              </div>
              <div>
-                <label className="text-sm text-gray-300">Description</label>
-                <textarea
+                <InputField
+                    label="Description"
+                    textarea
                     value={editItem.description}
                     onChange={(e) => setEditItem((p) => ({ ...p, description: e.target.value }))}
                     disabled={editItem.isInactive}
-                    className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 ${
-                    editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
+                    className="mt-1"
                     rows={3}
                 />
              </div>

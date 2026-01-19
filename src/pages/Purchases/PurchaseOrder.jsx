@@ -17,6 +17,7 @@ import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import MasterTable from "../../components/MasterTable"; 
+import ContentCard from "../../components/ContentCard";
 import { useTheme } from "../../context/ThemeContext"; 
 import ExportButtons from "../../components/ExportButtons"; 
 
@@ -318,39 +319,44 @@ const PurchaseOrder = () => {
           />
 
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Purchase Order</h2>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Purchase Order</h2>
             </div>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
-                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
-                    visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true, className: "min-w-[200px]", render: (p) => (
-                        <div className="flex items-center justify-center gap-2">
-                             <button
-                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${p.isInactive ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
-                               title="Download PDF"
-                               disabled={p.isInactive}
-                               onClick={(e) => { e.stopPropagation(); generatePurchaseOrderPDF(p.id, settings); }}
-                             >
-                               <FileText size={14} className="text-red-300" />
-                             </button>
-                             {/* Preview Invoice logic can remain or change as per requirements. Pointing to same preview for now or should be different? Assuming similar preview */}
-                             <button
-                               className={`p-1 rounded border border-gray-700 hover:bg-gray-700 ${p.isInactive ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
-                               title="Preview Order"
-                               disabled={p.isInactive}
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 window.open(`/app/purchasing/preview-order/${p.id}`, '_blank');
-                               }}
-                             >
-                               <Eye size={14} className="text-blue-300" />
-                             </button>
-                             <span className={theme === 'emerald' ? 'text-gray-900' : 'text-gray-300'}>{p.supplierName}</span>
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true, className: "min-w-[50px]", render: (p) => (
+                        <div className="flex items-center justify-between w-full">
+                           <span>{p.id}</span>
+                           <div className="flex gap-1">
+                              <button
+                                className={`p-1 rounded border bg-white border-gray-700 hover:bg-white ${p.isInactive ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
+                                title="Download PDF"
+                                disabled={p.isInactive}
+                                onClick={(e) => { e.stopPropagation(); generatePurchaseOrderPDF(p.id, settings); }}
+                              >
+                                <FileText size={14} className="text-red-300 bg-white" />
+                              </button>
+                              <button
+                                className={`p-1 rounded border bg-white border-gray-700 hover:bg-white ${p.isInactive ? "opacity-30 cursor-not-allowed" : "bg-gray-800"}`}
+                                title="Preview Order"
+                                disabled={p.isInactive}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`/app/purchasing/preview-order/${p.id}`, '_blank');
+                                }}
+                              >
+                                <Eye size={14} className="text-purple-900" />
+                              </button>
+                           </div>
                         </div>
+                    )},
+                    visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true, className: "min-w-[200px]", render: (p) => (
+                        <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300'}>{p.supplierName}</span>
                     )},
                      visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (p) => p.date ? p.date.split('T')[0] : '' },
                     visibleColumns.vehicleNo && { key: "vehicleNo", label: "Vehicle No", sortable: true },
@@ -411,6 +417,7 @@ const PurchaseOrder = () => {
                 onRefresh={handleRefresh}
               />
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
     </>

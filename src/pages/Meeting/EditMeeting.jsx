@@ -23,7 +23,6 @@ import {
   deleteAgendaDecisionApi,
   getResolutionStatusesApi,
   addResolutionStatusApi,
-
   searchMeetingTypeApi,
   searchDepartmentApi,
   searchLocationApi,
@@ -32,38 +31,53 @@ import {
   searchCityApi,
   searchAgendaItemTypeApi,
   searchResolutionStatusApi,
+  getAttendeeTypesApi,
+  getAttendanceStatusesApi,
+  addAttendeeTypeApi,
+  addAttendanceStatusApi,
+  searchAttendeeTypeApi,
+  searchAttendanceStatusApi,
 } from "../../services/allAPI";
 import SearchableSelect from "../../components/SearchableSelect";
 import AddModal from "../../components/modals/AddModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import toast from "react-hot-toast";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
+import InputField from "../../components/InputField";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 
 
 /* TAB BUTTON */
-const Tab = ({ label, active, onClick }) => (
+const Tab = ({ label, active, onClick, theme }) => (
   <button
     onClick={onClick}
-    className={`pb-2 text-sm font-medium ${active
-      ? "text-yellow-400 border-b-2 border-yellow-400"
-      : "text-gray-400 hover:text-white"
-      }`}
+    className={`pb-2 text-sm font-medium transition-colors ${
+      active
+        ? theme === 'emerald'
+          ? "text-emerald-600 border-b-2 border-emerald-600"
+          : theme === 'purple'
+          ? "text-purple-600 border-b-2 border-purple-600"
+          : "text-yellow-400 border-b-2 border-yellow-400"
+        : theme === 'emerald'
+          ? "text-gray-500 hover:text-emerald-700"
+          : theme === 'purple'
+          ? "text-gray-500 hover:text-purple-700"
+          : "text-gray-400 hover:text-white"
+    }`}
   >
     {label}
   </button>
 );
 
-const Field = ({ label, children }) => (
-  <div className="space-y-1">
-    <label className="text-sm text-white">{label}</label>
-    {children}
-  </div>
-);
+
 
 
 
 
 const EditMeeting = () => {
+  const { theme } = useTheme();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -95,6 +109,23 @@ const EditMeeting = () => {
   });
   const [agendaItems, setAgendaItems] = useState([]);
   const [agendaDecisions, setAgendaDecisions] = useState([]);
+
+  /* ATTENDEE MODAL STATE */
+  const [showAttendeeModal, setShowAttendeeModal] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
+  const [attendeeForm, setAttendeeForm] = useState({
+    attendee: "",
+    attendeeType: "",
+    attendanceStatus: "",
+  });
+  const [attendeeTypes, setAttendeeTypes] = useState([]);
+  const [attendanceStatuses, setAttendanceStatuses] = useState([]);
+  
+  // Quick Add for Attendee Types/Status
+  const [attendeeTypeModalOpen, setAttendeeTypeModalOpen] = useState(false);
+  const [attendanceStatusModalOpen, setAttendanceStatusModalOpen] = useState(false);
+  const [newAttendeeType, setNewAttendeeType] = useState("");
+  const [newAttendanceStatus, setNewAttendanceStatus] = useState("");
 
   /* AGENDA MODAL STATE */
   const [showAgendaModal, setShowAgendaModal] = useState(false);
@@ -134,6 +165,11 @@ const EditMeeting = () => {
   const updateField = (key, value) => {
     setMeeting(prev => ({ ...prev, [key]: value }));
   };
+
+  // Helper for meeting state
+  const setMeetingState = (newState) => { // Renaming because setMeeting is const
+      setMeeting(newState);
+  }
 
   /* DROPDOWN DATA */
   const [meetingTypes, setMeetingTypes] = useState([]);
@@ -231,6 +267,20 @@ const EditMeeting = () => {
     } catch (err) { console.error(err); }
   };
 
+  const loadAttendeeTypes = async () => {
+    try {
+      const res = await getAttendeeTypesApi(1, 5000);
+      setAttendeeTypes(normalizeSimple(res?.data?.records || []));
+    } catch (err) { console.error(err); }
+  };
+
+  const loadAttendanceStatuses = async () => {
+    try {
+      const res = await getAttendanceStatusesApi(1, 5000);
+      setAttendanceStatuses(normalizeSimple(res?.data?.records || []));
+    } catch (err) { console.error(err); }
+  };
+
   useEffect(() => {
     loadEmployees();
     loadMeetingTypes();
@@ -238,6 +288,8 @@ const EditMeeting = () => {
     loadLocations();
     loadAgendaItemTypes();
     loadResolutionStatuses();
+    loadAttendeeTypes();
+    loadAttendanceStatuses();
   }, []);
 
   // NESTED MODAL EFFECTS
@@ -299,9 +351,74 @@ const EditMeeting = () => {
     if (type === "Meeting Type") setMeetingTypeModalOpen(true);
     else if (type === "Department") setDepartmentModalOpen(true);
     else if (type === "Location") setLocationModalOpen(true);
+    else if (type === "Attendee Type") setAttendeeTypeModalOpen(true);
+    else if (type === "Attendance Status") setAttendanceStatusModalOpen(true);
     else if (type === "Organizer" || type === "Reporter") {
       navigate("/app/hr/newemployee", { state: { from: location.pathname } });
     }
+  };
+
+  /* ATTENDEE HANDLERS */
+  const saveAttendee = () => {
+    if (!attendeeForm.attendee || !attendeeForm.attendeeType || !attendeeForm.attendanceStatus) {
+      return toast.error("Please fill all fields");
+    }
+    const newRow = {
+      attendee: employees.find((e) => String(e.id) === String(attendeeForm.attendee))?.name || "",
+      attendeeType: attendeeTypes.find((t) => String(t.id) === String(attendeeForm.attendeeType))?.name || "",
+      attendanceStatus: attendanceStatuses.find((s) => String(s.id) === String(attendeeForm.attendanceStatus))?.name || "",
+      attendeeId: attendeeForm.attendee,
+      attendeeTypeId: attendeeForm.attendeeType,
+      attendanceStatusId: attendeeForm.attendanceStatus,
+      employeeId: employees.find((e) => String(e.id) === String(attendeeForm.attendee))?.id || "",
+      departmentName: "—",
+      designationName: "—",
+    };
+    let updated = [...meeting.attendees];
+    if (editIndex !== null) updated[editIndex] = newRow;
+    else updated.push(newRow);
+    setMeeting({ ...meeting, attendees: updated });
+    setShowAttendeeModal(false);
+    setEditIndex(null);
+    setAttendeeForm({ attendee: "", attendeeType: "", attendanceStatus: "" });
+  };
+
+  const editAttendee = (index) => {
+    const row = meeting.attendees[index];
+    setAttendeeForm({
+      attendee: row.attendeeId || "",
+      attendeeType: row.attendeeTypeId || "",
+      attendanceStatus: row.attendanceStatusId || "",
+    });
+    setEditIndex(index);
+    setShowAttendeeModal(true);
+  };
+
+  const deleteAttendee = (index) => {
+      const updated = meeting.attendees.filter((_, i) => i !== index);
+      setMeeting({ ...meeting, attendees: updated });
+  };
+
+  const handleSaveAttendeeType = async () => {
+    if (!newAttendeeType.trim()) return toast.error("Name is required");
+    try {
+        await addAttendeeTypeApi({ name: newAttendeeType, userId: currentUserId });
+        toast.success("Attendee Type Added");
+        setNewAttendeeType("");
+        setAttendeeTypeModalOpen(false);
+        loadAttendeeTypes();
+    } catch (error) { console.error(error); toast.error("Failed to add Attendee Type"); }
+  };
+  
+  const handleSaveAttendanceStatus = async () => {
+    if (!newAttendanceStatus.trim()) return toast.error("Name is required");
+    try {
+        await addAttendanceStatusApi({ name: newAttendanceStatus, userId: currentUserId });
+        toast.success("Attendance Status Added");
+        setNewAttendanceStatus("");
+        setAttendanceStatusModalOpen(false);
+        loadAttendanceStatuses();
+    } catch (error) { console.error(error); toast.error("Failed to add Attendance Status"); }
   };
 
   const handleSaveMeetingType = async () => {
@@ -487,27 +604,29 @@ const EditMeeting = () => {
 
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this meeting?")) return;
+    const result = await showDeleteConfirm('meeting');
+    if (!result.isConfirmed) return;
 
     try {
       await deleteMeetingApi(id, { userId: 1 }); // soft delete
-      toast.success("Meeting deleted successfully");
+      showSuccessToast("Meeting deleted successfully");
       navigate("/app/meeting/meetings");
     } catch (err) {
       console.error("DELETE MEETING ERROR:", err);
-      toast.error("Failed to delete meeting");
+      showErrorToast("Failed to delete meeting");
     }
   };
 
   const handleRestore = async () => {
-    if (!window.confirm("Are you sure you want to restore this meeting?")) return;
+    const result = await showRestoreConfirm('meeting');
+    if (!result.isConfirmed) return;
     try {
       await restoreMeetingApi(id, { userId: 1 });
-      toast.success("Meeting restored successfully");
+      showSuccessToast("Meeting restored successfully");
       navigate("/app/meeting/meetings");
     } catch (err) {
       console.error("RESTORE ERROR:", err);
-      toast.error("Failed to restore meeting");
+      showErrorToast("Failed to restore meeting");
     }
   };
 
@@ -609,21 +728,22 @@ const EditMeeting = () => {
   };
 
   const handleDeleteAgendaItem = async (itemId) => {
-      if(!window.confirm("Are you sure you want to delete this agenda item?")) return;
+      const result = await showDeleteConfirm('agenda item');
+      if (!result.isConfirmed) return;
 
       try {
           const res = await deleteAgendaItemApi(itemId);
           if (res.status === 200) {
-              toast.success("Agenda Item deleted");
+              showSuccessToast("Agenda Item deleted");
               // Refresh List
               const aiRes = await getAgendaItemsApi(id);
               if (aiRes.data.records) setAgendaItems(aiRes.data.records);
           } else {
-              toast.error("Failed to delete item");
+              showErrorToast("Failed to delete item");
           }
       } catch (error) {
           console.error("DELETE AGENDA ITEM ERROR:", error);
-          toast.error("Failed to delete item");
+          showErrorToast("Failed to delete item");
       }
   };
 
@@ -747,20 +867,21 @@ const EditMeeting = () => {
   };
 
   const handleDeleteDecision = async (decisionId) => {
-      if(!window.confirm("Are you sure you want to delete this decision?")) return;
+      const result = await showDeleteConfirm('decision');
+      if (!result.isConfirmed) return;
 
       try {
           const res = await deleteAgendaDecisionApi(decisionId);
           if (res.status === 200) {
-              toast.success("Decision deleted");
+              showSuccessToast("Decision deleted");
               const dRes = await getAgendaDecisionsApi(id);
               if (dRes.data.records) setAgendaDecisions(dRes.data.records);
           } else {
-              toast.error("Failed to delete decision");
+              showErrorToast("Failed to delete decision");
           }
       } catch (error) {
           console.error("DELETE DECISION ERROR:", error);
-          toast.error("Failed to delete decision");
+          showErrorToast("Failed to delete decision");
       }
   };
 
@@ -808,60 +929,65 @@ const EditMeeting = () => {
 
   return (
     <PageLayout>
-      <div className="p-5 text-white bg-gradient-to-b from-gray-900 to-gray-700">
+      <div className="p-6 h-full">
+        <ContentCard>
+          <div className="h-full overflow-y-auto w-full p-2">
 
-        {/* HEADER */}
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate("/app/meeting/meetings")}
-                className="p-2 bg-gray-800 rounded border border-gray-700"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <h2 className="text-xl font-semibold">{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
-            </div>
-            
-             <div className="flex items-center gap-3">
-               {isInactive ? (
-                 hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
-                 <button
-                  onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-700 border border-green-600 px-4 py-2 rounded text-sm text-white hover:bg-green-600"
-                >
-                  <ArchiveRestore size={16} /> Restore
-                </button>
-                 )
-               ) : (
-                 <>
-                    {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
-                    <button
-                      onClick={handleSave}
-                      className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 hover:bg-gray-700"
+        <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => navigate("/app/meeting/meetings")}
+                    className={`p-2 rounded border transition-colors ${theme === 'emerald' ? 'bg-white border-gray-200 hover:bg-emerald-50 text-gray-600' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-800 border-gray-700 text-gray-300'}`}
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                  <h2 className="text-xl font-bold text-[#6448AE]">{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
+                </div>
+                
+                 <div className="flex items-center gap-3">
+                   {isInactive ? (
+                     hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
+                     <button
+                      onClick={handleRestore}
+                      className={`flex items-center gap-2 px-4 py-2 rounded text-sm text-white transition-colors ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-700 border border-green-600 hover:bg-green-600'}`}
                     >
-                      <Save size={16} /> Save
+                      <ArchiveRestore size={16} /> Restore
                     </button>
-                    )}
-    
-                    {hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
-                    <button
-                      onClick={handleDelete}
-                      className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200 hover:bg-red-700"
-                    >
-                      <Trash2 size={16} /> Delete
-                    </button>
-                    )}
-                 </>
-               )}
+                     )
+                   ) : (
+                     <>
+                        {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
+                        <button
+                          onClick={handleSave}
+                          className={`flex items-center gap-2 px-4 py-2 border rounded${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border border-gray-600 text-blue-300 hover:bg-gray-700'}`}
+                        >
+                          <Save size={16} /> Save
+                        </button>
+                        )}
+        
+                        {hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
+                        <button
+                          onClick={handleDelete}
+                          className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500"
+                        >
+                          <Trash2 size={16} /> Delete
+                        </button>
+                        )}
+                     </>
+                   )}
+                </div>
             </div>
+            <hr className="border-gray-300" />
         </div>
 
         {/* TABS */}
-        <div className="flex gap-6 border-b border-gray-700 mb-5">
+        <div className="flex gap-6 mb-5">
           <Tab
             label="Meeting"
             active={activeTab === "meeting"}
             onClick={() => navigate(`/app/meeting/meetings/edit/${id}`)}
+            theme={theme}
           />
           <Tab
             label="Agenda Items"
@@ -869,6 +995,7 @@ const EditMeeting = () => {
             onClick={() =>
               navigate(`/app/meeting/meetings/edit/${id}/agenda`)
             }
+            theme={theme}
           />
           <Tab
             label="Agenda Decisions"
@@ -876,6 +1003,7 @@ const EditMeeting = () => {
             onClick={() =>
               navigate(`/app/meeting/meetings/edit/${id}/decisions`)
             }
+            theme={theme}
           />
         </div>
 
@@ -890,102 +1018,125 @@ const EditMeeting = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="bg-gradient-to-br from-[#4b3b55] to-[#2e2337] border border-[#5a4a63] rounded-lg p-6"
+            className="mt-4"
           >
 
 
             {/* FORM GRID */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className={`grid grid-cols-12 gap-x-6 gap-y-6 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>
 
-              {/* LEFT */}
-              <div className="space-y-4">
-                <Field label="Meeting Name *">
-                  <input
-                    value={meeting.meetingName}
-                    onChange={(e) => updateField("meetingName", e.target.value)}
-                    disabled={isInactive}
-                    className={`input-dark ${isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  />
-                </Field>
-
-                <Field label="Start Date *">
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={meeting.startDate?.split("T")[0] || ""}
-                      onChange={(e) =>
-                        updateField("startDate", e.target.value + "T00:00:00")
-                      }
-                      className="input-dark"
-                    />
-                    <input type="time" className="input-dark w-28" />
-                  </div>
-                </Field>
-
-                <div>
-                   <label className="text-sm text-white">Department</label>
-                   <div className="flex gap-2">
-                      <SearchableSelect
-                        options={departments.map(d => ({ id: d.id, name: d.name }))}
-                        value={meeting.department}
-                        onChange={(v) => updateField("department", v)}
-                        disabled={isInactive}
-                        placeholder="--select--"
-                        className="w-full"
-                      />
-                      {!isInactive && hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
-                          <button
-                            onClick={() => handleCreateNew("Department")}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                            title="Add Department"
-                        >
-                            <Star size={16} />
-                        </button>
-                      )}
-                   </div>
-                </div>
-
-                <div>
-                   <label className="text-sm text-white">Organized By</label>
-                   <div className="flex gap-2">
-                      <SearchableSelect
-                        options={employees.map(e => ({ id: e.id, name: e.name }))}
-                        value={meeting.organizedBy}
-                        onChange={(v) => updateField("organizedBy", v)}
-                        disabled={isInactive}
-                        placeholder="--select--"
-                        className="w-full"
-                      />
-                      {!isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
-                          <button
-                            onClick={() => handleCreateNew("Organizer")}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                            title="Add Organizer"
-                        >
-                            <Star size={16} />
-                        </button>
-                      )}
-                   </div>
+              {/* Meeting Name */}
+              <div className="col-span-12 md:col-span-6">
+                 <div className="flex-1 font-medium">
+                     <div className="flex-1 font-medium">
+                        <InputField
+                           label="Meeting Name *"
+                           value={meeting.meetingName}
+                           onChange={(e) => updateField("meetingName", e.target.value)}
+                           disabled={isInactive}
+                        />
+                    </div>
+                    {/* Spacer to match Meeting Type / Location button width */}
+                    <div className="w-[34px]"></div>
                 </div>
               </div>
 
-              {/* RIGHT */}
-              <div className="space-y-4">
-                <div>
-                   <label className="text-sm text-white">Meeting Type *</label>
-                   <div className="flex gap-2">
-                      <SearchableSelect
-                        options={meetingTypes.map(t => ({ id: t.id, name: t.name }))}
-                        value={meeting.meetingType}
-                        onChange={(v) => updateField("meetingType", v)}
-                        disabled={isInactive}
-                        placeholder="--select--"
-                        className="w-full"
-                      />
+              {/* Location */}
+              <div className="col-span-12 md:col-span-6">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Location</label>
+                    <div className="flex-1 font-medium">
+                       <div className="flex-1 font-medium">
+                          <SearchableSelect
+                            options={locations.map(l => ({ id: l.id, name: l.name }))}
+                            value={meeting.location}
+                            onChange={(v) => updateField("location", v)}
+                            disabled={isInactive}
+                            placeholder="--select--"
+                            className="w-full"
+                          />
+                      </div>
+                      {!isInactive && hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
+                          <button
+                            onClick={() => handleCreateNew("Location")}
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                            title="Add Location"
+                        >
+                            <Star size={16} />
+                        </button>
+                      )}
+                   </div>
+              </div>
+
+              {/* Start Date */}
+              <div className="col-span-12 md:col-span-6">
+                 <div className="flex-1 font-medium">
+                    <div className="flex-1 flex gap-4">
+                         <div className="flex-1 font-medium">
+                            <InputField
+                                label="Start Date *"
+                                type="date"
+                                value={meeting.startDate?.split("T")[0] || ""}
+                                onChange={(e) => updateField("startDate", e.target.value + "T00:00:00")}
+                                disabled={isInactive}
+                            />
+                        </div>
+                        <div className="w-32">
+                            <InputField
+                                label="Time"
+                                type="time"
+                                disabled={isInactive}
+                            />
+                        </div>
+                    </div>
+                    {/* Spacer */}
+                    <div className="w-[34px]"></div>
+                </div>
+              </div>
+
+                {/* End Date */}
+                <div className="col-span-12 md:col-span-6">
+                     <div className="flex-1 font-medium">
+                        <div className="flex-1 flex gap-4">
+                             <div className="flex-1 font-medium">
+                                <InputField
+                                    label="End Date *"
+                                    type="date"
+                                    value={meeting.endDate?.split("T")[0] || ""}
+                                    onChange={(e) => updateField("endDate", e.target.value + "T00:00:00")}
+                                    disabled={isInactive}
+                                />
+                            </div>
+                            <div className="w-32">
+                                <InputField
+                                    label="Time"
+                                    type="time"
+                                    disabled={isInactive}
+                                />
+                            </div>
+                        </div>
+                        {/* Spacer */}
+                        <div className="w-[34px]"></div>
+                    </div>
+                </div>
+
+                {/* Meeting Type */}
+                <div className="col-span-12 md:col-span-6">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Meeting Type *</label>
+                    <div className="flex-1 font-medium">
+                       <div className="flex-1 font-medium">
+                          <SearchableSelect
+                            options={meetingTypes.map(t => ({ id: t.id, name: t.name }))}
+                            value={meeting.meetingType}
+                            onChange={(v) => updateField("meetingType", v)}
+                            disabled={isInactive}
+                            placeholder="--select--"
+                            className="w-full"
+                          />
+                      </div>
                       {!isInactive && hasPermission(PERMISSIONS.MEETING_TYPES.CREATE) && (
                           <button
                             onClick={() => handleCreateNew("Meeting Type")}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add Meeting Type"
                         >
                             <Star size={16} />
@@ -994,36 +1145,25 @@ const EditMeeting = () => {
                    </div>
                 </div>
 
-                <Field label="End Date *">
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={meeting.endDate?.split("T")[0] || ""}
-                      onChange={(e) =>
-                        updateField("endDate", e.target.value + "T00:00:00")
-                      }
-                      className="input-dark"
-                    />
-                    <input type="time" className="input-dark w-28" />
-                  </div>
-                </Field>
-
-                <div>
-                   <label className="text-sm text-white">Location</label>
-                   <div className="flex gap-2">
-                      <SearchableSelect
-                        options={locations.map(l => ({ id: l.id, name: l.name }))}
-                        value={meeting.location}
-                        onChange={(v) => updateField("location", v)}
-                        disabled={isInactive}
-                        placeholder="--select--"
-                        className="w-full"
-                      />
-                      {!isInactive && hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
+              {/* Department */}
+              <div className="col-span-12 md:col-span-6">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Department</label>
+                    <div className="flex-1 font-medium">
+                       <div className="flex-1 font-medium">
+                        <SearchableSelect
+                            options={departments.map(d => ({ id: d.id, name: d.name }))}
+                            value={meeting.department}
+                            onChange={(v) => updateField("department", v)}
+                            disabled={isInactive}
+                            placeholder="--select--"
+                            className={`w-full ${theme === 'emerald' ? 'bg-white border-gray-300' : 'bg-gray-700 border-gray-600'}`}
+                        />
+                      </div>
+                      {!isInactive && hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
                           <button
-                            onClick={() => handleCreateNew("Location")}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                            title="Add Location"
+                            onClick={() => handleCreateNew("Department")}
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                            title="Add Department"
                         >
                             <Star size={16} />
                         </button>
@@ -1031,21 +1171,50 @@ const EditMeeting = () => {
                    </div>
                 </div>
 
-                <div>
-                   <label className="text-sm text-white">Reporter</label>
-                   <div className="flex gap-2">
-                      <SearchableSelect
-                        options={employees.map(e => ({ id: e.id, name: e.name }))}
-                        value={meeting.reporter}
-                        onChange={(v) => updateField("reporter", v)}
-                        disabled={isInactive}
-                        placeholder="--select--"
-                        className="w-full"
-                      />
+                {/* Organized By */}
+                <div className="col-span-12 md:col-span-6">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Organized By</label>
+                    <div className="flex-1 font-medium">
+                        <div className="flex-1 font-medium">
+                          <SearchableSelect
+                            options={employees.map(e => ({ id: e.id, name: e.name }))}
+                            value={meeting.organizedBy}
+                            onChange={(v) => updateField("organizedBy", v)}
+                            disabled={isInactive}
+                            placeholder="--select--"
+                            className="w-full"
+                          />
+                      </div>
+                      {!isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
+                          <button
+                            onClick={() => handleCreateNew("Organizer")}
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                            title="Add Organizer"
+                        >
+                            <Star size={16} />
+                        </button>
+                      )}
+                   </div>
+                </div>
+
+                {/* Reporter */}
+                <div className="col-span-12 md:col-span-6">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Reporter</label>
+                    <div className="flex-1 font-medium">
+                       <div className="flex-1 font-medium">
+                          <SearchableSelect
+                            options={employees.map(e => ({ id: e.id, name: e.name }))}
+                            value={meeting.reporter}
+                            onChange={(v) => updateField("reporter", v)}
+                            disabled={isInactive}
+                            placeholder="--select--"
+                            className="w-full"
+                          />
+                      </div>
                       {!isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                           <button
                             onClick={() => handleCreateNew("Reporter")}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add Reporter"
                         >
                             <Star size={16} />
@@ -1053,38 +1222,38 @@ const EditMeeting = () => {
                       )}
                    </div>
                 </div>
-              </div>
+
             </div>
 
             {/* ATTENDEES */}
             <div className="mt-8">
-              <div className="flex justify-between mb-2">
-                <label className="text-sm text-white">Attendees</label>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-800'}`}>Attendees</h3>
                 {!isInactive && hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                   <button
                     onClick={() => setShowAttendeeModal(true)}
-                    className="flex items-center gap-1 bg-[#5d8f65] px-3 py-1.5 rounded text-sm"
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors border ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-blue-300'}`}
                   >
                     <Plus size={14} /> Add
                   </button>
                 )}
               </div>
 
-              <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
-                <table className="w-full text-sm border border-[#5a4a63]">
-                  <thead className="bg-[#3b2f44] text-white">
-                    <tr>
-                      <th className="p-2">Attendee</th>
-                      <th className="p-2">Attendee Type</th>
-                      <th className="p-2">Attendance Status</th>
+              <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? 'border-gray-200' : 'border-gray-700'}`}>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-800 text-gray-400'}>
+                      <th className="p-3 text-sm font-medium">Attendee</th>
+                      <th className="p-3 text-sm font-medium">Attendee Type</th>
+                      <th className="p-3 text-sm font-medium">Attendance Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {meeting.attendees.map((a, i) => (
-                      <tr key={i} className="border-t border-[#5a4a63]">
-                        <td className="p-2 text-yellow-300">{a.attendeeName || a.attendee}</td>
-                        <td className="p-2">{a.attendeeTypeName || a.attendeeType}</td>
-                        <td className="p-2">{a.attendanceStatusName || a.attendanceStatus}</td>
+                      <tr key={i} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-yellow-300'}`}>{a.attendeeName || a.attendee}</td>
+                        <td className="p-3 text-sm text-gray-500">{a.attendeeTypeName || a.attendeeType}</td>
+                        <td className="p-3 text-sm text-gray-500">{a.attendanceStatusName || a.attendanceStatus}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1102,55 +1271,59 @@ const EditMeeting = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="bg-gray-900 border border-gray-700 rounded-lg p-5"
+            className="mt-4"
           >
 
-            <div className="flex justify-between mb-4 items-center">
-              <h3 className="text-lg font-semibold text-white">Agenda Items</h3>
+            <div className="flex justify-between items-center mb-6">
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>Agenda Items</h3>
               {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
-              <button 
-                onClick={() => setShowAgendaModal(true)}
-                className="flex items-center gap-1 bg-gray-800 border border-gray-600 px-3 py-1.5 rounded text-sm text-blue-300 hover:bg-gray-700"
-              >
-                <Plus size={14} /> Add
-              </button>
+                <button
+                    onClick={() => setShowAgendaModal(true)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded text-sm transition-colors border ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-blue-300'}`}
+                >
+                    <Plus size={16} /> Add
+                </button>
               )}
             </div>
 
-            <table className="w-full text-sm text-left text-gray-300">
-              <thead className="text-xs text-gray-400 uppercase bg-gray-800 border-b border-gray-700">
-                <tr>
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Item Type</th>
-                  <th className="px-4 py-2 text-left text-gray-400 font-normal">Requested By</th>
-                <th className="px-4 py-2 text-left text-gray-400 font-normal">Seq</th>
-                <th className="px-4 py-2 text-left text-gray-400 font-normal">Actions</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-800 text-gray-400'}>
+                  <th className="px-4 py-3 text-sm font-medium">ID</th>
+                  <th className="px-4 py-3 text-sm font-medium">Title</th>
+                  <th className="px-4 py-3 text-sm font-medium">Description</th>
+                  <th className="px-4 py-3 text-sm font-medium">Item Type</th>
+                  <th className="px-4 py-2 text-left text-sm font-medium">Requested By</th>
+                <th className="px-4 py-2 text-left text-sm font-medium">Seq</th>
+                <th className="px-4 py-2 text-left text-sm font-medium">Actions</th>
               </tr>
               </thead>
               <tbody>
                 {agendaItems.map(a => (
-                  <tr key={a.id} className="border-b border-gray-800 hover:bg-gray-800 transition-colors">
-                    <td className="px-4 py-3">{a.id}</td>
-                    <td className="px-4 py-3 text-white font-medium">{a.title}</td>
-                    <td className="px-4 py-3">{a.description}</td>
-                    <td className="px-4 py-3">{agendaItemTypes.find(t => String(t.id) === String(a.itemTypeId || a.itemType))?.name || "-"}</td>
-                    <td className="px-4 py-3">{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
-                    <td className="px-4 py-3">{a.sequenceNo}</td>
+                    <tr key={a.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                    <td className="px-4 py-3 text-sm text-gray-500">{a.id}</td>
+                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.title}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{a.description}</td>
+                    <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-0.5 rounded text-xs ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
+                         {agendaItemTypes.find(t => String(t.id) === String(a.itemTypeId || a.itemType))?.name || "-"}
+                        </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{a.sequenceNo}</td>
                     <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditAgendaItem(a)}
-                            className="p-1.5 bg-gray-700/50 text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-blue-400 rounded transition-colors mr-2"
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteAgendaItem(a.id)}
-                            className="p-1.5 bg-gray-700/50 text-red-400 hover:bg-red-900/30 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-red-400 rounded transition-colors"
                             title="Delete"
                         >
                             <Trash2 size={15} />
@@ -1179,52 +1352,63 @@ const EditMeeting = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="bg-gray-900 border border-gray-700 rounded-lg p-5"
+            className="mt-4"
           >
-            <div className="flex justify-between mb-4 items-center">
-              <h3 className="text-lg font-semibold text-white">Agenda Decisions</h3>
+            <div className="flex justify-between items-center mb-6">
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>Agenda Decisions</h3>
               {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
               <button 
-                onClick={() => setShowDecisionModal(true)}
-                className="flex items-center gap-1 bg-gray-800 border border-gray-600 px-3 py-1.5 rounded text-sm text-blue-300 hover:bg-gray-700"
+                onClick={() => {
+                    setNewDecision({ decisionText: "", agendaItemId: "", decisionDate: "", resolutionStatusId: "" });
+                    setShowDecisionModal(true);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded text-sm transition-colors border ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-blue-300'}`}
               >
-                <Plus size={14} /> Add
+                <Plus size={16} /> Add
               </button>
               )}
             </div>
 
-            <table className="w-full text-sm text-left text-gray-300">
-              <thead className="text-xs text-gray-400 uppercase bg-gray-800 border-b border-gray-700">
-                <tr>
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Due Date</th>
-                  <th className="px-4 py-2 text-left text-gray-400 font-normal">Resol. Status</th>
-                <th className="px-4 py-2 text-left text-gray-400 font-normal">Assigned To</th>
-                <th className="px-4 py-2 text-left text-gray-400 font-normal">Action</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-800 text-gray-400'}>
+                  <th className="px-4 py-3 text-sm font-medium">ID</th>
+                  <th className="px-4 py-3 text-sm font-medium">Description</th>
+                  <th className="px-4 py-3 text-sm font-medium">Due Date</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Resol. Status</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Assigned To</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Action</th>
               </tr>
               </thead>
               <tbody>
                 {agendaDecisions.map(d => (
-                   <tr key={d.id} className="border-b border-gray-800 hover:bg-gray-800 transition-colors">
-                     <td className="px-4 py-3">{d.id}</td>
-                     <td className="px-4 py-3 text-white">{d.description}</td>
-                     <td className="px-4 py-3">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
-                     <td className="px-4 py-3">{resolutionStatuses.find(s => String(s.id) === String(d.resolutionStatus || d.resolutionStatusId))?.name || "-"}</td>
-                     <td className="px-4 py-3">{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
+                   <tr key={d.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                     <td className="px-4 py-3 text-sm text-gray-500">{d.id}</td>
+                     <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{d.description}</td>
+                     <td className="px-4 py-3 text-sm text-gray-500">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
+                     <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-0.5 rounded text-xs ${
+                            d.resolutionStatusName === 'Adopted' 
+                            ? (theme === 'emerald' ? 'bg-green-50 text-green-700' : 'bg-green-900/30 text-green-300')
+                            : (theme === 'emerald' ? 'bg-gray-100 text-gray-600' : 'bg-gray-700 text-gray-300')
+                        }`}>
+                         {resolutionStatuses.find(s => String(s.id) === String(d.resolutionStatus || d.resolutionStatusId))?.name || "-"}
+                        </span>
+                     </td>
+                     <td className="px-4 py-3 text-sm text-gray-500">{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
                      <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditDecision(d)}
-                            className="p-1.5 bg-gray-700/50 text-blue-400 hover:bg-blue-900/30 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-blue-400 rounded transition-colors mr-2"
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteDecision(d.id)}
-                            className="p-1.5 bg-gray-700/50 text-red-400 hover:bg-red-900/30 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-red-400 rounded transition-colors"
                             title="Delete"
                         >
                             <Trash2 size={15} />
@@ -1243,6 +1427,9 @@ const EditMeeting = () => {
             </table>
           </motion.div>
         )}
+        
+        {/* INTERNAL NOTES TAB */}
+
         </AnimatePresence>
 
         {/* NEW AGENDA ITEM MODAL */}
@@ -1259,20 +1446,20 @@ const EditMeeting = () => {
                             {/* Inputs Section */}
                             <div className="space-y-4">
                                 <div className="space-y-1">
-                                    <label className="text-sm text-white">Title <span className="text-red-400">*</span></label>
-                                    <input 
-                                        className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 focus:border-blue-400 outline-none transition-colors"
-                                        placeholder="Enter title"
-                                        value={newAgendaItem.title}
-                                        onChange={e => setNewAgendaItem({...newAgendaItem, title: e.target.value})}
+                                    <InputField
+                                         label="Title"
+                                         value={newAgendaItem.title}
+                                         onChange={e => setNewAgendaItem({...newAgendaItem, title: e.target.value})}
+                                         placeholder="Enter title"
+                                         required
                                     />
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-sm text-white">Description</label>
-                                    <textarea 
+                                <div>
+                                    <InputField
+                                        label="Description"
+                                        textarea
                                         rows={4}
-                                        className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 focus:border-blue-400 outline-none transition-colors resize-none"
                                         placeholder="Enter description..."
                                         value={newAgendaItem.description}
                                         onChange={e => setNewAgendaItem({...newAgendaItem, description: e.target.value})}
@@ -1280,19 +1467,20 @@ const EditMeeting = () => {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-sm text-white">Item Type <span className="text-red-400">*</span></label>
-                                        <div className="flex gap-2">
+                                    <div>
+                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Item Type *</label>
+                                         <div className="flex-1 font-medium">
                                             <SearchableSelect 
                                                 className="w-full" 
                                                 options={agendaItemTypes}
                                                 value={newAgendaItem.itemType}
                                                 onChange={(val) => setNewAgendaItem({...newAgendaItem, itemType: val})}
+                                                placeholder="-- select type --"
                                             />
                                             {hasPermission(PERMISSIONS.AGENDA_ITEM_TYPES.CREATE) && (
                                             <button 
                                                 onClick={() => setShowAgendaTypeModal(true)}
-                                                className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
+                                                className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                                                 title="Add New Item Type"
                                             >
                                                 <Star size={16}/>
@@ -1301,19 +1489,20 @@ const EditMeeting = () => {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1">
-                                        <label className="text-sm text-white">Requested By</label>
-                                        <div className="flex gap-2">
+                                    <div>
+                                         <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Requested By</label>
+                                         <div className="flex-1 font-medium">
                                             <SearchableSelect 
                                                 className="w-full"
                                                 options={employees}
                                                 value={newAgendaItem.requestedBy}
                                                 onChange={(val) => setNewAgendaItem({...newAgendaItem, requestedBy: val})}
+                                                placeholder="-- select employee --"
                                             />
                                             {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                                             <button 
                                                 onClick={() => navigate("/app/hr/newemployee", { state: { from: location.pathname } })}
-                                                className="p-2 bg-gray-800 border border-gray-600 text-blue-300 rounded hover:bg-gray-700"
+                                                className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                                                 title="New Employee"
                                             >
                                                 <Star size={16}/>
@@ -1324,34 +1513,33 @@ const EditMeeting = () => {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                     <div className="space-y-1">
-                                        <label className="text-sm text-white">Sequence No</label>
-                                        <input 
+                                     <div>
+                                        <InputField
+                                            label="Sequence No"
                                             type="number"
-                                            className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 focus:border-blue-400 outline-none"
                                             value={newAgendaItem.sequenceNo}
                                             onChange={e => setNewAgendaItem({...newAgendaItem, sequenceNo: e.target.value})}
                                         />
                                     </div>
                                     
                                     {/* Attachment Input */}
-                                     <div className="space-y-1">
-                                        <label className="text-sm text-white">Attachment</label>
+                                     <div>
+                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attachment</label>
                                         <div className="flex items-center gap-2">
-                                             <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 border border-gray-600 rounded cursor-pointer hover:bg-gray-700 text-sm text-gray-300 transition-colors">
+                                             <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded cursor-pointer transition-colors text-sm ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50' : theme === 'purple' ? 'bg-[#6448AE] text-white border-none hover:opacity-90' : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}`}>
                                                 📎 {newAgendaItem.attachmentFile || newAgendaItem.attachments ? "Change File" : "Select File"}
                                                 <input type="file" className="hidden" onChange={e => setNewAgendaItem({...newAgendaItem, attachmentFile: e.target.files[0]})} />
                                              </label>
                                              {(newAgendaItem.attachmentFile || newAgendaItem.attachments) && (
-                                                <button onClick={() => setNewAgendaItem({...newAgendaItem, attachmentFile: null, attachments: null})} className="p-2 text-red-400 hover:text-red-300 bg-gray-800 border border-gray-600 rounded"><Trash2 size={16}/></button>
+                                                <button onClick={() => setNewAgendaItem({...newAgendaItem, attachmentFile: null, attachments: null})} className={`p-2 border rounded ${theme === 'emerald' ? 'bg-white border-gray-300 text-red-600 hover:bg-red-50' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-red-400 hover:bg-gray-700'}`}><Trash2 size={16}/></button>
                                              )}
                                         </div>
                                         {newAgendaItem.attachmentFile ? (
-                                            <div className="text-xs text-blue-300 mt-1 truncate">
+                                            <div className="text-xs text-blue-500 mt-1 truncate">
                                                 {newAgendaItem.attachmentFile.name} ({(newAgendaItem.attachmentFile.size / 1024).toFixed(1)} KB)
                                             </div>
                                         ) : newAgendaItem.attachments ? (
-                                            <div className="text-xs text-green-300 mt-1 truncate">
+                                            <div className="text-xs text-emerald-600 mt-1 truncate">
                                                 Existing: {newAgendaItem.attachments}
                                             </div>
                                         ) : null}
@@ -1361,9 +1549,9 @@ const EditMeeting = () => {
                             
                             {/* Image Preview Section (Relocated to Bottom) */}
                             <div className="space-y-1">
-                                <label className="text-sm text-white">Image</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Image</label>
                                 
-                                <div className="border-2 border-dashed border-gray-700 rounded-lg bg-gray-800/50 flex flex-col items-center justify-center relative overflow-hidden h-[200px] w-full">
+                                <div className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden h-[200px] w-full ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
                                     {newAgendaItem.imageFile ? (
                                         <>
                                             <img 
@@ -1414,7 +1602,7 @@ const EditMeeting = () => {
                                             </div>
                                         </>
                                     ) : (
-                                        <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4 text-center w-full h-full justify-center">
+                                        <label className={`cursor-pointer flex flex-col items-center gap-2 transition-colors p-4 text-center w-full h-full justify-center ${theme === 'emerald' ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-300'}`}>
                                             <Plus size={32} />
                                             <span className="text-xs">Click to Upload Image</span>
                                             <input type="file" className="hidden" accept="image/*" onChange={e => setNewAgendaItem({...newAgendaItem, imageFile: e.target.files[0]})} />
@@ -1441,14 +1629,12 @@ const EditMeeting = () => {
                 width="700px"
             >
                 <div className="space-y-4">
-                    <div className="space-y-1">
-                        <label className="text-sm text-white">Name <span className="text-red-400">*</span></label>
-                        <input 
-                            className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
-                            value={newAgendaType.name}
-                            onChange={e => setNewAgendaType({...newAgendaType, name: e.target.value})}
-                        />
-                    </div>
+                    <InputField
+                         label="Name"
+                         value={newAgendaType.name}
+                         onChange={e => setNewAgendaType({...newAgendaType, name: e.target.value})}
+                         required
+                    />
                 </div>
             </AddModal>
         )}
@@ -1463,28 +1649,26 @@ const EditMeeting = () => {
                 width="800px"
             >
                         <div className="space-y-4">
-                            <div className="space-y-1">
-                                <label className="text-sm text-white">Description <span className="text-red-400">*</span></label>
-                                <textarea 
+
+                            <div>
+                                <InputField
+                                    label="Description *"
+                                    textarea
                                     rows={4}
-                                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400 resize-none"
                                     value={newDecision.description}
                                     onChange={e => setNewDecision({...newDecision, description: e.target.value})}
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="text-sm text-white">Due Date</label>
-                                <input 
-                                    type="date"
-                                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
-                                    value={newDecision.dueDate}
-                                    onChange={e => setNewDecision({...newDecision, dueDate: e.target.value})}
-                                />
-                            </div>
+                            <InputField
+                                label="Due Date"
+                                type="date"
+                                value={newDecision.dueDate}
+                                onChange={e => setNewDecision({...newDecision, dueDate: e.target.value})}
+                            />
 
-                            <div className="space-y-1">
-                                <label className="text-sm text-white">Assigned To</label>
+                            <div>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Assigned To</label>
                                 <SearchableSelect
                                     options={employees.map(e => ({ id: e.id, name: e.name }))}
                                     value={newDecision.assignedTo}
@@ -1494,17 +1678,14 @@ const EditMeeting = () => {
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="text-sm text-white">Decision Number</label>
-                                <input 
-                                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
-                                    value={newDecision.decisionNumber}
-                                    onChange={e => setNewDecision({...newDecision, decisionNumber: e.target.value})}
-                                />
-                            </div>
+                            <InputField
+                                label="Decision Number"
+                                value={newDecision.decisionNumber}
+                                onChange={e => setNewDecision({...newDecision, decisionNumber: e.target.value})}
+                            />
 
-                            <div className="space-y-1">
-                                <label className="text-sm text-white">Related Agenda Item</label>
+                            <div>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Related Agenda Item</label>
                                 <SearchableSelect
                                     options={agendaItems.map(item => ({ 
                                         id: item.id, 
@@ -1517,10 +1698,10 @@ const EditMeeting = () => {
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="text-sm text-white">Resolution Status</label>
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
+                            <div>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Resolution Status</label>
+                                 <div className="flex-1 font-medium">
+                                     <div className="flex-1 font-medium">
                                         <SearchableSelect
                                             options={resolutionStatuses.map(rs => ({ id: rs.id, name: rs.name }))}
                                             value={newDecision.resolutionStatus}
@@ -1532,7 +1713,7 @@ const EditMeeting = () => {
                                     {hasPermission(PERMISSIONS.RESOLUTION_STATUS.CREATE) && (
                                     <button 
                                         onClick={() => setShowResolutionStatusModal(true)}
-                                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 h-[42px] hover:scale-105 transition-transform" // Align with input
+                                        className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`} // Align with input
                                         title="Add Status"
                                     >
                                         <Star size={16}/>
@@ -1543,9 +1724,9 @@ const EditMeeting = () => {
                             
                             {/* Images Input */}
                             <div className="space-y-1">
-                                <label className="text-sm text-white">Images</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Images</label>
                                 <div className="flex flex-col gap-2">
-                                     <div className="flex-1 border-2 border-dashed border-gray-700 rounded-lg bg-gray-800/50 flex flex-col items-center justify-center relative overflow-hidden min-h-[160px]">
+                                     <div className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden min-h-[160px] ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
                                         {newDecision.imageFile ? (
                                             <>
                                                 <img 
@@ -1599,7 +1780,7 @@ const EditMeeting = () => {
                                                 </div>
                                             </>
                                         ) : (
-                                            <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4 text-center w-full h-full justify-center">
+                                            <label className={`cursor-pointer flex flex-col items-center gap-2 transition-colors p-4 text-center w-full h-full justify-center ${theme === 'emerald' ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-300'}`}>
                                                 <Plus size={32} />
                                                 <span className="text-xs">Click to Upload Image</span>
                                                 <input type="file" className="hidden" accept="image/*" onChange={e => setNewDecision({...newDecision, imageFile: e.target.files[0]})} />
@@ -1610,25 +1791,25 @@ const EditMeeting = () => {
                             </div>
 
                              {/* Attachments Input */}
-                             <div className="space-y-1">
-                                <label className="text-sm text-white">Attachments</label>
+                             <div>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Attachments</label>
                                 <div className="flex items-center gap-2">
-                                     <label className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 rounded cursor-pointer hover:bg-gray-700 transition">
+                                     <label className={`flex items-center gap-2 px-4 py-2 border rounded cursor-pointer transition ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'}`}>
                                         <Pencil size={14} /> {newDecision.attachmentFile || newDecision.attachments ? "Change File" : "Select File"}
                                         <input type="file" className="hidden" onChange={e => setNewDecision({...newDecision, attachmentFile: e.target.files[0]})} />
                                      </label>
                                      {newDecision.attachmentFile ? (
-                                         <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 px-3 py-2 rounded">
+                                         <div className={`flex items-center gap-2 border px-3 py-2 rounded ${theme === 'emerald' ? 'bg-blue-50 border-blue-200' : 'bg-gray-800 border-gray-700'}`}>
                                              <div className="flex flex-col">
-                                                 <span className="text-blue-300 text-sm font-medium truncate max-w-[200px]">{newDecision.attachmentFile.name}</span>
+                                                 <span className={`text-sm font-medium truncate max-w-[200px] ${theme === 'emerald' ? 'text-blue-700' : 'text-blue-300'}`}>{newDecision.attachmentFile.name}</span>
                                                  <span className="text-gray-500 text-xs">{(newDecision.attachmentFile.size / 1024).toFixed(1)} KB • {newDecision.attachmentFile.name.split('.').pop().toUpperCase()}</span>
                                              </div>
                                              <button onClick={() => setNewDecision({...newDecision, attachmentFile: null})} className="text-red-400 hover:text-red-300 ml-2"><Trash2 size={16}/></button>
                                          </div>
                                      ) : newDecision.attachments ? (
-                                         <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 px-3 py-2 rounded">
+                                         <div className={`flex items-center gap-2 border px-3 py-2 rounded ${theme === 'emerald' ? 'bg-green-50 border-green-200' : 'bg-gray-800 border-gray-700'}`}>
                                              <div className="flex flex-col">
-                                                 <span className="text-green-300 text-sm font-medium truncate max-w-[200px]">{newDecision.attachments}</span>
+                                                 <span className={`text-sm font-medium truncate max-w-[200px] ${theme === 'emerald' ? 'text-green-700' : 'text-green-300'}`}>{newDecision.attachments}</span>
                                                  <span className="text-gray-500 text-xs">Existing File</span>
                                              </div>
                                              <button onClick={() => setNewDecision({...newDecision, attachments: null})} className="text-red-400 hover:text-red-300 ml-2"><Trash2 size={16}/></button>
@@ -1636,6 +1817,7 @@ const EditMeeting = () => {
                                      ) : null}
                                 </div>
                             </div>
+
 
                         </div>
             </AddModal>
@@ -1651,14 +1833,12 @@ const EditMeeting = () => {
                 width="700px"
             >
                 <div className="space-y-4">
-                    <div className="space-y-1">
-                        <label className="text-sm text-white">Name <span className="text-red-400">*</span></label>
-                        <input 
-                            className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 outline-none focus:border-blue-400"
-                            value={newResolutionStatus.name}
-                            onChange={e => setNewResolutionStatus({...newResolutionStatus, name: e.target.value})}
-                        />
-                    </div>
+                    <InputField
+                        label="Name"
+                        value={newResolutionStatus.name}
+                        onChange={e => setNewResolutionStatus({...newResolutionStatus, name: e.target.value})}
+                        required
+                    />
                 </div>
             </AddModal>
         )}
@@ -1677,13 +1857,11 @@ const EditMeeting = () => {
         >
              <div className="space-y-4">
                <div>
-                  <label className="text-sm text-white mb-1 block">Meeting Type Name</label>
-                  <input
-                    type="text"
+                  <InputField
+                    label="Meeting Type Name"
                     value={newMeetingType}
                     onChange={(e) => setNewMeetingType(e.target.value)}
                     placeholder="Enter Meeting Type Name"
-                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
                   />
                </div>
             </div>
@@ -1700,26 +1878,25 @@ const EditMeeting = () => {
         >
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-white">Department Name *</label>
-                <input
+                <InputField
+                  label="Department Name *"
                   type="text"
                   value={newDepartment.department}
                   onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Description</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Description</label>
                 <textarea
                   value={newDepartment.description}
                   onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
+                  className={`w-full rounded px-3 py-2 mt-1 outline-none transition-colors ${theme === 'emerald' ? 'bg-white border border-gray-300 text-gray-900 focus:border-emerald-500' : 'bg-gray-800 border-gray-600 text-white focus:border-blue-400'}`}
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Parent Department</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Parent Department</label>
                 <SearchableSelect
                   options={departments.map(d => ({ id: d.id, name: d.name }))}
                   value={newDepartment.parentDepartmentId}
@@ -1743,19 +1920,18 @@ const EditMeeting = () => {
         >
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="text-sm text-white">Location Name *</label>
-                <input
+                <InputField
+                  label="Location Name *"
                   type="text"
                   value={newLocation.name}
                   onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
                 />
               </div>
 
               <div>
                  <div className="space-y-1">
-                    <label className="text-sm text-white">Country</label>
-                    <div className="flex gap-2">
+                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Country</label>
+                     <div className="flex-1 font-medium">
                         <SearchableSelect
                           options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                           value={newLocation.countryId}
@@ -1766,7 +1942,7 @@ const EditMeeting = () => {
                          {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                          <button
                             onClick={() => setAddCountryModalOpen(true)}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add Country"
                         >
                             <Star size={16} />
@@ -1778,8 +1954,8 @@ const EditMeeting = () => {
 
               <div>
                 <div className="space-y-1">
-                    <label className="text-sm text-white">State</label>
-                    <div className="flex gap-2">
+                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>State</label>
+                     <div className="flex-1 font-medium">
                         <SearchableSelect
                           options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
                           value={newLocation.stateId}
@@ -1790,7 +1966,7 @@ const EditMeeting = () => {
                          {hasPermission(PERMISSIONS.STATES.CREATE) && (
                          <button
                             onClick={() => setAddStateModalOpen(true)}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add State"
                         >
                             <Star size={16} />
@@ -1802,8 +1978,8 @@ const EditMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className="text-sm text-white">City</label>
-                    <div className="flex gap-2">
+                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>City</label>
+                     <div className="flex-1 font-medium">
                         <SearchableSelect
                           options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
                           value={newLocation.cityId}
@@ -1814,7 +1990,7 @@ const EditMeeting = () => {
                          {hasPermission(PERMISSIONS.CITIES.CREATE) && (
                          <button
                             onClick={() => setAddCityModalOpen(true)}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add City"
                         >
                             <Star size={16} />
@@ -1825,37 +2001,144 @@ const EditMeeting = () => {
               </div>
 
               <div>
-                <label className="text-sm text-white">Address</label>
-                <input
+                <InputField
+                  label="Address"
                   type="text"
                   value={newLocation.address}
                   onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Latitude</label>
-                <input
+                <InputField
+                  label="Latitude"
                   type="text"
                   value={newLocation.latitude}
                   onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-white">Longitude</label>
-                <input
+                <InputField
+                  label="Longitude"
                   type="text"
                   value={newLocation.longitude}
                   onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
                 />
               </div>
             </div>
         </AddModal>
       )}
+
+      {/* ATTENDEE MODAL */}
+      {showAttendeeModal && (
+        <AddModal
+            isOpen={showAttendeeModal}
+            onClose={() => {
+              setShowAttendeeModal(false);
+              setEditIndex(null);
+              setAttendeeForm({ attendee: "", attendeeType: "", attendanceStatus: "" });
+            }}
+            onSave={saveAttendee}
+            title={editIndex !== null ? "Edit Attendee" : "Add Attendee"}
+            width="600px"
+        >
+            <div className="space-y-4">
+            {/* EMPLOYEE DROPDOWN */}
+             <div>
+              <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendee *</label>
+              <SearchableSelect
+                options={employees.map(e => ({ id: e.id, name: e.name }))}
+                value={attendeeForm.attendee}
+                onChange={(val) => setAttendeeForm({ ...attendeeForm, attendee: val })}
+                placeholder="--select--"
+                className="w-full"
+              />
+            </div>
+
+            {/* TYPE DROPDOWN */}
+             <div>
+              <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendee Type *</label>
+               <div className="flex-1 font-medium">
+                  <SearchableSelect
+                    options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
+                    value={attendeeForm.attendeeType}
+                    onChange={(val) => setAttendeeForm({ ...attendeeForm, attendeeType: val })}
+                    placeholder="--select--"
+                    className="w-full"
+                  />
+                   {hasPermission(PERMISSIONS.ATTENDEE_TYPES.CREATE) && (
+                   <button
+                      onClick={() => handleCreateNew("Attendee Type")}
+                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                      title="Add Attendee Type"
+                  >
+                      <Star size={16} />
+                  </button>
+                   )}
+              </div>
+            </div>
+
+            {/* STATUS DROPDOWN */}
+             <div>
+              <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendance Status *</label>
+               <div className="flex-1 font-medium">
+                  <SearchableSelect
+                    options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
+                    value={attendeeForm.attendanceStatus}
+                    onChange={(val) => setAttendeeForm({ ...attendeeForm, attendanceStatus: val })}
+                    placeholder="--select--"
+                    className="w-full"
+                  />
+                   {hasPermission(PERMISSIONS.ATTENDANCE_STATUS.CREATE) && (
+                   <button
+                      onClick={() => handleCreateNew("Attendance Status")}
+                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                      title="Add Status"
+                  >
+                      <Star size={16} />
+                  </button>
+                   )}
+              </div>
+            </div>
+            </div>
+        </AddModal>
+      )}
+
+      {/* QUICK ADD ATTENDEE MODALS */}
+      <AddModal
+        title="Add Attendee Type"
+        isOpen={attendeeTypeModalOpen}
+        onClose={() => setAttendeeTypeModalOpen(false)}
+        onSave={handleSaveAttendeeType}
+        width="700px"
+      >
+        <div>
+           <InputField
+            label="Type Name"
+            placeholder="Enter Attendee Type Name"
+            value={newAttendeeType}
+            onChange={(e) => setNewAttendeeType(e.target.value)}
+          />
+        </div>
+      </AddModal>
+
+      <AddModal
+        title="Add Attendance Status"
+        isOpen={attendanceStatusModalOpen}
+        onClose={() => setAttendanceStatusModalOpen(false)}
+        onSave={handleSaveAttendanceStatus}
+        width="700px"
+      >
+        <div>
+           <InputField
+            label="Status Name"
+            placeholder="Enter Attendance Status Name"
+            value={newAttendanceStatus}
+            onChange={(e) => setNewAttendanceStatus(e.target.value)}
+          />
+        </div>
+      </AddModal>
 
       {/* NESTED ADD COUNTRY MODAL */}
        <AddModal
@@ -1867,13 +2150,11 @@ const EditMeeting = () => {
         >
              <div className="space-y-4">
                <div>
-                  <label className="text-sm text-white mb-1 block">Country Name</label>
-                  <input
-                    type="text"
+                  <InputField
+                    label="Country Name"
                     value={newCountryName}
                     onChange={(e) => setNewCountryName(e.target.value)}
                     placeholder="Enter Country Name"
-                    className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2"
                   />
                </div>
             </div>
@@ -1890,16 +2171,15 @@ const EditMeeting = () => {
         >
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-white">State Name *</label>
-                <input
+                <InputField
+                  label="State Name *"
                   type="text"
                   value={newState.name}
                   onChange={(e) => setNewState({ ...newState, name: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
                 />
               </div>
               <div>
-                <label className="text-sm text-white">Country *</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newState.countryId}
@@ -1923,16 +2203,15 @@ const EditMeeting = () => {
         >
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-white">City Name *</label>
-                <input
+                <InputField
+                  label="City Name *"
                   type="text"
                   value={newCity.name}
                   onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
                 />
               </div>
               <div>
-                <label className="text-sm text-white">Country *</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newCity.countryId}
@@ -1942,7 +2221,7 @@ const EditMeeting = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-white">State *</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>State *</label>
                 <SearchableSelect
                   options={modalStates.map(s => ({ id: s.id, name: s.name }))}
                   value={newCity.stateId}
@@ -1955,6 +2234,8 @@ const EditMeeting = () => {
         </AddModal>
       )}
 
+          </div>
+        </ContentCard>
       </div>
     </PageLayout>
   );

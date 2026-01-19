@@ -1,27 +1,21 @@
 // src/pages/customer-receive/CustomerReceive.jsx
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
-  ArchiveRestore,
-  Save,
-  X,
   Star,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
 } from "lucide-react";
+import MasterTable from "../../components/MasterTable";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import EditModal from "../../components/modals/EditModal";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import AddModal from "../../components/modals/AddModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import { useTheme } from "../../context/ThemeContext";
 
 const CustomerReceive = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
 
   // ------------------ COLUMN VISIBILITY ------------------
@@ -75,6 +69,7 @@ const CustomerReceive = () => {
 
   // ------------------ MODAL ------------------
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const today = new Date().toISOString().split("T")[0];
 
   const [form, setForm] = useState({
@@ -85,6 +80,18 @@ const CustomerReceive = () => {
     paymentType: "",
     amount: "",
     remarks: "",
+  });
+
+  const [editData, setEditData] = useState({
+    id: null,
+    voucherDate: today,
+    customer: "",
+    customerSearch: "",
+    customerDropdown: false,
+    paymentType: "",
+    amount: "",
+    remarks: "",
+    isInactive: false,
   });
 
   // Dummy customer list
@@ -122,10 +129,40 @@ const CustomerReceive = () => {
     });
   };
 
-  // ------------------ RENDER ------------------
+  const handleUpdate = () => {
+     if (!editData.voucherDate || !editData.customer || !editData.paymentType || !editData.amount) {
+      alert("Please fill required fields");
+      return;
+    }
+    
+    setRows(rows.map(r => r.id === editData.id ? {
+        ...r,
+        voucherDate: editData.voucherDate,
+        coaHeadName: editData.customer, // Simplified for demo
+        narration: editData.remarks,
+        credit: Number(editData.amount),
+        // other fields...
+    } : r));
+    setEditModalOpen(false);
+  };
+
+  const openEditModal = (row) => {
+    setEditData({
+      id: row.id,
+      voucherDate: row.voucherDate,
+      customer: row.coaHeadName,
+      customerSearch: "",
+      customerDropdown: false,
+      paymentType: "Cash At Hand", // Default or derived
+      amount: row.credit,
+      remarks: row.narration,
+      isInactive: false, // Demo
+    });
+    setEditModalOpen(true);
+  };
+
   return (
     <>
-      {/* ------------------ ADD MODAL ------------------ */}
       {/* ------------------ ADD MODAL ------------------ */}
       <AddModal
         isOpen={modalOpen}
@@ -195,7 +232,7 @@ const CustomerReceive = () => {
                   onClick={() => navigate("/new-customers")}
                   className="p-2 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600"
                 >
-                  <Star size={18} className="text-yellow-400" />
+                  <Star size={16} className="" />
                 </button>
               )}
             </div>
@@ -265,115 +302,133 @@ const CustomerReceive = () => {
       </AddModal>
 
       {/* ------------------ PAGE HEADER ------------------ */}
-      <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden gap-2">
-        <h2 className="text-2xl font-semibold mb-4">Customer Receive</h2>
-
-        {/* ------------------ ACTION BAR ------------------ */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          {/* Search */}
-          <div className="flex items-center bg-gray-700 px-3 py-1.5 rounded border border-gray-600 w-full sm:w-64">
-            <Search size={16} className="text-gray-300" />
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleUpdate}
+        title="Edit Customer Receive"
+        width="750px"
+        permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
+        permissionDelete={false} // Disable delete for demo or implement if needed
+        isInactive={editData.isInactive}
+      >
+        <div className="p-0 grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm">Voucher Date *</label>
             <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search..."
-              className="bg-transparent pl-2 text-sm w-full outline-none"
+              type="date"
+              value={editData.voucherDate}
+              onChange={(e) => setEditData({ ...editData, voucherDate: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              disabled={editData.isInactive}
             />
           </div>
 
-          {/* New Receive */}
-          {hasPermission(PERMISSIONS.CASH_BANK.CREATE) && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-          >
-            <Plus size={16} /> New Receive
-          </button>
-          )}
+          <div>
+            <label className="text-sm">Payment Type *</label>
+            <select
+              value={editData.paymentType}
+              onChange={(e) => setEditData({ ...editData, paymentType: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              disabled={editData.isInactive}
+            >
+              <option value="">Select...</option>
+              <option value="Cash At Hand">Cash At Hand</option>
+              <option value="Cash At Bank">Cash At Bank</option>
+            </select>
+          </div>
 
-          {/* Refresh */}
-          <button
-            onClick={() => {
-              setSearchText("");
-              setPage(1);
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <RefreshCw size={16} className="text-blue-400" />
-          </button>
+          <div className="col-span-2 relative">
+            <label className="text-sm">Customer *</label>
+             <input
+                value={editData.customer}
+                onChange={(e) => setEditData({ ...editData, customer: e.target.value })}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                disabled={editData.isInactive}
+              />
+          </div>
 
-          {/* Column Picker */}
-          <button
-            onClick={() => {
-              setTempColumns(visibleColumns);
-              setColumnModalOpen(true);
-            }}
-            className="p-2 bg-gray-700 border border-gray-600 rounded"
-          >
-            <List size={16} className="text-blue-300" />
-          </button>
+          <div>
+            <label className="text-sm">Amount *</label>
+            <input
+              type="number"
+              value={editData.amount}
+              onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              disabled={editData.isInactive}
+            />
+          </div>
 
-          {/* Inactive */}
-          <button
-            onClick={() => setShowInactive((s) => !s)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded h-[35px]"
-          >
-            <ArchiveRestore size={16} className="text-yellow-300" />
-            <span className="text-xs opacity-80">Inactive</span>
-          </button>
+          <div>
+            <label className="text-sm">Remarks (optional)</label>
+            <textarea
+              value={editData.remarks}
+              onChange={(e) => setEditData({ ...editData, remarks: e.target.value })}
+              rows={2}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              disabled={editData.isInactive}
+            />
+          </div>
         </div>
+      </EditModal>
 
-        {/* ------------------ TABLE ------------------ */}
-        <div className="flex-grow overflow-auto w-full min-h-0">
-        <div className="w-full overflow-x-auto">
-            <table className="min-w-[1500px] border-separate border-spacing-y-1 text-sm table-fixed">
-            <thead className="sticky top-0 bg-gray-900 z-10">
-                <tr className="text-white text-center">
-                {visibleColumns.id && <th className="pb-2 border-b">ID</th>}
-                {visibleColumns.voucherName && <th className="pb-2 border-b">Voucher Name</th>}
-                {visibleColumns.voucherType && <th className="pb-2 border-b">Voucher Type</th>}
-                {visibleColumns.voucherDate && <th className="pb-2 border-b">Date</th>}
-                {visibleColumns.coaHeadName && <th className="pb-2 border-b">COA Head</th>}
-                {visibleColumns.coa && <th className="pb-2 border-b">COA</th>}
-                {visibleColumns.narration && <th className="pb-2 border-b">Narration</th>}
-                {visibleColumns.debit && <th className="pb-2 border-b">Debit</th>}
-                {visibleColumns.credit && <th className="pb-2 border-b">Credit</th>}
-                </tr>
-            </thead>
+       {/* COLUMN PICKER */}
+       <ColumnPickerModal
+          isOpen={columnModalOpen}
+          onClose={() => setColumnModalOpen(false)}
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          defaultColumns={defaultColumns}
+        />
 
-            <tbody className="text-center">
-                {rows.map((r) => (
-                <tr key={r.id} className="bg-gray-900 hover:bg-gray-700">
-                    {visibleColumns.id && <td className="py-2">{r.id}</td>}
-                    {visibleColumns.voucherName && <td className="py-2">{r.voucherName}</td>}
-                    {visibleColumns.voucherType && <td className="py-2">{r.voucherType}</td>}
-                    {visibleColumns.voucherDate && <td className="py-2">{r.voucherDate}</td>}
-                    {visibleColumns.coaHeadName && <td className="py-2">{r.coaHeadName}</td>}
-                    {visibleColumns.coa && <td className="py-2">{r.coa}</td>}
-                    {visibleColumns.narration && <td className="py-2">{r.narration}</td>}
-                    {visibleColumns.debit && <td className="py-2">{r.debit}</td>}
-                    {visibleColumns.credit && <td className="py-2">{r.credit}</td>}
-                </tr>
-                ))}
-            </tbody>
-            </table>
-        </div>
-        </div>
+      {/* ------------------ PAGE HEADER ------------------ */}
+      <PageLayout>
+        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <div className="flex flex-col h-full overflow-hidden gap-2">
+            <h2 className="text-2xl font-semibold mb-4">Customer Receive</h2>
 
+            <MasterTable
+                columns={[
+                    visibleColumns.id && { key: "id", label: "ID", sortable: true },
+                    visibleColumns.voucherName && { key: "voucherName", label: "Voucher Name", sortable: true },
+                    visibleColumns.voucherType && { key: "voucherType", label: "Voucher Type", sortable: true },
+                    visibleColumns.voucherDate && { key: "voucherDate", label: "Date", sortable: true },
+                    visibleColumns.coaHeadName && { key: "coaHeadName", label: "COA Head", sortable: true },
+                    visibleColumns.coa && { key: "coa", label: "COA", sortable: true },
+                    visibleColumns.narration && { key: "narration", label: "Narration", sortable: true },
+                    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true },
+                    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true },
+                ].filter(Boolean)}
+                data={rows}
+                // inactiveData={inactiveRows}
+                showInactive={showInactive}
+                // sortConfig={sortConfig}
+                // onSort={handleSort}
+                onRowClick={(r) => openEditModal(r)}
+                // Action Bar
+                search={searchText}
+                onSearch={setSearchText}
+                onCreate={() => setModalOpen(true)}
+                createLabel="New Receive"
+                permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    // load data
+                }}
+                onColumnSelector={() => setColumnModalOpen(true)}
+                onToggleInactive={() => setShowInactive((s) => !s)}
+            />
 
-                 {/* PAGINATION */}
-           
-              <Pagination
+            {/* PAGINATION */}
+            <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-                // onRefresh={handleRefresh}
-              />
-      </div>
+            />
+        </div>
       </div>
       </PageLayout>
     </>

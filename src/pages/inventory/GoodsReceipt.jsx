@@ -13,12 +13,12 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
+import ContentCard from "../../components/ContentCard";
 import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
-import toast from 'react-hot-toast';
-import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import {
   getGoodsReceiptsApi,
   getInactiveGoodsReceiptsApi,
@@ -367,23 +367,14 @@ const GoodsReceipt = () => {
   }
 
   const handleDelete = async (id) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This receipt will be deleted!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showDeleteConfirm();
 
     if (!result.isConfirmed) return;
 
     try {
       const res = await deleteGoodsReceiptApi(id, { userId })
       if (res.status === 200) {
-        toast.success('Deleted')
+        showSuccessToast('Deleted')
         // refresh
         if (showAll) await fetchAll()
         else {
@@ -393,28 +384,19 @@ const GoodsReceipt = () => {
       }
     } catch (err) {
       console.error('Delete error', err)
-      toast.error('Delete failed')
+      showErrorToast('Delete failed')
     }
   }
 
   const handleRestore = async (id) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This receipt will be restored!",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm();
 
     if (!result.isConfirmed) return;
 
     try {
       const res = await restoreGoodsReceiptApi(id, { userId })
       if (res.status === 200) {
-        toast.success('Restored')
+        showSuccessToast('Restored')
         if (showAll) await fetchAll()
         else {
           await fetchActive()
@@ -423,7 +405,7 @@ const GoodsReceipt = () => {
       }
     } catch (err) {
       console.error('Restore error', err)
-      toast.error('Restore failed')
+      showErrorToast('Restore failed')
     }
   }
 
@@ -579,7 +561,7 @@ const GoodsReceipt = () => {
                     onClick={openSupplierCreate}
                     className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700"
                   >
-                    <Star size={16} className="text-yellow-400" />
+                    <Star size={16} className="" />
                   </button>
                 </div>
 
@@ -601,7 +583,7 @@ const GoodsReceipt = () => {
                     onClick={openPurchaseCreate}
                     className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700"
                   >
-                    <Star size={16} className="text-yellow-400" />
+                    <Star size={16} className="" />
                   </button>
                 </div>
 
@@ -657,7 +639,7 @@ const GoodsReceipt = () => {
                     onClick={openEmployeeCreate}
                     className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700"
                   >
-                    <Star size={16} className="text-yellow-400" />
+                    <Star size={16} className="" />
                   </button>
                 </div>
 
@@ -711,9 +693,11 @@ const GoodsReceipt = () => {
 
        {/* ---------- MAIN PAGE ---------- */}
       <PageLayout>
-         <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+         <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+           <ContentCard>
            <div className="flex flex-col h-full overflow-hidden gap-2">
-             <h2 className="text-2xl font-semibold mb-4">Goods Receipt</h2>
+             <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Goods Receipt</h2>
+             <hr className="mb-4 border-gray-300" />
             
              <MasterTable
                 columns={[
@@ -775,6 +759,7 @@ const GoodsReceipt = () => {
                }}
              />
            </div>
+           </ContentCard>
          </div>
 
          {/* COLUMN TYPE */}

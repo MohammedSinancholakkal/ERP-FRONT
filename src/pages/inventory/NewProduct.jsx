@@ -10,9 +10,11 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
-import toast from "react-hot-toast";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import SearchableSelect from "../../components/SearchableSelect";
 import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
 
 import {
   addProductApi,
@@ -131,7 +133,7 @@ const NewProduct = () => {
 
     } catch (error) {
       console.error("Error loading dropdowns", error);
-      toast.error("Failed to load form data");
+      showErrorToast("Failed to load form data");
     }
   };
 
@@ -197,7 +199,7 @@ const NewProduct = () => {
            }
       } catch (error) {
           console.error("Error loading product", error);
-          toast.error("Failed to load product details");
+          showErrorToast("Failed to load product details");
       } finally {
           setLoading(false);
       }
@@ -214,13 +216,13 @@ const NewProduct = () => {
   };
 
   const handleSave = async () => {
-    if (!product.ProductName?.trim()) return toast.error("Product Name required");
-    if (product.UnitPrice === "" || isNaN(Number(product.UnitPrice))) return toast.error("Unit Price required");
-    if (product.ReorderLevel === "" || isNaN(Number(product.ReorderLevel))) return toast.error("Reorder Level required");
-    if (!product.CategoryId) return toast.error("Category required");
-    if (!product.UnitId) return toast.error("Unit required");
-    if (!product.BrandId) return toast.error("Brand required");
-    if (!product.TaxPercentageId) return toast.error("Tax Percentage required");
+    if (!product.ProductName?.trim()) return showErrorToast("Product Name required");
+    if (product.UnitPrice === "" || isNaN(Number(product.UnitPrice))) return showErrorToast("Unit Price required");
+    if (product.ReorderLevel === "" || isNaN(Number(product.ReorderLevel))) return showErrorToast("Reorder Level required");
+    if (!product.CategoryId) return showErrorToast("Category required");
+    if (!product.UnitId) return showErrorToast("Unit required");
+    if (!product.BrandId) return showErrorToast("Brand required");
+    if (!product.TaxPercentageId) return showErrorToast("Tax Percentage required");
 
     const payload = {
       Barcode: product.productCode || null,
@@ -257,7 +259,7 @@ const NewProduct = () => {
                 (p.ProductName || "").toLowerCase() === product.ProductName.trim().toLowerCase() && 
                 (id ? String(p.id) !== String(id) : true)
             );
-            if (existingName) return toast.error("Product with this Name already exists");
+            if (existingName) return showErrorToast("Product with this Name already exists");
         }
 
         // Check Product Code (Barcode) if provided
@@ -269,7 +271,7 @@ const NewProduct = () => {
                   (p.Barcode || "").toLowerCase() === product.productCode.trim().toLowerCase() && 
                   (id ? String(p.id) !== String(id) : true)
               );
-              if (existingCode) return toast.error("Product with this Code already exists");
+              if (existingCode) return showErrorToast("Product with this Code already exists");
            }
         }
 
@@ -291,7 +293,7 @@ const NewProduct = () => {
       }
 
       if (res.status === 200) {
-        toast.success(id ? "Product updated successfully" : "Product added successfully");
+        showSuccessToast(id ? "Product updated successfully" : "Product added successfully");
         
         // --- NAVIGATION LOGIC ---
         if (location.state?.returnTo) {
@@ -307,11 +309,11 @@ const NewProduct = () => {
              navigate("/app/inventory/products");
         }
       } else {
-        toast.error(res.message || "Operation failed");
+        showErrorToast(res.message || "Operation failed");
       }
     } catch (error) {
       console.error("Save Error", error);
-      toast.error("Server error");
+      showErrorToast("Server error");
     } finally {
       setLoading(false);
     }
@@ -319,20 +321,23 @@ const NewProduct = () => {
 
   const handleDelete = async () => {
     if (!id) return;
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    
+    const result = await showDeleteConfirm();
+
+    if (!result.isConfirmed) return;
 
     setLoading(true);
     try {
         const res = await deleteProductApi(id, { userId: currentUserId });
         if (res.status === 200) {
-            toast.success("Product deleted successfully");
+            showSuccessToast("Product deleted successfully");
             navigate("/app/inventory/products");
         } else {
-            toast.error(res.message || "Failed to delete product");
+            showErrorToast(res.message || "Failed to delete product");
         }
     } catch (error) {
         console.error("Delete Error", error);
-        toast.error("Server error during deletion");
+        showErrorToast("Server error during deletion");
     } finally {
         setLoading(false);
     }
@@ -342,7 +347,7 @@ const NewProduct = () => {
   
   // Category
   const handleAddCategory = async () => {
-    if (!newCategory.name.trim()) return toast.error("Category Name required");
+    if (!newCategory.name.trim()) return showErrorToast("Category Name required");
 
     try {
         // DUPLICATE CHECK
@@ -350,7 +355,7 @@ const NewProduct = () => {
         if (searchRes?.status === 200) {
            const rows = searchRes.data.records || searchRes.data || [];
            const existing = rows.find(c => c.name.toLowerCase() === newCategory.name.trim().toLowerCase());
-           if (existing) return toast.error("Category with this name already exists");
+           if (existing) return showErrorToast("Category with this name already exists");
         }
 
         const res = await addCategoryApi({
@@ -358,72 +363,72 @@ const NewProduct = () => {
             userId: currentUserId
         });
         if (res.status === 200) {
-            toast.success("Category added successfully");
+            showSuccessToast("Category added successfully");
             setCategoryModalOpen(false);
             setNewCategory({ name: "", description: "", parentCategoryId: null });
             loadDropdowns(); 
         } else {
-            toast.error(res.message || "Failed to add category");
+            showErrorToast(res.message || "Failed to add category");
         }
     } catch (error) {
         console.error("Add category error", error);
-        toast.error("Server error adding category");
+        showErrorToast("Server error adding category");
     }
   };
 
   // Unit
   const handleAddUnit = async () => {
-    if (!newUnit.name.trim()) return toast.error("Unit Name required");
+    if (!newUnit.name.trim()) return showErrorToast("Unit Name required");
     try {
       // DUPLICATE CHECK
       const searchRes = await searchUnitsApi(newUnit.name.trim());
       if (searchRes?.status === 200) {
          const rows = searchRes.data.records || searchRes.data || [];
          const existing = rows.find(u => (u.name || "").toLowerCase() === newUnit.name.trim().toLowerCase());
-         if (existing) return toast.error("Unit Name already exists");
+         if (existing) return showErrorToast("Unit Name already exists");
       }
 
       const res = await addUnitApi({ ...newUnit, userId: currentUserId });
       if (res?.status === 200) {
-        toast.success("Unit added");
+        showSuccessToast("Unit added");
         setNewUnit({ name: "", description: "" });
         setUnitModalOpen(false);
         loadDropdowns();
       } else {
-        toast.error("Failed to add unit");
+        showErrorToast("Failed to add unit");
       }
     } catch (error) {
       console.error("Add unit error", error);
-      toast.error("Server error adding unit");
+      showErrorToast("Server error adding unit");
     }
   };
 
   // Brand
   const handleAddBrand = async () => {
-    if (!newBrand.name.trim()) return toast.error("Brand Name required");
+    if (!newBrand.name.trim()) return showErrorToast("Brand Name required");
     try {
       // DUPLICATE CHECK
       const searchRes = await searchBrandApi(newBrand.name.trim());
       if (searchRes?.status === 200) {
           const rows = searchRes.data.records || searchRes.data || [];
           const existing = rows.find(b => (b.name || "").toLowerCase() === newBrand.name.trim().toLowerCase());
-          if (existing) return toast.error("Brand Name already exists");
+          if (existing) return showErrorToast("Brand Name already exists");
       }
 
       const res = await addBrandApi({ ...newBrand, userId: currentUserId });
       if (res?.status === 200) {
-        toast.success("Brand added");
+        showSuccessToast("Brand added");
         setNewBrand({ name: "", description: "" });
         setBrandModalOpen(false);
         loadDropdowns();
       } else if (res?.status === 409) {
-        toast.error(res.data.message || "Brand Name already exists");
+        showErrorToast(res.data.message || "Brand Name already exists");
       } else {
-        toast.error("Failed to add brand");
+        showErrorToast("Failed to add brand");
       }
     } catch (error) {
       console.error("Add brand error", error);
-      toast.error("Server error adding brand");
+      showErrorToast("Server error adding brand");
     }
   };
 
@@ -432,204 +437,247 @@ const NewProduct = () => {
   const inputClass = `w-full px-3 py-2 rounded border bg-transparent outline-none transition-colors ${
     theme === 'emerald' 
       ? 'border-gray-300 focus:border-emerald-500' 
+      : theme === 'purple'
+      ? 'border-purple-300 focus:border-purple-600 focus:ring-1 focus:ring-purple-200 bg-white text-gray-900'
       : 'border-gray-600 focus:border-white bg-gray-800'
   }`;
 
-  const labelClass = "block text-sm font-medium mb-1.5 text-gray-400";
+  const labelClass = "block text-sm font-medium mb-1.5 text-black";
   const requiredStar = <span className="text-red-500">*</span>;
 
   return (
     <PageLayout>
-      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : 'bg-gray-900 text-white'}`}>
+      <div className={`p-6 min-h-full ${theme === 'emerald' ? 'bg-white text-gray-900' : theme === 'purple' ? 'bg-gray-150 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        
+        <ContentCard className="!h-auto !overflow-visible">
+        <div className="flex flex-col">
         
         {/* TOP BAR */}
-        <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-                <button 
-                onClick={() => {
-                    if (location.state?.returnTo) {
-                        navigate(location.state.returnTo, {
-                             state: { preserveState: location.state.preserveState }
-                        });
-                    } else {
-                        navigate("/app/inventory/products");
-                    }
-                }}
-                className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : 'hover:bg-gray-700'}`}
-                >
-                <ArrowLeft size={24} />
-                </button>
-                <h2 className="text-2xl font-bold">{id ? "Edit Product" : "New Product"}</h2>
-            </div>
-            {/* Save Button */}
-
-            <div className="flex items-center gap-2">
-                {id && (
-                    <button
-                        onClick={handleDelete}
-                        disabled={loading}
-                        className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+        <div className="px-6 py-4 shrink-0">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-4">
+                    <button 
+                    onClick={() => {
+                        if (location.state?.returnTo) {
+                            navigate(location.state.returnTo, {
+                                    state: { preserveState: location.state.preserveState }
+                            });
+                        } else {
+                            navigate("/app/inventory/products");
+                        }
+                    }}
+                    className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-purple-200 text-purple-900' : 'hover:bg-gray-700'}`}
                     >
-                        <Trash2 size={18} />
-                        Delete
+                    <ArrowLeft size={24} />
                     </button>
-                )}
+                    <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>{id ? "Edit Product" : "New Product"}</h2>
+                </div>
+                {/* Save Button */}
 
-                <button
-                    onClick={handleSave}
-                    disabled={loading}
-                    className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
-                        theme === 'emerald'
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
-                    }`}
-                >
-                    <Save size={18} />
-                    {loading ? (id ? "Updating..." : "Saving...") : (id ? "Update" : "Save")}
-                </button>
+                <div className="flex items-center gap-2">
+                    {id && (
+                        <button
+                            onClick={handleDelete}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+                        >
+                            <Trash2 size={18} />
+                            Delete
+                        </button>
+                    )}
+
+                    <button
+                        onClick={handleSave}
+                        disabled={loading}
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
+                            theme === 'emerald'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : theme === 'purple'
+                            ? 'bg-[var(--theme-color)] hover:bg-[#8066a3] text-white'
+                            : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
+                        }`}
+                        style={theme === 'purple' ? { backgroundColor: '#6448AE' } : {}}
+                    >
+                        <Save size={18} />
+                        {loading ? (id ? "Updating..." : "Saving...") : (id ? "Update" : "Save")}
+                    </button>
+                </div>
             </div>
+            <hr className="mb-4 border-gray-300" />
         </div>
 
 
         {/* MAIN FORM CONTAINER */}
-        <div className={`p-8 rounded-xl shadow-lg border ${theme === 'emerald' ? 'bg-white border-emerald-100' : 'bg-gray-800/50 border-gray-700'}`}>
-            
-            <div className="grid grid-cols-12 gap-x-6 gap-y-6">
+        <div className={`p-6   ${theme === 'emerald' ? 'bg-white text-gray-900' : theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+             
+             <div className="grid grid-cols-12 gap-x-6 gap-y-4">
 
-                {/* ROW 1: Code (2), Name (8), SN (2) */}
-                <div className="col-span-12 md:col-span-2">
-                    <label className={labelClass}>Product Code</label>
-                    <input
-                        type="text"
-                        value={product.productCode}
-                        onChange={(e) => setProduct({...product, productCode: e.target.value})}
-                        className={inputClass}
-                        placeholder=""
-                    />
-                </div>
-                <div className="col-span-12 md:col-span-8">
-                    <label className={labelClass}>Product Name {requiredStar}</label>
-                    <input
-                        type="text"
-                        value={product.ProductName}
-                        onChange={(e) => setProduct({...product, ProductName: e.target.value})}
-                        className={inputClass}
-                        placeholder=""
-                    />
-                </div>
-                <div className="col-span-12 md:col-span-2">
-                    <label className={labelClass}>Sn</label>
-                    <input
-                        type="text"
-                        value={product.SN}
-                        readOnly
-                        className={`${inputClass} opacity-60 cursor-not-allowed`}
-                    />
-                </div>
-
-
-                {/* ROW 2: Model (6), Price (3), Reorder (3) */}
+                {/* ROW 1: Code (left), Name (right) */}
                 <div className="col-span-12 md:col-span-6">
-                    <label className={labelClass}>Model</label>
-                    <input
-                        type="text"
-                        value={product.Model}
-                        onChange={(e) => setProduct({...product, Model: e.target.value})}
-                        className={inputClass}
-                    />
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                           label="Product Code"
+                           value={product.productCode}
+                           onChange={(e) => setProduct({...product, productCode: e.target.value})}
+                           placeholder=""
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
                 </div>
-                <div className="col-span-12 md:col-span-3">
-                    <label className={labelClass}>Unit Price {requiredStar}</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        value={product.UnitPrice}
-                        onChange={(e) => setProduct({...product, UnitPrice: e.target.value})}
-                        className={inputClass}
-                    />
-                </div>
-                <div className="col-span-12 md:col-span-3">
-                    <label className={labelClass}>Reorder Level {requiredStar}</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        value={product.ReorderLevel}
-                        onChange={(e) => setProduct({...product, ReorderLevel: e.target.value})}
-                        className={inputClass}
-                    />
-                </div>
-                {!id && (
-                <div className="col-span-12 md:col-span-3">
-                    <label className={labelClass}>Opening Stock</label>
-                    <input
-                        type="number"
-                        min="0"
-                        value={product.OpeningStock}
-                        onChange={(e) => setProduct({...product, OpeningStock: e.target.value})}
-                        className={inputClass}
-                    />
-                </div>
-                )}
 
-
-                {/* ROW 3: Category (6), Unit (3), HSN (3) */}
                 <div className="col-span-12 md:col-span-6">
-                    <label className={labelClass}>Category {requiredStar}</label>
-                     <div className="flex items-center gap-2">
-                        <div className="flex-1">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                          label="Product Name"
+                          required
+                          value={product.ProductName}
+                          onChange={(e) => setProduct({...product, ProductName: e.target.value})}
+                          placeholder=""
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
+                </div>
+
+                {/* ROW 2: Model (Left), SN (Right) */}
+                 <div className="col-span-12 md:col-span-6">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                          label="Model"
+                          value={product.Model}
+                          onChange={(e) => setProduct({...product, Model: e.target.value})}
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
+                </div>
+
+                 <div className="col-span-12 md:col-span-6">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                          label="Sn"
+                          value={product.SN}
+                          readOnly
+                          disabled
+                          className="opacity-60 cursor-not-allowed"
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
+                </div>
+
+
+                {/* ROW 3: Unit Price (Left), Reorder Level (Right) */}
+                 <div className="col-span-12 md:col-span-6">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                          label="Unit Price"
+                          required
+                          type="number"
+                          step="0.01"
+                          value={product.UnitPrice}
+                          onChange={(e) => setProduct({...product, UnitPrice: e.target.value})}
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
+                </div>
+
+                 <div className="col-span-12 md:col-span-6">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                          label="Reorder Level"
+                          required
+                          type="number"
+                          step="0.01"
+                          value={product.ReorderLevel}
+                          onChange={(e) => setProduct({...product, ReorderLevel: e.target.value})}
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
+                </div>
+
+                 {/* ROW 4: Category (Left), Unit (Right) */}
+                 <div className="col-span-12 md:col-span-6">
+                    <div className="flex items-center gap-2">
+                         <div className="flex-1 font-medium">
                             <SearchableSelect
+                                label="Category"
+                                required
                                 options={categories.map(c => ({ id: c.id, name: c.name || c.CategoryName }))}
                                 value={product.CategoryId}
                                 onChange={(val) => setProduct({...product, CategoryId: val})}
                                 placeholder="--select--"
-                                className={theme === 'emerald' ? 'bg-white' : 'bg-gray-800'}
+                                className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
                             />
                         </div>
                         <button 
+                            type="button"
                             onClick={() => setCategoryModalOpen(true)}
-                            className="text-gray-400 hover:text-yellow-400 transition-colors"
+                            className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         >
-                            <Star size={18} />
+                            <Star size={16} />
                         </button>
                     </div>
                 </div>
-                <div className="col-span-12 md:col-span-3">
-                    <label className={labelClass}>Unit {requiredStar}</label>
+
+                 <div className="col-span-12 md:col-span-6">
                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
+                         <div className="flex-1 font-medium">
                             <SearchableSelect
+                                label="Unit"
+                                required
                                 options={units.map(u => ({ id: u.id, name: u.name || u.UnitName }))}
                                 value={product.UnitId}
                                 onChange={(val) => setProduct({...product, UnitId: val})}
                                 placeholder="--select--"
                             />
                         </div>
-                        {/* Star / Quick Add Unit */}
                         <button 
+                             type="button"
                              onClick={() => setUnitModalOpen(true)}
-                             className="text-gray-400 hover:text-yellow-400 transition-colors"
+                             className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         >
-                            <Star size={18} />
+                            <Star size={16} />
                         </button>
                     </div>
                 </div>
-                <div className="col-span-12 md:col-span-3">
-                    <label className={labelClass}>HSN Code</label>
-                    <input
-                        type="text"
-                        value={product.HSNCode}
-                        onChange={(e) => setProduct({...product, HSNCode: e.target.value})}
-                        className={inputClass}
-                    />
+
+                {/* ROW 5: HSN Code (Left), Company/Brand (Right) */}
+                 <div className="col-span-12 md:col-span-6">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                          label="HSN Code"
+                          value={product.HSNCode}
+                          onChange={(e) => setProduct({...product, HSNCode: e.target.value})}
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
                 </div>
 
-
-                {/* ROW 4: Brand (6), Supplier (6) */}
-                <div className="col-span-12 md:col-span-6">
-                    <label className={labelClass}>Company / Brand {requiredStar}</label>
+                 <div className="col-span-12 md:col-span-6">
                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
+                         <div className="flex-1 font-medium">
                              <SearchableSelect
+                                label="Company / Brand"
+                                required
                                 options={brands.map(b => ({ id: b.id, name: b.name || b.BrandName }))}
                                 value={product.BrandId}
                                 onChange={(val) => setProduct({...product, BrandId: val})}
@@ -637,62 +685,84 @@ const NewProduct = () => {
                             />
                         </div>
                          <button 
+                            type="button"
                             onClick={() => setBrandModalOpen(true)}
-                            className="text-gray-400 hover:text-yellow-400 transition-colors"
+                            className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                          >
-                            <Star size={18} />
+                            <Star size={16} />
                         </button>
                     </div>
                 </div>
-                <div className="col-span-12 md:col-span-6">
-                    <label className={labelClass}>Supplier</label>
-                     <div className="flex-1">
+
+                {/* ROW 6: Supplier (Left), Tax Percentage (Right) */}
+                 <div className="col-span-12 md:col-span-6">
+                     <div className="flex items-center gap-2">
+                      <div className="flex-1 font-medium">
                           <SearchableSelect
+                            label="Supplier"
                             options={suppliers.map(s => ({ id: s.id, name: s.companyName || s.name }))}
                             value={product.SupplierId}
                             onChange={(val) => setProduct({...product, SupplierId: val})}
                             placeholder="--select--"
                         />
                     </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                    </div>
                 </div>
 
-
-                {/* ROW 5: Colour (4), Grade (4), Tax Percentage (4) */}
-                <div className="col-span-12 md:col-span-4">
-                    <label className={labelClass}>Colour</label>
-                    <input
-                        type="text"
-                        value={product.Colour}
-                        onChange={(e) => setProduct({...product, Colour: e.target.value})}
-                        className={inputClass}
-                    />
-                </div>
-                <div className="col-span-12 md:col-span-4">
-                    <label className={labelClass}>Grade</label>
-                    <input
-                        type="text"
-                        value={product.Grade}
-                        onChange={(e) => setProduct({...product, Grade: e.target.value})}
-                        className={inputClass}
-                    />
-                </div>
-                <div className="col-span-12 md:col-span-4">
-                    <label className={labelClass}>Tax Percentage {requiredStar}</label>
-                     <div className="flex-1">
+                 <div className="col-span-12 md:col-span-6">
+                     <div className="flex items-center gap-2">
+                      <div className="flex-1 font-medium">
                           <SearchableSelect
+                            label="Tax Percentage"
+                            required
                             options={taxPercentages.map(t => ({ id: t.id, name: `${t.percentage}%` }))}
                             value={product.TaxPercentageId}
                             onChange={(val) => setProduct({...product, TaxPercentageId: val})}
                             placeholder="--select--"
                         />
                     </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                    </div>
                 </div>
 
 
-                {/* ROW 5: Image (File Picker) */}
+                {/* ROW 7: Colour (Left), Grade (Right) */}
+                 <div className="col-span-12 md:col-span-6">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                      <InputField
+                          label="Colour"
+                          value={product.Colour}
+                          onChange={(e) => setProduct({...product, Colour: e.target.value})}
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
+                </div>
+
+                 <div className="col-span-12 md:col-span-6">
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 font-medium">
+                       <InputField
+                          label="Grade"
+                          value={product.Grade}
+                          onChange={(e) => setProduct({...product, Grade: e.target.value})}
+                      />
+                    </div>
+                     {/* Spacer */}
+                    <div className="w-[38px]"></div>
+                  </div>
+                </div>
+
+
+                {/* ROW 8: Image (File Picker) - centered or full width? Full width looks fine */}
                 <div className="col-span-12 flex items-start gap-4 mt-2">
                     <div className="w-24 pt-2 text-right">
-                        <label className="text-sm text-gray-400">Image</label>
+                        <label className="text-sm font-medium text-black">Image</label>
                     </div>
                     <div className="flex items-center gap-2">
                          <input 
@@ -704,11 +774,12 @@ const NewProduct = () => {
                          />
                          
                          <button 
+                            type="button"
                             onClick={() => fileInputRef.current?.click()}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors border ${
                                 theme === 'emerald' 
-                                ? 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200' 
-                                : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                                ? 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200' :
+                                theme === 'purple' ? 'bg-[#6448AE] text-white': 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                             }`}
                          >
                             <Paperclip size={16} />
@@ -717,6 +788,7 @@ const NewProduct = () => {
 
                          {product.Image && (
                              <button 
+                                type="button"
                                 onClick={() => setProduct({...product, Image: ""})}
                                 className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
                                 title="Remove Image"
@@ -735,26 +807,24 @@ const NewProduct = () => {
                 </div>
 
 
-                {/* ROW 6: Details */}
+                {/* ROW 9: Details */}
                 <div className="col-span-12 mt-4">
-                    <div className="flex">
-                         <div className="w-32 pt-2">
-                             <label className={labelClass}>Product Details</label>
-                         </div>
-                         <div className="flex-1">
-                             <textarea
-                                rows={3}
-                                value={product.ProductDetails}
-                                onChange={(e) => setProduct({...product, ProductDetails: e.target.value})}
-                                className={`${inputClass} resize-y`}
-                                placeholder=""
-                             />
-                         </div>
-                    </div>
+                    <InputField
+                        label="Product Details"
+                        value={product.ProductDetails}
+                        onChange={(e) => setProduct({...product, ProductDetails: e.target.value})}
+                        textarea
+                        rows={3}
+                        className="resize-y"
+                    />
                 </div>
 
             </div>
         </div>
+        </div>
+        </ContentCard>
+      </div>
+
 
         {/* --- ADD CATEGORY MODAL --- */}
         <AddModal
@@ -764,24 +834,26 @@ const NewProduct = () => {
             title="New Category"
         >
              {/* NAME */}
-            <label className="block text-sm mb-1">Name *</label>
-            <input
-                type="text"
+            <InputField
+                label="Name"
+                required
                 value={newCategory.name}
                 onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                className={inputClass} // Reuse inputClass for consistency
             />
 
             {/* DESCRIPTION */}
-            <label className="block text-sm mb-1 mt-4">Description</label>
-            <textarea
-                value={newCategory.description}
-                onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                className={`${inputClass} h-20`}
-            />
+            <div className="mt-4">
+                 <InputField
+                    label="Description"
+                    value={newCategory.description}
+                    onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                    textarea
+                    rows={3}
+                />
+            </div>
 
             {/* PARENT CATEGORY */}
-            <label className="block text-sm mb-1 mt-4">Parent Category</label>
+            <label className="block text-sm mb-1 mt-4 text-black">Parent Category</label>
              <div className="mt-1">
                 <SearchableSelect
                     options={categories.map(c => ({ id: c.id, name: c.name || c.CategoryName }))}
@@ -800,19 +872,21 @@ const NewProduct = () => {
             onSave={handleAddUnit}
             title="New Unit"
         >
-            <label className="block text-sm mb-1">Name *</label>
-            <input
-                type="text"
+             <InputField
+                label="Name"
+                required
                 value={newUnit.name}
                 onChange={(e) => setNewUnit({ ...newUnit, name: e.target.value })}
-                className={inputClass}
             />
-            <label className="block text-sm mb-1 mt-4">Description</label>
-            <textarea
-                value={newUnit.description}
-                onChange={(e) => setNewUnit({ ...newUnit, description: e.target.value })}
-                className={`${inputClass} h-20`}
-            />
+            <div className="mt-4">
+                 <InputField
+                    label="Description"
+                    value={newUnit.description}
+                    onChange={(e) => setNewUnit({ ...newUnit, description: e.target.value })}
+                    textarea
+                    rows={3}
+                />
+            </div>
         </AddModal>
 
         {/* --- ADD BRAND MODAL --- */}
@@ -822,23 +896,25 @@ const NewProduct = () => {
             onSave={handleAddBrand}
             title="New Brand"
         >
-            <label className="block text-sm mb-1">Name *</label>
-            <input
-                type="text"
+            <InputField
+                label="Name"
+                required
                 value={newBrand.name}
                 onChange={(e) => setNewBrand({ ...newBrand, name: e.target.value })}
-                className={inputClass}
             />
-            <label className="block text-sm mb-1 mt-4">Description</label>
-             <textarea
-                value={newBrand.description}
-                onChange={(e) => setNewBrand({ ...newBrand, description: e.target.value })}
-                className={`${inputClass} h-20`}
-            />
+            <div className="mt-4">
+                <InputField
+                    label="Description"
+                    value={newBrand.description}
+                    onChange={(e) => setNewBrand({ ...newBrand, description: e.target.value })}
+                    textarea
+                    rows={3}
+                />
+            </div>
         </AddModal>
 
 
-      </div>
+
     </PageLayout>
   );
 };

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 import {
   getExpenseTypesApi,
@@ -11,19 +13,23 @@ import {
   restoreExpenseTypeApi,
 } from "../../services/allAPI";
 import { useDashboard } from "../../context/DashboardContext";
+import { useTheme } from "../../context/ThemeContext";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
+import ContentCard from "../../components/ContentCard";
 
 // MODALS
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import InputField from "../../components/InputField";
 
 const ExpenseTypes = () => {
+  const { theme } = useTheme();
   // ===============================
   // State Declarations
   // ===============================
@@ -264,40 +270,50 @@ const ExpenseTypes = () => {
   };
 
   const handleDelete = async () => {
-    try {
-      const res = await deleteExpenseTypeApi(editItem.id, {
-        userId: currentUserId,
-      });
+    const result = await showDeleteConfirm();
 
-      if (res?.status === 200) {
-        toast.success("Deleted");
-        invalidateDashboard();
-        setEditModalOpen(false);
-        loadRows();
-        if (showInactive) loadInactive();
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Delete failed");
+    if (result.isConfirmed) {
+        try {
+          const res = await deleteExpenseTypeApi(editItem.id, {
+            userId: currentUserId,
+          });
+
+          if (res?.status === 200) {
+            showSuccessToast("Deleted");
+            invalidateDashboard();
+            setEditModalOpen(false);
+            loadRows();
+            if (showInactive) loadInactive();
+          }
+        } catch (err) {
+          console.error(err);
+          showErrorToast("Delete failed");
+        }
     }
   };
 
   const handleRestore = async () => {
-    try {
-      const res = await restoreExpenseTypeApi(editItem.id, {
-        userId: currentUserId,
-      });
+    const result = await showRestoreConfirm();
 
-      if (res?.status === 200) {
-        toast.success("Restored");
-        invalidateDashboard();
-        setEditModalOpen(false);
-        loadRows();
-        loadInactive();
+    if (result.isConfirmed) {
+      if (result.isConfirmed) {
+        try {
+          const res = await restoreExpenseTypeApi(editItem.id, {
+            userId: currentUserId,
+          });
+
+          if (res?.status === 200) {
+            toast.success("Restored");
+            invalidateDashboard();
+            setEditModalOpen(false);
+            loadRows();
+            loadInactive();
+          }
+        } catch (err) {
+          console.error(err);
+          toast.error("Restore failed");
+        }
       }
-    } catch (err) {
-      console.error(err);
-      toast.error("Restore failed");
     }
   };
 
@@ -307,55 +323,58 @@ const ExpenseTypes = () => {
   // ===============================
   return (
     <PageLayout>
-    <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-      <div className="flex flex-col h-full overflow-hidden gap-2">
+    <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+      <ContentCard>
+        <div className="flex flex-col h-full overflow-hidden gap-2">
 
-        <h2 className="text-2xl font-semibold mb-4">Expense Types</h2>
+          <h2 className="text-xl font-bold text-[#6448AE] mb-2">Expense Types</h2>
+          <hr className="mb-4 border-gray-300" />
 
-        <MasterTable
-            columns={[
-                visibleColumns.id && { key: 'id', label: 'ID', sortable: true },
-                visibleColumns.name && { key: 'name', label: 'Name', sortable: true },
-            ].filter(Boolean)}
-            data={sortedRows}
-            inactiveData={inactiveRows}
-            showInactive={showInactive}
-            sortConfig={sortConfig}
-            onSort={handleSort}
-            onRowClick={(item, isInactive) => openEdit(item, isInactive)}
-            // Action Props
-            search={searchText}
-            onSearch={handleSearch}
-            onCreate={() => setModalOpen(true)}
-            createLabel="New Type"
-            permissionCreate={hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE)}
+          <MasterTable
+              columns={[
+                  visibleColumns.id && { key: 'id', label: 'ID', sortable: true },
+                  visibleColumns.name && { key: 'name', label: 'Name', sortable: true },
+              ].filter(Boolean)}
+              data={sortedRows}
+              inactiveData={inactiveRows}
+              showInactive={showInactive}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              onRowClick={(item, isInactive) => openEdit(item, isInactive)}
+              // Action Props
+              search={searchText}
+              onSearch={handleSearch}
+              onCreate={() => setModalOpen(true)}
+              createLabel="New Type"
+              permissionCreate={hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE)}
+              onRefresh={() => {
+                  setSearchText("");
+                  setPage(1);
+                  loadRows();
+              }}
+              onColumnSelector={() => setColumnModalOpen(true)}
+              onToggleInactive={async () => {
+                  if (!showInactive) await loadInactive();
+                  setShowInactive((s) => !s);
+              }}
+          />
+
+
+          {/* PAGINATION */}
+          <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={totalRecords}
             onRefresh={() => {
-                setSearchText("");
-                setPage(1);
-                loadRows();
+              setSearchText("");
+              setPage(1);
+              loadRows();
             }}
-            onColumnSelector={() => setColumnModalOpen(true)}
-            onToggleInactive={async () => {
-                if (!showInactive) await loadInactive();
-                setShowInactive((s) => !s);
-            }}
-        />
-        
-
-        {/* PAGINATION */}
-        <Pagination
-          page={page}
-          setPage={setPage}
-          limit={limit}
-          setLimit={setLimit}
-          total={totalRecords}
-          onRefresh={() => {
-            setSearchText("");
-            setPage(1);
-            loadRows();
-          }}
-        />
-      </div>
+          />
+        </div>
+      </ContentCard>
     </div>
 
        {/* ADD MODAL */}
@@ -365,15 +384,15 @@ const ExpenseTypes = () => {
          onSave={handleAdd}
          title="New Expense Type"
        >
-          <div>
-            <label className="text-sm text-gray-300">Name *</label>
-            <input
-                type="text"
-                value={newItem.name}
-                onChange={(e) => setNewItem({ name: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1"
-            />
-          </div>
+           <div>
+             <InputField
+                 label="Name"
+                 value={newItem.name}
+                 onChange={(e) => setNewItem({ name: e.target.value })}
+                 className="mt-1"
+                 required
+             />
+           </div>
        </AddModal>
 
        {/* EDIT MODAL */}
@@ -388,18 +407,16 @@ const ExpenseTypes = () => {
           permissionDelete={hasPermission(PERMISSIONS.EXPENSE_TYPES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.EXPENSE_TYPES.EDIT)}
        >
-          <div>
-             <label className="text-sm text-gray-300">Name *</label>
-             <input
-                type="text"
-                value={editItem.name}
-                onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
-                disabled={editItem.isInactive}
-                className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mt-1 ${
-                  editItem.isInactive ? "opacity-60 cursor-not-allowed" : ""
-                }`}
-             />
-          </div>
+           <div>
+              <InputField
+                 label="Name"
+                 value={editItem.name}
+                 onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
+                 disabled={editItem.isInactive}
+                 className="mt-1"
+                 required
+              />
+           </div>
        </EditModal>
 
        {/* COLUMN PICKER MODAL */}

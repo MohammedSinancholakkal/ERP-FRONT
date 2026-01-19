@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Save, ArrowLeft, Plus, Pencil, Trash2, X, Star } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
-import Swal from "sweetalert2";
+import { showDeleteConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 import {
   addMeetingApi,
@@ -43,8 +43,12 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import SearchableSelect from "../../components/SearchableSelect";
 import AddModal from "../../components/modals/AddModal";
+import InputField from "../../components/InputField";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 
 const NewMeeting = () => {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -133,10 +137,20 @@ const NewMeeting = () => {
 
 
   useEffect(() => {
-    if (!isEdit) return;
-
-    setForm(f => ({ ...f }));
-  }, [meetingTypes, departments, locations, employees]);
+    if (location.state?.preservedState) {
+        const { form: savedForm, showAttendeeModal: savedModal, attendeeForm: savedAttendeeForm, editIndex: savedEditIndex } = location.state.preservedState;
+        if (savedForm) setForm(savedForm);
+        if (savedModal) {
+            setShowAttendeeModal(true);
+            setAttendeeForm(savedAttendeeForm);
+            setEditIndex(savedEditIndex);
+        }
+        // Clear state to prevent reapplying
+        window.history.replaceState({}, document.title);
+    } else if (isEdit) {
+      setForm(f => ({ ...f }));
+    }
+  }, [isEdit, location.state]);
 
 
 
@@ -526,27 +540,17 @@ const NewMeeting = () => {
 
 
   const handleDelete = async () => {
-    const result = await Swal.fire({
-      title: "Delete Meeting?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-      reverseButtons: true,
-    });
+    const result = await showDeleteConfirm("meeting");
 
     if (!result.isConfirmed) return;
 
     try {
       await deleteMeetingApi(id, { userId: currentUserId });
-      toast.success("Meeting deleted successfully");
+      showSuccessToast("Meeting deleted successfully");
       navigate("/app/meeting/meetings");
     } catch (error) {
       console.error("DELETE MEETING ERROR:", error);
-      toast.error("Failed to delete meeting");
+      showErrorToast("Failed to delete meeting");
     }
   };
 
@@ -780,7 +784,17 @@ const NewMeeting = () => {
     else if (type === "Attendee Type") setAttendeeTypeModalOpen(true);
     else if (type === "Attendance Status") setAttendanceStatusModalOpen(true);
     else if (type === "Organizer" || type === "Reporter") {
-      navigate("/app/hr/newemployee", { state: { from: location.pathname } });
+      navigate("/app/hr/newemployee", { 
+        state: { 
+            returnTo: location.pathname,
+            preservedState: {
+                form,
+                showAttendeeModal,
+                attendeeForm,
+                editIndex
+            }
+        } 
+      });
     } else {
       toast.success(`Create New ${type} clicked`);
     }
@@ -791,8 +805,8 @@ const NewMeeting = () => {
     <button
       onClick={onClick}
       className={`pb-2 text-sm font-medium ${active
-        ? "text-yellow-400 border-b-2 border-yellow-400"
-        : "text-gray-400 hover:text-white"
+        ? "text-emerald-500 border-b-2 border-emerald-500"
+        : "text-gray-400 hover:text-gray-600"
         }`}
     >
       {label}
@@ -801,274 +815,274 @@ const NewMeeting = () => {
 
   return (
     <PageLayout>
-      <div className="p-5 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate("/app/meeting/meetings")}
-              className="p-2 bg-gray-800 rounded border border-gray-700"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <h2 className="text-xl font-semibold">
-              {isEdit ? "Edit Meeting" : "New Meeting"}
-            </h2>
-          </div>
-
-          <div className="flex gap-3">
-            {(!isEdit && hasPermission(PERMISSIONS.MEETINGS.CREATE)) || (isEdit && hasPermission(PERMISSIONS.MEETINGS.EDIT)) ? (
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
-            >
-              <Save size={18} /> {isEdit ? "Update" : "Save"}
-            </button>
-            ) : null}
-
-            {isEdit && hasPermission(PERMISSIONS.MEETINGS.DELETE) && (
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-2 bg-red-800 border border-red-600 px-4 py-2 rounded text-sm text-red-200"
-              >
-                <Trash2 size={18} /> Delete
-              </button>
-            )}
-          </div>
+        <div className="p-6 h-full">
+            <ContentCard>
+                <div className="h-full overflow-y-auto w-full p-2">
+            
+        <div className="mb-6">
+           <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-4">
+                 <button 
+                   onClick={() => navigate("/app/meeting/meetings")}
+                   className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-purple-200' : 'hover:bg-gray-700'}`}
+                 >
+                    <ArrowLeft size={24} />
+                 </button>
+                 <h2 className="text-xl font-bold text-[#6448AE]">{isEdit ? "Edit Meeting" : "New Meeting"}</h2>
+              </div>
+    
+              <div className="flex items-center gap-3">
+                 {isEdit && (
+                    <button
+                        onClick={handleDelete}
+                        className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+                    >
+                        <Trash2 size={18} />
+                        Delete
+                    </button>
+                 )}
+                <button
+                  onClick={handleSave}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
+                     theme === 'emerald'
+                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                     : theme === 'purple'
+                     ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white'
+                     : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
+                  }`}
+                >
+                  <Save size={18} />
+                  {isEdit ? "Update" : "Save"}
+                </button>
+              </div>
+           </div>
+           <hr className="border-gray-300" />
         </div>
 
-        {isEdit && (
-          <div className="flex gap-6 border-b border-gray-700 mb-5">
-            <Tab
-              label="Meeting"
-              active={true}
-              onClick={() => navigate(`/app/meeting/meetings/edit/${id}`)}
-            />
-            <Tab
-              label="Agenda Items"
-              active={false}
-              onClick={() => navigate(`/app/meeting/meetings/edit/${id}/agenda`)}
-            />
-            <Tab
-              label="Agenda Decisions"
-              active={false}
-              onClick={() => navigate(`/app/meeting/meetings/edit/${id}/decisions`)}
-            />
-          </div>
-        )}
-
-
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-white">Meeting Name *</label>
-                <input
-                  type="text"
-                  value={form.meetingName}
-                  onChange={(e) => updateField("meetingName", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-white">Start Date *</label>
-                <input
-                  type="datetime-local"
-                  value={form.startDate}
-                  onChange={(e) => updateField("startDate", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-white">Department</label>
-                <div className="flex gap-2">
-                    <SearchableSelect
-                      options={departments.map(d => ({ id: d.id, name: d.name }))}
-                      value={form.department}
-                      onChange={(val) => updateField("department", val)}
-                      placeholder="--select--"
-                      className="w-full"
-                    />
-                    {hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
-                    <button
-                        onClick={() => handleCreateNew("Department")}
-                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                        title="Add Department"
-                    >
-                        <Star size={16} />
-                    </button>
-                    )}
+        {/* MAIN FORM */}
+        <div className="mt-6">
+            <div className="grid grid-cols-12 gap-x-6 gap-y-6">
+                
+                {/* Meeting Name */}
+                <div className="col-span-12 md:col-span-6">
+                   <div className="flex gap-2 font-medium">
+                        <div className="flex-1 font-medium">
+                           <InputField
+                              label="Meeting Name"
+                              value={form.meetingName}
+                              onChange={(e) => updateField("meetingName", e.target.value)}
+                              placeholder="e.g. Sales Strategy Q4"
+                              required
+                           />
+                       </div>
+                       <div className="w-[18px]"></div>
+                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="text-sm text-white">Organized By</label>
-                <div className="flex gap-2">
-                    <SearchableSelect
-                      options={employees.map(e => ({ id: e.id, name: e.name }))}
-                      value={form.organizedBy}
-                      onChange={(val) => updateField("organizedBy", val)}
-                      placeholder="--select--"
-                      className="w-full"
-                    />
-                    {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
-                    <button
-                        onClick={() => handleCreateNew("Organizer")}
-                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                        title="Add Organizer"
-                    >
-                        <Star size={16} />
-                    </button>
-                    )}
+                {/* Location */}
+                <div className="col-span-12 md:col-span-6">
+                   <label className="block text-sm font-medium mb-1 text-black font-medium font-medium">Location</label>
+                    <div className="flex items-center gap-2">
+                          <div className="flex-1 font-medium">
+                            <SearchableSelect 
+                                options={locations}
+                                value={form.location}
+                                onChange={(val) => updateField("location", val)}
+                                placeholder="-- Select Location --"
+                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
+                            />
+                        </div>
+                         <button onClick={() => handleCreateNew("Location")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                            <Star size={16} />
+                        </button>
+                    </div>
                 </div>
-              </div>
+
+                {/* Date & Time */}
+                <div className="col-span-12 md:col-span-6">
+                   <div className="flex gap-2 font-medium">
+                        <div className="flex-1 font-medium">
+                           <InputField
+                              label="Start Date"
+                              type="datetime-local"
+                              value={form.startDate}
+                              onChange={(e) => updateField("startDate", e.target.value)}
+                              required
+                           />
+                       </div>
+                       <div className="w-[18px]"></div>
+                   </div>
+                </div>
+                <div className="col-span-12 md:col-span-6">
+                   <div className="flex gap-2 font-medium">
+                        <div className="flex-1 font-medium">
+                           <InputField
+                              label="End Date"
+                              type="datetime-local"
+                              value={form.endDate}
+                              onChange={(e) => updateField("endDate", e.target.value)}
+                              required
+                           />
+                       </div>
+                       <div className="w-[18px]"></div>
+                   </div>
+                </div>
+
+                {/* Meeting Type */}
+                <div className="col-span-12 md:col-span-6">
+                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Meeting Type *</label>
+                    <div className="flex items-center gap-2">
+                         <div className="flex-1 font-medium">
+                            <SearchableSelect 
+                                options={meetingTypes}
+                                value={form.meetingType}
+                                onChange={(val) => updateField("meetingType", val)}
+                                placeholder="-- Select Type --"
+                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
+                            />
+                        </div>
+                        <button onClick={() => handleCreateNew("Meeting Type")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                            <Star size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                 {/* Department */}
+                 <div className="col-span-12 md:col-span-6">
+                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Department</label>
+                    <div className="flex items-center gap-2">
+                         <div className="flex-1 font-medium">
+                            <SearchableSelect 
+                                options={departments}
+                                value={form.department}
+                                onChange={(val) => updateField("department", val)}
+                                placeholder="-- Select Department --"
+                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
+                            />
+                        </div>
+                        <button onClick={() => handleCreateNew("Department")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                            <Star size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Organized By */}
+                <div className="col-span-12 md:col-span-6">
+                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Organized By</label>
+                    <div className="flex items-center gap-2">
+                         <div className="flex-1 font-medium">
+                            <SearchableSelect 
+                                options={employees}
+                                value={form.organizedBy}
+                                onChange={(val) => updateField("organizedBy", val)}
+                                placeholder="-- Select Organizer --"
+                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
+                            />
+                        </div>
+                        <button onClick={() => handleCreateNew("Organizer")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                             <Star size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Reporter */}
+                <div className="col-span-12 md:col-span-6">
+                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Reporter</label>
+                    <div className="flex items-center gap-2">
+                          <div className="flex-1 font-medium">
+                            <SearchableSelect 
+                                options={employees}
+                                value={form.reporter}
+                                onChange={(val) => updateField("reporter", val)}
+                                placeholder="-- Select Reporter --"
+                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
+                            />
+                        </div>
+                        <button onClick={() => handleCreateNew("Reporter")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                            <Star size={16} />
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-white">Meeting Type *</label>
-                <div className="flex gap-2">
-                    <SearchableSelect
-                      options={meetingTypes.map(mt => ({ id: mt.id, name: mt.name }))}
-                      value={form.meetingType}
-                      onChange={(val) => updateField("meetingType", val)}
-                      placeholder="--select--"
-                      className="w-full"
-                    />
-                    {hasPermission(PERMISSIONS.MEETING_TYPES.CREATE) && (
-                    <button
-                        onClick={() => handleCreateNew("Meeting Type")}
-                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                        title="Add Meeting Type"
-                    >
-                        <Star size={16} />
-                    </button>
-                    )}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm text-white">End Date *</label>
-                <input
-                  type="datetime-local"
-                  value={form.endDate}
-                  onChange={(e) => updateField("endDate", e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-white">Location</label>
-                <div className="flex gap-2">
-                    <SearchableSelect
-                      options={locations.map(l => ({ id: l.id, name: l.name }))}
-                      value={form.location}
-                      onChange={(val) => updateField("location", val)}
-                      placeholder="--select--"
-                      className="w-full"
-                    />
-                    {hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
-                    <button
-                        onClick={() => handleCreateNew("Location")}
-                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                        title="Add Location"
-                    >
-                        <Star size={16} />
-                    </button>
-                    )}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm text-white">Reporter</label>
-                <div className="flex gap-2">
-                    <SearchableSelect
-                      options={employees.map(e => ({ id: e.id, name: e.name }))}
-                      value={form.reporter}
-                      onChange={(val) => updateField("reporter", val)}
-                      placeholder="--select--"
-                      className="w-full"
-                    />
-                     {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
+            {/* ATTENDEES SECTION */}
+            <div className="mt-8">
+                 <div className="flex items-center justify-between mb-4">
+                     <h3 className="text-lg font-semibold">Attendees</h3>
                      <button
-                        onClick={() => handleCreateNew("Reporter")}
-                        className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
-                        title="Add Reporter"
-                    >
-                        <Star size={16} />
-                    </button>
-                     )}
-                </div>
-              </div>
+                        onClick={() => setShowAttendeeModal(true)}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded text-sm transition-colors border ${
+                            theme === 'emerald' 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' 
+                            : theme === 'purple'
+                            ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white'
+                            : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-blue-300'
+                        }`}
+                     >
+                        <Plus size={16} />
+                        Add Attendee
+                     </button>
+                 </div>
+               
+
+                 <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? 'border-gray-200' : theme === 'purple' ? 'border-purple-200' : 'border-gray-700'}`}>
+                    <table className="w-full text-left border-collapse">
+                       <thead>
+                          <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900' : 'bg-gray-800 text-gray-400'}>
+                             <th className="p-3 text-sm font-medium">Name</th>
+                             <th className="p-3 text-sm font-medium">Department</th>
+                             <th className="p-3 text-sm font-medium">Designation</th>
+                             <th className="p-3 text-sm font-medium">Type</th>
+                             <th className="p-3 text-sm font-medium">Status</th>
+                             <th className="p-3 text-sm font-medium text-right">Actions</th>
+                          </tr>
+                       </thead>
+                       <tbody>
+                          {form.attendees.map((row, index) => (
+                             <tr key={index} className={`border-t ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                                <td className="p-3 text-sm">{row.attendee}</td>
+                                <td className="p-3 text-sm text-gray-500">{row.departmentName}</td>
+                                <td className="p-3 text-sm text-gray-500">{row.designationName}</td>
+                                <td className="p-3 text-sm">
+                                   <span className={`px-2 py-0.5 rounded text-xs ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
+                                      {row.attendeeType}
+                                   </span>
+                                </td>
+                                <td className="p-3 text-sm">
+                                   <span className={`px-2 py-0.5 rounded text-xs ${
+                                       row.attendanceStatus === 'Present' 
+                                         ? (theme === 'emerald' ? 'bg-green-50 text-green-700' : 'bg-green-900/30 text-green-300')
+                                         : (theme === 'emerald' ? 'bg-orange-50 text-orange-700' : 'bg-yellow-900/30 text-yellow-300')
+                                   }`}>
+                                      {row.attendanceStatus}
+                                   </span>
+                                </td>
+                                <td className="p-3 text-right flex justify-end gap-2">
+                                     <button onClick={() => editAttendee(index)} className="p-1 text-gray-400 hover:text-blue-400">
+                                         <Pencil size={16} />
+                                     </button>
+                                     <button onClick={() => deleteAttendee(index)} className="p-1 text-gray-400 hover:text-red-400">
+                                         <Trash2 size={16} />
+                                     </button>
+                                </td>
+                             </tr>
+                          ))}
+                          {form.attendees.length === 0 && (
+                             <tr>
+                                <td colSpan={6} className="p-8 text-center text-gray-400 text-sm">
+                                   No attendees added yet.
+                                </td>
+                             </tr>
+                          )}
+                       </tbody>
+                    </table>
+                 </div>
             </div>
-          </div>
 
-          <div className="mt-8">
-            <label className="text-sm text-white">Attendees</label>
-
-            <button
-              className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
-              onClick={() => {
-                setEditIndex(null);
-                setAttendeeForm({
-                  attendee: "",
-                  attendeeType: "",
-                  attendanceStatus: "",
-                });
-                setShowAttendeeModal(true);
-              }}
-            >
-              <Plus size={16} /> Add
-            </button>
-
-            <div className="mt-3 bg-gray-800 border border-gray-700 rounded p-3 overflow-x-auto">
-              <table className="w-full text-left text-sm text-white min-w-[800px]">
-                <thead className="text-gray-300 border-b border-gray-700">
-                  <tr>
-                    <th className="pb-2">Attendee</th>
-                    <th className="pb-2">Type</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {form.attendees.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-3 text-gray-400 text-center">
-                        No attendees yet
-                      </td>
-                    </tr>
-                  ) : (
-                    form.attendees.map((row, i) => (
-                      <tr key={i} className="border-b border-gray-700">
-                        <td className="py-2">{row.attendee}</td>
-                        <td className="py-2">{row.attendeeType}</td>
-                        <td className="py-2">{row.attendanceStatus}</td>
-
-                        <td className="py-2 flex gap-3">
-                          <Pencil
-                            size={16}
-                            className="text-yellow-400 cursor-pointer"
-                            onClick={() => editAttendee(i)}
-                          />
-                          <Trash2
-                            size={16}
-                            className="text-red-400 cursor-pointer"
-                            onClick={() => deleteAttendee(i)}
-                          />
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
-      </div>
-
+       </div>
+      </ContentCard>
+     </div>
       {showAttendeeModal && (
         <AddModal
           isOpen={showAttendeeModal}
@@ -1080,8 +1094,8 @@ const NewMeeting = () => {
             <div className="p-0 space-y-4">
             {/* ATTENDEE DROPDOWN */}
             <div>
-              <label className="block text-sm mb-1">Attendee *</label>
-              <div className="flex gap-2">
+              <label className="block text-sm font-medium mb-1">Attendee *</label>
+              <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={employees.map(e => ({ id: e.id, name: e.name }))}
                     value={attendeeForm.attendee}
@@ -1092,7 +1106,7 @@ const NewMeeting = () => {
                   {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                   <button
                       onClick={() => handleCreateNew("Organizer")}
-                      className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                       title="Add Attendee"
                   >
                       <Star size={16} />
@@ -1103,8 +1117,8 @@ const NewMeeting = () => {
 
             {/* TYPE DROPDOWN */}
              <div>
-              <label className="block text-sm mb-1">Attendee Type *</label>
-              <div className="flex gap-2">
+              <label className="block text-sm font-medium mb-1">Attendee Type *</label>
+              <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
                     value={attendeeForm.attendeeType}
@@ -1115,7 +1129,7 @@ const NewMeeting = () => {
                    {hasPermission(PERMISSIONS.ATTENDEE_TYPES.CREATE) && (
                    <button
                       onClick={() => handleCreateNew("Attendee Type")}
-                      className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                       title="Add Attendee Type"
                   >
                       <Star size={16} />
@@ -1126,19 +1140,20 @@ const NewMeeting = () => {
 
             {/* STATUS DROPDOWN */}
              <div>
-              <label className="block text-sm mb-1">Attendance Status *</label>
-              <div className="flex gap-2">
+              <label className="block text-sm font-medium mb-1">Attendance Status *</label>
+              <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
                     value={attendeeForm.attendanceStatus}
                     onChange={(val) => setAttendeeForm({ ...attendeeForm, attendanceStatus: val })}
                     placeholder="--select--"
                     className="w-full"
+                    direction="up"
                   />
                    {hasPermission(PERMISSIONS.ATTENDANCE_STATUS.CREATE) && (
                    <button
                       onClick={() => handleCreateNew("Attendance Status")}
-                      className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                       title="Add Status"
                   >
                       <Star size={16} />
@@ -1160,12 +1175,11 @@ const NewMeeting = () => {
         width="700px"
       >
         <div>
-           <input
-            type="text"
+           <InputField
+            label="Type Name"
             placeholder="Enter Meeting Type Name"
             value={newMeetingType}
             onChange={(e) => setNewMeetingType(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
           />
         </div>
       </AddModal>
@@ -1178,12 +1192,11 @@ const NewMeeting = () => {
         width="700px"
       >
         <div>
-           <input
-            type="text"
+           <InputField
+            label="Type Name"
             placeholder="Enter Attendee Type Name"
             value={newAttendeeType}
             onChange={(e) => setNewAttendeeType(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
           />
         </div>
       </AddModal>
@@ -1196,12 +1209,11 @@ const NewMeeting = () => {
         width="700px"
       >
         <div>
-           <input
-            type="text"
+           <InputField
+            label="Status Name"
             placeholder="Enter Attendance Status Name"
             value={newAttendanceStatus}
             onChange={(e) => setNewAttendanceStatus(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
           />
         </div>
       </AddModal>
@@ -1216,32 +1228,31 @@ const NewMeeting = () => {
       >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm mb-1">Department Name *</label>
-                <input
-                  type="text"
-                  value={newDepartment.department}
-                  onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                <InputField
+                   label="Department Name *"
+                   value={newDepartment.department}
+                   onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="block text-sm mb-1">Description</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Description</label>
                 <textarea
                   value={newDepartment.description}
                   onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                  className={`w-full rounded px-3 py-2 text-sm outline-none transition-colors border ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900 focus:border-purple-500' : 'bg-gray-900 border-gray-700 text-white focus:border-blue-500'}`}
+                  rows={3}
                 />
               </div>
 
               <div>
-                <label className="block text-sm mb-1">Parent Department</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Parent Department</label>
                 <SearchableSelect
                   options={departments.map(d => ({ id: d.id, name: d.name }))}
                   value={newDepartment.parentDepartmentId}
                   onChange={(val) => setNewDepartment({ ...newDepartment, parentDepartmentId: val })}
                   placeholder="--select--"
-                  className="w-full"
+                  className={`w-full ${theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}`}
                   direction="up"
                 />
               </div>
@@ -1258,19 +1269,17 @@ const NewMeeting = () => {
       >
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="block text-sm mb-1">Location Name *</label>
-                <input
-                  type="text"
+                <InputField
+                  label="Location Name *"
                   value={newLocation.name}
                   onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
                  <div className="space-y-1">
-                    <label className="block text-sm mb-1">Country</label>
-                    <div className="flex gap-2">
+                    <label className="block text-sm font-medium mb-1">Country</label>
+                    <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                           value={newLocation.countryId}
@@ -1281,7 +1290,7 @@ const NewMeeting = () => {
                          {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
                          <button
                             onClick={() => setAddCountryModalOpen(true)}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add Country"
                         >
                             <Star size={16} />
@@ -1293,8 +1302,8 @@ const NewMeeting = () => {
 
               <div>
                 <div className="space-y-1">
-                    <label className="block text-sm mb-1">State</label>
-                    <div className="flex gap-2">
+                    <label className="block text-sm font-medium mb-1">State</label>
+                    <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
                           value={newLocation.stateId}
@@ -1305,7 +1314,7 @@ const NewMeeting = () => {
                          {hasPermission(PERMISSIONS.STATES.CREATE) && (
                          <button
                             onClick={() => setAddStateModalOpen(true)}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add State"
                         >
                             <Star size={16} />
@@ -1317,8 +1326,8 @@ const NewMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className="block text-sm mb-1">City</label>
-                    <div className="flex gap-2">
+                    <label className="block text-sm font-medium mb-1">City</label>
+                    <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
                           value={newLocation.cityId}
@@ -1329,7 +1338,7 @@ const NewMeeting = () => {
                          {hasPermission(PERMISSIONS.CITIES.CREATE) && (
                          <button
                             onClick={() => setAddCityModalOpen(true)}
-                            className="p-2 bg-gray-800 border border-gray-600 text-yellow-400 rounded hover:bg-gray-700 hover:scale-105 transition-transform"
+                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                             title="Add City"
                         >
                             <Star size={16} />
@@ -1340,32 +1349,26 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <label className="block text-sm mb-1">Address</label>
-                <input
-                  type="text"
-                  value={newLocation.address}
-                  onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                <InputField
+                   label="Address"
+                   value={newLocation.address}
+                   onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="block text-sm mb-1">Latitude</label>
-                <input
-                  type="text"
-                  value={newLocation.latitude}
-                  onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                <InputField
+                   label="Latitude"
+                   value={newLocation.latitude}
+                   onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="block text-sm mb-1">Longitude</label>
-                <input
-                  type="text"
-                  value={newLocation.longitude}
-                  onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                <InputField
+                   label="Longitude"
+                   value={newLocation.longitude}
+                   onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
                 />
               </div>
             </div>
@@ -1380,12 +1383,11 @@ const NewMeeting = () => {
         width="700px"
       >
         <div>
-           <input
-            type="text"
+           <InputField
+            label="Country Name"
             placeholder="Enter Country Name"
             value={newCountryName}
             onChange={(e) => setNewCountryName(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
           />
         </div>
       </AddModal>
@@ -1400,16 +1402,14 @@ const NewMeeting = () => {
       >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm mb-1">State Name *</label>
-                <input
-                  type="text"
-                  value={newState.name}
-                  onChange={(e) => setNewState({ ...newState, name: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                <InputField
+                   label="State Name *"
+                   value={newState.name}
+                   onChange={(e) => setNewState({ ...newState, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">Country *</label>
+                <label className="block text-sm font-medium mb-1">Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newState.countryId}
@@ -1432,16 +1432,14 @@ const NewMeeting = () => {
       >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm mb-1">City Name *</label>
-                <input
-                  type="text"
-                  value={newCity.name}
-                  onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm"
+                <InputField
+                   label="City Name *"
+                   value={newCity.name}
+                   onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">Country *</label>
+                <label className="block text-sm font-medium mb-1">Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newCity.countryId}
@@ -1451,7 +1449,7 @@ const NewMeeting = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">State *</label>
+                <label className="block text-sm font-medium mb-1">State *</label>
                 <SearchableSelect
                   options={modalStates.map(s => ({ id: s.id, name: s.name }))}
                   value={newCity.stateId}

@@ -17,7 +17,6 @@ import {
   Receipt,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import "../styles/Dashboard.css";
 import { useSettings } from "../contexts/SettingsContext";
 import { serverURL } from "../services/serverURL";
 import { useTheme } from "../context/ThemeContext";
@@ -177,7 +176,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const adminLinks = [
     { label: "Language", key: PERMISSIONS.LANGUAGES.VIEW },
-    { label: "Translations", key: PERMISSIONS.LANGUAGES.VIEW },
+    //commented for later dont remove
+    // { label: "Translations", key: PERMISSIONS.LANGUAGES.VIEW },
     { label: "Roles", key: PERMISSIONS.ROLE.VIEW },
     { label: "User Management", key: PERMISSIONS.USER.VIEW },
     { label: "Currencies", key: PERMISSIONS.CURRENCIES.VIEW },
@@ -220,8 +220,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     if (childMatches.length > 0) {
       return { show: true, items: childMatches };
     }
-
-    // No match → hide section
     return { show: false, items: [] };
   };
 
@@ -234,8 +232,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         w-0 h-0 border-t-[4px] border-b-[4px] border-l-[6px]
         border-t-transparent border-b-transparent
         transition-all duration-300
-        ${active ? "border-l-white rotate-90" : "border-l-gray-400"}
-        hover:border-l-white
+        ${active ? (theme === 'purple' ? "border-l-[#6448AE] rotate-90" : "border-l-white rotate-90") : "border-l-gray-400"}
+        ${theme === 'purple' ? "hover:border-l-[#6448AE]" : "hover:border-l-white"}
       `}
     ></div>
   );
@@ -269,7 +267,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           className={`w-full flex items-center px-3 py-2 rounded transition 
             ${sidebarOpen ? "justify-between" : "justify-center"}
             ${location.pathname.startsWith(pathRoot) ? "bg-white/10" : ""}
-            ${theme === 'emerald' ? 'hover:bg-emerald-600' : 'hover:bg-gray-700'}
+            ${theme === 'emerald' ? 'hover:bg-emerald-600' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-900' : 'hover:bg-gray-700'}
           `}
         >
           <div className={`flex items-center ${sidebarOpen ? "gap-3" : ""}`}>
@@ -293,7 +291,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           >
             {items.map((item, index) => {
               const routePath = formatRoute(item.label);
-              const isActive = location.pathname.includes(routePath);
+              const fullPath = `${pathRoot}/${routePath}`;
+              const isActive = location.pathname.toLowerCase() === fullPath.toLowerCase() || location.pathname.toLowerCase().startsWith(`${fullPath.toLowerCase()}/`);
 
               return (
                 <li key={index}>
@@ -301,7 +300,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     to={`${pathRoot}/${routePath}`}
                     className={({ isActive }) =>
                       `flex items-center gap-3 py-1 px-2 rounded transition 
-                      ${isActive ? "bg-white/20 text-white" : theme === 'emerald' ? "hover:bg-emerald-600 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
+                      ${isActive ? (theme === 'purple' ? "bg-white text-[#6448AE] font-medium shadow-sm" : "bg-white/20 text-white") : theme === 'emerald' ? "hover:bg-emerald-600 text-gray-100" : theme === 'purple' ? "hover:bg-white/50 hover:text-[#6448AE] text-gray-600" : "hover:bg-gray-700 text-gray-300"}`
                     }
                   >
                     <TriangleIcon active={isActive} />
@@ -330,7 +329,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       )}
 
       <aside
-        className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-600' : 'bg-gradient-to-b from-gray-900 to-gray-800'} text-white h-screen flex flex-col transition-all duration-300 z-[100]  
+        className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-600' : theme === 'purple' ? 'bg-gray-100 text-gray-900 border-gray-300' : 'bg-gradient-to-b from-gray-900 to-gray-800 text-white'} h-screen flex flex-col transition-all duration-300 z-[100]  
         md:static md:flex 
         ${sidebarOpen ? "md:w-64" : "md:w-16"} 
         ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden md:flex"}`}
@@ -338,7 +337,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
       
 {/* HEADER */}
-<div className={`p-4 border-b flex items-center gap-3 h-[72px] ${theme === 'emerald' ? 'border-emerald-500' : 'border-gray-700'}`}>
+<div className={`p-4 border-b flex items-center gap-3 h-[72px] ${theme === 'emerald' ? 'border-emerald-500' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] text-white' : 'border-gray-700'}`}>
   <div className="w-10 h-10 shrink-0 flex items-center justify-center">
     {logoUrl ? (
       <img
@@ -371,14 +370,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
             {/* SEARCH BAR */}
             {sidebarOpen && (
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-5 ${theme === 'emerald' ? 'bg-emerald-100' : 'bg-gray-800'}`}>
-                <Search className={`${theme === 'emerald' ? 'text-emerald-700' : 'text-gray-400'}`} size={18} />
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-5 ${theme === 'emerald' ? 'bg-emerald-100' : theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}>
+                <Search className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-[#6448AE]' : 'text-gray-400'}`} size={18} />
                 <input
                   type="text"
                   placeholder="Search..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className={`bg-transparent outline-none w-full placeholder-gray-500 ${theme === 'emerald' ? 'text-emerald-900' : 'text-gray-300'}`}
+                  className={`bg-transparent outline-none w-full placeholder-gray-500 ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-[#6448AE] placeholder-[#6448AE]/50' : 'text-gray-300'}`}
                 />
               </div>
             )}
@@ -392,10 +391,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 className={({ isActive }) =>
                   `px-3 py-2 rounded flex items-center transition 
                   ${sidebarOpen ? "gap-3" : "justify-center"} 
-                  ${isActive ? "bg-white/20" : theme === 'emerald' ? "hover:bg-emerald-600 text-gray-100" : "hover:bg-gray-700 text-gray-300"}`
+                  ${isActive ? "bg-white/20" : theme === 'emerald' ? "hover:bg-emerald-600 text-gray-100" : theme === 'purple' ? "hover:bg-white/20 text-[#6448AE]" : "hover:bg-gray-700 text-gray-300"}`
                 }
               >
-                <LineChart className="w-5 h-5" />
+                <LineChart className="w-5 h-5 " />
                 {sidebarOpen && <span>Dashboard</span>}
               </NavLink>
             </li>
@@ -409,10 +408,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             {renderSection("Sales", <Receipt className="w-5 h-5" />, openSales, setOpenSales, "/app/sales", salesLinks)}
             {renderSection("Purchasing", <ShoppingCart className="w-5 h-5" />, openPurchasing, setOpenPurchasing, "/app/purchasing", purchaseLinks)}
             {renderSection("Services", <FileText className="w-5 h-5" />, openServices, setOpenServices, "/app/services", servicesLinks)}
-            {renderSection("Cash / Bank", <Wallet className="w-5 h-5" />, openCashBank, setOpenCashBank, "/app/cashbank", cashBankLinks)}
-            {renderSection("Financial", <Landmark className="w-5 h-5" />, openFinancial, setOpenFinancial, "/app/financial", financialLinks)}
+            {/* {renderSection("Cash / Bank", <Wallet className="w-5 h-5" />, openCashBank, setOpenCashBank, "/app/cashbank", cashBankLinks)} */}
+            {/* {renderSection("Financial", <Landmark className="w-5 h-5" />, openFinancial, setOpenFinancial, "/app/financial", financialLinks)} */}
             {renderSection("Human Resource", <Users2 className="w-5 h-5" />, openHR, setOpenHR, "/app/hr", hrLinks)}
-            {renderSection("Reports", <BarChart3 className="w-5 h-5" />, openReports, setOpenReports, "/app/reports", reportsLinks)}
+            {/* {renderSection("Reports", <BarChart3 className="w-5 h-5" />, openReports, setOpenReports, "/app/reports", reportsLinks)} */}
             {renderSection("Administration", <Shield className="w-5 h-5" />, openAdmin, setOpenAdmin, "/app/administration", adminLinks)}
 
           </ul>

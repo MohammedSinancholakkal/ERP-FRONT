@@ -12,11 +12,14 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
-import toast from "react-hot-toast";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import AddModal from "../../components/modals/AddModal";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
 
 // APIs (service-invoice & supporting)
 import {
@@ -30,7 +33,7 @@ import {
   restoreServiceInvoiceApi,
   getTaxTypesApi
 } from "../../services/allAPI";
-import Swal from "sweetalert2";
+
 
 const NewInvoices = () => {
   const navigate = useNavigate();
@@ -39,6 +42,7 @@ const NewInvoices = () => {
 
   const userData = JSON.parse(localStorage.getItem("user"));
   const userId = userData?.userId || userData?.id || userData?.Id;
+  const { theme } = useTheme();
 
   // --- TOP SECTION STATE ---
   const [customer, setCustomer] = useState("");
@@ -263,7 +267,7 @@ const NewInvoices = () => {
       }
     } catch (error) {
       console.error("Error fetching invoice details", error);
-      toast.error("Failed to load invoice details");
+      showErrorToast("Failed to load invoice details");
     }
   };
 
@@ -312,11 +316,11 @@ const NewInvoices = () => {
 
   const addItemToTable = () => {
     if (!newItem.serviceId) {
-      toast.error("Please select a service");
+      showErrorToast("Please select a service");
       return;
     }
     if (newItem.quantity <= 0) {
-      toast.error("Quantity must be greater than 0");
+      showErrorToast("Quantity must be greater than 0");
       return;
     }
 
@@ -435,14 +439,14 @@ const NewInvoices = () => {
     const currentUserId = userData?.userId || userData?.id || userData?.Id;
     if (!currentUserId) {
       console.error("User ID missing from session data:", userData);
-      return toast.error("User session invalid. Please re-login.");
+      return showErrorToast("User session invalid. Please re-login.");
     }
 
-    if (!customer) return toast.error("Please select a customer");
-    if (!employee) return toast.error("Please select an employee");
-    if (!paymentAccount) return toast.error("Please select a payment account");
-    if (!noTax && !taxTypeId) return toast.error("Please select a Tax Type");
-    if (rows.length === 0) return toast.error("Please add at least one item");
+    if (!customer) return showErrorToast("Please select a customer");
+    if (!employee) return showErrorToast("Please select an employee");
+    if (!paymentAccount) return showErrorToast("Please select a payment account");
+    if (!noTax && !taxTypeId) return showErrorToast("Please select a Tax Type");
+    if (rows.length === 0) return showErrorToast("Please add at least one item");
 
     const payload = {
       customerId: customer,
@@ -483,23 +487,23 @@ const NewInvoices = () => {
     try {
       const res = await addServiceInvoiceApi(payload);
       if (res.status === 200) {
-        toast.success("Service invoice added successfully");
+        showSuccessToast("Service invoice added successfully");
         navigate("/app/services/invoices");
       } else {
-        toast.error("Failed to add service invoice");
+        showErrorToast("Failed to add service invoice");
       }
     } catch (error) {
       console.error("SAVE INVOICE ERROR", error);
-      toast.error("Error saving invoice");
+      showErrorToast("Error saving invoice");
     }
   };
 
   const handleUpdateInvoice = async () => {
-    if (!customer) return toast.error("Please select a customer");
-    if (!employee) return toast.error("Please select an employee");
-    if (!paymentAccount) return toast.error("Please select a payment account");
-    if (!noTax && !taxTypeId) return toast.error("Please select a Tax Type");
-    if (rows.length === 0) return toast.error("Please add at least one item");
+    if (!customer) return showErrorToast("Please select a customer");
+    if (!employee) return showErrorToast("Please select an employee");
+    if (!paymentAccount) return showErrorToast("Please select a payment account");
+    if (!noTax && !taxTypeId) return showErrorToast("Please select a Tax Type");
+    if (rows.length === 0) return showErrorToast("Please add at least one item");
 
     const payload = {
       customerId: customer,
@@ -540,113 +544,55 @@ const NewInvoices = () => {
     try {
       const res = await updateServiceInvoiceApi(id, payload);
       if (res.status === 200) {
-        toast.success("Service invoice updated successfully");
+        showSuccessToast("Service invoice updated successfully");
         navigate("/app/services/invoices");
       } else {
-        toast.error("Failed to update service invoice");
+        showErrorToast("Failed to update service invoice");
       }
     } catch (error) {
       console.error("UPDATE INVOICE ERROR", error);
-      toast.error("Error updating invoice");
+      showErrorToast("Error updating invoice");
     }
   };
 
 const handleDeleteInvoice = async () => {
-  const result = await Swal.fire({
-    title: "Are you sure?",
-    text: "Do you really want to delete this invoice?",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: "Yes, delete",
-    cancelButtonText: "Cancel",
-  });
+  const result = await showDeleteConfirm("service invoice");
 
   if (!result.isConfirmed) return;
 
-  Swal.fire({
-    title: "Deleting...",
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-  });
-
   try {
     const res = await deleteServiceInvoiceApi(id, { userId });
-    Swal.close();
 
     if (res.status === 200) {
-      await Swal.fire({
-        icon: "success",
-        title: "Deleted!",
-        text: "Service invoice deleted successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
+      showSuccessToast("Service invoice deleted successfully.");
       navigate("/app/services/invoices");
     } else {
-      Swal.fire("Failed", "Failed to delete service invoice", "error");
+      showErrorToast("Failed to delete service invoice");
     }
   } catch (error) {
-    Swal.close();
     console.error("DELETE INVOICE ERROR", error);
-
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: "Error deleting invoice",
-    });
+    showErrorToast("Error deleting invoice");
   }
 };
 
 
 const handleRestoreInvoice = async () => {
-  const result = await Swal.fire({
-    title: "Restore invoice?",
-    text: "Do you want to restore this invoice?",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonColor: "#10b981", // green
-    cancelButtonColor: "#6b7280",
-    confirmButtonText: "Yes, restore",
-    cancelButtonText: "Cancel",
-  });
+  const result = await showRestoreConfirm("service invoice");
 
   if (!result.isConfirmed) return;
 
-  Swal.fire({
-    title: "Restoring...",
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-  });
-
   try {
     const res = await restoreServiceInvoiceApi(id, { userId });
-    Swal.close();
 
     if (res.status === 200) {
-      await Swal.fire({
-        icon: "success",
-        title: "Restored!",
-        text: "Service invoice restored successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
+      showSuccessToast("Service invoice restored successfully.");
       navigate("/app/services/invoices");
     } else {
-      Swal.fire("Failed", "Failed to restore service invoice", "error");
+      showErrorToast("Failed to restore service invoice");
     }
   } catch (error) {
-    Swal.close();
     console.error("RESTORE INVOICE ERROR", error);
-
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: "Error restoring invoice",
-    });
+    showErrorToast("Error restoring invoice");
   }
 };
 
@@ -668,7 +614,8 @@ const handleRestoreInvoice = async () => {
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full overflow-y-auto">
+      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard className="!h-auto !overflow-visible">
 
         {/* HEADER */}
         <div className="flex items-center gap-4 mb-6">
@@ -680,11 +627,11 @@ const handleRestoreInvoice = async () => {
                     navigate("/app/services/invoices");
                 }
             }}
-            className="text-white hover:text-white-400"
+            className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-800 hover:text-gray-600' : 'text-white hover:text-white-400'}`}
           >
             <ArrowLeft size={24} />
           </button>
-          <h2 className="text-xl text-white font-medium">{id ? "Edit Service Invoice" : "New Service Invoice"}</h2>
+          <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>{id ? "Edit Service Invoice" : "New Service Invoice"}</h2>
         </div>
 
         {/* ACTIONS BAR */}
@@ -692,13 +639,13 @@ const handleRestoreInvoice = async () => {
           {id ? (
             <>
               {!inactiveView && hasPermission(PERMISSIONS.SERVICES.EDIT) && (
-              <button onClick={handleUpdateInvoice} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-blue-300 hover:bg-gray-600">
+              <button onClick={handleUpdateInvoice} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-700 border-gray-600 text-blue-300 hover:bg-gray-600'}`}>
                 <Save size={18} /> Update
               </button>
               )}
               
               {!inactiveView && hasPermission(PERMISSIONS.SERVICES.DELETE) && (
-              <button onClick={handleDeleteInvoice} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
+              <button onClick={handleDeleteInvoice} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? 'flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500' : 'bg-red-600 border-red-500 text-white hover:bg-red-500'}`}>
                 <Trash2 size={18} /> Delete
               </button>
               )}
@@ -711,125 +658,136 @@ const handleRestoreInvoice = async () => {
             </>
           ) : (
             hasPermission(PERMISSIONS.SERVICES.CREATE) && (
-            <button onClick={handleSaveInvoice} className="flex items-center gap-2 bg-gray-700 border border-gray-600 px-4 py-2 rounded text-white hover:bg-gray-600">
+            <button onClick={handleSaveInvoice} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]   text-white' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
               <Save size={18} /> Save
             </button>
             )
           )}
         </div>
-
+        <hr className="mb-4 border-gray-300" />
         {/* TOP SECTION */}
-        <div className="grid grid-cols-1 gap-6 mb-8">
-
-          {/* ROW 1: Customer | Payment | Date */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-
-            {/* Customer */}
-            <div className="lg:col-span-6">
-              <div className="flex items-center gap-3">
-                <label className="w-32 text-sm text-gray-300">
-                  <span className="text-red-400">*</span> Customer
-                </label>
-
-                <div className="flex-1 flex items-center gap-2">
-                  <SearchableSelect
-                    options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
-                    value={customer}
-                    onChange={setCustomer}
-                    placeholder="Select customer..."
-                    className="w-full"
-                    disabled={inactiveView}
-                  />
-
-                  <Star
-                    size={20}
-                    className={`text-white cursor-pointer hover:text-yellow-400 ${inactiveView ? "pointer-events-none opacity-50" : ""}`}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* LEFT COL */}
+          <div className="space-y-4">
+             {/* Customer */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 Customer <span className="text-dark">*</span>
+               </label>
+               <div className="flex-1 flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                     options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
+                     value={customer}
+                     onChange={setCustomer}
+                     placeholder="Select customer..."
+                     disabled={inactiveView}
+                     className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                   />
+                 </div>
+                 <button
+                    type="button"
+                    className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                     onClick={() => !inactiveView && navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                    disabled={inactiveView}
+                 >
+                     <Star size={16} />
+                 </button>
+               </div>
+             </div>
+
+             {/* Tax Type */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                  Tax Type <span className="text-dark">*</span>
+               </label>
+               <div className="flex-1 flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                  <SearchableSelect
+                     options={taxTypesList}
+                     value={taxTypeId}
+                     onChange={setTaxTypeId}
+                     placeholder="Select Tax Type..."
+                     disabled={inactiveView || noTax}
+                     className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
                   />
-                </div>
-              </div>
-            </div>
+                 </div>
+                 {/* Spacer */}
+                 <div className="p-2 border border-transparent rounded invisible">
+                     <Star size={16} />
+                 </div>
+               </div>
+             </div>
 
-            {/* Payment */}
-            <div className="lg:col-span-3">
-              <div className="flex items-center gap-3">
-                <label className="w-24 text-sm text-gray-300">
-                  <span className="text-red-400">*</span> Payment
-                </label>
-
-                <select
-                  value={paymentAccount}
-                  onChange={(e) => setPaymentAccount(e.target.value)}
-                  disabled={inactiveView}
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                >
-                  <option value="">-- select --</option>
-                  {paymentOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Date */}
-            <div className="lg:col-span-3">
-              <div className="flex items-center gap-3">
-                <label className="w-16 text-sm text-gray-300">
-                  <span className="text-red-400">*</span> Date
-                </label>
-
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  disabled={inactiveView}
-                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none disabled:opacity-50"
-                />
-              </div>
-            </div>
+             {/* Payment */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                  Payment <span className="text-dark">*</span>
+               </label>
+               <div className="flex-1 flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                     options={paymentOptions.map(p => ({ id: p, name: p }))}
+                     value={paymentAccount}
+                     onChange={setPaymentAccount}
+                     placeholder="Select Payment..."
+                     disabled={inactiveView}
+                     className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                   />
+                 </div>
+                 {/* Spacer */}
+                 <div className="p-2 border border-transparent rounded invisible">
+                     <Star size={16} />
+                 </div>
+               </div>
+             </div>
           </div>
 
-          {/* ROW 2: Employee */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-            <div className="lg:col-span-6">
-              <div className="flex items-center gap-3">
-                <label className="w-32 text-sm text-gray-300">
-                  <span className="text-red-400">*</span> Employee
-                </label>
-
-                <SearchableSelect
-                    options={employeesList.map(e => ({ id: e.id, name: e.name }))}
-                    value={employee}
-                    onChange={setEmployee}
-                    placeholder="Select employee..."
-                    className="w-full"
-                    disabled={inactiveView}
-                />
-              </div>
-            </div>
-
-            {/* Tax Type */}
-            <div className="lg:col-span-6">
-               <div className="flex items-center gap-3">
-               <label className="w-24 text-sm text-gray-300">
-                  <span className="text-red-400">*</span> Tax Type
+          {/* RIGHT COL */}
+          <div className="space-y-4">
+             {/* Employee */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 Employee <span className="text-dark">*</span>
                </label>
-               <div className="flex-1">
-                <SearchableSelect
-                    options={taxTypesList}
-                    value={taxTypeId}
-                    onChange={setTaxTypeId}
-                    placeholder="Select Tax Type..."
-                    className="w-full"
-                    disabled={inactiveView || noTax}
-                 />
-                </div>
+               <div className="flex-1 flex items-center gap-2">
+                  <div className="flex-1 font-medium">
+                   <SearchableSelect
+                     options={employeesList.map(e => ({ id: e.id, name: e.name }))}
+                     value={employee}
+                     onChange={setEmployee}
+                     placeholder="Select employee..."
+                     disabled={inactiveView}
+                     className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                   />
+                 </div>
+                 {/* Spacer */}
+                 <div className="p-2 border border-transparent rounded invisible">
+                     <Star size={16} />
+                 </div>
                </div>
-            </div>
+             </div>
 
+             {/* Date */}
+             <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 Date <span className="text-dark">*</span>
+               </label>
+               <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 font-medium">
+                       <InputField
+                         type="date"
+                         value={date}
+                         onChange={(e) => setDate(e.target.value)}
+                         disabled={inactiveView}
+                       />
+                   </div>
+                   {/* Spacer */}
+                   <div className="p-2 border border-transparent rounded invisible">
+                       <Star size={16} />
+                   </div>
+               </div>
+             </div>
           </div>
         </div>
 
@@ -837,20 +795,20 @@ const handleRestoreInvoice = async () => {
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <label className="text-sm text-gray-300">Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Line Items</label>
             { !inactiveView && (
             <button
               onClick={openItemModal}
-              className="flex items-center gap-2 bg-gray-800 px-4 py-2 border border-gray-600 rounded text-blue-300 hover:bg-gray-700"
+              className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
             >
               <Plus size={16} /> Add
             </button>
             )}
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden min-w-[900px]">
+          <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-700 text-gray-300 font-medium">
+              <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-gray-700' : 'bg-gray-700 text-gray-300'} font-medium`}>
                 <tr>
                   <th className="p-3">Service Name</th>
                   <th className="p-3">Description</th>
@@ -861,15 +819,15 @@ const handleRestoreInvoice = async () => {
                   <th className="p-3 w-20"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className={`divide-y ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-200' : 'divide-gray-700'}`}>
                 {rows.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-750">
+                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'hover:bg-gray-50 text-gray-700' : 'hover:bg-gray-750 text-white'}`}>
                     <td className="p-3">{row.serviceName}</td>
                     <td className="p-3">{row.description}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className="p-3 text-gray-300">{parseFloat(row.total).toFixed(2)}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300'}`}>{parseFloat(row.total).toFixed(2)}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                       {!inactiveView && (
                           <>
@@ -900,147 +858,170 @@ const handleRestoreInvoice = async () => {
 
         {/* BOTTOM SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-sm text-gray-300">Grand Total</label>
-                <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 font-bold">
-                  {grandTotal.toFixed(2)}
+          {/* LEFT COLUMN - DETAILS (Span 4) */}
+          <div className="lg:col-span-4 flex flex-col">
+              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                Details
+              </label>
+               <div className="flex-1 font-medium">
+                <InputField
+                    textarea
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    className="w-full h-full min-h-[440px] resize-none"
+                    disabled={inactiveView}
+                />
+              </div>
+          </div>
+
+          {/* RIGHT COLUMN - TOTALS (Span 8) -> 2-Col Grid */}
+          <div className="lg:col-span-8">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Grand Total */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Grand Total</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {grandTotal.toFixed(2)}
+                  </div>
                 </div>
-              </div>
 
-
-
-            {/* TAX RATE FIELDS (Percentage) */}
-            {!noTax && taxTypeId && (() => {
-               const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
-               if(!selectedTax) return null;
-               
-               if(selectedTax.isInterState) {
-                   return (
-                     <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">IGST %</label>
-                       <input
-                         type="number"
-                         value={igstRate}
-                         readOnly
-                         className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
-                       />
-                     </div>
-                   );
-               } else {
-                   return (
-                     <>
-                      <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">CGST %</label>
-                       <input
-                         type="number"
-                         value={cgstRate}
-                         readOnly
-                         className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
-                       />
+                {/* Total Tax */}
+                <div>
+                   <div className="flex justify-between mb-1">
+                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
+                      <div className="flex items-center gap-2">
+                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>No Tax</label>
+                          <input
+                            type="checkbox"
+                            checked={noTax}
+                            onChange={(e) => setNoTax(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
+                            disabled={inactiveView}
+                          />
                       </div>
-                      <div className="flex items-center justify-between">
-                       <label className="text-sm text-gray-300">SGST %</label>
-                       <input
-                         type="number"
-                         value={sgstRate}
-                         readOnly
-                         className="w-32 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-right text-gray-300 outline-none cursor-not-allowed"
-                       />
-                      </div>
-                     </>
-                   );
-               }
-            })()}
+                   </div>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {noTax ? "0.00" : taxAmount.toFixed(2)}
+                  </div>
+                </div>
 
-            {/* TOTAL TAX AMOUNT */}
-            <div className="flex items-center justify-between">
-               <label className="text-sm text-gray-300">Total Tax</label>
-               <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                 {taxAmount.toFixed(2)}
-               </div>
-            </div>
+                {/* Discount (Input) */}
+                <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Discount</label>
+                    <InputField
+                        type="number"
+                        value={globalDiscount}
+                        onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
 
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Paid Amount</label>
-              <input
-                type="number"
-                value={paidAmount}
-                onChange={(e) => setPaidAmount(e.target.value)}
-                disabled={inactiveView}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-              />
-            </div>
+                {/* Total Discount (ReadOnly) */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {totalDiscount.toFixed(2)}
+                  </div>
+                </div>
 
-            <div className="pt-2">
-              <label className="text-sm text-gray-300 block mb-1">Details</label>
-              <textarea
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
-                disabled={inactiveView}
-                className="w-full h-24 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none resize-none disabled:opacity-50"
-              ></textarea>
-            </div>
-          </div>
+                {/* Shipping Cost */}
+                <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Shipping Cost</label>
+                    <InputField
+                        type="number"
+                        value={shippingCost}
+                        onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
 
-          {/* MIDDLE COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Discount</label>
-              <input
-                type="number"
-                value={globalDiscount}
-                onChange={(e) => setGlobalDiscount(e.target.value)}
-                disabled={inactiveView}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-              />
-            </div>
+                {/* Paid Amount */}
+                <div>
+                    <InputField
+                        type="number"
+                        label="Paid Amount"
+                        value={paidAmount}
+                        onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
+                        disabled={inactiveView}
+                        className="text-right w-full"
+                    />
+                </div>
 
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Total Discount</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {totalDiscount.toFixed(2)}
-              </div>
-            </div>
+                {/* Change */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {changeAmount.toFixed(2)}
+                  </div>
+                </div>
 
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Due</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {dueAmount.toFixed(2)}
-              </div>
-            </div>
-          </div>
+                {/* Due */}
+                <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
+                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
+                    {dueAmount.toFixed(2)}
+                  </div>
+                </div>
+                
+                {/* Tax Breakdown */}
+                {!noTax && taxTypeId && (() => {
+                   const selectedTax = taxTypesList.find(t => String(t.id) === String(taxTypeId));
+                   if(!selectedTax) return null;
+                   
+                   if(selectedTax.isInterState) {
+                       return (
+                         <div className="md:col-span-2">
+                           <label className="block text-sm mb-1 text-gray-500">IGST %</label>
+                           <input
+                              type="number"
+                              value={igstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                         </div>
+                       );
+                   } else {
+                       return (
+                         <>
+                           <div>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
+                           <input
+                              type="number"
+                              value={cgstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                          </div>
+                          <div>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
+                           <input
+                              type="number"
+                              value={sgstRate}
+                              readOnly
+                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           />
+                          </div>
+                         </>
+                       );
+                   }
+                })()}
 
-          {/* RIGHT COLUMN */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300"><span className="text-red-400">*</span> Shipping Cost</label>
-              <input
-                type="number"
-                value={shippingCost}
-                onChange={(e) => setShippingCost(e.target.value)}
-                disabled={inactiveView}
-                className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-white outline-none disabled:opacity-50"
-              />
-            </div>
+                {/* Net Total (Full Width) */}
+                <div className="md:col-span-2 mt-2">
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Net Total</label>
+                  <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
+                    {netTotal.toFixed(2)}
+                  </div>
+                </div>
 
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-300">Change</label>
-              <div className="w-32 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-right text-gray-300">
-                {changeAmount.toFixed(2)}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <label className="text-sm text-gray-300 font-semibold">Net Total</label>
-              <div className="w-32 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-right text-white font-bold text-lg">
-                {netTotal.toFixed(2)}
-              </div>
-            </div>
+             </div>
           </div>
         </div>
 
+      </ContentCard>
       </div>
 
 
@@ -1055,11 +1036,8 @@ const handleRestoreInvoice = async () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Service select */}
           <div className="md:col-span-2 w-full">
-            <label className="block text-sm text-gray-300 mb-1">
-              Service
-            </label>
-            <div className="w-full">
-              <SearchableSelect
+            <SearchableSelect
+                label="Service"
                 options={servicesList.map(s => ({
                   id: s.id,
                   name: s.name ?? s.ServiceName ?? s.serviceName
@@ -1068,27 +1046,23 @@ const handleRestoreInvoice = async () => {
                 onChange={handleServiceSelect}
                 placeholder="--select service--"
                 className="w-full"
-              />
-            </div>
+            />
           </div>
-
 
           {/* Description */}
           <div className="md:col-span-2">
-            <label className="block text-sm text-gray-300 mb-1">Description</label>
-            <input
-              type="text"
+            <InputField
+              label="Description"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Quantity */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Quantity</label>
-            <input
+            <InputField
               type="number"
+              label="Quantity"
               value={newItem.quantity}
               onChange={(e) => {
                   const qty = parseFloat(e.target.value) || 0;
@@ -1100,15 +1074,14 @@ const handleRestoreInvoice = async () => {
                     total: calculateItemTotal(qty, price, disc)
                   });
               }}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Service Charge (unitPrice) */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Service Charge</label>
-            <input
+            <InputField
               type="number"
+              label="Service Charge"
               value={newItem.unitPrice}
               onChange={(e) => {
                   const price = parseFloat(e.target.value) || 0;
@@ -1120,15 +1093,14 @@ const handleRestoreInvoice = async () => {
                     total: calculateItemTotal(qty, price, disc)
                   });
               }}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
             />
           </div>
 
           {/* Discount */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Discount (%)</label>
-            <input
+            <InputField
               type="number"
+              label="Discount (%)"
               value={newItem.discount}
               placeholder="0"
               onChange={(e) => {
@@ -1143,20 +1115,16 @@ const handleRestoreInvoice = async () => {
                   total: calculateItemTotal(qty, price, disc)
                   });
               }}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white outline-none"
               required
             />
           </div>
 
           {/* Total (read-only) */}
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Total</label>
-            <input
-              type="text"
-              value={parseFloat(newItem.total || 0).toFixed(2)}
-              readOnly
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-gray-300 outline-none cursor-not-allowed"
-            />
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total</label>
+            <div className={`w-full border rounded px-3 py-2 outline-none ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-gray-300'}`}>
+                {parseFloat(newItem.total || 0).toFixed(2)}
+            </div>
           </div>
         </div>
       </AddModal>

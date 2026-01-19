@@ -6,8 +6,7 @@ import {
   FileText,
   Calendar
 } from "lucide-react";
-import toast from "react-hot-toast";
-import Swal from "sweetalert2";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -30,6 +29,7 @@ import SortableHeader from "../../components/SortableHeader";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 import SearchableSelect from "../../components/SearchableSelect";
+import InputField from "../../components/InputField";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
@@ -68,6 +68,8 @@ const ExportButtons = ({ onExcel, onPDF }) => (
 /* =========================================================
    MAIN COMPONENT
    ========================================================= */
+import ContentCard from "../../components/ContentCard";
+
 const DamagedProducts = () => {
   const { theme } = useTheme(); // ADDED
   const [modalOpen, setModalOpen] = useState(false);
@@ -285,16 +287,16 @@ const DamagedProducts = () => {
   };
 
   const handleAdd = async () => {
-    if (!newDP.ProductId) return toast.error("Product is required");
-    if (!newDP.Code) return toast.error("Code is required");
-    if (!newDP.Name) return toast.error("Name is required");
-    if (!newDP.CategoryId) return toast.error("Category is required");
+    if (!newDP.ProductId) return showErrorToast("Product is required");
+    if (!newDP.Code) return showErrorToast("Code is required");
+    if (!newDP.Name) return showErrorToast("Name is required");
+    if (!newDP.CategoryId) return showErrorToast("Category is required");
     if (newDP.PurchasePrice === "" || newDP.PurchasePrice === null)
-      return toast.error("Purchase Price is required");
+      return showErrorToast("Purchase Price is required");
     if (newDP.Quantity === "" || newDP.Quantity === null)
-      return toast.error("Quantity is required");
-    if (!newDP.Date) return toast.error("Date is required");
-    if (!newDP.Note?.trim()) return toast.error("Note is required");
+      return showErrorToast("Quantity is required");
+    if (!newDP.Date) return showErrorToast("Date is required");
+    if (!newDP.Note?.trim()) return showErrorToast("Note is required");
 
     const payload = {
       productId: newDP.ProductId,
@@ -313,16 +315,16 @@ const DamagedProducts = () => {
     try {
       const res = await addDamagedProductApi(payload);
       if (res?.status === 201 || res?.status === 200) {
-        toast.success("Added");
+        showSuccessToast("Added");
         setModalOpen(false);
         setPage(1);
         await loadDamaged(1, limit);
       } else {
-        toast.error("Add failed");
+        showErrorToast("Add failed");
       }
     } catch (err) {
       console.error("ADD ERR:", err);
-      toast.error("Server error");
+      showErrorToast("Server error");
     }
   };
 
@@ -345,16 +347,16 @@ const DamagedProducts = () => {
   };
 
   const handleUpdate = async () => {
-    if (!editDP.ProductId) return toast.error("Product is required");
-    if (!editDP.Code) return toast.error("Code is required");
-    if (!editDP.Name) return toast.error("Name is required");
-    if (!editDP.CategoryId) return toast.error("Category is required");
+    if (!editDP.ProductId) return showErrorToast("Product is required");
+    if (!editDP.Code) return showErrorToast("Code is required");
+    if (!editDP.Name) return showErrorToast("Name is required");
+    if (!editDP.CategoryId) return showErrorToast("Category is required");
     if (editDP.PurchasePrice === "" || editDP.PurchasePrice === null)
-      return toast.error("Purchase Price is required");
+      return showErrorToast("Purchase Price is required");
     if (editDP.Quantity === "" || editDP.Quantity === null)
-      return toast.error("Quantity is required");
-    if (!editDP.Date) return toast.error("Date is required");
-    if (!editDP.Note?.trim()) return toast.error("Note is required");
+      return showErrorToast("Quantity is required");
+    if (!editDP.Date) return showErrorToast("Date is required");
+    if (!editDP.Note?.trim()) return showErrorToast("Note is required");
 
     const payload = {
       productId: editDP.ProductId,
@@ -372,30 +374,21 @@ const DamagedProducts = () => {
     try {
       const res = await updateDamagedProductApi(editDP.id, payload);
       if (res?.status === 200) {
-        toast.success("Updated");
+        showSuccessToast("Updated");
         setEditModalOpen(false);
         await loadDamaged(page, limit);
         if (showInactive) await loadInactive();
       } else {
-        toast.error("Update failed");
+        showErrorToast("Update failed");
       }
     } catch (err) {
       console.error("UPDATE ERR:", err);
-      toast.error("Update failed");
+      showErrorToast("Update failed");
     }
   };
 
   const handleDelete = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This damaged product entry will be deleted!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showDeleteConfirm();
 
     if (!result.isConfirmed) return;
 
@@ -404,30 +397,21 @@ const DamagedProducts = () => {
         userId: currentUserId,
       });
       if (res?.status === 200) {
-        toast.success("Deleted");
+        showSuccessToast("Deleted");
         setEditModalOpen(false);
         await loadDamaged(page, limit);
         if (showInactive) await loadInactive();
       } else {
-        toast.error("Delete failed");
+        showErrorToast("Delete failed");
       }
     } catch (err) {
       console.error("DELETE ERR:", err);
-      toast.error("Delete failed");
+      showErrorToast("Delete failed");
     }
   };
 
   const handleRestore = async () => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This damaged product entry will be restored!",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-    });
+    const result = await showRestoreConfirm();
 
     if (!result.isConfirmed) return;
 
@@ -436,16 +420,16 @@ const DamagedProducts = () => {
         userId: currentUserId,
       });
       if (res?.status === 200) {
-        toast.success("Restored");
+        showSuccessToast("Restored");
         setEditModalOpen(false);
         await loadDamaged(page, limit);
         await loadInactive();
       } else {
-        toast.error("Restore failed");
+        showErrorToast("Restore failed");
       }
     } catch (err) {
       console.error("RESTORE ERR:", err);
-      toast.error("Restore failed");
+      showErrorToast("Restore failed");
     }
   };
 
@@ -611,6 +595,15 @@ const DamagedProducts = () => {
   /* =========================================================
                           MAIN PAGE RENDER
      ========================================================= */
+  const inputClass = `w-full px-3 py-2 rounded border outline-none transition-colors text-sm mb-2 ${
+    theme === 'emerald'
+      ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500'
+      : theme === 'purple'
+      ? 'bg-white border-purple-300 text-gray-900 focus:border-purple-500'
+      : 'bg-gray-800 border-gray-700 text-white focus:border-gray-500'
+  }`;
+
+  const labelClass = `block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`;
   return (
     <>
       <AddModal
@@ -620,120 +613,100 @@ const DamagedProducts = () => {
         title="New Damaged Product"
         width="760px"
       >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="font-semibold text-sm">* Select Product</label>
-            <SearchableSelect
-              options={products.map((p) => ({
-                id: p.Id ?? p.id,
-                name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
-                  p.Barcode ?? p.barcode ?? ""
-                })`,
-              }))}
-              value={newDP.ProductId}
-              onChange={(v) => handleSelectProduct(v, "add")}
-              placeholder="Search / select product"
-              className="w-full mt-1"
-            />
-          </div>
+        <div className="space-y-4">
+           {/* Top 2 Columns */}
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* LEFT COLUMN */}
+              <div className="space-y-4">
+                  <SearchableSelect
+                    label="Select Product"
+                    required
+                    options={products.map((p) => ({
+                      id: p.Id ?? p.id,
+                      name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
+                        p.Barcode ?? p.barcode ?? ""
+                      })`,
+                    }))}
+                    value={newDP.ProductId}
+                    onChange={(v) => handleSelectProduct(v, "add")}
+                    placeholder="Search / select product"
+                  />
+                  
+                  <InputField
+                     label="Code"
+                     value={newDP.Code ?? ""}
+                     disabled
+                     className="opacity-60 cursor-not-allowed"
+                  />
+                  
+                  <InputField
+                     label="Name"
+                     value={newDP.Name ?? ""}
+                     disabled
+                     className="opacity-60 cursor-not-allowed"
+                  />
 
-          <div>
-            <label className="text-sm">* Code</label>
-            <input
-              disabled
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
-              value={newDP.Code ?? ""}
-            />
+                  <SearchableSelect
+                    label="Category"
+                    required
+                    options={categories.map((c) => ({
+                      id: c.Id ?? c.id,
+                      name: c.Name ?? c.name ?? c.CategoryName ?? c.categoryName ?? String(c.Id ?? c.id),
+                    }))}
+                    value={newDP.CategoryId}
+                    onChange={(v) => setNewDP((prev) => ({ ...prev, CategoryId: v }))}
+                    placeholder="Select category"
+                  />
+              </div>
 
-            <label className="text-sm">* Name</label>
-            <input
-              disabled
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
-              value={newDP.Name ?? ""}
-            />
+              {/* RIGHT COLUMN */}
+              <div className="space-y-4">
+                  <InputField
+                     label="Date"
+                     required
+                     type="date"
+                     value={newDP.Date ?? ""}
+                     onChange={(e) => setNewDP((prev) => ({ ...prev, Date: e.target.value }))}
+                  />
 
-            <label className="text-sm">* Date</label>
-            <div className="relative">
-              <input
-                type="date"
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm text-white appearance-none pr-10"
-                value={newDP.Date ?? ""}
-                onChange={(e) =>
-                  setNewDP((prev) => ({ ...prev, Date: e.target.value }))
-                }
+                  <InputField
+                     label="Purchase ID"
+                     type="number"
+                     value={newDP.PurchaseId ?? ""}
+                     onChange={(e) => setNewDP((prev) => ({ ...prev, PurchaseId: e.target.value }))}
+                     placeholder="Auto-filled or Manual"
+                  />
+
+                  <InputField
+                     label="Purchase Price"
+                     required
+                     type="number"
+                     step="0.01"
+                     value={newDP.PurchasePrice ?? ""}
+                     onChange={(e) => setNewDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))}
+                  />
+
+                  <InputField
+                     label="Quantity"
+                     required
+                     type="number"
+                     value={newDP.Quantity ?? ""}
+                     onChange={(e) => setNewDP((prev) => ({ ...prev, Quantity: e.target.value }))}
+                  />
+              </div>
+           </div>
+
+           {/* Full Width Note */}
+           <div>
+              <InputField
+                 label="Note"
+                 required
+                 textarea
+                 value={newDP.Note ?? ""}
+                 onChange={(e) => setNewDP((prev) => ({ ...prev, Note: e.target.value }))}
+                 className="h-24 resize-none"
               />
-              <Calendar
-                size={18}
-                className="text-white absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="font-semibold text-sm">* Category</label>
-            <div className="mt-1">
-              <SearchableSelect
-                options={categories.map((c) => ({
-                  id: c.Id ?? c.id,
-                  name:
-                    c.Name ??
-                    c.name ??
-                    c.CategoryName ??
-                    c.categoryName ??
-                    String(c.Id ?? c.id),
-                }))}
-                value={newDP.CategoryId}
-                onChange={(v) =>
-                  setNewDP((prev) => ({ ...prev, CategoryId: v }))
-                }
-                placeholder="Select category"
-                className="w-full"
-              />
-            </div>
-
-            <label className="mt-3 block text-sm">Purchase ID</label>
-            <input
-              type="number"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
-              value={newDP.PurchaseId ?? ""}
-              onChange={(e) =>
-                setNewDP((prev) => ({ ...prev, PurchaseId: e.target.value }))
-              }
-              placeholder="Auto-filled or Manual"
-            />
-
-            <label className="mt-3 block text-sm">* Purchase Price</label>
-            <input
-              type="number"
-              step="0.01"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
-              value={newDP.PurchasePrice ?? ""}
-              onChange={(e) =>
-                setNewDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))
-              }
-            />
-
-            <label className="text-sm">* Quantity</label>
-            <input
-              type="number"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
-              value={newDP.Quantity ?? ""}
-              onChange={(e) =>
-                setNewDP((prev) => ({ ...prev, Quantity: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="col-span-2">
-            <label className="text-sm">* Note</label>
-            <textarea
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24 text-sm"
-              value={newDP.Note ?? ""}
-              onChange={(e) =>
-                setNewDP((prev) => ({ ...prev, Note: e.target.value }))
-              }
-            />
-          </div>
+           </div>
         </div>
       </AddModal>
 
@@ -755,124 +728,107 @@ const DamagedProducts = () => {
         )}
         width="760px"
       >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="font-semibold text-sm">* Select Product</label>
-            <SearchableSelect
-              options={products.map((p) => ({
-                id: p.Id ?? p.id,
-                name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
-                  p.Barcode ?? p.barcode ?? ""
-                })`,
-              }))}
-              value={editDP.ProductId}
-              onChange={(v) => handleSelectProduct(v, "edit")}
-              placeholder="Search / select product"
-              className="w-full mt-1"
-              disabled={editDP.isInactive}
-            />
-          </div>
+        <div className="space-y-4">
+           {/* Top 2 Columns */}
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* LEFT COLUMN */}
+              <div className="space-y-4">
+                  <SearchableSelect
+                    label="Select Product"
+                    required
+                    options={products.map((p) => ({
+                      id: p.Id ?? p.id,
+                      name: `${p.ProductName ?? p.productName ?? p.name ?? ""} (${
+                        p.Barcode ?? p.barcode ?? ""
+                      })`,
+                    }))}
+                    value={editDP.ProductId}
+                    onChange={(v) => handleSelectProduct(v, "edit")}
+                    placeholder="Search / select product"
+                    disabled={editDP.isInactive}
+                  />
+                  
+                  <InputField
+                     label="Code"
+                     value={editDP.Code ?? ""}
+                     disabled
+                     className="opacity-60 cursor-not-allowed"
+                  />
+                  
+                  <InputField
+                     label="Name"
+                     value={editDP.Name ?? ""}
+                     disabled
+                     className="opacity-60 cursor-not-allowed"
+                  />
 
-          <div>
-            <label className="text-sm">* Code</label>
-            <input
-              disabled
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
-              value={editDP.Code ?? ""}
-            />
+                  <SearchableSelect
+                    label="Category"
+                    required
+                    options={categories.map((c) => ({
+                      id: c.Id ?? c.id,
+                      name: c.Name ?? c.name ?? c.CategoryName ?? c.categoryName ?? String(c.Id ?? c.id),
+                    }))}
+                    value={editDP.CategoryId}
+                    onChange={(v) => setEditDP((prev) => ({ ...prev, CategoryId: v }))}
+                    placeholder="Select category"
+                    disabled={editDP.isInactive}
+                  />
+              </div>
 
-            <label className="text-sm">* Name</label>
-            <input
-              disabled
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 mb-2 text-sm"
-              value={editDP.Name ?? ""}
-            />
+              {/* RIGHT COLUMN */}
+              <div className="space-y-4">
+                  <InputField
+                     label="Date"
+                     required
+                     type="date"
+                     value={editDP.Date ?? ""}
+                     onChange={(e) => setEditDP((prev) => ({ ...prev, Date: e.target.value }))}
+                     disabled={editDP.isInactive}
+                  />
 
-            <label className="text-sm">* Date</label>
-            <div className="relative">
-              <input
-                type="date"
-                disabled={editDP.isInactive}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm text-white appearance-none pr-10"
-                value={editDP.Date ?? ""}
-                onChange={(e) =>
-                  setEditDP((prev) => ({ ...prev, Date: e.target.value }))
-                }
+                  <InputField
+                     label="Purchase ID"
+                     type="number"
+                     value={editDP.PurchaseId ?? ""}
+                     onChange={(e) => setEditDP((prev) => ({ ...prev, PurchaseId: e.target.value }))}
+                     placeholder="Auto-filled or Manual"
+                     disabled={editDP.isInactive}
+                  />
+
+                  <InputField
+                     label="Purchase Price"
+                     required
+                     type="number"
+                     step="0.01"
+                     value={editDP.PurchasePrice ?? ""}
+                     onChange={(e) => setEditDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))}
+                     disabled={editDP.isInactive}
+                  />
+
+                  <InputField
+                     label="Quantity"
+                     required
+                     type="number"
+                     value={editDP.Quantity ?? ""}
+                     onChange={(e) => setEditDP((prev) => ({ ...prev, Quantity: e.target.value }))}
+                     disabled={editDP.isInactive}
+                  />
+              </div>
+           </div>
+
+           {/* Full Width Note */}
+           <div>
+              <InputField
+                 label="Note"
+                 required
+                 textarea
+                 value={editDP.Note ?? ""}
+                 onChange={(e) => setEditDP((prev) => ({ ...prev, Note: e.target.value }))}
+                 className="h-24 resize-none"
+                 disabled={editDP.isInactive}
               />
-              <Calendar
-                size={18}
-                className="text-white absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="font-semibold text-sm">* Category</label>
-            <div className="mt-1">
-              <SearchableSelect
-                options={categories.map((c) => ({
-                  id: c.Id ?? c.id,
-                  name:
-                    c.Name ??
-                    c.name ??
-                    c.CategoryName ??
-                    c.categoryName ??
-                    String(c.Id ?? c.id),
-                }))}
-                value={editDP.CategoryId}
-                onChange={(v) =>
-                  setEditDP((prev) => ({ ...prev, CategoryId: v }))
-                }
-                placeholder="Select category"
-                className="w-full"
-                disabled={editDP.isInactive}
-              />
-            </div>
-
-            <label className="mt-3 block text-sm">* Purchase Price</label>
-            <input
-              type="number"
-              step="0.01"
-              disabled={editDP.isInactive}
-              className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm ${
-                editDP.isInactive ? "opacity-60 cursor-not-allowed" : ""
-              }`}
-              value={editDP.PurchasePrice ?? ""}
-              onChange={(e) =>
-                setEditDP((prev) => ({
-                  ...prev,
-                  PurchasePrice: e.target.value,
-                }))
-              }
-            />
-
-            <label className="text-sm">* Quantity</label>
-            <input
-              type="number"
-              disabled={editDP.isInactive}
-              className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 mb-2 text-sm ${
-                editDP.isInactive ? "opacity-60 cursor-not-allowed" : ""
-              }`}
-              value={editDP.Quantity ?? ""}
-              onChange={(e) =>
-                setEditDP((prev) => ({ ...prev, Quantity: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="col-span-2">
-            <label className="text-sm">Note</label>
-            <textarea
-              className={`w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 h-24 text-sm ${
-                editDP.isInactive ? "opacity-60 cursor-not-allowed" : ""
-              }`}
-              value={editDP.Note ?? ""}
-              onChange={(e) =>
-                setEditDP((prev) => ({ ...prev, Note: e.target.value }))
-              }
-              disabled={editDP.isInactive}
-            />
-          </div>
+           </div>
         </div>
       </EditModal>
 
@@ -885,12 +841,14 @@ const DamagedProducts = () => {
       />
 
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
             
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Damaged Products</h2>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Damaged Products</h2>
             </div>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -955,6 +913,7 @@ const DamagedProducts = () => {
             }}
           />
         </div>
+        </ContentCard>
       </div>
       </PageLayout>
     </>

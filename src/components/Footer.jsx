@@ -9,8 +9,8 @@ const Footer = () => {
   const footerText = settings?.footerText?.trim() ? settings.footerText : "HomeButton";
 
   return (
-    <footer className={`w-full text-white py-1 px-5 text-sm flex justify-between items-center border-t -mt-3 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500' : 'bg-gray-900 border-gray-700'}`}>
-      <span className="opacity-90 ms-auto">{footerText}</span>
+    <footer className={`relative z-50 w-full py-1 px-5 text-sm flex justify-between items-center border-t -mt-3 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 text-white' : theme === 'purple' ? 'bg-white border-[#6448AE] text-[#6448AE]' : 'bg-gray-900 border-gray-700 text-white'}`}>
+      <span className="opacity-100 ms-auto font-bold">{footerText}</span>
     </footer>
   );
 };

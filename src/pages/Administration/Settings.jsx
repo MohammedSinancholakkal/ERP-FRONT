@@ -12,8 +12,27 @@ import {
 } from "../../services/allAPI";
 import { useSettings } from "../../contexts/SettingsContext";
 import { updateFavicon } from "../../utils/updateFavicon";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
+import AddModal from "../../components/modals/AddModal";
+import InputField from "../../components/InputField";
+import { hasPermission } from "../../utils/permissionUtils";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const Settings = () => {
+  const { theme } = useTheme();
+
+  if (!hasPermission(PERMISSIONS.SETTINGS)) {
+      return (
+        <div className="flex items-center justify-center h-full text-white">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+            <p className="text-gray-400">You do not have permission to view this page.</p>
+          </div>
+        </div>
+      );
+  }
+
   const { setSettings: setGlobalSettings, refreshSettings } = useSettings();
 
   const [companyName, setCompanyName] = useState("");
@@ -268,10 +287,14 @@ if (response?.status === 200) {
     <>
       <PageLayout>
         {/* ⭐ ONLY SETTINGS PAGE SCROLLABLE */}
-        <div className="max-h-[calc(100vh-90px)] overflow-y-auto p-6 text-white bg-gradient-to-b from-gray-900 to-gray-800">
+        <div className={`max-h-[calc(100vh-90px)] overflow-y-auto p-6 ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-800 text-white'}`}>
+          <ContentCard>
+            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Settings</h2>
+            <hr className="mb-4 border-gray-300" />
+            
           {/* SAVE BUTTON */}
           <button
-            className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300 mb-3"
+            className={`flex items-center justify-center gap-2 border px-4 py-2 rounded text-sm mb-3 w-32 ${theme === 'emerald' || theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-800 border-gray-600 text-blue-300'}`}
             onClick={handleSave}
           >
             <Save size={16} /> Save
@@ -280,10 +303,10 @@ if (response?.status === 200) {
           <div className="max-w-[1500px]">
             {/* COMPANY NAME */}
             <div className="mb-3">
-              <label className="block mb-1">Company Name *</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Company Name *</label>
               <input
-                className={`w-full bg-gray-900 border rounded px-3 py-2 ${
-                  errors.companyName ? "border-red-500" : "border-gray-700"
+                className={`w-full border rounded px-3 py-2 ${
+                  errors.companyName ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
                 }`}
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
@@ -297,10 +320,10 @@ if (response?.status === 200) {
 
             {/* EMAIL */}
             <div className="mb-3">
-              <label className="block mb-1">Company Email</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Company Email</label>
               <input
-                className={`w-full bg-gray-900 border rounded px-3 py-2 ${
-                  errors.companyEmail ? "border-red-500" : "border-gray-700"
+                className={`w-full border rounded px-3 py-2 ${
+                  errors.companyEmail ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
                 }`}
                 value={companyEmail}
                 onChange={(e) => setCompanyEmail(e.target.value)}
@@ -314,9 +337,9 @@ if (response?.status === 200) {
 
             {/* ADDRESS */}
             <div className="mb-3">
-              <label className="block mb-1">Address</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Address</label>
               <input
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
@@ -324,10 +347,10 @@ if (response?.status === 200) {
 
             {/* PHONE */}
             <div className="mb-3">
-              <label className="block mb-1">Phone</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Phone</label>
               <input
-                className={`w-full bg-gray-900 border rounded px-3 py-2 ${
-                  errors.phone ? "border-red-500" : "border-gray-700"
+                className={`w-full border rounded px-3 py-2 ${
+                  errors.phone ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
                 }`}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -338,11 +361,11 @@ if (response?.status === 200) {
             </div>
 
             {/* CURRENCY SECTION */}
-            <label className="block mb-1">Currency</label>
+            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Currency</label>
             <div className="flex items-center gap-2">
               <select
-                className={`flex-1 bg-gray-900 border rounded px-3 py-2 ${
-                  errors.currency ? "border-red-500" : "border-gray-700"
+                className={`flex-1 border rounded px-3 py-2 ${
+                  errors.currency ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
                 }`}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
@@ -355,12 +378,14 @@ if (response?.status === 200) {
                 ))}
               </select>
 
+              {hasPermission(PERMISSIONS.CURRENCIES.CREATE) && (
               <button
                 onClick={() => setModalOpen(true)}
-                className="p-2 bg-gray-800 border border-gray-600 rounded hover:bg-gray-700"
+                className={`p-2  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
               >
-                <Star size={18} className="text-yellow-400" />
+                <Star size={16} className="" />
               </button>
+              )}
             </div>
             {errors.currency && (
               <p className="text-red-400 text-sm mt-1 mb-6">
@@ -373,10 +398,10 @@ if (response?.status === 200) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               {/* Tax % */}
               <div>
-                <label className="block mb-1">Tax Percentage *</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Tax Percentage *</label>
                 <input
-                  className={`w-full bg-gray-900 border rounded px-3 py-2 ${
-                    errors.taxPercentage ? "border-red-500" : "border-gray-700"
+                  className={`w-full border rounded px-3 py-2 ${
+                    errors.taxPercentage ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
                   }`}
                   value={taxPercentage}
                   onChange={(e) => setTaxPercentage(e.target.value)}
@@ -390,9 +415,9 @@ if (response?.status === 200) {
 
               {/* GSTIN */}
               <div>
-                <label className="block mb-1">GSTIN</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>GSTIN</label>
                 <input
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                   value={gstin}
                   onChange={(e) => setGstin(e.target.value)}
                 />
@@ -400,9 +425,9 @@ if (response?.status === 200) {
 
              {/* PAN No */}
              <div>
-                <label className="block mb-1">PAN No</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>PAN No</label>
                 <input
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                  className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                   value={pan}
                   onChange={(e) => setPan(e.target.value)}
                 />
@@ -410,10 +435,10 @@ if (response?.status === 200) {
 
               {/* Tax TYPE */}
               <div>
-                <label className="block mb-1">Tax Type *</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Tax Type *</label>
                 <select
-                  className={`w-full bg-gray-900 border rounded px-3 py-2 ${
-                    errors.taxType ? "border-red-500" : "border-gray-700"
+                  className={`w-full border rounded px-3 py-2 ${
+                    errors.taxType ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
                   }`}
                   value={taxType}
                   onChange={(e) => setTaxType(e.target.value)}
@@ -432,10 +457,10 @@ if (response?.status === 200) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               {/* Logo */}
               <div>
-                <label className="block mb-1">Logo</label>
-                <div className="w-full h-40 bg-gray-900 border border-gray-700 rounded flex items-center justify-center relative">
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Logo</label>
+                <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!logo ? (
-                    <label className="cursor-pointer px-4 py-2 bg-gray-800 border border-gray-600 rounded">
+                    <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
                       <input
                         type="file"
                         className="hidden"
@@ -449,10 +474,10 @@ if (response?.status === 200) {
                     <div className="relative">
                       <img
                         src={logo}
-                        className="h-36 rounded border border-gray-700"
+                        className={`h-36 rounded border ${theme === 'emerald' || theme === 'purple' ? 'border-gray-300' : 'border-gray-700'}`}
                       />
                       <button
-                        className="absolute top-1 right-1 bg-red-600 p-1 rounded-full"
+                        className="absolute top-1 right-1 bg-red-600 p-1 rounded-full text-white"
                         onClick={() => removeImage(setLogo, setLogoFile)}
                       >
                         <X size={14} />
@@ -464,10 +489,10 @@ if (response?.status === 200) {
 
               {/* Invoice Logo */}
               <div>
-                <label className="block mb-1">Invoice Logo</label>
-                <div className="w-full h-40 bg-gray-900 border border-gray-700 rounded flex items-center justify-center relative">
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Invoice Logo</label>
+                <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!invoiceLogo ? (
-                    <label className="cursor-pointer px-4 py-2 bg-gray-800 border border-gray-600 rounded">
+                    <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
                       <input
                         type="file"
                         className="hidden"
@@ -485,10 +510,10 @@ if (response?.status === 200) {
                     <div className="relative">
                       <img
                         src={invoiceLogo}
-                        className="h-36 rounded border border-gray-700"
+                        className={`h-36 rounded border ${theme === 'emerald' || theme === 'purple' ? 'border-gray-300' : 'border-gray-700'}`}
                       />
                       <button
-                        className="absolute top-1 right-1 bg-red-600 p-1 rounded-full"
+                        className="absolute top-1 right-1 bg-red-600 p-1 rounded-full text-white"
                         onClick={() =>
                           removeImage(setInvoiceLogo, setInvoiceLogoFile)
                         }
@@ -502,10 +527,10 @@ if (response?.status === 200) {
 
               {/* Favicon */}
               <div>
-                <label className="block mb-1">Favicon</label>
-                <div className="w-full h-40 bg-gray-900 border border-gray-700 rounded flex items-center justify-center relative">
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Favicon</label>
+                <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!favicon ? (
-                    <label className="cursor-pointer px-4 py-2 bg-gray-800 border border-gray-600 rounded">
+                    <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
                       <input
                         type="file"
                         className="hidden"
@@ -519,10 +544,10 @@ if (response?.status === 200) {
                     <div className="relative">
                       <img
                         src={favicon}
-                        className="h-36 rounded border border-gray-700"
+                        className={`h-36 rounded border ${theme === 'emerald' || theme === 'purple' ? 'border-gray-300' : 'border-gray-700'}`}
                       />
                       <button
-                        className="absolute top-1 right-1 bg-red-600 p-1 rounded-full"
+                        className="absolute top-1 right-1 bg-red-600 p-1 rounded-full text-white"
                         onClick={() => removeImage(setFavicon, setFaviconFile)}
                       >
                         <X size={14} />
@@ -534,10 +559,10 @@ if (response?.status === 200) {
             </div>
 
             {/* CURRENCY POSITION */}
-            <label className="block mb-1">Currency Position *</label>
+            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Currency Position *</label>
             <select
-              className={`w-full bg-gray-900 border rounded px-3 py-2 mb-1 ${
-                errors.currencyPosition ? "border-red-500" : "border-gray-700"
+              className={`w-full border rounded px-3 py-2 mb-1 ${
+                errors.currencyPosition ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
               }`}
               value={currencyPosition}
               onChange={(e) => setCurrencyPosition(e.target.value)}
@@ -553,65 +578,45 @@ if (response?.status === 200) {
             )}
 
             {/* FOOTER TEXT */}
-            <label className="block mb-1 mt-4">Footer Text</label>
+            <label className={`block mb-1 mt-4 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Footer Text</label>
             <textarea
               rows={4}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
               value={footerText}
               onChange={(e) => setFooterText(e.target.value)}
             />
           </div>
 
           {/* MODAL */}
-          {modalOpen && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-              <div className="w-[600px] bg-gray-900 text-white rounded-lg shadow-xl border border-gray-700">
-                {/* HEADER */}
-                <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-                  <h2 className="text-lg font-semibold">Add Currency</h2>
-                  <button
-                    onClick={() => setModalOpen(false)}
-                    className="text-gray-300 hover:text-white"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                {/* BODY */}
-                <div className="p-6">
-                  <label className="block text-sm mb-1">Currency Name *</label>
-                  <input
-                    type="text"
-                    value={newCurrencyName}
-                    onChange={(e) => setNewCurrencyName(e.target.value)}
-                    placeholder="Enter currency name (e.g. Dollar)"
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none mb-4"
-                  />
-
-                  <label className="block text-sm mb-1">
-                    Currency Symbol *
-                  </label>
-                  <input
-                    type="text"
-                    value={newCurrencySymbol}
-                    onChange={(e) => setNewCurrencySymbol(e.target.value)}
-                    placeholder="Enter symbol (e.g. $)"
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:border-white outline-none"
-                  />
-                </div>
-
-                {/* FOOTER */}
-                <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-                  <button
-                    onClick={addCurrency}
-                    className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm text-blue-300"
-                  >
-                    <Save size={16} /> Add
-                  </button>
-                </div>
+          <AddModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            onSave={addCurrency}
+            title="Add Currency"
+            saveText="Add"
+          >
+              <div className="space-y-4 p-1">
+                  <div>
+                    <InputField
+                      label="Currency Name *"
+                      type="text"
+                      value={newCurrencyName}
+                      onChange={(e) => setNewCurrencyName(e.target.value)}
+                      placeholder="Enter currency name (e.g. Dollar)"
+                    />
+                  </div>
+                  <div>
+                    <InputField
+                      label="Currency Symbol *"
+                      type="text"
+                      value={newCurrencySymbol}
+                      onChange={(e) => setNewCurrencySymbol(e.target.value)}
+                      placeholder="Enter symbol (e.g. $)"
+                    />
+                  </div>
               </div>
-            </div>
-          )}
+          </AddModal>
+          </ContentCard>
         </div>
       </PageLayout>
     </>

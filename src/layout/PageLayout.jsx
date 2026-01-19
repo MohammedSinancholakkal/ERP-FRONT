@@ -12,6 +12,8 @@ const PageLayout = ({ children }) => {
       <div className={`flex flex-col flex-grow overflow-hidden text-white ${
         theme === 'emerald' 
           ? 'bg-gradient-to-b from-emerald-800 to-emerald-600' 
+          : theme === 'purple'
+          ? 'bg-gradient-to-br from-gray-50 to-gray-200 !text-gray-900'
           : 'bg-gradient-to-b from-gray-900 to-gray-700'
       }`}>
         
