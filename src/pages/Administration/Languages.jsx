@@ -126,6 +126,24 @@ const Languages = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setSearchText("");
+    setSortConfig({ key: null, direction: 'asc' });
+    setPage(1);
+    setShowInactive(false);
+    
+    try {
+        const res = await getLanguagesApi(1, limit, null, 'asc');
+        if (res?.status === 200) {
+          setLanguages(res.data.records);
+          setTotalRecords(res.data.total);
+          // showSuccessToast("Refreshed");
+        }
+    } catch (err) {
+        toast.error("Error refreshing languages");
+    }
+  };
+
   // ADD
   const handleAddLanguage = async () => {
     const { languageId, languageName } = newLanguage;
@@ -435,11 +453,7 @@ const Languages = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Language"
                 permissionCreate={hasPermission(PERMISSIONS.LANGUAGES.CREATE)}
-                onRefresh={() => {
-                    setSearchText("");
-                    setPage(1);
-                    loadLanguages();
-                }}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => {
                     setColumnModalOpen(true); 
                 }}
@@ -456,6 +470,13 @@ const Languages = () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={() => {
+                    setSearchText("");
+                    setSortConfig({ key: null, direction: 'asc' });
+                    setPage(1);
+                    setShowInactive(false);
+                    loadLanguages();
+                }}
               />
           </div>
           </ContentCard>

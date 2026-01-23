@@ -14,6 +14,7 @@ import {
 } from "../../services/allAPI";
 import { useDashboard } from "../../context/DashboardContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -30,6 +31,10 @@ import InputField from "../../components/InputField";
 
 const ExpenseTypes = () => {
   const { theme } = useTheme();
+  const { 
+    refreshExpenseTypes: refreshCtx, 
+    refreshInactiveExpenseTypes: refreshInactiveCtx 
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -351,6 +356,10 @@ const ExpenseTypes = () => {
               onRefresh={() => {
                   setSearchText("");
                   setPage(1);
+                  setSortConfig({ key: "id", direction: "asc" });
+                  setShowInactive(false);
+                  refreshCtx();
+                  refreshInactiveCtx();
                   loadRows();
               }}
               onColumnSelector={() => setColumnModalOpen(true)}
@@ -371,6 +380,10 @@ const ExpenseTypes = () => {
             onRefresh={() => {
               setSearchText("");
               setPage(1);
+              setSortConfig({ key: "id", direction: "asc" });
+              setShowInactive(false);
+              refreshCtx();
+              refreshInactiveCtx();
               loadRows();
             }}
           />

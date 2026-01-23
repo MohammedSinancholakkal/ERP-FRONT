@@ -999,10 +999,10 @@ const Products = () => {
                 setFilterCategory("");
                 setFilterUnit("");
                 setFilterBrand("");
-                setSortConfig({ key: null, direction: 'asc' });
+                setSortConfig({ key: "id", direction: 'asc' });
                 setPage(1);
                 setShowInactive(false);
-                loadProducts(1, limit);
+                loadProducts(1, limit, { key: "id", direction: 'asc' });
                 // No toast here, MasterTable/Pagination handles it
               }}
               onColumnSelector={() => setColumnModalOpen(true)}
@@ -1030,10 +1030,10 @@ const Products = () => {
                 setFilterCategory("");
                 setFilterUnit("");
                 setFilterBrand("");
-                setSortConfig({ key: null, direction: 'asc' });
+                setSortConfig({ key: "id", direction: 'asc' });
                 setPage(1);
                 setShowInactive(false);
-                loadProducts(1, limit);
+                loadProducts(1, limit, { key: "id", direction: 'asc' });
               }}
             />
         </div>

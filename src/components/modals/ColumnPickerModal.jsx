@@ -2,7 +2,7 @@ import React, { useState }  from 'react';
 import BaseModal from './BaseModal';
 import { useTheme } from "../../context/ThemeContext";
 
-const ColumnPickerModal = ({ isOpen, onClose, visibleColumns, setVisibleColumns, defaultColumns }) => {
+const ColumnPickerModal = ({ isOpen, onClose, visibleColumns, setVisibleColumns, defaultColumns, zIndex }) => {
   const { theme } = useTheme();
   const [searchColumn, setSearchColumn] = useState("");
 
@@ -19,7 +19,7 @@ const ColumnPickerModal = ({ isOpen, onClose, visibleColumns, setVisibleColumns,
       isOpen={isOpen}
       onClose={onClose}
       title="Column Picker"
-      // zIndex={60} // Removed to use default from BaseModal
+      zIndex={zIndex}
       footer={
         <div className="flex justify-between w-full">
            <button
@@ -30,7 +30,7 @@ const ColumnPickerModal = ({ isOpen, onClose, visibleColumns, setVisibleColumns,
           </button>
           <button
             onClick={onClose}
-            className={`px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border-gray-600 hover:bg-gray-700'}`}
+            className={`px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm' : theme === 'purple' ? 'bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border-gray-600 hover:bg-gray-700'}`}
           >
             OK
           </button>

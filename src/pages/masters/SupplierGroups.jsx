@@ -15,6 +15,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
@@ -29,6 +30,10 @@ import InputField from "../../components/InputField";
 
 const SupplierGroups = () => {
   const { theme } = useTheme();
+  const { 
+      refreshSupplierGroups, 
+      refreshInactiveSupplierGroups 
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -357,6 +362,8 @@ const SupplierGroups = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshSupplierGroups();
+                refreshInactiveSupplierGroups();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -376,6 +383,8 @@ const SupplierGroups = () => {
             setPage(1);
             setSortConfig({ key: "id", direction: "asc" });
             setShowInactive(false);
+            refreshSupplierGroups();
+            refreshInactiveSupplierGroups();
             loadRows();
           }}
         />

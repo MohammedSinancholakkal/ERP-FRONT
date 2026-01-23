@@ -35,8 +35,23 @@ import {
   getAttendanceStatusesApi,
   addAttendeeTypeApi,
   addAttendanceStatusApi,
-  searchAttendeeTypeApi,
   searchAttendanceStatusApi,
+  updateLocationApi,
+  updateDepartmentApi,
+  updateMeetingTypeApi,
+  updateAttendeeTypeApi,
+  updateAttendanceStatusApi,
+  updateAgendaItemTypeApi,
+  updateResolutionStatusApi,
+  getCountriesApi,
+  getStatesByCountryApi,
+  getCitiesApi,
+  addCountryApi,
+  updateCountryApi,
+  addStateApi,
+  updateStateApi,
+  addCityApi,
+  updateCityApi,
 } from "../../services/allAPI";
 import SearchableSelect from "../../components/SearchableSelect";
 import AddModal from "../../components/modals/AddModal";
@@ -70,6 +85,42 @@ const Tab = ({ label, active, onClick, theme }) => (
     {label}
   </button>
 );
+
+/**
+ * Convert API datetime to datetime-local format
+ * Handles both ISO format (UTC) and local time strings
+ * @param {string} dateString - Date from API (e.g., "2026-01-22T14:30:00.000Z" or "2026-01-22 14:30:00")
+ * @returns {string} - Format for datetime-local input (YYYY-MM-DDTHH:mm)
+ */
+const convertToDatetimeLocal = (dateString) => {
+  if (!dateString) return "";
+  
+  try {
+    // If it's already in correct format, return as-is
+    if (dateString.includes("T") && dateString.length <= 19) {
+      return dateString.slice(0, 16).replace(" ", "T");
+    }
+    
+    // Handle ISO format with Z (UTC) - database stores LOCAL TIME as strings
+    // When MSSQL returns ISO format with Z, the actual time is in the string itself
+    // We just need to extract the local time portion
+    if (dateString.includes("Z")) {
+      // For "2026-01-22T14:30:00.000Z", we extract "2026-01-22T14:30"
+      return dateString.substring(0, 16);
+    }
+    
+    // Handle "YYYY-MM-DD HH:MM:SS" format (already local time)
+    if (dateString.includes(" ")) {
+      return dateString.slice(0, 16).replace(" ", "T");
+    }
+    
+    // Fallback: slice and return
+    return dateString.slice(0, 16).replace(" ", "T");
+  } catch (e) {
+    console.error("Error converting date:", e);
+    return dateString;
+  }
+};
 
 
 
@@ -124,8 +175,10 @@ const EditMeeting = () => {
   // Quick Add for Attendee Types/Status
   const [attendeeTypeModalOpen, setAttendeeTypeModalOpen] = useState(false);
   const [attendanceStatusModalOpen, setAttendanceStatusModalOpen] = useState(false);
-  const [newAttendeeType, setNewAttendeeType] = useState("");
-  const [newAttendanceStatus, setNewAttendanceStatus] = useState("");
+  const [newAttendeeType, setNewAttendeeType] = useState({ id: null, name: "" });
+  const [newAttendanceStatus, setNewAttendanceStatus] = useState({ id: null, name: "" });
+
+  const [externalRecipients, setExternalRecipients] = useState(""); // ⬅ New State for Recipients
 
   /* AGENDA MODAL STATE */
   const [showAgendaModal, setShowAgendaModal] = useState(false);
@@ -143,13 +196,13 @@ const EditMeeting = () => {
 
   /* AGENDA ITEM TYPE MODAL STATE */
   const [showAgendaTypeModal, setShowAgendaTypeModal] = useState(false);
-  const [newAgendaType, setNewAgendaType] = useState({ name: "", description: "" });
+  const [newAgendaType, setNewAgendaType] = useState({ id: null, name: "", description: "" });
 
   /* DECISIONS STATE */
   const [showDecisionModal, setShowDecisionModal] = useState(false);
   const [showResolutionStatusModal, setShowResolutionStatusModal] = useState(false);
   const [resolutionStatuses, setResolutionStatuses] = useState([]);
-  const [newResolutionStatus, setNewResolutionStatus] = useState({ name: "", description: "" });
+  const [newResolutionStatus, setNewResolutionStatus] = useState({ id: null, name: "", description: "" });
   const [newDecision, setNewDecision] = useState({
     id: null,
     description: "",
@@ -176,6 +229,15 @@ const EditMeeting = () => {
   const [departments, setDepartments] = useState([]);
   const [locations, setLocations] = useState([]);
   const [employees, setEmployees] = useState([]);
+
+  /* RAW DATA FOR EDITING */
+  const [rawMeetingTypes, setRawMeetingTypes] = useState([]);
+  const [rawDepartments, setRawDepartments] = useState([]);
+  const [rawLocations, setRawLocations] = useState([]);
+  const [rawAttendeeTypes, setRawAttendeeTypes] = useState([]);
+  const [rawAttendanceStatuses, setRawAttendanceStatuses] = useState([]);
+  const [rawAgendaItemTypes, setRawAgendaItemTypes] = useState([]);
+  const [rawResolutionStatuses, setRawResolutionStatuses] = useState([]);
   
   /* QUICK CREATE MODAL STATES */
   const [meetingTypeModalOpen, setMeetingTypeModalOpen] = useState(false);
@@ -188,16 +250,17 @@ const EditMeeting = () => {
   const [addCityModalOpen, setAddCityModalOpen] = useState(false);
 
   /* FORM DATA FOR QUICK CREATE */
-  const [newMeetingType, setNewMeetingType] = useState("");
-  const [newDepartment, setNewDepartment] = useState({ department: "", description: "", parentDepartmentId: "" });
+  // Changed newMeetingType to object to support ID
+  const [newMeetingType, setNewMeetingType] = useState({ id: null, name: "" }); 
+  const [newDepartment, setNewDepartment] = useState({ id: null, department: "", description: "", parentDepartmentId: "" });
   const [newLocation, setNewLocation] = useState({
-    name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: ""
+    id: null, name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: ""
   });
   
   /* NESTED LOCATION FORM DATA */
-  const [newCountryName, setNewCountryName] = useState("");
-  const [newState, setNewState] = useState({ name: "", countryId: "" });
-  const [newCity, setNewCity] = useState({ name: "", countryId: "", stateId: "" });
+  const [newCountry, setNewCountry] = useState({ id: null, name: "" }); // was newCountryName
+  const [newState, setNewState] = useState({ id: null, name: "", countryId: "" });
+  const [newCity, setNewCity] = useState({ id: null, name: "", countryId: "", stateId: "" });
 
   /* DROPDOWN DATA FOR LOCATION MODALS */
   const [modalCountries, setModalCountries] = useState([]);
@@ -232,21 +295,27 @@ const EditMeeting = () => {
   const loadMeetingTypes = async () => {
     try {
       const res = await getMeetingTypesApi(1, 5000);
-      setMeetingTypes(normalizeSimple(res?.data?.records || []));
+      const records = res?.data?.records || [];
+      setRawMeetingTypes(records);
+      setMeetingTypes(normalizeSimple(records));
     } catch (err) { console.error(err); }
   };
 
   const loadDepartments = async () => {
     try {
       const res = await getDepartmentsApi(1, 5000);
-      setDepartments((res?.data?.records || []).map(r => ({ id: r.id, name: r.department })));
+      const records = res?.data?.records || [];
+      setRawDepartments(records);
+      setDepartments(records.map(r => ({ id: r.id, name: r.department })));
     } catch (err) { console.error(err); }
   };
 
   const loadLocations = async () => {
      try {
       const res = await getLocationsApi(1, 5000);
-      setLocations((res?.data?.records || []).map(l => ({
+      const records = res?.data?.records || [];
+      setRawLocations(records);
+      setLocations(records.map(l => ({
         id: String(l.Id),
         name: `${l.Name} (${l.CityName ?? ""})`
       })));
@@ -256,28 +325,36 @@ const EditMeeting = () => {
   const loadAgendaItemTypes = async () => {
     try {
         const res = await getAgendaItemTypesApi(1, 1000);
-        setAgendaItemTypes(normalizeSimple(res?.data?.records || []));
+        const records = res?.data?.records || [];
+        setRawAgendaItemTypes(records);
+        setAgendaItemTypes(normalizeSimple(records));
     } catch (err) { console.error(err); }
   };
 
   const loadResolutionStatuses = async () => {
     try {
         const res = await getResolutionStatusesApi(1, 1000);
-        setResolutionStatuses(normalizeSimple(res?.data?.records || []));
+        const records = res?.data?.records || [];
+        setRawResolutionStatuses(records);
+        setResolutionStatuses(normalizeSimple(records));
     } catch (err) { console.error(err); }
   };
 
   const loadAttendeeTypes = async () => {
     try {
       const res = await getAttendeeTypesApi(1, 5000);
-      setAttendeeTypes(normalizeSimple(res?.data?.records || []));
+      const records = res?.data?.records || [];
+      setRawAttendeeTypes(records);
+      setAttendeeTypes(normalizeSimple(records));
     } catch (err) { console.error(err); }
   };
 
   const loadAttendanceStatuses = async () => {
     try {
       const res = await getAttendanceStatusesApi(1, 5000);
-      setAttendanceStatuses(normalizeSimple(res?.data?.records || []));
+      const records = res?.data?.records || [];
+      setRawAttendanceStatuses(records);
+      setAttendanceStatuses(normalizeSimple(records));
     } catch (err) { console.error(err); }
   };
 
@@ -353,8 +430,100 @@ const EditMeeting = () => {
     else if (type === "Location") setLocationModalOpen(true);
     else if (type === "Attendee Type") setAttendeeTypeModalOpen(true);
     else if (type === "Attendance Status") setAttendanceStatusModalOpen(true);
+    else if (type === "Agenda Item Type") setShowAgendaTypeModal(true);
+    else if (type === "Resolution Status") setShowResolutionStatusModal(true);
     else if (type === "Organizer" || type === "Reporter") {
       navigate("/app/hr/newemployee", { state: { from: location.pathname } });
+    }
+  };
+
+  const handleEditMaster = (type, id) => {
+    if (!id) return;
+
+    if (type === "Meeting Type") {
+        const item = rawMeetingTypes.find(r => String(r.id || r.Id) === String(id));
+        if(item) {
+            setNewMeetingType({ id: item.id || item.Id, name: item.name || item.Name });
+            setMeetingTypeModalOpen(true);
+        }
+    } else if (type === "Department") {
+         const item = rawDepartments.find(r => String(r.id || r.Id) === String(id));
+         if(item) {
+             setNewDepartment({
+                 id: item.id || item.Id,
+                 department: item.department || item.Department || item.name || item.Name,
+                 description: item.description || item.Description || "",
+                 parentDepartmentId: item.parentDepartmentId || item.ParentDepartmentId || ""
+             });
+             setDepartmentModalOpen(true);
+         }
+    } else if (type === "Location") {
+        const item = rawLocations.find(r => String(r.id || r.Id) === String(id));
+        if(item) {
+            setNewLocation({
+                id: item.id || item.Id,
+                name: item.name || item.Name || "",
+                countryId: item.countryId || item.CountryId || "",
+                stateId: item.stateId || item.StateId || "",
+                cityId: item.cityId || item.CityId || "",
+                address: item.address || item.Address || "",
+                latitude: item.latitude || item.Latitude || "",
+                longitude: item.longitude || item.Longitude || ""
+            });
+            setLocationModalOpen(true);
+        }
+    } else if (type === "Attendee Type") {
+         const item = rawAttendeeTypes.find(r => String(r.id || r.Id) === String(id));
+         if(item) {
+             setNewAttendeeType({ id: item.id || item.Id, name: item.name || item.Name });
+             setAttendeeTypeModalOpen(true);
+         }
+    } else if (type === "Attendance Status") {
+         const item = rawAttendanceStatuses.find(r => String(r.id || r.Id) === String(id));
+         if(item) {
+             setNewAttendanceStatus({ id: item.id || item.Id, name: item.name || item.Name });
+             setAttendanceStatusModalOpen(true);
+         }
+    } else if (type === "Agenda Item Type") {
+         const item = rawAgendaItemTypes.find(r => String(r.id || r.Id) === String(id));
+         if(item) {
+             setNewAgendaType({
+                 id: item.id || item.Id,
+                 name: item.name || item.Name,
+                 description: item.description || item.Description || ""
+             });
+             setShowAgendaTypeModal(true);
+         }
+    } else if (type === "Resolution Status") {
+        const item = rawResolutionStatuses.find(r => String(r.id || r.Id) === String(id));
+        if(item) {
+             setNewResolutionStatus({
+                 id: item.id || item.Id,
+                 name: item.name || item.Name,
+                 description: item.description || item.Description || ""
+             });
+             setShowResolutionStatusModal(true);
+        }
+    } else if (type === "Country") {
+        const item = modalCountries.find(c => String(c.id) === String(id));
+        if(item) {
+             setNewCountry({ id: item.id, name: item.name });
+             setAddCountryModalOpen(true);
+        }
+    } else if (type === "State") {
+        const item = locationModalStates.find(s => String(s.id) === String(id));
+        if(item) {
+             setNewState({ id: item.id, name: item.name, countryId: newLocation.countryId });
+             setAddStateModalOpen(true);
+        }
+    } else if (type === "City") {
+        const item = locationModalCities.find(c => String(c.id) === String(id));
+        if(item) {
+             setNewCity({ id: item.id, name: item.name, countryId: newLocation.countryId, stateId: newLocation.stateId });
+             setAddCityModalOpen(true);
+        }
+    } else if (type === "Organizer" || type === "Reporter") {
+        navigate(`/app/hr/editemployee/${id}`, { state: { from: location.pathname } });
     }
   };
 
@@ -400,47 +569,134 @@ const EditMeeting = () => {
   };
 
   const handleSaveAttendeeType = async () => {
-    if (!newAttendeeType.trim()) return toast.error("Name is required");
+    if (!newAttendeeType.name.trim()) return toast.error("Name is required");
     try {
-        await addAttendeeTypeApi({ name: newAttendeeType, userId: currentUserId });
-        toast.success("Attendee Type Added");
-        setNewAttendeeType("");
-        setAttendeeTypeModalOpen(false);
-        loadAttendeeTypes();
-    } catch (error) { console.error(error); toast.error("Failed to add Attendee Type"); }
+        let res;
+        if(newAttendeeType.id) {
+            res = await updateAttendeeTypeApi(newAttendeeType.id, { name: newAttendeeType.name, userId: currentUserId });
+        } else {
+            res = await addAttendeeTypeApi({ name: newAttendeeType.name, userId: currentUserId });
+        }
+
+        if(res?.status === 200 || res?.status === 201) {
+            toast.success(newAttendeeType.id ? "Attendee Type Updated" : "Attendee Type Added");
+            
+            let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+            const resA = await getAttendeeTypesApi(1, 5000);
+            if(resA?.status === 200) {
+                 const rows = resA.data.records || resA.data || [];
+                 setRawAttendeeTypes(rows);
+                 const normalized = normalizeSimple(rows);
+                 setAttendeeTypes(normalized);
+
+                 if(!createdId && newAttendeeType.id) createdId = newAttendeeType.id;
+                 if(!createdId) {
+                     const created = normalized.find(r => r.name.trim().toLowerCase() === newAttendeeType.name.trim().toLowerCase());
+                     if(created) createdId = created.id;
+                 }
+
+                 if(createdId && showAttendeeModal) {
+                     setAttendeeForm(prev => ({ ...prev, attendeeType: String(createdId) }));
+                 }
+            }
+            setNewAttendeeType({ id: null, name: "" });
+            setAttendeeTypeModalOpen(false);
+        } else {
+             toast.error("Failed to save Attendee Type");
+        }
+    } catch (error) { console.error(error); toast.error("Failed to save Attendee Type"); }
   };
   
   const handleSaveAttendanceStatus = async () => {
-    if (!newAttendanceStatus.trim()) return toast.error("Name is required");
+    if (!newAttendanceStatus.name.trim()) return toast.error("Name is required");
     try {
-        await addAttendanceStatusApi({ name: newAttendanceStatus, userId: currentUserId });
-        toast.success("Attendance Status Added");
-        setNewAttendanceStatus("");
-        setAttendanceStatusModalOpen(false);
-        loadAttendanceStatuses();
-    } catch (error) { console.error(error); toast.error("Failed to add Attendance Status"); }
+        let res;
+        if(newAttendanceStatus.id) {
+            res = await updateAttendanceStatusApi(newAttendanceStatus.id, { name: newAttendanceStatus.name, userId: currentUserId });
+        } else {
+            res = await addAttendanceStatusApi({ name: newAttendanceStatus.name, userId: currentUserId });
+        }
+
+        if(res?.status === 200 || res?.status === 201) {
+            toast.success(newAttendanceStatus.id ? "Attendance Status Updated" : "Attendance Status Added");
+            
+            let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+            const resS = await getAttendanceStatusesApi(1, 5000);
+            if(resS?.status === 200) {
+                const rows = resS.data.records || resS.data || [];
+                setRawAttendanceStatuses(rows);
+                const normalized = normalizeSimple(rows);
+                setAttendanceStatuses(normalized);
+
+                if(!createdId && newAttendanceStatus.id) createdId = newAttendanceStatus.id;
+                if(!createdId) {
+                     const created = normalized.find(r => r.name.trim().toLowerCase() === newAttendanceStatus.name.trim().toLowerCase());
+                     if(created) createdId = created.id;
+                }
+
+                if(createdId && showAttendeeModal) {
+                    setAttendeeForm(prev => ({ ...prev, attendanceStatus: String(createdId) }));
+                }
+            }
+            setNewAttendanceStatus({ id: null, name: "" });
+            setAttendanceStatusModalOpen(false);
+        } else {
+            toast.error("Failed to save Attendance Status");
+        }
+    } catch (error) { console.error(error); toast.error("Failed to save Attendance Status"); }
   };
 
   const handleSaveMeetingType = async () => {
-    if (!newMeetingType.trim()) return toast.error("Name is required");
+    if (!newMeetingType.name.trim()) return toast.error("Name is required");
     try {
       // DUPLICATE CHECK
-      const duplicateRes = await searchMeetingTypeApi(newMeetingType.trim());
+      const duplicateRes = await searchMeetingTypeApi(newMeetingType.name.trim());
       const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
       const isDuplicate = duplicates.some(
-        (i) => (i.name || i.Name || "").toLowerCase() === newMeetingType.trim().toLowerCase()
+        (i) => (i.name || i.Name || "").toLowerCase() === newMeetingType.name.trim().toLowerCase() && String(i.Id || i.id) !== String(newMeetingType.id)
       );
       if (isDuplicate) {
         toast.error("Meeting Type with this name already exists.");
         return;
       }
 
-      await addMeetingTypeApi({ name: newMeetingType, userId: currentUserId });
-      toast.success("Meeting Type Added");
-      setNewMeetingType("");
-      setMeetingTypeModalOpen(false);
-      loadMeetingTypes();
-    } catch (error) { toast.error("Failed to add Meeting Type"); }
+      let res;
+      if (newMeetingType.id) {
+        res = await updateMeetingTypeApi(newMeetingType.id, { name: newMeetingType.name, userId: currentUserId });
+      } else {
+        res = await addMeetingTypeApi({ name: newMeetingType.name, userId: currentUserId });
+      }
+
+      if(res?.status === 200 || res?.status === 201) {
+          toast.success(newMeetingType.id ? "Meeting Type Updated" : "Meeting Type Added");
+          
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resM = await getMeetingTypesApi(1, 10000);
+          if(resM?.status === 200) {
+              const rows = resM.data.records || resM.data || [];
+              const normalized = normalizeSimple(rows);
+              setRawMeetingTypes(rows);
+              setMeetingTypes(normalized);
+              
+              if(!createdId && newMeetingType.id) createdId = newMeetingType.id; // If update, use same ID
+              if(!createdId) {
+                 const created = normalized.find(r => r.name.trim().toLowerCase() === newMeetingType.name.trim().toLowerCase());
+                 if(created) createdId = created.id;
+              }
+
+              if(createdId) {
+                  setMeeting(prev => ({ ...prev, meetingType: String(createdId) }));
+              }
+          }
+          setNewMeetingType({ id: null, name: "" });
+          setMeetingTypeModalOpen(false);
+      } else {
+          toast.error("Failed to save Meeting Type");
+      }
+    } catch (error) { toast.error("Failed to save Meeting Type"); }
   };
 
   const handleSaveDepartment = async () => {
@@ -450,19 +706,48 @@ const EditMeeting = () => {
       const duplicateRes = await searchDepartmentApi(newDepartment.department.trim());
       const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
       const isDuplicate = duplicates.some(
-        (i) => (i.department || i.Department || i.name || i.Name || "").toLowerCase() === newDepartment.department.trim().toLowerCase()
+        (i) => (i.department || i.Department || i.name || i.Name || "").toLowerCase() === newDepartment.department.trim().toLowerCase() && String(i.Id || i.id) !== String(newDepartment.id)
       );
       if (isDuplicate) {
         toast.error("Department with this name already exists.");
         return;
       }
 
-      await addDepartmentApi({ ...newDepartment, userId: currentUserId });
-      toast.success("Department Added");
-      setNewDepartment({ department: "", description: "", parentDepartmentId: "" });
-      setDepartmentModalOpen(false);
-      loadDepartments();
-    } catch (error) { toast.error("Failed to add Department"); }
+      let res;
+      if (newDepartment.id) {
+        res = await updateDepartmentApi(newDepartment.id, { ...newDepartment, userId: currentUserId });
+      } else {
+        res = await addDepartmentApi({ ...newDepartment, userId: currentUserId });
+      }
+
+      if(res?.status === 200 || res?.status === 201) {
+          toast.success(newDepartment.id ? "Department Updated" : "Department Added");
+          
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resD = await getDepartmentsApi(1, 5000);
+          if(resD?.status === 200) {
+              const rows = resD.data.records || resD.data || [];
+              setRawDepartments(rows);
+              const normalized = rows.map((r) => ({ id: r.id, name: r.department }));
+              setDepartments(normalized);
+
+              if(!createdId && newDepartment.id) createdId = newDepartment.id;
+              if(!createdId) {
+                  const created = normalized.find(r => r.name.trim().toLowerCase() === newDepartment.department.trim().toLowerCase());
+                  if(created) createdId = created.id;
+              }
+
+              if(createdId) {
+                  setMeeting(prev => ({ ...prev, department: String(createdId) }));
+              }
+          }
+          setNewDepartment({ id: null, department: "", description: "", parentDepartmentId: "" });
+          setDepartmentModalOpen(false);
+      } else {
+          toast.error("Failed to save Department");
+      }
+    } catch (error) { toast.error("Failed to save Department"); }
   };
 
    const handleSaveLocation = async () => {
@@ -472,42 +757,105 @@ const EditMeeting = () => {
       const duplicateRes = await searchLocationApi(newLocation.name.trim());
       const duplicates = (duplicateRes?.data?.records || duplicateRes?.data || []);
       const isDuplicate = duplicates.some(
-        (i) => (i.name || i.Name || "").toLowerCase() === newLocation.name.trim().toLowerCase()
+        (i) => (i.name || i.Name || "").toLowerCase() === newLocation.name.trim().toLowerCase() && String(i.Id || i.id) !== String(newLocation.id)
       );
       if (isDuplicate) {
         toast.error("Location with this name already exists.");
         return;
       }
 
-      await addLocationApi({ ...newLocation, userId: currentUserId });
-      toast.success("Location Added");
-      setNewLocation({ name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" });
-      setLocationModalOpen(false);
-      loadLocations();
-    } catch (error) { toast.error("Failed to add Location"); }
+      let res;
+      if (newLocation.id) {
+         res = await updateLocationApi(newLocation.id, { ...newLocation, userId: currentUserId });
+      } else {
+         res = await addLocationApi({ ...newLocation, userId: currentUserId });
+      }
+
+      if(res?.status === 200 || res?.status === 201) {
+          toast.success(newLocation.id ? "Location Updated" : "Location Added");
+          
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resL = await getLocationsApi(1, 5000);
+          if(resL?.status === 200) {
+              const rows = resL.data.records || resL.data || [];
+              setRawLocations(rows);
+              const normalized = rows.map(l => ({
+                id: String(l.Id),
+                name: `${l.Name} (${l.CityName ?? ""})`
+              }));
+              setLocations(normalized);
+
+              if(!createdId && newLocation.id) createdId = newLocation.id;
+              if(!createdId) {
+                  const created = rows.find(l => (l.Name || l.name || "").trim().toLowerCase() === newLocation.name.trim().toLowerCase());
+                  if(created) createdId = created.id;
+              }
+
+              if(createdId) {
+                  setMeeting(prev => ({ ...prev, location: String(createdId) }));
+              }
+          }
+          setNewLocation({ id: null, name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" });
+          setLocationModalOpen(false);
+      } else {
+          toast.error("Failed to save Location");
+      }
+    } catch (error) { toast.error("Failed to save Location"); }
   };
 
   const handleSaveCountry = async () => {
-    if (!newCountryName.trim()) return toast.error("Country Name is required");
+    if (!newCountry.name.trim()) return toast.error("Country Name is required");
     try {
         // DUPLICATE CHECK
-        const duplicateRes = await searchCountryApi(newCountryName.trim());
+        const duplicateRes = await searchCountryApi(newCountry.name.trim());
         const duplicates = duplicateRes?.data?.records || duplicateRes?.data || [];
         const isDuplicate = duplicates.some(
-            (c) => (c.name || c.CountryName || "").toLowerCase() === newCountryName.trim().toLowerCase()
+            (c) => (c.name || c.CountryName || "").toLowerCase() === newCountry.name.trim().toLowerCase() && String(c.id || c.Id) !== String(newCountry.id)
         );
         if (isDuplicate) {
             toast.error("Country with this name already exists.");
             return;
         }
 
-      await addCountryApi({ name: newCountryName, userId: currentUserId });
-      toast.success("Country Added");
-      setNewCountryName("");
-      setAddCountryModalOpen(false);
-      const res = await getCountriesApi(1, 5000);
-      setModalCountries(res?.data?.records || []);
-    } catch (error) { toast.error("Failed to add Country"); }
+      let res;
+      if (newCountry.id) {
+          res = await updateCountryApi(newCountry.id, { name: newCountry.name });
+      } else {
+          res = await addCountryApi({ name: newCountry.name, userId: currentUserId });
+      }
+
+      if(res?.status === 200 || res?.status === 201) {
+          toast.success(newCountry.id ? "Country Updated" : "Country Added");
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resC = await getCountriesApi(1, 5000);
+          if (resC?.status === 200) {
+               const rows = resC.data.records || resC.data || [];
+               setModalCountries(rows.map(c => ({ id: String(c.Id ?? c.id), name: c.Name ?? c.name })));
+               
+               if(!createdId && newCountry.id) createdId = newCountry.id;
+               if(!createdId) {
+                   const created = rows.find(c => (c.Name || c.name || "").trim().toLowerCase() === newCountry.name.trim().toLowerCase());
+                   if(created) createdId = created.Id || created.id;
+               }
+
+               if(createdId) {
+                  // If Location modal open
+                  if(locationModalOpen) setNewLocation(prev => ({ ...prev, countryId: String(createdId), stateId: "", cityId: "" }));
+                  // If State Add modal open
+                  if(addStateModalOpen) setNewState(prev => ({ ...prev, countryId: String(createdId) }));
+                  // If City Add modal open
+                  if(addCityModalOpen) setNewCity(prev => ({ ...prev, countryId: String(createdId) }));
+               }
+          }
+          setNewCountry({ id: null, name: "" }); // Reset
+          setAddCountryModalOpen(false);
+      } else {
+          toast.error("Failed to save Country");
+      }
+    } catch (error) { toast.error("Failed to save Country"); }
   };
 
   const handleSaveState = async () => {
@@ -519,22 +867,57 @@ const EditMeeting = () => {
       const isDuplicate = duplicates.some(
         (s) =>
           (s.name || s.StateName || "").toLowerCase() === newState.name.trim().toLowerCase() &&
-          Number(s.countryId ?? s.CountryId) === Number(newState.countryId)
+          Number(s.countryId ?? s.CountryId) === Number(newState.countryId) &&
+          String(s.id || s.Id) !== String(newState.id)
       );
       if (isDuplicate) {
         toast.error("State with this name already exists in selected country.");
         return;
       }
 
-      await addStateApi({ ...newState, userId: currentUserId });
-      toast.success("State Added");
-      setNewState({ name: "", countryId: "" });
-      setAddStateModalOpen(false);
-      if (newLocation.countryId) {
-        const res = await getStatesByCountryApi(newLocation.countryId);
-        setLocationModalStates(res?.data || []);
+      let res;
+      if (newState.id) {
+          res = await updateStateApi(newState.id, { name: newState.name, countryId: newState.countryId });
+      } else {
+          res = await addStateApi({ name: newState.name, countryId: newState.countryId, userId: currentUserId });
       }
-    } catch (error) { toast.error("Failed to add State"); }
+
+      if(res?.status === 200 || res?.status === 201) {
+          toast.success(newState.id ? "State Updated" : "State Added");
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          if (newLocation.countryId) {
+             const resS = await getStatesByCountryApi(newLocation.countryId);
+             if(resS?.status === 200) {
+                 const rows = resS.data || [];
+                 setLocationModalStates(rows.map(s => ({ id: String(s.Id ?? s.id), name: s.Name ?? s.name })));
+
+                 if(String(newState.countryId) === String(newLocation.countryId)) {
+                     if(!createdId && newState.id) createdId = newState.id;
+                     if(!createdId) {
+                         const created = rows.find(s => (s.name || s.Name).trim().toLowerCase() === newState.name.trim().toLowerCase());
+                         if(created) createdId = created.Id || created.id;
+                     }
+                     if(createdId) {
+                         // If editing currently selected state, update it
+                         if(locationModalOpen && String(newLocation.stateId) === String(createdId)) {
+                            // no-op, name updated via list
+                         }
+                         
+                         if(!newState.id && locationModalOpen) {
+                            setNewLocation(prev => ({ ...prev, stateId: String(createdId), cityId: "" }));
+                         }
+                     }
+                 }
+             }
+          }
+          setNewState({ id: null, name: "", countryId: "" });
+          setAddStateModalOpen(false);
+      } else {
+          toast.error("Failed to save State");
+      }
+    } catch (error) { toast.error("Failed to save State"); }
   };
 
   const handleSaveCity = async () => {
@@ -546,18 +929,51 @@ const EditMeeting = () => {
         const isDuplicate = duplicates.some(
           (c) =>
             (c.name || c.CityName || "").toLowerCase() === newCity.name.trim().toLowerCase() &&
-            Number(c.stateId ?? c.StateId) === Number(newCity.stateId)
+            Number(c.stateId ?? c.StateId) === Number(newCity.stateId) &&
+            String(c.id || c.Id) !== String(newCity.id)
         );
         if (isDuplicate) {
           toast.error("City with this name already exists in selected state.");
           return;
         }
 
-      await addCityApi({ ...newCity, userId: currentUserId });
-      toast.success("City Added");
-      setNewCity({ name: "", countryId: "", stateId: "", cityId: "" });
-      setAddCityModalOpen(false);
-    } catch (error) { toast.error("Failed to add City"); }
+      let res;
+      if (newCity.id) {
+          res = await updateCityApi(newCity.id, { name: newCity.name, countryId: newCity.countryId, stateId: newCity.stateId });
+      } else {
+          res = await addCityApi({ ...newCity, userId: currentUserId });
+      }
+
+      if(res?.status === 200 || res?.status === 201) {
+          toast.success(newCity.id ? "City Updated" : "City Added");
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          if (newLocation.stateId) {
+             const resC = await getCitiesApi(1, 5000);
+             if(resC?.status === 200) {
+                 const allCities = resC.data.records || resC.data || [];
+                 const filtered = allCities.filter(c => String(c.stateId) === String(newLocation.stateId));
+                 setLocationModalCities(filtered.map(c => ({ id: String(c.Id ?? c.id), name: c.Name ?? c.name })));
+
+                 if(String(newCity.stateId) === String(newLocation.stateId)) {
+                     if(!createdId && newCity.id) createdId = newCity.id;
+                     if(!createdId) {
+                         const created = filtered.find(c => (c.Name || c.name || "").trim().toLowerCase() === newCity.name.trim().toLowerCase());
+                         if(created) createdId = created.Id || created.id;
+                     }
+                     if(createdId) {
+                         if(!newCity.id) setNewLocation(prev => ({ ...prev, cityId: String(createdId) }));
+                     }
+                 }
+             }
+          }
+          setNewCity({ id: null, name: "", countryId: "", stateId: "", cityId: "" });
+          setAddCityModalOpen(false);
+      } else {
+          toast.error("Failed to save City");
+      }
+    } catch (error) { toast.error("Failed to save City"); }
   };
 
 
@@ -570,10 +986,21 @@ const EditMeeting = () => {
         console.log("🟢 MEETING OBJECT FROM API:", res.data.meeting);
         console.log("🟢 ATTENDEES FROM API:", res.data.attendees);
 
+        const m = res.data.meeting;
         setMeeting({
-          ...res.data.meeting,
+          ...m,
+          // Convert API datetime to datetime-local format
+          startDate: m.startDate ? convertToDatetimeLocal(m.startDate) : "",
+          endDate: m.endDate ? convertToDatetimeLocal(m.endDate) : "",
           attendees: res.data.attendees || []
         });
+
+        // ⬅ Set external recipients from meeting Recipients field (check both cases)
+        const recipients = m.Recipients || m.recipients || "";
+        if (recipients) {
+          console.log("📧 RECIPIENTS LOADED:", recipients);
+          setExternalRecipients(recipients);
+        }
       }
     });
   }, [id]);
@@ -630,30 +1057,52 @@ const EditMeeting = () => {
     }
   };
 
+  /* SAVE / UPDATE */
   const handleSave = async () => {
     try {
-      if (!meeting.meetingName || !meeting.startDate || !meeting.meetingType) {
-        toast.error("Please fill all required fields");
-        return;
+      // VALIDATION
+      if (!meeting.meetingName?.trim() || 
+          !meeting.meetingType || 
+          !meeting.startDate || 
+          !meeting.endDate || 
+          !meeting.department || 
+          !meeting.location || 
+          !meeting.organizedBy || 
+          !meeting.reporter) {
+          toast.error("Please fill in all required fields.");
+          return;
       }
 
-
       const payload = {
-        ...meeting,
+        meetingName: meeting.meetingName,
         meetingType: meeting.meetingType || null,
         department: meeting.department || null,
         location: meeting.location || null,
         organizedBy: meeting.organizedBy || null,
-        reporter: meeting.reporter || null,
+        reporter: meeting.reporter,
+        // Ensure seconds are included for backend if missing
+        startDate: meeting.startDate && meeting.startDate.length === 16 ? meeting.startDate + ":00" : meeting.startDate,
+        endDate: meeting.endDate && meeting.endDate.length === 16 ? meeting.endDate + ":00" : meeting.endDate,
+        attendees: meeting.attendees.map(a => ({
+          attendeeId: a.attendeeId,
+          attendeeTypeId: a.attendeeTypeId,
+          attendanceStatusId: a.attendanceStatusId
+        })),
+        recipients: externalRecipients.split(',').map(e => e.trim()).filter(e => e), // ⬅ Process recipients
+        userId: currentUserId
       };
 
-      await updateMeetingApi(id, payload);
-      toast.success("Meeting updated successfully");
-      navigate("/app/meeting/meetings");
-
-    } catch (err) {
-      console.error("UPDATE MEETING ERROR:", err);
-      toast.error("Failed to update meeting");
+      const res = await updateMeetingApi(id, payload);
+      if (res.status === 200) {
+        toast.success("Meeting updated successfully");
+        // Add refresh flag to trigger data reload in Meetings.jsx
+        navigate("/app/meeting/meetings?refresh=true");
+      } else {
+        toast.error("Failed to update meeting");
+      }
+    } catch (error) {
+      console.error("SAVE MEETING ERROR:", error);
+      toast.error("Error updating meeting");
     }
   };
 
@@ -765,29 +1214,43 @@ const EditMeeting = () => {
             return;
         }
 
-        const res = await addAgendaItemTypeApi(newAgendaType);
+        let res;
+        if(newAgendaType.id) {
+           res = await updateAgendaItemTypeApi(newAgendaType.id, { name: newAgendaType.name, userId: currentUserId });
+        } else {
+           res = await addAgendaItemTypeApi(newAgendaType);
+        }
+
         if (res.status === 201 || res.status === 200) {
-           toast.success("Agenda Item Type Added");
-           setShowAgendaTypeModal(false);
-           setNewAgendaType({ name: "", description: "" });
+           toast.success(newAgendaType.id ? "Agenda Item Type Updated" : "Agenda Item Type Added");
            
+           let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
            // Refresh dropdown
            const atRes = await getAgendaItemTypesApi(1, 1000);
-           const atList = atRes.data.records || atRes.data || [];
-           setAgendaItemTypes(atList.map(item => ({
-               id: item.Id || item.id,
-               name: item.Name || item.name
-           })));
+           if (atRes?.status === 200) {
+               const atList = atRes.data.records || atRes.data || [];
+               setRawAgendaItemTypes(atList);
+               setAgendaItemTypes(atList.map(item => ({
+                   id: item.Id || item.id,
+                   name: item.Name || item.name
+               })));
 
-           // Auto-select the new type (optional but nice)
-           // We'd need to know the ID of the new item. If backend returns it, great.
-           // Assuming common pattern where res.data.id or similar is returned.
-           if (res.data && (res.data.id || res.data.Id)) {
-               setNewAgendaItem(prev => ({ ...prev, itemType: res.data.id || res.data.Id }));
+               // Auto-select
+               if(!createdId && newAgendaType.id) createdId = newAgendaType.id;
+               if(!createdId) {
+                   const created = atList.find(i => (i.Name || i.name || "").trim().toLowerCase() === newAgendaType.name.trim().toLowerCase());
+                   if(created) createdId = created.Id || created.id;
+               }
+
+               if(createdId) {
+                   setNewAgendaItem(prev => ({ ...prev, itemType: String(createdId) }));
+               }
            }
-
+           setShowAgendaTypeModal(false);
+           setNewAgendaType({ id: null, name: "", description: "" });
         } else {
-            toast.error("Failed to add Agenda Item Type");
+            toast.error("Failed to save Agenda Item Type");
         }
     } catch (err) {
         console.error("ADD AGENDA TYPE ERROR:", err);
@@ -902,21 +1365,42 @@ const EditMeeting = () => {
               return;
           }
 
-          const res = await addResolutionStatusApi(newResolutionStatus);
+          let res;
+          if(newResolutionStatus.id) {
+             res = await updateResolutionStatusApi(newResolutionStatus.id, { name: newResolutionStatus.name, userId: currentUserId });
+          } else {
+             res = await addResolutionStatusApi(newResolutionStatus);
+          }
+
           if (res.status === 201 || res.status === 200) {
-              toast.success("Status Added");
-              setShowResolutionStatusModal(false);
-              setNewResolutionStatus({ name: "", description: "" });
+              toast.success(newResolutionStatus.id ? "Status Updated" : "Status Added");
               
+              let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
               // Refresh dropdown
               const rsRes = await getResolutionStatusesApi(1, 100);
-              const rsList = rsRes.data.records || rsRes.data || [];
-              setResolutionStatuses(rsList.map(item => ({
-                id: item.Id || item.id,
-                name: item.Name || item.name
-              })));
+              if(rsRes?.status === 200) {
+                  const rsList = rsRes.data.records || rsRes.data || [];
+                  setRawResolutionStatuses(rsList);
+                  setResolutionStatuses(rsList.map(item => ({
+                    id: item.Id || item.id,
+                    name: item.Name || item.name
+                  })));
+
+                  if(!createdId && newResolutionStatus.id) createdId = newResolutionStatus.id;
+                  if(!createdId) {
+                      const created = rsList.find(i => (i.Name || i.name || "").trim().toLowerCase() === newResolutionStatus.name.trim().toLowerCase());
+                      if(created) createdId = created.Id || created.id;
+                  }
+
+                  if(createdId) {
+                      setNewDecision(prev => ({ ...prev, resolutionStatus: String(createdId) }));
+                  }
+              }
+              setShowResolutionStatusModal(false);
+              setNewResolutionStatus({ id: null, name: "", description: "" });
           } else {
-              toast.error("Failed to add status");
+              toast.error("Failed to save status");
           }
       } catch (err) {
           console.error(err);
@@ -990,7 +1474,7 @@ const EditMeeting = () => {
             theme={theme}
           />
           <Tab
-            label="Agenda Items"
+            label="Agenda Item"
             active={activeTab === "agenda"}
             onClick={() =>
               navigate(`/app/meeting/meetings/edit/${id}/agenda`)
@@ -998,7 +1482,7 @@ const EditMeeting = () => {
             theme={theme}
           />
           <Tab
-            label="Agenda Decisions"
+            label="Agenda Decision"
             active={activeTab === "decisions"}
             onClick={() =>
               navigate(`/app/meeting/meetings/edit/${id}/decisions`)
@@ -1027,13 +1511,14 @@ const EditMeeting = () => {
 
               {/* Meeting Name */}
               <div className="col-span-12 md:col-span-6">
-                 <div className="flex-1 font-medium">
+                 <div className="flex gap-2 font-medium">
                      <div className="flex-1 font-medium">
                         <InputField
                            label="Meeting Name *"
                            value={meeting.meetingName}
                            onChange={(e) => updateField("meetingName", e.target.value)}
                            disabled={isInactive}
+                           placeholder="e.g. Sales Strategy Q4"
                         />
                     </div>
                     {/* Spacer to match Meeting Type / Location button width */}
@@ -1043,25 +1528,25 @@ const EditMeeting = () => {
 
               {/* Location */}
               <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Location</label>
-                    <div className="flex-1 font-medium">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Location </label>
+                    <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                           <SearchableSelect
                             options={locations.map(l => ({ id: l.id, name: l.name }))}
                             value={meeting.location}
                             onChange={(v) => updateField("location", v)}
                             disabled={isInactive}
-                            placeholder="--select--"
-                            className="w-full"
+                            placeholder="-- Select Location --"
+                            className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
                           />
                       </div>
-                      {!isInactive && hasPermission(PERMISSIONS.LOCATIONS.CREATE) && (
+                      {!isInactive && (
                           <button
-                            onClick={() => handleCreateNew("Location")}
-                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add Location"
+                            onClick={() => meeting.location ? handleEditMaster("Location", meeting.location) : handleCreateNew("Location")}
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            title={meeting.location ? "Edit Location" : "Add Location"}
                         >
-                            <Star size={16} />
+                            {meeting.location ? <Pencil size={16} /> : <Star size={16} />}
                         </button>
                       )}
                    </div>
@@ -1069,77 +1554,59 @@ const EditMeeting = () => {
 
               {/* Start Date */}
               <div className="col-span-12 md:col-span-6">
-                 <div className="flex-1 font-medium">
-                    <div className="flex-1 flex gap-4">
-                         <div className="flex-1 font-medium">
-                            <InputField
-                                label="Start Date *"
-                                type="date"
-                                value={meeting.startDate?.split("T")[0] || ""}
-                                onChange={(e) => updateField("startDate", e.target.value + "T00:00:00")}
-                                disabled={isInactive}
-                            />
-                        </div>
-                        <div className="w-32">
-                            <InputField
-                                label="Time"
-                                type="time"
-                                disabled={isInactive}
-                            />
-                        </div>
+                 <div className="flex gap-2 font-medium">
+                     <div className="flex-1 font-medium">
+                        <InputField
+                            label="Start Date "
+                            type="datetime-local"
+                            value={meeting.startDate}
+                            onChange={(e) => updateField("startDate", e.target.value)}
+                            disabled={isInactive}
+                            required
+                        />
                     </div>
-                    {/* Spacer */}
                     <div className="w-[34px]"></div>
                 </div>
               </div>
 
                 {/* End Date */}
                 <div className="col-span-12 md:col-span-6">
-                     <div className="flex-1 font-medium">
-                        <div className="flex-1 flex gap-4">
-                             <div className="flex-1 font-medium">
-                                <InputField
-                                    label="End Date *"
-                                    type="date"
-                                    value={meeting.endDate?.split("T")[0] || ""}
-                                    onChange={(e) => updateField("endDate", e.target.value + "T00:00:00")}
-                                    disabled={isInactive}
-                                />
-                            </div>
-                            <div className="w-32">
-                                <InputField
-                                    label="Time"
-                                    type="time"
-                                    disabled={isInactive}
-                                />
-                            </div>
+                     <div className="flex gap-2 font-medium">
+                         <div className="flex-1 font-medium">
+                            <InputField
+                                label="End Date"
+                                type="datetime-local"
+                                value={meeting.endDate}
+                                onChange={(e) => updateField("endDate", e.target.value)}
+                                disabled={isInactive}
+                                required
+                            />
                         </div>
-                        {/* Spacer */}
                         <div className="w-[34px]"></div>
                     </div>
                 </div>
 
                 {/* Meeting Type */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Meeting Type *</label>
-                    <div className="flex-1 font-medium">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Meeting Type *</label>
+                    <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                           <SearchableSelect
                             options={meetingTypes.map(t => ({ id: t.id, name: t.name }))}
                             value={meeting.meetingType}
                             onChange={(v) => updateField("meetingType", v)}
                             disabled={isInactive}
-                            placeholder="--select--"
-                            className="w-full"
+                            placeholder="-- Select Type --"
+                            className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
                           />
                       </div>
-                      {!isInactive && hasPermission(PERMISSIONS.MEETING_TYPES.CREATE) && (
+                      {!isInactive && (
                           <button
-                            onClick={() => handleCreateNew("Meeting Type")}
-                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add Meeting Type"
+                            onClick={() => meeting.meetingType ? handleEditMaster("Meeting Type", meeting.meetingType) : handleCreateNew("Meeting Type")}
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            title={meeting.meetingType ? "Edit Meeting Type" : "Add Meeting Type"}
                         >
-                            <Star size={16} />
+                            {meeting.meetingType ? <Pencil size={16} /> : <Star size={16} />}
                         </button>
                       )}
                    </div>
@@ -1147,25 +1614,25 @@ const EditMeeting = () => {
 
               {/* Department */}
               <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black bg-none' : 'text-gray-300'}`}>Department</label>
-                    <div className="flex-1 font-medium">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Department *</label>
+                    <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                         <SearchableSelect
                             options={departments.map(d => ({ id: d.id, name: d.name }))}
                             value={meeting.department}
                             onChange={(v) => updateField("department", v)}
                             disabled={isInactive}
-                            placeholder="--select--"
-                            className={`w-full ${theme === 'emerald' ? 'bg-white border-gray-300' :' border-gray-600'}`}
+                            placeholder="-- Select Department --"
+                            className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
                         />
                       </div>
-                      {!isInactive && hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) && (
+                      {!isInactive && (
                           <button
-                            onClick={() => handleCreateNew("Department")}
-                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add Department"
+                            onClick={() => meeting.department ? handleEditMaster("Department", meeting.department) : handleCreateNew("Department")}
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            title={meeting.department ? "Edit Department" : "Add Department"}
                         >
-                            <Star size={16} />
+                            {meeting.department ? <Pencil size={16} /> : <Star size={16} />}
                         </button>
                       )}
                    </div>
@@ -1173,25 +1640,25 @@ const EditMeeting = () => {
 
                 {/* Organized By */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Organized By</label>
-                    <div className="flex-1 font-medium">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Organized By *</label>
+                    <div className="flex items-center gap-2">
                         <div className="flex-1 font-medium">
                           <SearchableSelect
                             options={employees.map(e => ({ id: e.id, name: e.name }))}
                             value={meeting.organizedBy}
                             onChange={(v) => updateField("organizedBy", v)}
                             disabled={isInactive}
-                            placeholder="--select--"
-                            className="w-full"
+                            placeholder="-- Select Organizer --"
+                            className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
                           />
                       </div>
-                      {!isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
+                      {!isInactive && (
                           <button
-                            onClick={() => handleCreateNew("Organizer")}
-                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add Organizer"
+                            onClick={() => meeting.organizedBy ? navigate(`/app/hr/editemployee/${meeting.organizedBy}`, { state: { from: location.pathname } }) : handleCreateNew("Organizer")}
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            title={meeting.organizedBy ? "Edit Organizer" : "Add Organizer"}
                         >
-                            <Star size={16} />
+                            {meeting.organizedBy ? <Pencil size={16} /> : <Star size={16} />}
                         </button>
                       )}
                    </div>
@@ -1199,25 +1666,25 @@ const EditMeeting = () => {
 
                 {/* Reporter */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Reporter</label>
-                    <div className="flex-1 font-medium">
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Reporter *</label>
+                    <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                           <SearchableSelect
                             options={employees.map(e => ({ id: e.id, name: e.name }))}
                             value={meeting.reporter}
                             onChange={(v) => updateField("reporter", v)}
                             disabled={isInactive}
-                            placeholder="--select--"
-                            className="w-full"
+                            placeholder="-- Select Reporter --"
+                            className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
                           />
                       </div>
-                      {!isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
+                      {!isInactive && (
                           <button
-                            onClick={() => handleCreateNew("Reporter")}
-                            className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add Reporter"
+                            onClick={() => meeting.reporter ? navigate(`/app/hr/editemployee/${meeting.reporter}`, { state: { from: location.pathname } }) : handleCreateNew("Reporter")}
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            title={meeting.reporter ? "Edit Reporter" : "Add Reporter"}
                         >
-                            <Star size={16} />
+                            {meeting.reporter ? <Pencil size={16} /> : <Star size={16} />}
                         </button>
                       )}
                    </div>
@@ -1228,7 +1695,7 @@ const EditMeeting = () => {
             {/* ATTENDEES */}
             <div className="mt-8">
               <div className="flex justify-between items-center mb-4">
-                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-800'}`}>Attendees</h3>
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : theme === 'purple' ? 'text-dark font-medium' : 'text-gray-800'}`}>Attendees</h3>
                 {!isInactive && hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                   <button
                     onClick={() => setShowAttendeeModal(true)}
@@ -1251,7 +1718,7 @@ const EditMeeting = () => {
                   </thead>
                   <tbody>
                     {meeting.attendees.map((a, i) => (
-                      <tr key={i} className={`transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-t border-purple-100 bg-purple-50 font-medium' : 'border-t border-gray-800 bg-gray-800 hover:bg-gray-700/50'}`}>
+                      <tr key={i} className={`transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-t border-purple-100 font-medium' : 'border-t border-gray-800 bg-gray-800 hover:bg-gray-700/50'}`}>
                         <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-yellow-300'}`}>{a.attendeeName || a.attendee}</td>
                         <td className="p-3 text-sm text-purple-800 font-medium">{a.attendeeTypeName || a.attendeeType}</td>
                         <td className="p-3 text-sm text-purple-800 font-medium">{a.attendanceStatusName || a.attendanceStatus}</td>
@@ -1265,10 +1732,30 @@ const EditMeeting = () => {
                         </td>
                       </tr>
                     ))}
+                      {meeting.attendees.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="p-8 text-center text-gray-400 text-sm">
+                                No attendees added yet.
+                            </td>
+                          </tr>
+                      )}
                   </tbody>
                 </table>
               </div>
             </div>
+
+               {/* EXTERNAL RECIPIENTS */}
+              <div className="mt-8 border-t pt-6">
+                   <InputField
+                      label="External Recipients (Email)"
+                      textarea
+                      rows={2}
+                      placeholder="Enter emails separated by commas (e.g. client@example.com, vendor@test.com)"
+                      value={externalRecipients}
+                      onChange={(e) => setExternalRecipients(e.target.value)}
+                   />
+              </div>
+
           </motion.div>
         )}
 
@@ -1309,7 +1796,7 @@ const EditMeeting = () => {
               </thead>
               <tbody>
                 {agendaItems.map(a => (
-                    <tr key={a.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 bg-purple-50 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                    <tr key={a.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100  hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
                     <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.id}</td>
                     <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.title}</td>
                     <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.description}</td>
@@ -1391,7 +1878,7 @@ const EditMeeting = () => {
               </thead>
               <tbody>
                 {agendaDecisions.map(d => (
-                   <tr key={d.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 bg-purple-50 hover:bg-purple-50 text-sm font-medium text-purple-800' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                   <tr key={d.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50 text-sm font-medium text-purple-800' : 'border-gray-800 hover:bg-gray-700/50'}`}>
                      <td className="px-4 py-3 text-sm  text-purple-800">{d.id}</td>
                      <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{d.description}</td>
                      <td className="px-4 py-3 text-sm text-purple-800">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
@@ -1478,21 +1965,23 @@ const EditMeeting = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Item Type *</label>
-                                         <div className="flex-1 font-medium">
-                                            <SearchableSelect 
-                                                className="w-full" 
-                                                options={agendaItemTypes}
-                                                value={newAgendaItem.itemType}
-                                                onChange={(val) => setNewAgendaItem({...newAgendaItem, itemType: val})}
-                                                placeholder="-- select type --"
-                                            />
+                                         <div className="flex items-center gap-2">
+                                            <div className="flex-1 font-medium">
+                                                <SearchableSelect 
+                                                    className="w-full" 
+                                                    options={agendaItemTypes}
+                                                    value={newAgendaItem.itemType}
+                                                    onChange={(val) => setNewAgendaItem({...newAgendaItem, itemType: val})}
+                                                    placeholder="-- select type --"
+                                                />
+                                            </div>
                                             {hasPermission(PERMISSIONS.AGENDA_ITEM_TYPES.CREATE) && (
                                             <button 
-                                                onClick={() => setShowAgendaTypeModal(true)}
+                                                onClick={() => newAgendaItem.itemType ? handleEditMaster("Agenda Item Type", newAgendaItem.itemType) : setShowAgendaTypeModal(true)}
                                                 className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                                                title="Add New Item Type"
+                                                title={newAgendaItem.itemType ? "Edit Item Type" : "Add New Item Type"}
                                             >
-                                                <Star size={16}/>
+                                                {newAgendaItem.itemType ? <Pencil size={16}/> : <Star size={16}/>}
                                             </button>
                                             )}
                                         </div>
@@ -1500,21 +1989,23 @@ const EditMeeting = () => {
 
                                     <div>
                                          <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Requested By</label>
-                                         <div className="flex-1 font-medium">
-                                            <SearchableSelect 
-                                                className="w-full"
-                                                options={employees}
-                                                value={newAgendaItem.requestedBy}
-                                                onChange={(val) => setNewAgendaItem({...newAgendaItem, requestedBy: val})}
-                                                placeholder="-- select employee --"
-                                            />
+                                         <div className="flex items-center gap-2">
+                                            <div className="flex-1 font-medium">
+                                                <SearchableSelect 
+                                                    className="w-full"
+                                                    options={employees}
+                                                    value={newAgendaItem.requestedBy}
+                                                    onChange={(val) => setNewAgendaItem({...newAgendaItem, requestedBy: val})}
+                                                    placeholder="-- select employee --"
+                                                />
+                                            </div>
                                             {hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && (
                                             <button 
-                                                onClick={() => navigate("/app/hr/newemployee", { state: { from: location.pathname } })}
+                                                onClick={() => newAgendaItem.requestedBy ? navigate(`/app/hr/editemployee/${newAgendaItem.requestedBy}`, { state: { from: location.pathname } }) : navigate("/app/hr/newemployee", { state: { from: location.pathname } })}
                                                 className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                                                title="New Employee"
+                                                title={newAgendaItem.requestedBy ? "Edit Employee" : "New Employee"}
                                             >
-                                                <Star size={16}/>
+                                                {newAgendaItem.requestedBy ? <Pencil size={16}/> : <Star size={16}/>}
                                             </button>
                                             )}
                                         </div>
@@ -1569,7 +2060,7 @@ const EditMeeting = () => {
                                                 className="absolute inset-0 w-full h-full object-contain p-2"
                                             />
                                             <div className="absolute top-2 right-2 flex gap-1">
-                                                 <label className="p-1.5 bg-white border-purple-700 rounded cursor-pointer hover:bg-black text-white">
+                                                 <label className="p-1.5 bg-purple-100border-gray-700 rounded cursor-pointer hover:bg-purple-100 text-gray-700">
                                                     <Pencil size={14} />
                                                     <input type="file" className="hidden" accept="image/*" onChange={e => setNewAgendaItem({...newAgendaItem, imageFile: e.target.files[0]})} />
                                                  </label>
@@ -1634,7 +2125,7 @@ const EditMeeting = () => {
                 isOpen={showAgendaTypeModal}
                 onClose={() => setShowAgendaTypeModal(false)}
                 onSave={handleSaveAgendaType}
-                title="New Item Type"
+                title={newAgendaType.id ? "Edit Item Type" : "New Item Type"}
                 width="700px"
             >
                 <div className="space-y-4">
@@ -1709,7 +2200,7 @@ const EditMeeting = () => {
 
                             <div>
                                 <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Resolution Status</label>
-                                 <div className="flex-1 font-medium">
+                                 <div className="flex items-center gap-2">
                                      <div className="flex-1 font-medium">
                                         <SearchableSelect
                                             options={resolutionStatuses.map(rs => ({ id: rs.id, name: rs.name }))}
@@ -1721,11 +2212,11 @@ const EditMeeting = () => {
                                     </div>
                                     {hasPermission(PERMISSIONS.RESOLUTION_STATUS.CREATE) && (
                                     <button 
-                                        onClick={() => setShowResolutionStatusModal(true)}
-                                        className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`} // Align with input
-                                        title="Add Status"
+                                        onClick={() => newDecision.resolutionStatus ? handleEditMaster("Resolution Status", newDecision.resolutionStatus) : setShowResolutionStatusModal(true)}
+                                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                                        title={newDecision.resolutionStatus ? "Edit Status" : "Add Status"}
                                     >
-                                        <Star size={16}/>
+                                        {newDecision.resolutionStatus ? <Pencil size={16}/> : <Star size={16}/>}
                                     </button>
                                     )}
                                 </div>
@@ -1803,7 +2294,7 @@ const EditMeeting = () => {
                              <div>
                                 <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Attachments</label>
                                 <div className="flex items-center gap-2">
-                                     <label className={`flex items-center gap-2 px-4 py-2 border rounded cursor-pointer transition ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'}`}>
+                                     <label className={`flex items-center gap-2 px-4 py-2 border rounded cursor-pointer transition ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' : theme === 'purple' ? 'bg-[#6448AE] hover:bg-[#6E55B6] text-white border-transparent' : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'}`}>
                                         <Pencil size={14} /> {newDecision.attachmentFile || newDecision.attachments ? "Change File" : "Select File"}
                                         <input type="file" className="hidden" onChange={e => setNewDecision({...newDecision, attachmentFile: e.target.files[0]})} />
                                      </label>
@@ -1838,7 +2329,7 @@ const EditMeeting = () => {
                 isOpen={showResolutionStatusModal}
                 onClose={() => setShowResolutionStatusModal(false)}
                 onSave={handleSaveResolutionStatus}
-                title="New Resolution Status"
+                title={newResolutionStatus.id ? "Edit Resolution Status" : "New Resolution Status"}
                 width="700px"
             >
                 <div className="space-y-4">
@@ -1859,7 +2350,7 @@ const EditMeeting = () => {
 
         {/* MEETING TYPE MODAL */}
         <AddModal
-            title="Add Meeting Type"
+            title={newMeetingType.id ? "Edit Meeting Type" : "Add Meeting Type"}
             isOpen={meetingTypeModalOpen}
             onClose={() => setMeetingTypeModalOpen(false)}
             onSave={handleSaveMeetingType}
@@ -1869,8 +2360,8 @@ const EditMeeting = () => {
                <div>
                   <InputField
                     label="Meeting Type Name"
-                    value={newMeetingType}
-                    onChange={(e) => setNewMeetingType(e.target.value)}
+                    value={newMeetingType.name}
+                    onChange={(e) => setNewMeetingType({ ...newMeetingType, name: e.target.value })}
                     placeholder="Enter Meeting Type Name"
                   />
                </div>
@@ -1880,7 +2371,7 @@ const EditMeeting = () => {
       {/* DEPARTMENT MODAL */}
       {departmentModalOpen && (
         <AddModal
-             title="Add Department"
+             title={newDepartment.id ? "Edit Department" : "Add Department"}
              isOpen={departmentModalOpen}
              onClose={() => setDepartmentModalOpen(false)}
              onSave={handleSaveDepartment}
@@ -1896,17 +2387,33 @@ const EditMeeting = () => {
                 />
               </div>
 
-              <div>
-                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Description</label>
-                <textarea
-                  value={newDepartment.description}
-                  onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
-                  className={`w-full rounded px-3 py-2 mt-1 outline-none transition-colors ${theme === 'emerald' ? 'bg-white border border-gray-300 text-gray-900 focus:border-emerald-500' : 'bg-gray-800 border-gray-600 text-white focus:border-blue-400'}`}
-                />
-              </div>
+             <div>
+  <label
+    className={`text-sm mb-1 block ${
+      theme === 'emerald'
+        ? 'text-gray-700'
+        : theme === 'purple'
+        ? 'text-dark font-medium'
+        : 'text-gray-300'
+    }`}
+  >
+    Description
+  </label>
+
+  <textarea
+    value={newDepartment.description}
+    onChange={(e) =>
+      setNewDepartment({ ...newDepartment, description: e.target.value })
+    }
+    className="w-full rounded px-3 py-2 mt-1 outline-none transition-colors
+               bg-white border border-gray-300 text-gray-800 text-purple-800
+               focus:border-gray-500 focus:ring-1 focus:ring-gray-500"
+  />
+</div>
+
 
               <div>
-                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Parent Department</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Parent Department</label>
                 <SearchableSelect
                   options={departments.map(d => ({ id: d.id, name: d.name }))}
                   value={newDepartment.parentDepartmentId}
@@ -1922,7 +2429,7 @@ const EditMeeting = () => {
       {/* LOCATION MODAL */}
       {locationModalOpen && (
         <AddModal
-             title="Add Location"
+             title={newLocation.id ? "Edit Location" : "Add Location"}
              isOpen={locationModalOpen}
              onClose={() => setLocationModalOpen(false)}
              onSave={handleSaveLocation}
@@ -1940,73 +2447,73 @@ const EditMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Country</label>
-                     <div className="flex-1 font-medium">
-                        <SearchableSelect
-                          options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
-                          value={newLocation.countryId}
-                          onChange={(val) => setNewLocation({ ...newLocation, countryId: val, stateId: "", cityId: "" })}
-                          placeholder="--select--"
-                          className="w-full"
-                        />
-                         {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
-                         <button
-                            onClick={() => setAddCountryModalOpen(true)}
-                            className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add Country"
-                        >
-                            <Star size={16} />
-                        </button>
-                         )}
-                    </div>
+                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Country *</label>
+                      <div className="flex gap-2 font-medium">
+                         <SearchableSelect
+                           options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
+                           value={newLocation.countryId}
+                           onChange={(val) => setNewLocation({ ...newLocation, countryId: val, stateId: "", cityId: "" })}
+                           placeholder="--select--"
+                           className="w-full"
+                         />
+                          {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
+                          <button
+                             onClick={() => newLocation.countryId ? handleEditMaster("Country", newLocation.countryId) : setAddCountryModalOpen(true)}
+                             className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                             title={newLocation.countryId ? "Edit Country" : "Add Country"}
+                         >
+                             {newLocation.countryId ? <Pencil size={16} /> : <Star size={16} />}
+                         </button>
+                          )}
+                     </div>
                 </div>
               </div>
 
               <div>
                 <div className="space-y-1">
-                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>State</label>
-                     <div className="flex-1 font-medium">
-                        <SearchableSelect
-                          options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
-                          value={newLocation.stateId}
-                          onChange={(val) => setNewLocation({ ...newLocation, stateId: val, cityId: "" })}
-                          placeholder="--select--"
-                          className="w-full"
-                        />
-                         {hasPermission(PERMISSIONS.STATES.CREATE) && (
-                         <button
-                            onClick={() => setAddStateModalOpen(true)}
-                            className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add State"
-                        >
-                            <Star size={16} />
-                        </button>
-                         )}
-                    </div>
+                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>State</label>
+                      <div className="flex gap-2 font-medium">
+                         <SearchableSelect
+                           options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
+                           value={newLocation.stateId}
+                           onChange={(val) => setNewLocation({ ...newLocation, stateId: val, cityId: "" })}
+                           placeholder="--select--"
+                           className="w-full"
+                         />
+                          {hasPermission(PERMISSIONS.STATES.CREATE) && (
+                          <button
+                             onClick={() => newLocation.stateId ? handleEditMaster("State", newLocation.stateId) : setAddStateModalOpen(true)}
+                             className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                             title={newLocation.stateId ? "Edit State" : "Add State"}
+                         >
+                             {newLocation.stateId ? <Pencil size={16} /> : <Star size={16} />}
+                         </button>
+                          )}
+                     </div>
                 </div>
               </div>
 
               <div>
                  <div className="space-y-1">
-                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>City</label>
-                     <div className="flex-1 font-medium">
-                        <SearchableSelect
-                          options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
-                          value={newLocation.cityId}
-                          onChange={(val) => setNewLocation({ ...newLocation, cityId: val })}
-                          placeholder="--select--"
-                          className="w-full"
-                        />
-                         {hasPermission(PERMISSIONS.CITIES.CREATE) && (
-                         <button
-                            onClick={() => setAddCityModalOpen(true)}
-                            className={`p-2 border rounded transition-transform hover:scale-105 h-[42px] ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                            title="Add City"
-                        >
-                            <Star size={16} />
-                        </button>
-                         )}
-                    </div>
+                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>City</label>
+                      <div className="flex gap-2 font-medium">
+                         <SearchableSelect
+                           options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
+                           value={newLocation.cityId}
+                           onChange={(val) => setNewLocation({ ...newLocation, cityId: val })}
+                           placeholder="--select--"
+                           className="w-full"
+                         />
+                          {hasPermission(PERMISSIONS.CITIES.CREATE) && (
+                          <button
+                             onClick={() => newLocation.cityId ? handleEditMaster("City", newLocation.cityId) : setAddCityModalOpen(true)}
+                             className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                             title={newLocation.cityId ? "Edit City" : "Add City"}
+                         >
+                             {newLocation.cityId ? <Pencil size={16} /> : <Star size={16} />}
+                         </button>
+                          )}
+                     </div>
                 </div>
               </div>
 
@@ -2069,7 +2576,7 @@ const EditMeeting = () => {
             {/* TYPE DROPDOWN */}
              <div>
               <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendee Type *</label>
-               <div className="flex-1 font-medium">
+               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
                     value={attendeeForm.attendeeType}
@@ -2079,11 +2586,11 @@ const EditMeeting = () => {
                   />
                    {hasPermission(PERMISSIONS.ATTENDEE_TYPES.CREATE) && (
                    <button
-                      onClick={() => handleCreateNew("Attendee Type")}
-                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                      title="Add Attendee Type"
+                      onClick={() => attendeeForm.attendeeType ? handleEditMaster("Attendee Type", attendeeForm.attendeeType) : handleCreateNew("Attendee Type")}
+                      className={`p-2 border rounded transition-colors flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                      title={attendeeForm.attendeeType ? "Edit Attendee Type" : "Add Attendee Type"}
                   >
-                      <Star size={16} />
+                      {attendeeForm.attendeeType ? <Pencil size={16} /> : <Star size={16} />}
                   </button>
                    )}
               </div>
@@ -2092,7 +2599,7 @@ const EditMeeting = () => {
             {/* STATUS DROPDOWN */}
              <div>
               <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendance Status *</label>
-               <div className="flex-1 font-medium">
+               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
                     value={attendeeForm.attendanceStatus}
@@ -2102,11 +2609,11 @@ const EditMeeting = () => {
                   />
                    {hasPermission(PERMISSIONS.ATTENDANCE_STATUS.CREATE) && (
                    <button
-                      onClick={() => handleCreateNew("Attendance Status")}
-                      className={`p-2 border rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
-                      title="Add Status"
+                      onClick={() => attendeeForm.attendanceStatus ? handleEditMaster("Attendance Status", attendeeForm.attendanceStatus) : handleCreateNew("Attendance Status")}
+                      className={`p-2 border rounded transition-colors flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+                      title={attendeeForm.attendanceStatus ? "Edit Status" : "Add Status"}
                   >
-                      <Star size={16} />
+                      {attendeeForm.attendanceStatus ? <Pencil size={16} /> : <Star size={16} />}
                   </button>
                    )}
               </div>
@@ -2117,7 +2624,7 @@ const EditMeeting = () => {
 
       {/* QUICK ADD ATTENDEE MODALS */}
       <AddModal
-        title="Add Attendee Type"
+        title={newAttendeeType.id ? "Edit Attendee Type" : "Add Attendee Type"}
         isOpen={attendeeTypeModalOpen}
         onClose={() => setAttendeeTypeModalOpen(false)}
         onSave={handleSaveAttendeeType}
@@ -2127,14 +2634,14 @@ const EditMeeting = () => {
            <InputField
             label="Type Name"
             placeholder="Enter Attendee Type Name"
-            value={newAttendeeType}
-            onChange={(e) => setNewAttendeeType(e.target.value)}
+            value={newAttendeeType.name}
+            onChange={(e) => setNewAttendeeType({ ...newAttendeeType, name: e.target.value })}
           />
         </div>
       </AddModal>
 
       <AddModal
-        title="Add Attendance Status"
+        title={newAttendanceStatus.id ? "Edit Attendance Status" : "Add Attendance Status"}
         isOpen={attendanceStatusModalOpen}
         onClose={() => setAttendanceStatusModalOpen(false)}
         onSave={handleSaveAttendanceStatus}
@@ -2144,37 +2651,37 @@ const EditMeeting = () => {
            <InputField
             label="Status Name"
             placeholder="Enter Attendance Status Name"
-            value={newAttendanceStatus}
-            onChange={(e) => setNewAttendanceStatus(e.target.value)}
+            value={newAttendanceStatus.name}
+            onChange={(e) => setNewAttendanceStatus({ ...newAttendanceStatus, name: e.target.value })}
           />
         </div>
       </AddModal>
 
-      {/* NESTED ADD COUNTRY MODAL */}
-       <AddModal
-            title="Add Country"
-            isOpen={addCountryModalOpen}
-            onClose={() => setAddCountryModalOpen(false)}
-            onSave={handleSaveCountry}
-            width="700px"
-        >
-             <div className="space-y-4">
-               <div>
-                  <InputField
-                    label="Country Name"
-                    value={newCountryName}
-                    onChange={(e) => setNewCountryName(e.target.value)}
-                    placeholder="Enter Country Name"
-                  />
-               </div>
-            </div>
-        </AddModal>
+       {/* NESTED ADD COUNTRY MODAL */}
+        <AddModal
+             title={newCountry.id ? "Edit Country" : "Add Country"}
+             isOpen={addCountryModalOpen}
+             onClose={() => setAddCountryModalOpen(false)}
+             onSave={handleSaveCountry}
+             width="700px"
+         >
+              <div className="space-y-4">
+                <div>
+                   <InputField
+                     label="Country Name"
+                     value={newCountry.name}
+                     onChange={(e) => setNewCountry({ ...newCountry, name: e.target.value })}
+                     placeholder="Enter Country Name"
+                   />
+                </div>
+             </div>
+         </AddModal>
 
       {/* NESTED ADD STATE MODAL */}
-      {addStateModalOpen && (
-        <AddModal
-             title="Add State"
-             isOpen={addStateModalOpen}
+       {addStateModalOpen && (
+         <AddModal
+              title={newState.id ? "Edit State" : "Add State"}
+              isOpen={addStateModalOpen}
              onClose={() => setAddStateModalOpen(false)}
              onSave={handleSaveState}
              width="700px"
@@ -2189,7 +2696,7 @@ const EditMeeting = () => {
                 />
               </div>
               <div>
-                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Country *</label>
+                <label className={`text-sm mb-1 block text-dark font-medium ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? '' : 'text-gray-300'}`}>Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newState.countryId}

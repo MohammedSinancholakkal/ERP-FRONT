@@ -174,19 +174,19 @@ const Purchase = () => {
         let rows = Array.isArray(res.data) ? res.data : (res.data.records || []);
         rows = rows.map((r) => ({
           ...r,
-          id: r.id || r.Id,
-          invoiceNo: r.invoiceNo || r.InvoiceNo,
-          date: r.date || r.Date,
-          paymentAccount: r.paymentAccount || r.PaymentAccount,
-          totalDiscount: r.totalDiscount || r.TotalDiscount,
-          shippingCost: r.shippingCost || r.ShippingCost,
-          grandTotal: r.grandTotal || r.GrandTotal,
-          netTotal: r.netTotal || r.NetTotal,
-          paidAmount: r.paidAmount || r.PaidAmount,
-          due: r.due || r.Due,
-          change: r.change || r.Change,
-          details: r.details || r.Details,
-          supplierName: r.supplierName || suppliers.find((s) => String(s.id) === String(r.supplierId || r.SupplierId))?.name || "-",
+          id: r.id ?? r.Id,
+          invoiceNo: r.invoiceNo ?? r.InvoiceNo,
+          date: r.date ?? r.Date,
+          paymentAccount: r.paymentAccount ?? r.PaymentAccount,
+          totalDiscount: r.totalDiscount ?? r.TotalDiscount,
+          shippingCost: r.shippingCost ?? r.ShippingCost,
+          grandTotal: r.grandTotal ?? r.GrandTotal,
+          netTotal: r.netTotal ?? r.NetTotal,
+          paidAmount: r.paidAmount ?? r.PaidAmount,
+          due: r.due ?? r.Due,
+          change: r.change ?? r.Change,
+          details: r.details ?? r.Details,
+          supplierName: (r.supplierName || r.SupplierName || r.companyName || r.CompanyName) || suppliers.find((s) => String(s.id) === String(r.supplierId || r.SupplierId))?.name || "-",
           isInactive: true
         }));
         setInactiveRows(rows);
@@ -328,7 +328,8 @@ const Purchase = () => {
             onClose={() => setColumnModalOpen(false)} 
             visibleColumns={visibleColumns} 
             setVisibleColumns={setVisibleColumns} 
-            defaultColumns={defaultColumns} 
+            defaultColumns={defaultColumns}
+            zIndex={5000}
           />
 
       <PageLayout>

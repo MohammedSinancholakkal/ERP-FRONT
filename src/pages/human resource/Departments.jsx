@@ -36,6 +36,7 @@ import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import InputField from "../../components/InputField";
 import ContentCard from "../../components/ContentCard";
+import toast from "react-hot-toast";
 
 const Departments = () => {
   // =============================
@@ -135,6 +136,21 @@ const Departments = () => {
     const res = await searchDepartmentApi(text.trim());
     if (res.status === 200) {
       setDepartments(res.data);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setSearchText("");
+    setSortConfig({ key: null, direction: 'asc' });
+    setPage(1);
+    setShowInactive(false);
+    
+    // Call API directly with default values to avoid stale state closure issues
+    const res = await getDepartmentsApi(1, limit, null, 'asc');
+    if (res.status === 200) {
+      setDepartments(res.data.records);
+      setTotalRecords(res.data.total);
+      // showSuccessToast("Refreshed");
     }
   };
 
@@ -437,7 +453,7 @@ const Departments = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Department"
                 permissionCreate={hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE)}
-                onRefresh={() => { setSearchText(""); setPage(1); loadDepartments(); }}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={async () => {
                     if (!showInactive) await loadInactive();
@@ -452,6 +468,7 @@ const Departments = () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={handleRefresh}
               />
           </div>
           </ContentCard>

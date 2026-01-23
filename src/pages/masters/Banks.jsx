@@ -14,8 +14,9 @@ import {
   restoreBankApi,
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
-import { PERMISSIONS } from "../../constants/permissions";
+import { PERMISSIONS } from "../../constants/permissions";    
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
@@ -31,6 +32,11 @@ import { serverURL } from "../../services/serverURL";
 
 const Banks = () => {
   const { theme } = useTheme();
+  const { 
+    refreshBanks: refreshCtx, 
+    refreshInactiveBanks: refreshInactiveCtx, 
+    loadBanks: loadBanksCtx 
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -515,6 +521,8 @@ const Banks = () => {
                     setSortConfig({ key: "id", direction: "asc" });
                     setPage(1);
                     setShowInactive(false);
+                    refreshCtx();
+                    refreshInactiveCtx();
                     loadRows();
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
@@ -535,6 +543,8 @@ const Banks = () => {
                     setSortConfig({ key: "id", direction: "asc" });
                     setPage(1);
                     setShowInactive(false);
+                    refreshCtx();
+                    refreshInactiveCtx();
                     loadRows();
                 }}
                 />

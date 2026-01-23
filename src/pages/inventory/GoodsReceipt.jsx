@@ -720,6 +720,7 @@ const GoodsReceipt = () => {
                     else {
                         setSortConfig({ key: "id", direction: 'asc' });
                         setPage(1);
+                        setShowInactive(false);
                         fetchActive(1, limit, { key: "id", direction: 'asc' });
                     }
                 }}

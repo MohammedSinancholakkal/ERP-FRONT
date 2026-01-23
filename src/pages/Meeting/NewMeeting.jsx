@@ -94,6 +94,8 @@ const NewMeeting = () => {
   const [stateSearch, setStateSearch] = useState("");
   const [citySearch, setCitySearch] = useState("");
 
+  const [externalRecipients, setExternalRecipients] = useState(""); // ⬅ New State for Recipients
+
   const user = JSON.parse(localStorage.getItem("user"));
   const currentUserId = user?.userId || 1;
 
@@ -473,8 +475,8 @@ const NewMeeting = () => {
   const handleSave = async () => {
     try {
       // Required Fields Check (Must be present AND valid numeric IDs)
-      if (!form.meetingName || !form.startDate || !form.endDate) {
-        toast.error("Please fill all required fields");
+      if (!form.meetingName.trim() || !form.meetingType || !form.startDate || !form.endDate || !form.department || !form.location || !form.organizedBy || !form.reporter) {
+        toast.error("Please fill in all required fields.");
         return;
       }
 
@@ -516,6 +518,7 @@ const NewMeeting = () => {
           attendeeTypeId: isValidId(a.attendeeTypeId) ? a.attendeeTypeId : null,
           attendanceStatusId: isValidId(a.attendanceStatusId) ? a.attendanceStatusId : null,
         })),
+        recipients: externalRecipients.split(',').map(e => e.trim()).filter(e => e), // ⬅ Process recipients
         startDate: formatDateTime(form.startDate),
         endDate: formatDateTime(form.endDate),
         userId: currentUserId,
@@ -575,11 +578,32 @@ const NewMeeting = () => {
         return;
       }
 
-      await addMeetingTypeApi({ name: newMeetingType, userId: currentUserId });
-      toast.success("Meeting Type Added");
-      setNewMeetingType("");
-      setMeetingTypeModalOpen(false);
-      loadMeetingTypes();
+      const res = await addMeetingTypeApi({ name: newMeetingType, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+          toast.success("Meeting Type Added");
+          setMeetingTypeModalOpen(false);
+          setNewMeetingType("");
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resM = await getMeetingTypesApi(1, 10000); // Fetch updated list
+          if(resM?.status === 200) {
+              const rows = resM.data.records || resM.data || [];
+              const normalized = normalizeSimple(rows);
+              setMeetingTypes(normalized);
+              
+              if(!createdId) {
+                 const created = normalized.find(r => r.name.trim().toLowerCase() === newMeetingType.trim().toLowerCase());
+                 if(created) createdId = created.id;
+              }
+
+              if(createdId) {
+                  setForm(prev => ({ ...prev, meetingType: String(createdId) }));
+              }
+          }
+      } else {
+           toast.error("Failed to add Meeting Type");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to add Meeting Type");
@@ -601,11 +625,32 @@ const NewMeeting = () => {
         return;
       }
 
-      await addAttendeeTypeApi({ name: newAttendeeType, userId: currentUserId });
-      toast.success("Attendee Type Added");
-      setNewAttendeeType("");
-      setAttendeeTypeModalOpen(false);
-      loadAttendeeTypes();
+      const res = await addAttendeeTypeApi({ name: newAttendeeType, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+          toast.success("Attendee Type Added");
+          setAttendeeTypeModalOpen(false);
+          setNewAttendeeType("");
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resA = await getAttendeeTypesApi(1, 5000);
+          if(resA?.status === 200) {
+               const rows = resA.data.records || resA.data || [];
+               const normalized = normalizeSimple(rows);
+               setAttendeeTypes(normalized);
+
+               if(!createdId) {
+                   const created = normalized.find(r => r.name.trim().toLowerCase() === newAttendeeType.trim().toLowerCase());
+                   if(created) createdId = created.id;
+               }
+
+               if(createdId && showAttendeeModal) {
+                   setAttendeeForm(prev => ({ ...prev, attendeeType: String(createdId) }));
+               }
+          }
+      } else {
+        toast.error("Failed to add Attendee Type");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to add Attendee Type");
@@ -627,11 +672,32 @@ const NewMeeting = () => {
         return;
       }
 
-      await addAttendanceStatusApi({ name: newAttendanceStatus, userId: currentUserId });
-      toast.success("Attendance Status Added");
-      setNewAttendanceStatus("");
-      setAttendanceStatusModalOpen(false);
-      loadAttendanceStatuses();
+      const res = await addAttendanceStatusApi({ name: newAttendanceStatus, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+          toast.success("Attendance Status Added");
+          setAttendanceStatusModalOpen(false);
+          setNewAttendanceStatus("");
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resS = await getAttendanceStatusesApi(1, 5000);
+          if (resS?.status === 200) {
+              const rows = resS.data.records || resS.data || [];
+              const normalized = normalizeSimple(rows);
+              setAttendanceStatuses(normalized);
+
+              if(!createdId) {
+                   const created = normalized.find(r => r.name.trim().toLowerCase() === newAttendanceStatus.trim().toLowerCase());
+                   if(created) createdId = created.id;
+              }
+
+              if(createdId && showAttendeeModal) {
+                  setAttendeeForm(prev => ({ ...prev, attendanceStatus: String(createdId) }));
+              }
+          }
+      } else {
+         toast.error("Failed to add Attendance Status");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to add Attendance Status");
@@ -653,11 +719,32 @@ const NewMeeting = () => {
         return;
       }
 
-      await addDepartmentApi({ ...newDepartment, userId: currentUserId });
-      toast.success("Department Added");
-      setNewDepartment({ department: "", description: "", parentDepartmentId: "" });
-      setDepartmentModalOpen(false);
-      loadDepartments();
+      const res = await addDepartmentApi({ ...newDepartment, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+          toast.success("Department Added");
+          setDepartmentModalOpen(false);
+          setNewDepartment({ department: "", description: "", parentDepartmentId: "" });
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resD = await getDepartmentsApi(1, 5000);
+          if(resD?.status === 200) {
+              const rows = resD.data.records || resD.data || [];
+              const normalized = rows.map((r) => ({ id: r.id, name: r.department }));
+              setDepartments(normalized);
+
+              if(!createdId) {
+                  const created = normalized.find(r => r.name.trim().toLowerCase() === newDepartment.department.trim().toLowerCase());
+                  if(created) createdId = created.id;
+              }
+
+              if(createdId) {
+                  setForm(prev => ({ ...prev, department: String(createdId) }));
+              }
+          }
+      } else {
+         toast.error("Failed to add Department");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to add Department");
@@ -680,13 +767,36 @@ const NewMeeting = () => {
         return;
       }
 
-      await addCountryApi({ name: newCountryName, userId: currentUserId });
-      toast.success("Country Added");
-      setNewCountryName("");
-      setAddCountryModalOpen(false);
-      // Refresh countries
-      const res = await getCountriesApi(1, 5000);
-      setModalCountries(res?.data?.records || []);
+      const res = await addCountryApi({ name: newCountryName, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+           toast.success("Country Added");
+           setNewCountryName("");
+           setAddCountryModalOpen(false);
+
+           let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+           const resC = await getCountriesApi(1, 5000);
+           if (resC?.status === 200) {
+               const rows = resC.data.records || resC.data || [];
+               setModalCountries(rows.map(c => ({ id: String(c.Id ?? c.id), name: c.Name ?? c.name })));
+               
+               if(!createdId) {
+                   const created = rows.find(c => (c.Name || c.name || "").trim().toLowerCase() === newCountryName.trim().toLowerCase());
+                   if(created) createdId = created.Id || created.id;
+               }
+
+               if(createdId) {
+                  // If Location modal open
+                  if(locationModalOpen) setNewLocation(prev => ({ ...prev, countryId: String(createdId), stateId: "", cityId: "" }));
+                  // If State Add modal open
+                  if(addStateModalOpen) setNewState(prev => ({ ...prev, countryId: String(createdId) }));
+                  // If City Add modal open
+                  if(addCityModalOpen) setNewCity(prev => ({ ...prev, countryId: String(createdId) }));
+               }
+           }
+      } else {
+        toast.error("Failed to add Country");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to add Country");
@@ -709,14 +819,59 @@ const NewMeeting = () => {
         return;
       }
 
-      await addStateApi({ ...newState, userId: currentUserId });
-      toast.success("State Added");
-      setNewState({ name: "", countryId: "" });
-      setAddStateModalOpen(false);
-      // Refresh states if country selected
-      if (newLocation.countryId) {
-        const res = await getStatesByCountryApi(newLocation.countryId);
-        setLocationModalStates(res?.data || []);
+      const res = await addStateApi({ ...newState, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+          toast.success("State Added");
+          setNewState({ name: "", countryId: "" });
+          setAddStateModalOpen(false);
+
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          // We only need to refresh 'locationModalStates' if the country matches 'newLocation.countryId'
+          // OR 'modalStates' if the country matches 'newCity.countryId'
+          
+          if (newLocation.countryId) {
+             const resS = await getStatesByCountryApi(newLocation.countryId);
+             if(resS?.status === 200) {
+                 const rows = resS.data || [];
+                 setLocationModalStates(rows.map(s => ({ id: String(s.Id ?? s.id), name: s.Name ?? s.name })));
+
+                 // If we just added a state for this country, auto-select it
+                 if(String(newState.countryId) === String(newLocation.countryId)) {
+                     // Try to find the new ID
+                     if(!createdId) {
+                         const created = rows.find(s => (s.name || s.Name).trim().toLowerCase() === newState.name.trim().toLowerCase());
+                         if(created) createdId = created.Id || created.id;
+                     }
+                     if(createdId) {
+                         setNewLocation(prev => ({ ...prev, stateId: String(createdId), cityId: "" }));
+                     }
+                 }
+             }
+          }
+
+          if (addCityModalOpen && newCity.countryId) {
+              const resS = await getStatesByCountryApi(newCity.countryId);
+              if(resS?.status === 200) {
+                  const rows = resS.data || [];
+                  setModalStates(rows.map(s => ({ id: String(s.Id ?? s.id), name: s.Name ?? s.name })));
+                  
+                   // If we just added a state for this country (inside city modal flow?), auto-select it
+                   if(String(newState.countryId) === String(newCity.countryId)) {
+                       if(!createdId) {
+                            const created = rows.find(s => (s.name || s.Name).trim().toLowerCase() === newState.name.trim().toLowerCase());
+                            if(created) createdId = created.Id || created.id;
+                       }
+                       // Use it? Usually this flow adds state to 'newCity' form? 
+                       // No, 'newCity' has 'stateId'.
+                       if(createdId) {
+                           setNewCity(prev => ({ ...prev, stateId: String(createdId) }));
+                       }
+                   }
+              }
+          }
+      } else {
+        toast.error("Failed to add State");
       }
     } catch (error) {
       console.error(error);
@@ -740,11 +895,23 @@ const NewMeeting = () => {
         return;
       }
 
-      await addCityApi({ ...newCity, userId: currentUserId });
-      toast.success("City Added");
-      setNewCity({ name: "", countryId: "", stateId: "" });
-      setAddCityModalOpen(false);
-      if (newLocation.stateId) {
+      const res = await addCityApi({ ...newCity, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+          toast.success("City Added");
+          const created = res.data.record || res.data;
+
+          if (created) {
+               // Update location modal cities if adding for current state
+               if (newLocation.stateId && String(created.StateId || created.stateId) === String(newLocation.stateId)) {
+                    const normalized = { id: String(created.id || created.Id), name: created.name || created.Name };
+                    setLocationModalCities(prev => [normalized, ...prev]);
+               }
+          }
+
+          setNewCity({ name: "", countryId: "", stateId: "" });
+          setAddCityModalOpen(false);
+      } else {
+        toast.error("Failed to add City");
       }
     } catch (error) {
       console.error(error);
@@ -766,11 +933,35 @@ const NewMeeting = () => {
         return;
       }
 
-      await addLocationApi({ ...newLocation, userId: currentUserId });
-      toast.success("Location Added");
-      setNewLocation({ name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" });
-      setLocationModalOpen(false);
-      loadLocations();
+      const res = await addLocationApi({ ...newLocation, userId: currentUserId });
+      if (res?.status === 200 || res?.status === 201) {
+          toast.success("Location Added");
+          setNewLocation({ name: "", countryId: "", stateId: "", cityId: "", address: "", latitude: "", longitude: "" });
+          setLocationModalOpen(false);
+          
+          let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+          const resL = await getLocationsApi(1, 5000);
+          if(resL?.status === 200) {
+              const rows = resL.data.records || resL.data || [];
+              const normalized = rows.map(l => ({
+                id: String(l.Id),
+                name: `${l.Name} (${l.CityName ?? ""})`
+              }));
+              setLocations(normalized);
+
+              if(!createdId) {
+                  const created = rows.find(l => (l.Name || l.name || "").trim().toLowerCase() === newLocation.name.trim().toLowerCase());
+                  if(created) createdId = created.Id || created.id;
+              }
+
+              if(createdId) {
+                  setForm(prev => ({ ...prev, location: String(createdId) }));
+              }
+          }
+      } else {
+         toast.error("Failed to add Location");
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to add Location");
@@ -824,7 +1015,7 @@ const NewMeeting = () => {
               <div className="flex items-center gap-4">
                  <button 
                    onClick={() => navigate("/app/meeting/meetings")}
-                   className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-purple-200' : 'hover:bg-gray-700'}`}
+                    className={`p-2 rounded border transition-colors ${theme === 'emerald' ? 'bg-white border-gray-200 hover:bg-emerald-50 text-gray-600' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-800 border-gray-700 text-gray-300'}`}
                  >
                     <ArrowLeft size={24} />
                  </button>
@@ -875,13 +1066,13 @@ const NewMeeting = () => {
                               required
                            />
                        </div>
-                       <div className="w-[18px]"></div>
+                       <div className="w-[34px]"></div>
                    </div>
                 </div>
 
                 {/* Location */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className="block text-sm font-medium mb-1 text-black font-medium font-medium">Location</label>
+                   <label className="block text-sm font-medium mb-1 text-black font-medium font-medium">Location <span className="text-dark">*</span></label>
                     <div className="flex items-center gap-2">
                           <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -910,7 +1101,7 @@ const NewMeeting = () => {
                               required
                            />
                        </div>
-                       <div className="w-[18px]"></div>
+                       <div className="w-[34px]"></div>
                    </div>
                 </div>
                 <div className="col-span-12 md:col-span-6">
@@ -924,7 +1115,7 @@ const NewMeeting = () => {
                               required
                            />
                        </div>
-                       <div className="w-[18px]"></div>
+                       <div className="w-[34px]"></div>
                    </div>
                 </div>
 
@@ -949,7 +1140,7 @@ const NewMeeting = () => {
 
                  {/* Department */}
                  <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Department</label>
+                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Department <span className="text-dark">*</span></label>
                     <div className="flex items-center gap-2">
                          <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -968,7 +1159,7 @@ const NewMeeting = () => {
 
                 {/* Organized By */}
                 <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Organized By</label>
+                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Organized By <span className="text-dark">*</span></label>
                     <div className="flex items-center gap-2">
                          <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -987,7 +1178,7 @@ const NewMeeting = () => {
 
                 {/* Reporter */}
                 <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Reporter</label>
+                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Reporter <span className="text-dark">*</span></label>
                     <div className="flex items-center gap-2">
                           <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -1069,6 +1260,18 @@ const NewMeeting = () => {
                        </tbody>
                     </table>
                  </div>
+            </div>
+
+            {/* EXTERNAL RECIPIENTS */}
+            <div className="mt-8 border-t pt-6">
+                 <InputField
+                    label="External Recipients (Email)"
+                    textarea
+                    rows={2}
+                    placeholder="Enter emails separated by commas (e.g. client@example.com, vendor@test.com)"
+                    value={externalRecipients}
+                    onChange={(e) => setExternalRecipients(e.target.value)}
+                 />
             </div>
 
         </div>
@@ -1228,11 +1431,26 @@ const NewMeeting = () => {
               </div>
 
               <div>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Reporter *</label>
+                <div className="flex gap-2">
+                   <div className="flex-1">
+                    <SearchableSelect
+                      options={departments.map(d => ({ id: d.id, name: d.name }))}
+                      value={newDepartment.department}
+                      onChange={(val) => setNewDepartment({ ...newDepartment, department: val })}
+                      placeholder="--select--"
+                      className="w-full"
+                    />
+                   </div>
+                </div>
+              </div>
+
+              <div>
                 <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Description</label>
                 <textarea
                   value={newDepartment.description}
                   onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
-                  className={`w-full rounded px-3 py-2 text-sm outline-none transition-colors border ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900 focus:border-purple-500' : 'bg-gray-900 border-gray-700 text-white focus:border-blue-500'}`}
+                  className={`w-full rounded px-3 py-2 text-sm outline-none transition-colors border ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-gray-300 text-purple-800 focus:border-gray-500' : 'bg-gray-900 border-gray-700 text-white focus:border-blue-500'}`}
                   rows={3}
                 />
               </div>
@@ -1250,6 +1468,8 @@ const NewMeeting = () => {
               </div>
             </div>
       </AddModal>
+
+
 
       {/* LOCATION MODAL */}
       <AddModal

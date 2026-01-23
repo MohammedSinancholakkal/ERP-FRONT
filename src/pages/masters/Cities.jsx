@@ -42,7 +42,8 @@ const Cities = () => {
   const { 
       loadCities: loadCitiesCtx,
       loadInactiveCities: loadInactiveCtx,
-      refreshInactiveCities 
+      refreshInactiveCities,
+      refreshCities
   } = useMasters();
 
   // ---------- modals ----------
@@ -240,10 +241,23 @@ const Cities = () => {
         toast.success("City added");
         setModalOpen(false);
         setNewCity({ name: "", countryId: "", stateId: "" });
-        setStates([]);
-        setPage(1);
-        // refreshCities();
-        loadCities(true);
+        
+        // Optimistic Update
+        const created = res.data.record || res.data;
+        if (created) {
+           const normalized = {
+               ...created,
+               id: created.id || created.Id,
+               name: capitalize(created.name || created.Name),
+               countryId: created.CountryId || created.countryId,
+               stateId: created.StateId || created.stateId,
+           };
+           setCities(prev => [normalized, ...prev]);
+           setTotalRecords(prev => prev + 1);
+        } else {
+           // Fallback if no record returned
+           loadCities(true);
+        }
       } else {
         if (res?.status === 409) {
             toast.error(res?.data?.message || "City already exists");
@@ -305,7 +319,7 @@ const Cities = () => {
       if (res?.status === 200) {
         toast.success("City updated");
         setEditModalOpen(false);
-        // refreshCities();
+        refreshCities();
         loadCities(true);
       } else {
         if (res?.status === 409) {
@@ -332,7 +346,7 @@ const Cities = () => {
           showSuccessToast("City deleted");
           setEditModalOpen(false);
   
-          // refreshCities();
+          refreshCities();
           loadCities(true);
         } else {
           showErrorToast(res?.data?.message || "Delete failed");
@@ -354,7 +368,7 @@ const Cities = () => {
         if (res?.status === 200) {
           showSuccessToast("City restored");
           setEditModalOpen(false);
-          // refreshCities();
+          refreshCities();
           await loadCities(true);
           refreshInactiveCities();
           await loadInactiveCities();
@@ -392,10 +406,33 @@ const Cities = () => {
     try {
       const res = await addCountryApi({ name: name.trim(), userId: currentUserId });
       if (res?.status === 200) {
-        await loadCountries();
-        const sres = await searchCountryApi(name.trim());
-        const arr = Array.isArray(sres.data) ? sres.data : sres.data?.records ?? [];
-        return arr[0] ?? null;
+        let createdId = res.data.record?.Id || res.data.record?.id || res.data?.Id || res.data?.id;
+
+        // Optimistic return
+        // We reconstruct the object as best we can if we didn't get a full record, 
+        // but getting the ID is priority.
+        
+        let normalized = null;
+        if (res.data.record || res.data) {
+             const raw = res.data.record || res.data;
+             normalized = {
+                ...raw, 
+                id: raw.id || raw.Id,
+                name: raw.name || raw.Name 
+             };
+        } else {
+            // Minimal fallback
+             normalized = { id: createdId, name: name.trim() };
+        }
+        
+        // Update local list
+        setCountries(prev => {
+            // avoid duplicate if api returned it in list already? 
+            // usually we just prepend.
+            return [normalized, ...prev];
+        });
+        
+        return normalized;
       } else {
         toast.error("Failed to add country");
         return null;
@@ -416,7 +453,7 @@ const Cities = () => {
        if (searchRes?.status === 200) {
           const rows = searchRes.data || [];
           const existing = rows.find(r => 
-              (r.Name || r.name).toLowerCase() === name.trim().toLowerCase() && 
+              (r.Name || r.name || "").toLowerCase() === name.trim().toLowerCase() && 
               String(r.CountryId || r.countryId) === String(countryId)
           );
           if (existing) {
@@ -432,13 +469,24 @@ const Cities = () => {
     try {
       const res = await addStateApi({ name: name.trim(), countryId: Number(countryId), userId: currentUserId });
       if (res?.status === 200) {
-        const items = await loadStates(countryId);
-        const created = items.find((s) => s.name.toLowerCase() === name.trim().toLowerCase());
-        if (created) return created;
-        const sres = await searchStateApi(name.trim());
-        const arr = Array.isArray(sres.data) ? sres.data : sres.data?.records ?? [];
-        const found = arr.find((a) => String(a.countryId) === String(countryId));
-        return found ?? null;
+        let createdId = res.data.record?.Id || res.data.record?.id || res.data?.Id || res.data?.id;
+
+        let normalized = null;
+        if(res.data.record || res.data) {
+            const raw = res.data.record || res.data;
+            normalized = {
+                ...raw,
+                id: raw.id || raw.Id,
+                name: raw.name || raw.Name,
+                countryId: raw.CountryId || raw.countryId
+            };
+        } else {
+            normalized = { id: createdId, name: name.trim(), countryId: Number(countryId) };
+        }
+
+        // Add to local state list immediately
+        setStates(prev => [normalized, ...prev]);
+        return normalized;
       } else {
         toast.error("Failed to add state");
         return null;
@@ -461,14 +509,17 @@ const Cities = () => {
     if (!/^[a-zA-Z\s]+$/.test(name)) return toast.error("Name allows only characters");
 
     const created = await createCountryAndReload(name);
-    if (created) {
-      if (typeof countryModalCallback === "function") {
-        try {
-          countryModalCallback(created);
-        } catch (e) {
-          console.error("countryModalCallback error:", e);
-        }
-      }
+    if (created && created.id) {
+       // Direct State Update for Auto-Populate
+       if (modalOpen) {
+           setNewCity(prev => ({ ...prev, countryId: created.id, stateId: "" }));
+           setStates([]); // New country has no states yet
+       }
+       if (editModalOpen) {
+           setEditCity(prev => ({ ...prev, countryId: created.id, stateId: "" }));
+           setStates([]);
+       }
+
       setAddCountryModalOpen(false);
       setCountryFormName("");
       setCountryModalCallback(null);
@@ -487,14 +538,15 @@ const Cities = () => {
     if (!/^[a-zA-Z\s]+$/.test(name)) return toast.error("Name allows only characters");
 
     const created = await createStateAndReload(name, countryId);
-    if (created) {
-      if (typeof stateModalCallback === "function") {
-        try {
-          stateModalCallback(created);
-        } catch (e) {
-          console.error("stateModalCallback error:", e);
-        }
-      }
+    if (created && created.id) {
+       // Direct State Update for Auto-Populate
+       if (modalOpen) {
+           setNewCity(prev => ({ ...prev, stateId: created.id }));
+       }
+       if (editModalOpen) {
+           setEditCity(prev => ({ ...prev, stateId: created.id }));
+       }
+
       setAddStateModalOpen(false);
       setStateFormName("");
       setStateModalCallback(null);
@@ -609,6 +661,8 @@ const Cities = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshCities();
+                refreshInactiveCities();
                 loadCities();
               }}
               onColumnSelector={() => setColumnModal(true)}

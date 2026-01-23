@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import toast from "react-hot-toast";
@@ -31,7 +31,8 @@ const Countries = () => {
   const { 
     loadCountries: loadCountriesCtx, 
     loadInactiveCountries: loadInactiveCtx, 
-    refreshInactiveCountries 
+    refreshInactiveCountries,
+    refreshCountries
   } = useMasters();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -59,6 +60,7 @@ const Countries = () => {
 
   // SEARCH
   const [searchText, setSearchText] = useState("");
+  const searchRef = useRef(0);
 
   // COLUMN PICKER
   const defaultColumns = {
@@ -96,8 +98,8 @@ const Countries = () => {
     })); 
 
   // LOAD COUNTRIES
-  const loadCountries = async (forceRefresh = false) => {
-    const { data, total } = await loadCountriesCtx(page, limit, searchText, forceRefresh, sortConfig.key, sortConfig.direction);
+  const loadCountries = async (forceRefresh = false, search = searchText) => {
+    const { data, total } = await loadCountriesCtx(page, limit, search, forceRefresh, sortConfig.key, sortConfig.direction);
     setCountries(normalizeRows(data || []));
     setTotalRecords(total || 0);
   };
@@ -113,15 +115,22 @@ const Countries = () => {
 
   const handleSearch = async (text) => {
     setSearchText(text);
+    searchRef.current += 1;
+    const currentId = searchRef.current;
+
     if (!text.trim()) {
         const { data, total } = await loadCountriesCtx(1, limit, "");
-        setCountries(normalizeRows(data || []));
-        setTotalRecords(total || 0);
+        if (currentId === searchRef.current) {
+            setCountries(normalizeRows(data || []));
+            setTotalRecords(total || 0);
+        }
         return;
     }
     const { data, total } = await loadCountriesCtx(1, limit, text);
-    setCountries(normalizeRows(data || []));
-    setTotalRecords(total || 0);
+    if (currentId === searchRef.current) {
+        setCountries(normalizeRows(data || []));
+        setTotalRecords(total || 0);
+    }
   };
 
   const handleAdd = async () => {
@@ -281,8 +290,15 @@ const Countries = () => {
             permissionCreate={hasPermission(PERMISSIONS.COUNTRIES.CREATE)}
             onRefresh={() => {
               setSearchText("");
-              setPage(1);
-              loadCountries();
+              searchRef.current += 1; // Cancel any pending searches
+              refreshCountries();
+              refreshInactiveCountries();
+              setShowInactive(false); // Reset inactive toggle
+              if (page === 1) {
+                  loadCountries(false, "");
+              } else {
+                  setPage(1);
+              }
             }}
             onColumnSelector={() => setColumnModal(true)}
             onToggleInactive={async () => {

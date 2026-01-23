@@ -28,12 +28,19 @@ const MasterTable = ({
 
   const handleRefresh = async () => {
     if (onRefresh) {
+      if (isRefreshing) return;
       setIsRefreshing(true);
-      await onRefresh();
-      setTimeout(() => {
-        setIsRefreshing(false);
+      try {
+        // Run refresh and minimum timer (1s for 360 spin) in parallel
+        const minSpin = new Promise(resolve => setTimeout(resolve, 1000));
+        await Promise.all([onRefresh(), minSpin]);
+        
         toast.success("Refreshed");
-      }, 500);
+      } catch (error) {
+        console.error("Refresh error:", error);
+      } finally {
+        setIsRefreshing(false);
+      }
     }
   };
 
@@ -127,7 +134,7 @@ const MasterTable = ({
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className={`p-1.5 rounded-md border ${
+            className={`p-1.5 rounded-md border text-sm  ${
               theme === "emerald"
                 ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
                 : theme === "purple"
@@ -165,7 +172,7 @@ const MasterTable = ({
         {onToggleInactive && (
           <button
             onClick={onToggleInactive}
-            className={`p-1.5 rounded-md border flex items-center gap-1 ${
+            className={`p-1.5 rounded-md border flex items-center gap-1  ${
               theme === "emerald"
                 ? "bg-emerald-600 border-emerald-700 hover:bg-emerald-700 text-white"
                 : theme === "purple"
@@ -179,7 +186,7 @@ const MasterTable = ({
             />
             <span
               className={`text-xs opacity-80 ${
-                theme === "emerald" ? "text-white" : theme === "purple" ? "text-white" : ""
+                theme === "emerald" ? "text-white" : theme === "purple" ? "text-white" : "text-white"
               }`}
             >
               Inactive

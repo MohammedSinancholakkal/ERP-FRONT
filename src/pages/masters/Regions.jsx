@@ -25,9 +25,16 @@ import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import InputField from "../../components/InputField";
+import { useMasters } from "../../context/MastersContext";
 
 const Regions = () => {
   const { theme } = useTheme();
+  const { 
+    refreshRegions, 
+    refreshInactiveRegions, 
+    loadRegions: loadRegionsCtx 
+  } = useMasters();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -300,6 +307,8 @@ const Regions = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshRegions();
+                refreshInactiveRegions();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModal(true)}

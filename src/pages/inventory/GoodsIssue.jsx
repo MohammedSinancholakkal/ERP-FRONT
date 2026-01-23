@@ -407,6 +407,7 @@ const handleRestoreIssue = async (id) => {
                     setFilterEmployee("");
                     setSortConfig({ key: "id", direction: 'asc' });
                     setPage(1);
+                    setShowInactive(false);
                     fetchGoodsIssues(1, limit, { key: "id", direction: 'asc' });
                  }}
                 onColumnSelector={() => {

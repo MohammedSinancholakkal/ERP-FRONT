@@ -95,8 +95,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Resolution Status", key: PERMISSIONS.RESOLUTION_STATUS.VIEW },
     { label: "Deductions", key: PERMISSIONS.DEDUCTIONS.VIEW },
     { label: "Incomes", key: PERMISSIONS.INCOMES.VIEW },
-    { label: "Tax Types", key: null }, 
-    { label: "Tax Percentages", key: null }, // TODO: Add permissions later if needed
+    { label: "Tax Types", key: PERMISSIONS.TAX_TYPES.VIEW }, 
+    { label: "Tax Percentages", key: PERMISSIONS.TAX_PERCENTAGES.VIEW },
   ];
 
   const meetingLinks = [
@@ -191,7 +191,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const filterSection = (title, items) => {
     // 1. Filter by Permissions first
     const permittedItems = items.filter(item => {
-        if (!item.key) return true; // No key = visible
+        if (!item.key) return false; // No key = not visible
 
         // Handle Array of Permissions (ANY match)
         if (Array.isArray(item.key)) {

@@ -19,6 +19,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
@@ -34,6 +35,11 @@ import InputField from "../../components/InputField";
 
 const Territories = () => {
   const { theme } = useTheme();
+  const {
+      refreshTerritories,
+      refreshInactiveTerritories,
+      loadTerritories: loadTerritoriesCtx
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -207,18 +213,23 @@ const Territories = () => {
   // ===============================
   const handleAdd = async () => {
     if (!newItem.name?.trim()) return toast.error("Territory name is required");
+    const nameToCheck = newItem.name.trim();
+
     if (!newItem.regionId) return toast.error("Region is required");
 
     // Check for duplicates
     try {
-      const searchRes = await searchTerritoryApi(newItem.name.trim());
+      const searchRes = await searchTerritoryApi(nameToCheck);
       if (searchRes?.status === 200) {
         const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
         const existing = rows.find(r => 
-           (r.TerritoryDescription || r.territoryDescription || r.name || r.Name || "").toLowerCase() === newItem.name.trim().toLowerCase() &&
+           (r.TerritoryDescription || r.territoryDescription || r.name || r.Name || "").toLowerCase() === nameToCheck.toLowerCase() &&
            String(r.RegionId || r.regionId) === String(newItem.regionId)
         );
-        if (existing) return toast.error("Territory with this name already exists in the selected region");
+        if (existing) {
+             toast.error("Territory with this name already exists in the selected region");
+             return; // Stop execution
+        }
       }
     } catch (err) {
       console.error(err);
@@ -227,8 +238,8 @@ const Territories = () => {
 
     try {
       const payload = {
-          territoryDescription: newItem.name.trim(),
-          regionId: newItem.regionId,
+          territoryDescription: nameToCheck,
+          regionId: Number(newItem.regionId), // Ensure it's a number/valid type
           userId: currentUserId
       };
       const res = await addTerritoryApi(payload);
@@ -239,10 +250,12 @@ const Territories = () => {
         setNewItem({ name: "", regionId: "" });
         setPage(1);
         loadRows();
+      } else {
+         toast.error(res?.data?.message || "Failed to add territory");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Server error");
+      toast.error(err?.response?.data?.message || "Server error");
     }
   };
 
@@ -250,14 +263,15 @@ const Territories = () => {
   // Quick Add Region
   // ===============================
   const handleAddRegion = async () => {
-      if(!newRegionName.trim()) return toast.error("Region name required");
+      const nameToAdd = newRegionName.trim();
+      if(!nameToAdd) return toast.error("Region name required");
 
       // Check duplicate
       try {
-        const searchRes = await searchRegionApi(newRegionName.trim());
+        const searchRes = await searchRegionApi(nameToAdd);
         if (searchRes?.status === 200) {
              const rows = searchRes.data.records || searchRes.data || [];
-             const existing = rows.find(r => (r.Name || r.name || r.RegionName || r.regionName || "").toLowerCase() === newRegionName.trim().toLowerCase());
+             const existing = rows.find(r => (r.Name || r.name || r.RegionName || r.regionName || "").toLowerCase() === nameToAdd.toLowerCase());
              if (existing) return toast.error("Region with this name already exists");
         }
       } catch(err) {
@@ -266,12 +280,14 @@ const Territories = () => {
       }
 
       try {
-          const res = await addRegionApi({ regionName: newRegionName, userId: currentUserId });
+          const res = await addRegionApi({ regionName: nameToAdd, userId: currentUserId });
           if(res?.status === 200 || res?.status === 201) {
               toast.success("Region added");
               setAddRegionModalOpen(false);
               setNewRegionName("");
               
+              let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
               // Refresh regions
               const resR = await getRegionsApi(1, 10000);
               if(resR?.status === 200) {
@@ -283,10 +299,14 @@ const Territories = () => {
                   setRegions(mapped);
 
                   // Auto select the new region
-                  const created = mapped.find(r => r.name.toLowerCase() === newRegionName.toLowerCase());
-                  if(created) {
-                      if(modalOpen) setNewItem(prev => ({ ...prev, regionId: created.id }));
-                      if(editModalOpen) setEditItem(prev => ({ ...prev, regionId: created.id }));
+                  if(!createdId) {
+                      const created = mapped.find(r => r.name.trim().toLowerCase() === nameToAdd.toLowerCase());
+                      if(created) createdId = created.id;
+                  }
+
+                  if(createdId) {
+                      if(modalOpen) setNewItem(prev => ({ ...prev, regionId: createdId }));
+                      if(editModalOpen) setEditItem(prev => ({ ...prev, regionId: createdId }));
                   }
               }
           }
@@ -433,6 +453,8 @@ const Territories = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshTerritories();
+                refreshInactiveTerritories();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -452,6 +474,8 @@ const Territories = () => {
             setPage(1);
             setSortConfig({ key: "id", direction: "asc" });
             setShowInactive(false);
+            refreshTerritories();
+            refreshInactiveTerritories();
             loadRows();
           }}
         />

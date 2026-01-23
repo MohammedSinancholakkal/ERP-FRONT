@@ -272,6 +272,7 @@ const Invoices = () => {
     setFilterDate("");
     setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
+    setShowInactive(false); // Reset inactive
     await fetchAllData();
     toast.success("Refreshed");
   };
@@ -457,7 +458,6 @@ const Invoices = () => {
                 onRefresh={handleRefresh}
                 
                 onColumnSelector={() => {
-                     setTempVisibleColumns(visibleColumns);
                      setColumnModalOpen(true);
                 }}
                 

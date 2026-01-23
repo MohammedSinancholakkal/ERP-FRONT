@@ -12,7 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
-import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast, showLoadingToast, dismissToast } from "../../utils/notificationUtils";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import AddModal from "../../components/modals/AddModal";
@@ -184,6 +184,19 @@ const NewPurchaseOrder = () => {
         const { purchase, details } = res.data;
         
         setSupplier(purchase.SupplierId);
+
+        // Patch suppliersList if inactive supplier is missing
+        const sId = purchase.SupplierId;
+        const sName = purchase.SupplierName || purchase.supplierName || purchase.companyName || purchase.CompanyName;
+        
+        if (sId && sName) {
+            setSuppliersList(prev => {
+                if (!prev.find(s => String(s.id) === String(sId))) {
+                    return [...prev, { id: sId, companyName: sName }];
+                }
+                return prev;
+            });
+        }
         setInvoiceNo(purchase.VNo || "");
         setVehicleNo(purchase.VehicleNo || "");
         setDate(purchase.Date.split('T')[0]);
@@ -506,14 +519,18 @@ const NewPurchaseOrder = () => {
           if(res.status === 200) {
               toast.success("Supplier added");
               
-              const updatedSuppliers = await getSuppliersApi(1, 1000);
-              if(updatedSuppliers.status === 200) {
-                  setSuppliersList(updatedSuppliers.data.records);
-                  const newSupplier = updatedSuppliers.data.records.find(s => s.companyName === newSupplierName);
-                  if(newSupplier) {
-                      setSupplier(newSupplier.id);
-                  }
+              // Optimistic update
+              const created = res.data.record || res.data;
+              if (created) {
+                  const normalized = {
+                      id: created.id || created.Id,
+                      companyName: created.companyName || created.CompanyName,
+                      name: created.companyName || created.CompanyName // Fallback
+                  };
+                  setSuppliersList(prev => [normalized, ...prev]);
+                  setSupplier(normalized.id);
               }
+
               setIsSupplierModalOpen(false);
               setNewSupplierName("");
           }
@@ -658,16 +675,31 @@ const NewPurchaseOrder = () => {
           if(res.status === 200) {
               toast.success("Product added");
               
-              const updatedProducts = await getProductsApi(1, 1000);
-              if(updatedProducts.status === 200) {
-                  setProductsList(updatedProducts.data.records);
-                  // Find the new product
-                  const newProduct = updatedProducts.data.records.find(p => p.ProductName === newProductData.name && String(p.BrandId) === String(newProductData.brandId));
-                  if(newProduct) {
-                      // Auto select in the line item modal
-                      handleProductSelect(newProduct.id);
-                  }
+              // Optimistic update
+              let created = res.data.record || res.data;
+              if (created) {
+                   // Normalize
+                   const normalized = {
+                      ...created,
+                      id: created.id || created.Id,
+                      ProductName: created.ProductName || created.name,
+                      UnitId: created.UnitId || created.unitId,
+                      // We need unitName and brandName for the UI
+                      // Try to find them in our lists
+                   };
+                   
+                   const unitObj = unitsList.find(u => String(u.id) === String(normalized.UnitId));
+                   if (unitObj) normalized.unitName = unitObj.name || unitObj.UnitName;
+                   
+                   const brandObj = brandsList.find(b => String(b.id) === String(normalized.BrandId));
+                   if (brandObj) normalized.brandName = brandObj.name || brandObj.BrandName;
+
+                   setProductsList(prev => [normalized, ...prev]);
+                   
+                   // Auto select
+                   handleProductSelect(normalized.id);
               }
+
               setIsProductModalOpen(false);
               setNewProductData({ name: "", brandId: "", unitId: "", price: 0, description: "" });
           }
@@ -786,7 +818,7 @@ const NewPurchaseOrder = () => {
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
-    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+    if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
 
     const detailsLen = details?.trim().length || 0;
     if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
@@ -872,7 +904,7 @@ const NewPurchaseOrder = () => {
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
-    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 15 characters");
 
     const detailsLen = details?.trim().length || 0;
     if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
@@ -949,15 +981,11 @@ const NewPurchaseOrder = () => {
   
     if (!result.isConfirmed) return;
   
-    Swal.fire({
-      title: "Deleting...",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    const toastId = showLoadingToast("Deleting...");
   
     try {
       const res = await deletePurchaseOrderApi(id, { userId });
-      Swal.close();
+      dismissToast(toastId);
   
       if (res.status === 200) {
         showSuccessToast("Purchase Order deleted successfully.");
@@ -966,7 +994,7 @@ const NewPurchaseOrder = () => {
         showErrorToast("Failed to delete purchase order");
       }
     } catch (error) {
-      Swal.close();
+      dismissToast(toastId);
       console.error("DELETE ORDER ERROR", error);
       showErrorToast("Error deleting purchase order");
     }
@@ -977,15 +1005,11 @@ const NewPurchaseOrder = () => {
   
     if (!result.isConfirmed) return;
   
-    Swal.fire({
-      title: "Restoring...",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    const toastId = showLoadingToast("Restoring...");
   
     try {
       const res = await restorePurchaseOrderApi(id, { userId });
-      Swal.close();
+      dismissToast(toastId);
   
       if (res.status === 200) {
         showSuccessToast("Purchase Order restored successfully.");
@@ -994,7 +1018,7 @@ const NewPurchaseOrder = () => {
         showErrorToast("Failed to restore purchase order");
       }
     } catch (error) {
-      Swal.close();
+      dismissToast(toastId);
       console.error("RESTORE ERROR", error);
       showErrorToast("Error restoring purchase order");
     }

@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
 import MasterTable from "../../components/MasterTable";
-
-
 import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 import {
@@ -25,6 +23,7 @@ import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import InputField from "../../components/InputField";
 import ContentCard from "../../components/ContentCard";
+import toast from "react-hot-toast";
 
 const Designations = () => {
   // =============================
@@ -124,6 +123,24 @@ const Designations = () => {
     const res = await searchDesignationApi(text.trim());
     if (res.status === 200) {
       setDesignations(res.data);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setSearchText("");
+    setSortConfig({ key: null, direction: 'asc' });
+    setPage(1);
+    setShowInactive(false);
+    
+    try {
+        const res = await getDesignationsApi(1, limit, null, 'asc');
+        if (res?.status === 200) {
+          setDesignations(res.data.records);
+          setTotalRecords(res.data.total);
+          // showSuccessToast("Refreshed");
+        }
+    } catch (err) {
+        toast.error("Error refreshing designations");
     }
   };
 
@@ -435,7 +452,7 @@ const Designations = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Designation"
                 permissionCreate={hasPermission(PERMISSIONS.HR.DESIGNATIONS.CREATE)}
-                onRefresh={() => { setSearchText(""); setPage(1); loadDesignations(); }}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={async () => {
                     if (!showInactive) await loadInactive();
@@ -450,6 +467,7 @@ const Designations = () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={handleRefresh}
               />
           </div>
           </ContentCard>

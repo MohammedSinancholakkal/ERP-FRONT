@@ -122,12 +122,29 @@ const NewInvoices = () => {
                 companyName: r.companyName ?? r.CompanyName ?? r.name ?? r.Name ?? "",
              }));
              setCustomersList(list);
-             if(list.find(c => String(c.id) === String(newId))) {
-                 setCustomer(newId);
-             }
+      if(list.find(c => String(c.id) === String(newId))) {
+                  setCustomer(newId);
+              }
          }
       });
       window.history.replaceState({}, document.title);
+    }
+    
+    if (location.state?.newEmployeeId) {
+        const newId = location.state.newEmployeeId;
+        getEmployeesApi(1, 1000).then(res => {
+            const records = Array.isArray(res?.data?.records) ? res.data.records : [];
+             const normalized = records.map(e => ({
+                id: e.id ?? e.Id ?? e.employeeId ?? e.EmployeeId ?? null,
+                name: e.name ?? e.employeeName ?? e.FullName ?? `${e.firstName ?? e.FirstName ?? ""} ${e.lastName ?? e.LastName ?? ""}`.trim()
+            }));
+            setEmployeesList(normalized);
+            
+            if(normalized.find(e => String(e.id) === String(newId))) {
+                setEmployee(newId);
+            }
+        });
+        window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
@@ -770,10 +787,14 @@ const handleRestoreInvoice = async () => {
                      className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
                    />
                  </div>
-                 {/* Spacer */}
-                 <div className="p-2 border border-transparent rounded invisible">
+                 <button
+                    type="button"
+                    className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                    onClick={() => !inactiveView && navigate("/app/hr/newemployee", { state: { returnTo: location.pathname } })}
+                    disabled={inactiveView}
+                 >
                      <Star size={16} />
-                 </div>
+                 </button>
                </div>
              </div>
 

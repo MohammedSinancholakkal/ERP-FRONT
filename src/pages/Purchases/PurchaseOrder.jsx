@@ -146,20 +146,20 @@ const PurchaseOrder = () => {
         let rows = Array.isArray(res.data) ? res.data : (res.data.records || []);
         rows = rows.map((r) => ({
           ...r,
-          id: r.id || r.Id,
-          invoiceNo: r.vno || r.VNo,
-          date: r.date || r.Date,
-          paymentAccount: r.paymentAccount || r.PaymentAccount,
-          vehicleNo: r.vehicleNo || r.VehicleNo,
-          totalDiscount: r.totalDiscount || r.TotalDiscount,
-          shippingCost: r.shippingCost || r.ShippingCost,
-          grandTotal: r.grandTotal || r.GrandTotal,
-          netTotal: r.netTotal || r.NetTotal,
-          paidAmount: r.paidAmount || r.PaidAmount,
-          due: r.due || r.Due,
-          change: r.change || r.Change,
-          details: r.details || r.Details,
-          supplierName: r.supplierName || suppliers.find((s) => String(s.id) === String(r.supplierId || r.SupplierId))?.name || "-",
+          id: r.id ?? r.Id,
+          invoiceNo: r.vno ?? r.VNo,
+          date: r.date ?? r.Date,
+          paymentAccount: r.paymentAccount ?? r.PaymentAccount,
+          vehicleNo: r.vehicleNo ?? r.VehicleNo,
+          totalDiscount: r.totalDiscount ?? r.TotalDiscount,
+          shippingCost: r.shippingCost ?? r.ShippingCost,
+          grandTotal: r.grandTotal ?? r.GrandTotal,
+          netTotal: r.netTotal ?? r.NetTotal,
+          paidAmount: r.paidAmount ?? r.PaidAmount,
+          due: r.due ?? r.Due,
+          change: r.change ?? r.Change,
+          details: r.details ?? r.Details,
+          supplierName: (r.supplierName || r.SupplierName || r.companyName || r.CompanyName) || suppliers.find((s) => String(s.id) === String(r.supplierId || r.SupplierId))?.name || "-",
           isInactive: true
         }));
         setInactiveRows(rows);
@@ -210,8 +210,9 @@ const PurchaseOrder = () => {
     setFilterDate("");
     setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
+    setShowInactive(false);
     await fetchPurchaseOrders();
-    if (showInactive) await loadInactivePurchaseOrders();
+    toast.success("Refreshed");
   };
 
   const handleExportExcel = () => {

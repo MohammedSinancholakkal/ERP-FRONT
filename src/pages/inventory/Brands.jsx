@@ -400,6 +400,7 @@ const Brands = () => {
                 setSearchText("");
                 setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
+                setShowInactive(false);
                 loadBrands(1, limit, { key: "id", direction: "asc" });
               }}
               onColumnSelector={() => setColumnModalOpen(true)}
@@ -421,6 +422,7 @@ const Brands = () => {
                 setSearchText("");
                 setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
+                setShowInactive(false);
                 loadBrands(1, limit, { key: "id", direction: "asc" });
               }}
             />

@@ -12,7 +12,7 @@ import {
   Image as ImageIcon,
   ArrowLeft,
 } from "lucide-react";
-import { showDeleteConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import {
@@ -40,6 +40,7 @@ updateEmployeeApi,
 getEmployeeByIdApi,
 deleteEmployeeApi,
 searchEmployeeApi,
+restoreEmployeeApi,
 
 } from "../../services/allAPI";
 import { serverURL } from "../../services/serverURL";
@@ -157,9 +158,10 @@ const NewEmployee = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isEditMode = Boolean(id);
+  const isRestoreMode = location.state?.isInactive === true;
 
 
-  // âœ… LOAD EMPLOYEE ON EDIT PAGE LOAD
+  // ✅ LOAD EMPLOYEE ON EDIT PAGE LOAD
 useEffect(() => {
   if (!isEditMode || !id) return;
 
@@ -328,6 +330,7 @@ const loadEmployeeForEdit = async () => {
 
       if (!mode || mode === "add") {
         const userId = form.userId || 1;
+        let isPersistent = true;
         
          if (key === "country") {
           const res = await addCountryApi({ name: lookupName.trim(), userId });
@@ -337,6 +340,7 @@ const loadEmployeeForEdit = async () => {
           }
           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === "state") {
+          if (!form.countryId) return showErrorToast("Please select a Country first");
           const res = await addStateApi({ name: lookupName.trim(), countryId: Number(form.countryId), userId });
           if (res?.data?.message?.includes("already exists")) {
              showSuccessToast("State already exists, selected existing.");
@@ -344,6 +348,7 @@ const loadEmployeeForEdit = async () => {
           }
           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === "city") {
+           if (!form.stateId) return showErrorToast("Please select a State first");
            const res = await addCityApi({ name: lookupName.trim(), countryId: Number(form.countryId), stateId: Number(form.stateId), userId });
            if (res?.data?.message?.includes("already exists")) {
              showSuccessToast("City already exists, selected existing.");
@@ -358,6 +363,7 @@ const loadEmployeeForEdit = async () => {
           }
           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === "territory") {
+           if (!form.regionId) return showErrorToast("Please select a Region first");
            const res = await addTerritoryApi({ territoryDescription: lookupName.trim(), regionId: Number(form.regionId), userId });
            if (res?.data?.message?.includes("already exists")) {
             showSuccessToast("Territory already exists, selected existing.");
@@ -379,27 +385,41 @@ const loadEmployeeForEdit = async () => {
           }
            created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else {
+           isPersistent = false;
            created = { id: `t_${Date.now()}`, name: lookupName.trim() };
         }
       }
 
+      if (!created && isPersistent) {
+          // If persistent and no created record, it failed (e.g. 400 bad request).
+          // Do NOT fake it.
+          // showErrorToast("Failed to save record"); - Toast usually handled in catch or by API wrapper but let's be safe
+          return; 
+      }
+      
       if (!created) created = { id: `t_${Date.now()}`, name: lookupName.trim() };
+      
+      // Normalize created record for dropdowns
+      const normalizedCreated = {
+          id: created.id || created.Id,
+          name: created.name || created.Name || created.department || created.Department || created.designation || created.Designation || lookupName.trim()
+      };
 
       switch (key) {
-        case "country": setCountries((p) => [created, ...p]); break;
-        case "state": setStates((p) => [created, ...p]); break;
-        case "city": setCities((p) => [created, ...p]); break;
-        case "region": setRegions((p) => [created, ...p]); break;
-        case "territory": setTerritories((p) => [created, ...p]); break;
-        case "designation": setDesignations((p) => [created, ...p]); break;
-        case "department": setDepartments((p) => [created, ...p]); break;
-        case "incomeType": setIncomeTypes((p) => [created, ...p]); break;
-        case "deductionType": setDeductionTypes((p) => [created, ...p]); break;
-        case "bank": setBanks((p) => [created, ...p]); break;
+        case "country": setCountries((p) => [normalizedCreated, ...p]); break;
+        case "state": setStates((p) => [normalizedCreated, ...p]); break;
+        case "city": setCities((p) => [normalizedCreated, ...p]); break;
+        case "region": setRegions((p) => [normalizedCreated, ...p]); break;
+        case "territory": setTerritories((p) => [normalizedCreated, ...p]); break;
+        case "designation": setDesignations((p) => [normalizedCreated, ...p]); break;
+        case "department": setDepartments((p) => [normalizedCreated, ...p]); break;
+        case "incomeType": setIncomeTypes((p) => [normalizedCreated, ...p]); break;
+        case "deductionType": setDeductionTypes((p) => [normalizedCreated, ...p]); break;
+        case "bank": setBanks((p) => [normalizedCreated, ...p]); break;
         default: break;
       }
 
-      if (typeof callback === "function") callback(created);
+      if (typeof callback === "function") callback(normalizedCreated);
       setShowLookupCreateModal(false);
       setLookupName("");
       
@@ -686,6 +706,11 @@ const submitEmployee = async () => {
   const bankAccLen = form.payrollBankAccount.trim().length;
   if (bankAccLen < 10 || bankAccLen > 18) return showErrorToast("Bank Account must be between 10 and 18 digits");
   
+  // Required field validations
+  if (!form.email.trim()) return showErrorToast("Email is required");
+  if (!form.phone.trim()) return showErrorToast("Phone is required");
+  if (!form.address.trim()) return showErrorToast("Address is required");
+  
   if (form.phone && form.phone.length !== 10) return showErrorToast("Phone number must be exactly 10 digits");
 
   // DUPLICATE VALIDATION
@@ -796,6 +821,21 @@ const handleDelete = async () => {
   }
 };
 
+const handleRestore = async () => {
+  const result = await showRestoreConfirm("employee");
+
+  if (!result.isConfirmed) return;
+
+  try {
+    await restoreEmployeeApi(id, {});
+    showSuccessToast("Employee restored successfully.");
+    navigate("/app/hr/employees");
+  } catch (err) {
+    console.error("restore employee error", err);
+    showErrorToast("Failed to restore employee");
+  }
+};
+
 
 
 
@@ -847,12 +887,12 @@ const handleDelete = async () => {
             <ArrowLeft size={24} />
           </button>
            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
-            {isEditMode ? "Edit Employee" : "New Employee"}
+            {isRestoreMode ? "Restore Employee" : (isEditMode ? "Edit Employee" : "New Employee")}
           </h2>
            </div>
 
             <div className="flex gap-3">
-            {(isEditMode ? hasPermission(PERMISSIONS.HR.EMPLOYEES.EDIT) : hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)) && (
+            {!isRestoreMode && (isEditMode ? hasPermission(PERMISSIONS.HR.EMPLOYEES.EDIT) : hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)) && (
             <button onClick={submitEmployee}  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
                   theme === 'emerald'
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -864,12 +904,27 @@ const handleDelete = async () => {
             </button>
             )}
 
-            {isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.DELETE) && (
+            {!isRestoreMode && isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.DELETE) && (
               <button
                 onClick={handleDelete}
                 className={`flex items-center gap-2 border px-3 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? 'flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500' : 'bg-red-800 border-red-600 text-red-200'}`}
               >
                 <Trash2 size={16} /> Delete
+              </button>
+            )}
+
+            {isRestoreMode && isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.EDIT) && (
+              <button
+                onClick={handleRestore}
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
+                  theme === 'emerald'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : theme === 'purple'
+                  ? 'bg-green-600 hover:bg-green-700 text-white shadow-md'
+                  : 'bg-green-800 border border-green-600 text-green-200 hover:bg-green-700'
+                }`}
+              >
+                <Save size={16} /> Restore
               </button>
             )}
 
@@ -901,6 +956,7 @@ const handleDelete = async () => {
                         onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))}
                         placeholder="John"
                         required
+                        disabled={isRestoreMode}
                       />
                     </div>
                     <div>
@@ -909,6 +965,7 @@ const handleDelete = async () => {
                         value={form.lastName}
                         onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))}
                         required={false}
+                        disabled={isRestoreMode}
                       />
                     </div>
 
@@ -918,6 +975,8 @@ const handleDelete = async () => {
                         label="Phone"
                         value={form.phone}
                         onChange={(e) => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                        required={true}
+                        disabled={isRestoreMode}
                       />
                     </div>
                     <div>
@@ -925,6 +984,8 @@ const handleDelete = async () => {
                         label="Email"
                         value={form.email}
                         onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
+                        required={true}
+                        disabled={isRestoreMode}
                       />
                     </div>
 
@@ -936,6 +997,7 @@ const handleDelete = async () => {
                         value={form.designationId}
                         onChange={(val) => setForm({ ...form, designationId: val })}
                         required
+                        disabled={isRestoreMode}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.HR.DESIGNATIONS.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'designation', callback: (c) => setForm(p=>({...p, designationId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
@@ -954,6 +1016,7 @@ const handleDelete = async () => {
                         value={form.departmentId}
                         onChange={(val) => setForm({ ...form, departmentId: val })}
                         required
+                        disabled={isRestoreMode}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.HR.DEPARTMENTS.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'department', callback: (c) => setForm(p=>({...p, departmentId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
@@ -974,6 +1037,7 @@ const handleDelete = async () => {
                          value={form.rateType}
                          onChange={(val) => setForm(p => ({ ...p, rateType: val }))}
                          placeholder="Select Rate Type"
+                         disabled={isRestoreMode}
                       />
                     </div>
                     <div>
@@ -981,6 +1045,7 @@ const handleDelete = async () => {
                         label="Hour Rate / Salary"
                         value={form.hourlyRate}
                         onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))}
+                        disabled={isRestoreMode}
                       />
                     </div>
 
@@ -994,6 +1059,7 @@ const handleDelete = async () => {
                          onChange={(val) => setForm(p => ({ ...p, bloodGroup: val }))}
                          placeholder="Select Blood Group"
                          dropdownHeight="max-h-36"
+                         disabled={isRestoreMode}
                       />
                     </div>
                     
@@ -1002,6 +1068,7 @@ const handleDelete = async () => {
                         label="Zip Code"
                         value={form.zipCode}
                         onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))}
+                        disabled={isRestoreMode}
                       />
                     </div>
 
@@ -1019,6 +1086,7 @@ const handleDelete = async () => {
                           if(val) awaitLoadStatesForCountry(val);
                         }}
                         required
+                        disabled={isRestoreMode}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.COUNTRIES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'country', callback: (c) => {
                              setForm(p=>({...p, countryId: c.id || c.Id}));
@@ -1043,7 +1111,7 @@ const handleDelete = async () => {
                           if(val) awaitLoadCitiesForState(val);
                         }}
                         required
-                        disabled={!form.countryId}
+                        disabled={!form.countryId || isRestoreMode}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.STATES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'state', callback: (c) => {
                              setForm(p=>({...p, stateId: c.id || c.Id}));
@@ -1066,7 +1134,7 @@ const handleDelete = async () => {
                         value={form.cityId}
                         onChange={(val) => setForm({ ...form, cityId: val })}
                         required
-                        disabled={!form.stateId}
+                        disabled={!form.stateId || isRestoreMode}
                         onAdd={isEditMode || !hasPermission(PERMISSIONS.CITIES.CREATE) ? null : () => {
                            setLookupCreateContext({ key: 'city', callback: (c) => setForm(p=>({...p, cityId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
@@ -1078,29 +1146,52 @@ const handleDelete = async () => {
                         }}
                       />
                     </div>
-                    <div className="z-[30]">
-                      <EmpSearchableSelect
-                        label="Region"
-                        options={regions.map(x => ({ id: x.regionId ?? x.id, name: x.regionName ?? x.name }))}
-                        value={form.regionId}
-                        onChange={(val) => {
-                          setForm({ ...form, regionId: val });
-                          if(val) awaitLoadTerritoriesForRegion(val);
-                        }}
-                        onAdd={isEditMode || !hasPermission(PERMISSIONS.REGIONS.CREATE) ? null : () => {
-                           setLookupCreateContext({ key: 'region', callback: (c) => {
-                              setForm(p=>({...p, regionId: c.id || c.Id || c.RegionId}));
-                              awaitLoadTerritoriesForRegion(c.id || c.Id || c.RegionId);
-                           }});
-                           setShowLookupCreateModal(true);
-                        }}
-                        onEdit={() => {
-                           const item = regions.find(x => String(x.regionId??x.id) === String(form.regionId));
-                           setLookupCreateContext({ key: 'region', item, mode: 'edit', callback: (c) => setForm(p=>({...p, regionId: c.id})) });
-                           setShowLookupCreateModal(true);
-                        }}
-                      />
-                    </div>
+                   <div className="z-[30]">
+  <EmpSearchableSelect
+    label="Region"
+    options={regions.map(x => ({
+      id: x.regionId ?? x.id,
+      name: x.regionName ?? x.name
+    }))}
+    value={form.regionId}
+    onChange={async (val) => {
+      setForm({ ...form, regionId: val });
+      if (val) {
+        await awaitLoadTerritoriesForRegion(val);
+      }
+    }}
+    disabled={isRestoreMode}
+    onAdd={
+      isEditMode || !hasPermission(PERMISSIONS.REGIONS.CREATE)
+        ? null
+        : () => {
+            setLookupCreateContext({
+              key: 'region',
+              callback: async (c) => {
+                const regionId = c.id || c.Id || c.RegionId;
+                setForm(p => ({ ...p, regionId }));
+                await awaitLoadTerritoriesForRegion(regionId);
+              }
+            });
+            setShowLookupCreateModal(true);
+          }
+    }
+    onEdit={() => {
+      const item = regions.find(
+        x => String(x.regionId ?? x.id) === String(form.regionId)
+      );
+      setLookupCreateContext({
+        key: 'region',
+        item,
+        mode: 'edit',
+        callback: (c) =>
+          setForm(p => ({ ...p, regionId: c.id || c.regionId }))
+      });
+      setShowLookupCreateModal(true);
+    }}
+  />
+</div>
+
 
                     <div className="z-[20]">
                        <EmpSearchableSelect
@@ -1108,6 +1199,7 @@ const handleDelete = async () => {
                           options={territories.map(x => ({ id: x.territoryId ?? x.id, name: x.territoryDescription ?? x.name }))}
                           value={form.territoryId}
                           onChange={(val) => setForm({ ...form, territoryId: val })}
+                          disabled={isRestoreMode}
                           onAdd={isEditMode ? null : () => {
                              setLookupCreateContext({ key: 'territory', callback: (c) => setForm(p=>({...p, territoryId: c.id || c.Id || c.TerritoryId})) });
                              setShowLookupCreateModal(true);
@@ -1128,6 +1220,7 @@ const handleDelete = async () => {
                           options={users.map(x => ({ id: x.userId ?? x.id, name: x.username ?? x.email ?? x.name }))}
                           value={form.userId}
                           onChange={(val) => setForm({ ...form, userId: val })}
+                          disabled={isRestoreMode}
                         />
                     </div>
                     
@@ -1138,12 +1231,14 @@ const handleDelete = async () => {
                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                         {/* Address */}
                         <div className="flex flex-col h-full">
-           <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Address</label>
+           <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Address <span className="text-dark"> *</span></label>
                            <div className="flex-grow">
                             <textarea 
                               value={form.address} 
-                              onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} 
-                              className={`w-full h-full border rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-200'}`}
+                              onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))}
+                              disabled={isRestoreMode}
+                              required
+                              className={`w-full h-full border rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-200'} ${isRestoreMode ? 'opacity-60 cursor-not-allowed' : ''}`}
                               style={{ minHeight: '120px' }}
                             />
                            </div>
@@ -1162,12 +1257,12 @@ const handleDelete = async () => {
                                   )}
                                 </div>
                                 <div className="flex gap-2 text-sm">
-                                  <label className="cursor-pointer text-blue-300 hover:text-blue-200">
+                                  <label className={`cursor-pointer text-blue-300 hover:text-blue-200 ${isRestoreMode ? 'opacity-60 cursor-not-allowed' : ''}`}>
                                      {form.pictureFile ? "Change" : "Upload"}
-                                     <input type="file" accept="image/*" onChange={(e) => handlePictureChange(e.target.files?.[0])} className="hidden" />
+                                     <input type="file" accept="image/*" onChange={(e) => handlePictureChange(e.target.files?.[0])} className="hidden" disabled={isRestoreMode} />
                                   </label>
                                   {form.picturePreview && (
-                                    <button onClick={removePicture} className="text-red-400 hover:text-red-300">Remove</button>
+                                    <button onClick={removePicture} disabled={isRestoreMode} className={`text-red-400 hover:text-red-300 ${isRestoreMode ? 'opacity-60 cursor-not-allowed' : ''}`}>Remove</button>
                                   )}
                                 </div>
                               </div>
@@ -1187,6 +1282,7 @@ const handleDelete = async () => {
                         value={form.salary}
                         onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))}
                         required
+                        disabled={isRestoreMode}
                       />
                     </div>
 
@@ -1198,6 +1294,7 @@ const handleDelete = async () => {
                         value={form.payrollBankId}
                         onChange={(val) => setForm({ ...form, payrollBankId: val })}
                         required
+                        disabled={isRestoreMode}
                         onAdd={() => {
                            setLookupCreateContext({ key: 'bank', callback: (c) => setForm(p=>({...p, payrollBankId: c.id || c.Id})) });
                            setShowLookupCreateModal(true);
@@ -1211,6 +1308,7 @@ const handleDelete = async () => {
                         value={form.payrollBankAccount}
                         onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value.replace(/\D/g, "").slice(0, 18) }))}
                         required
+                        disabled={isRestoreMode}
                       />
                     </div>
                   </div>

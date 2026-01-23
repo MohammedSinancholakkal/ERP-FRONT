@@ -24,8 +24,21 @@
   }
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .animate-fadeIn {
   animation: fadeIn 0.15s ease-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
 

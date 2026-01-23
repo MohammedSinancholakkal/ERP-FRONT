@@ -33,6 +33,7 @@ import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
 // import SortableHeader from "../../components/SortableHeader"; // REMOVED
 
+import { showSuccessToast } from "../../utils/notificationUtils";
 import Swal from "sweetalert2";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 
@@ -448,6 +449,56 @@ const handleRestore = async (id) => {
 };
 
 
+  const handleRefresh = async () => {
+    // 1. Reset all filters
+    setFilterDesignation("");
+    setFilterDepartment("");
+    setFilterRateType("");
+    setFilterBloodGroup("");
+    setFilterCountry("");
+    setFilterState("");
+    setFilterCity("");
+    setFilterRegion("");
+    setFilterTerritory("");
+    setSearchText("");
+
+    // 2. Reset Pagination & Sorting & Inactive state
+    setPage(1);
+    setSortConfig({ key: null, direction: 'asc' });
+    setShowInactive(false);
+
+    // 3. Clear raw data state to force re-computation/fetch if needed
+    // However, fetchAllData inside handleRefresh is safer if we just call it directly
+    // But fetchAllData depends on state that might not have updated yet due to closure.
+    // So we invoke API directly similar to other pages or rely on effect if we triggered state change?
+    // The safest way in this complex component is to call existing fetchAllData BUT
+    // we need to make sure we don't use stale state inside it if it uses them.
+    // fetchAllData uses sortConfig from state... so we might have a race condition if we just call it.
+    // BUT, we setSortConfig above. React state updates are batched.
+    
+    try {
+        setLoading(true);
+        // Explicitly pass default sort params to API to ensure we don't rely on pending state update
+        const empRes = await getEmployeesApi(1, 5000, null, 'asc');
+        
+        let raw = [];
+        if (empRes?.data?.records) {
+            raw = empRes.data.records;
+        } else if (Array.isArray(empRes?.data)) {
+            raw = empRes.data;
+        } else if (Array.isArray(empRes)) {
+            raw = empRes;
+        }
+        setRawEmployees(raw);
+        // showSuccessToast("Refreshed");
+    } catch (err) {
+        console.error("Refresh failed", err);
+        // toast.error("Refresh failed");
+    } finally {
+        setLoading(false);
+    }
+  };
+
   // Apply search and filter
   useEffect(() => {
     let filtered = allEmployees;
@@ -534,8 +585,10 @@ const columnModalRef = useRef(null);
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 onRowClick={(c, isInactive) => {
-                     // Navigate to Edit
-                     navigate(`/app/hr/employees/${c.id}`);
+                     // Navigate to Edit or Restore based on inactive status
+                     navigate(`/app/hr/employees/${c.id}`, { 
+                       state: { isInactive: isInactive === true }
+                     });
                 }}
                 // Action Bar
                 search={searchText}
@@ -543,7 +596,7 @@ const columnModalRef = useRef(null);
                 onCreate={() => navigate("/app/hr/newemployee")}
                 createLabel="New Employee"
                 permissionCreate={hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)}
-                onRefresh={() => { fetchAllData(); }}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={async () => {
                     if (!showInactive) await loadInactiveEmployees();
@@ -585,6 +638,7 @@ const columnModalRef = useRef(null);
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={handleRefresh}
               />
           </div>
           </ContentCard>

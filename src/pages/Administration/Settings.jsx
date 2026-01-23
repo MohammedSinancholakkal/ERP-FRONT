@@ -156,7 +156,10 @@ const Settings = () => {
   };
 
   const addCurrency = async () => {
-    if (!newCurrencyName.trim() || !newCurrencySymbol.trim()) return;
+    if (!newCurrencyName.trim() || !newCurrencySymbol.trim()) {
+        toast.error("Currency Name and Symbol are required");
+        return;
+    }
 
     try {
       const reqBody = {
@@ -166,15 +169,22 @@ const Settings = () => {
       };
       const res = await addCurrencyApi(reqBody);
 
-      if (res.status === 200) {
+      if (res.status === 200 || res.status === 201) {
         await fetchCurrencies();
+        
+        // Auto-select the new currency
+        setCurrency(newCurrencyName);
+
         setNewCurrencyName("");
         setNewCurrencySymbol("");
         setModalOpen(false);
         toast.success("Currency added successfully");
+      } else {
+          toast.error("Failed to add currency");
       }
     } catch (error) {
       console.error("Error adding currency:", error);
+      toast.error("Error adding currency");
     }
   };
 

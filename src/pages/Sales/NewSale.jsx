@@ -11,7 +11,7 @@ import {
   Check,
   ArchiveRestore
 } from "lucide-react";
-import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast, showLoadingToast, dismissToast } from "../../utils/notificationUtils";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
@@ -106,7 +106,8 @@ const NewSale = () => {
     unitPrice: 0,
     discount: 0,
     taxPercentage: 0,
-    total: 0
+    total: 0,
+    purchasePrice: 0 // Added for backend validation
   });
 
   // --- QUICK CREATE BRAND MODAL STATE ---
@@ -307,6 +308,18 @@ useEffect(() => {
         }
 
         setCustomer(sale.CustomerId);
+
+        // Patch customersList if inactive customer is missing
+        const cName = sale.CustomerName || sale.customerName || sale.companyName || sale.CompanyName;
+        if (sale.CustomerId && cName) {
+             setCustomersList(prev => {
+                 if (!prev.find(c => String(c.id) === String(sale.CustomerId))) {
+                     return [...prev, { id: sale.CustomerId, companyName: cName }];
+                 }
+                 return prev;
+             });
+        }
+
         setPaymentAccount(sale.PaymentAccount);
         setInvoiceNo(sale.VNo || "");
         setVehicleNo(sale.VehicleNo || "");
@@ -431,7 +444,8 @@ useEffect(() => {
         brandId: product.BrandId || product.brandId || prev.brandId,
         brandName: product.brandName || product.BrandName || prev.brandName,
         taxPercentage: product.taxPercentageValue ?? 0,
-        unitsInStock: product.UnitsInStock ?? 0
+        unitsInStock: product.UnitsInStock ?? 0,
+        purchasePrice: product.PurchasePrice ?? product.purchasePrice ?? 0 // Capture Purchase Price
       }));
     } else {
       setNewItem(prev => ({ ...prev, productId }));
@@ -496,6 +510,7 @@ useEffect(() => {
   };
 
   // --- QUICK CREATE BRAND ---
+  // --- QUICK CREATE BRAND ---
   const handleCreateBrand = async () => {
     if (!newBrandName.trim()) return toast.error("Brand name required");
     try {
@@ -511,19 +526,30 @@ useEffect(() => {
       if (res.status === 200) {
         toast.success("Brand added");
         
-        const updatedBrands = await getBrandsApi(1, 1000);
-        if (updatedBrands.status === 200) {
-          setBrandsList(updatedBrands.data.records);
-          const newBrand = updatedBrands.data.records.find(b => b.name === newBrandName);
-          if (newBrand) {
-            setNewItem(prev => ({ ...prev, brandId: newBrand.id, productId: "", productName: "" }));
-          }
+        // Optimistic update
+        const created = res.data.record || res.data;
+        if (created) {
+           const normalized = {
+               ...created,
+               id: created.id || created.Id,
+               name: created.name || created.Name 
+           };
+           setBrandsList(prev => [normalized, ...prev]);
+           
+           // Select it
+           setNewItem(prev => ({ ...prev, brandId: normalized.id, productId: "", productName: "" }));
+           
+           // If we are in Product Create Modal, also select it there
+           if (isProductModalOpen) {
+               setNewProductData(prev => ({ ...prev, brandId: normalized.id }));
+           }
         }
 
         setIsBrandModalOpen(false);
         setNewBrandName("");
       }
     } catch (error) {
+      console.error(error);
       toast.error("Failed to add brand");
     }
   };
@@ -631,17 +657,40 @@ const openProductModal = () => {
       if (res.status === 200) {
         toast.success("Product added");
         
-        const updatedProducts = await getProductsApi(1, 1000);
-        if (updatedProducts.status === 200) {
-          setProductsList(updatedProducts.data.records);
-          const newProduct = updatedProducts.data.records.find(p => p.ProductName === newProductData.name && String(p.BrandId) === String(newProductData.brandId));
-          if (newProduct) {
-            handleProductSelect(newProduct.id);
-          }
+        const created = res.data.record || res.data;
+        if (created) {
+           const normalized = {
+               ...created,
+               id: created.id || created.Id,
+               ProductName: created.ProductName || created.name,
+               // Normalize other fields if needed for handleProductSelect
+               UnitId: created.UnitId || created.unitId,
+               unitName: created.unitName || created.UnitName, // might be missing if API doesn't populate
+               UnitPrice: created.UnitPrice || created.unitPrice,
+               BrandId: created.BrandId || created.brandId,
+               UnitsInStock: created.UnitsInStock || 0
+           };
+           
+           // Note: handleProductSelect expects the product to be in productsList to find unitName/brandName if not on object
+           // So we might need to manually ensure those names are present if the API doesn't return joined data.
+           // However, let's look at getProductsApi... it probably returns joined data.
+           // addProductApi likely returns just the table record.
+           // We can try to patch the names from our local lists (unitsList, brandsList)
+           
+           const unitObj = unitsList.find(u => String(u.id) === String(normalized.UnitId));
+           if (unitObj) normalized.unitName = unitObj.name || unitObj.UnitName;
+           
+           const brandObj = brandsList.find(b => String(b.id) === String(normalized.BrandId));
+           if (brandObj) normalized.brandName = brandObj.name || brandObj.BrandName;
+
+           setProductsList(prev => [normalized, ...prev]);
+           handleProductSelect(normalized.id);
         }
+        
         setIsProductModalOpen(false);
       }
     } catch (error) {
+      console.error(error);
       toast.error("Failed to add product");
     }
   };
@@ -725,7 +774,7 @@ const openProductModal = () => {
     if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
-    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+    if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
 
     const detailsLen = details?.trim().length || 0;
     if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
@@ -781,7 +830,8 @@ const openProductModal = () => {
         quantity: parseFloat(r.quantity) || 0,
         unitPrice: parseFloat(r.unitPrice) || 0,
         discount: parseFloat(r.discount) || 0,
-        total: parseFloat(r.total) || 0
+        total: parseFloat(r.total) || 0,
+        purchasePrice: parseFloat(r.purchasePrice) || 0
       })),
       userId: currentUserId
     };
@@ -816,7 +866,7 @@ const openProductModal = () => {
     if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
-    if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+    if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
 
     const detailsLen = details?.trim().length || 0;
     if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
@@ -873,7 +923,8 @@ const openProductModal = () => {
         quantity: parseFloat(r.quantity) || 0,
         unitPrice: parseFloat(r.unitPrice) || 0,
         discount: parseFloat(r.discount) || 0,
-        total: parseFloat(r.total) || 0
+        total: parseFloat(r.total) || 0,
+        purchasePrice: parseFloat(r.purchasePrice) || 0
       })),
       userId: userId
     };
@@ -906,15 +957,11 @@ const openProductModal = () => {
 
     if (!result.isConfirmed) return;
 
-    Swal.fire({
-      title: "Deleting...",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    const toastId = showLoadingToast("Deleting...");
 
     try {
       const res = await deleteSaleApi(id, { userId });
-      Swal.close();
+      dismissToast(toastId);
 
       if (res.status === 200) {
         showSuccessToast("Sale deleted successfully.");
@@ -923,7 +970,7 @@ const openProductModal = () => {
         showErrorToast("Failed to delete sale");
       }
     } catch (error) {
-      Swal.close();
+      dismissToast(toastId);
       console.error("DELETE SALE ERROR", error);
       showErrorToast("Error deleting sale");
     }
@@ -934,15 +981,11 @@ const openProductModal = () => {
 
     if (!result.isConfirmed) return;
 
-    Swal.fire({
-      title: "Restoring...",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    const toastId = showLoadingToast("Restoring...");
 
     try {
       const res = await restoreSaleApi(id, { userId });
-      Swal.close();
+      dismissToast(toastId);
       if (res.status === 200) {
         showSuccessToast("Sale restored successfully.");
         navigate("/app/sales/sales");
@@ -950,7 +993,7 @@ const openProductModal = () => {
         showErrorToast("Failed to restore sale");
       }
     } catch (error) {
-      Swal.close();
+      dismissToast(toastId);
       console.error("RESTORE ERROR", error);
       showErrorToast("Error restoring sale");
     }
@@ -971,7 +1014,8 @@ const openProductModal = () => {
       discount: 0,
       taxPercentage: taxTypeId ? (igstRate + cgstRate + sgstRate) : 0,
       total: 0,
-      unitsInStock: 0
+      unitsInStock: 0,
+      purchasePrice: 0
     });
     setIsItemModalOpen(true);
   };

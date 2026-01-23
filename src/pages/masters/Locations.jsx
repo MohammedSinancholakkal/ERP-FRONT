@@ -29,6 +29,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 import SearchableSelect from "../../components/SearchableSelect";
 import FilterBar from "../../components/FilterBar";
 
@@ -40,6 +41,10 @@ import InputField from "../../components/InputField";
 
 const Locations = () => {
   const { theme } = useTheme();
+  const { 
+    refreshLocations: refreshCtx, 
+    refreshInactiveLocations: refreshInactiveCtx 
+  } = useMasters();
   const [modalOpen, setModalOpen] = useState(false);
   const [columnModal, setColumnModal] = useState(false);
 
@@ -435,27 +440,69 @@ const Locations = () => {
 
   // --- QUICK ADD HANDLERS ---
   const handleAddCountry = async () => {
-      if(!newCountryName.trim()) return toast.error("Name required");
+      const nameToAdd = newCountryName.trim();
+      if(!nameToAdd) return toast.error("Name required");
 
       // Check duplicates
       try {
-        const searchRes = await searchCountryApi(newCountryName.trim());
-      } catch(e) {}
-      // ...
+        const searchRes = await searchCountryApi(nameToAdd);
+        if (searchRes?.status === 200) {
+            const rows = searchRes.data.records || searchRes.data || [];
+            const existing = rows.find(r => (r.Name || r.name || "").toLowerCase() === nameToAdd.toLowerCase());
+            if (existing) return toast.error("Country with this name already exists");
+        }
+      } catch (err) {
+        console.error(err);
+        return toast.error("Error checking duplicates");
+      }
+
+      try {
+          const res = await addCountryApi({ name: nameToAdd, userId });
+          if(res?.status === 200 || res?.status === 201) {
+              toast.success("Country added");
+              setAddCountryModalOpen(false);
+              setNewCountryName("");
+              
+              let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
+              // Reload and select
+              const resC = await getCountriesApi(1, 1000);
+              if(resC?.status === 200) {
+                  const rows = resC.data.records || resC.data || [];
+                  setCountries(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
+                  
+                  if (!createdId) {
+                      const created = rows.find(r => (r.Name || r.name || "").trim().toLowerCase() === nameToAdd.toLowerCase());
+                      if (created) createdId = created.Id || created.id;
+                  }
+
+                  if(createdId) {
+                      if(modalOpen) setNewData(prev => ({ ...prev, countryId: createdId, stateId: "", cityId: "" }));
+                      if(editModalOpen) setEditData(prev => ({ ...prev, countryId: createdId, stateId: "", cityId: "" }));
+                  }
+              }
+          } else {
+              toast.error("Failed to add country");
+          }
+      } catch(err) {
+          console.error(err);
+          toast.error("Server error");
+      }
   };
 
   const handleAddState = async () => {
-      if(!newStateName.trim()) return toast.error("Name required");
+      const nameToAdd = newStateName.trim();
+      if(!nameToAdd) return toast.error("Name required");
       const currentCountryId = modalOpen ? newData.countryId : editData.countryId;
       if(!currentCountryId) return toast.error("Select Country first");
 
       try {
-        const searchRes = await searchStateApi(newStateName.trim());
+        const searchRes = await searchStateApi(nameToAdd);
         if (searchRes?.status === 200) {
              const rows = searchRes.data || []; // State search returns array directly often, or object
              const items = Array.isArray(rows) ? rows : rows.records || [];
              const existing = items.find(r => 
-                (r.Name || r.name || "").toLowerCase() === newStateName.trim().toLowerCase() && 
+                (r.Name || r.name || "").toLowerCase() === nameToAdd.toLowerCase() && 
                 String(r.CountryId || r.countryId) === String(currentCountryId)
              );
              if (existing) return toast.error("State with this name already exists in selected country");
@@ -466,20 +513,25 @@ const Locations = () => {
       }
 
       try {
-          const res = await addStateApi({ name: newStateName, countryId: currentCountryId, userId });
+          const res = await addStateApi({ name: nameToAdd, countryId: currentCountryId, userId });
           if(res?.status === 200 || res?.status === 201) {
               toast.success("State added");
               setAddStateModalOpen(false);
               setNewStateName("");
               
+              let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
               const resS = await getStatesApi(1, 1000);
               if(resS?.status === 200) {
                    const rows = resS.data.records || resS.data || [];
-                   const created = rows.find(r => (r.Name || r.name || "").toLowerCase() === newStateName.toLowerCase() && (r.CountryId || r.countryId) == currentCountryId);
                    setStates(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name, countryId: r.CountryId || r.countryId })));
 
-                   if(created) {
-                       const createdId = created.Id || created.id;
+                   if (!createdId) {
+                        const created = rows.find(r => (r.Name || r.name || "").trim().toLowerCase() === nameToAdd.toLowerCase() && (r.CountryId || r.countryId) == currentCountryId);
+                        if (created) createdId = created.Id || created.id;
+                   }
+
+                   if(createdId) {
                        if(modalOpen) setNewData(prev => ({ ...prev, stateId: createdId, cityId: "" }));
                        if(editModalOpen) setEditData(prev => ({ ...prev, stateId: createdId, cityId: "" }));
                    }
@@ -494,18 +546,19 @@ const Locations = () => {
   };
 
   const handleAddCity = async () => {
-      if(!newCityName.trim()) return toast.error("Name required");
+      const nameToAdd = newCityName.trim();
+      if(!nameToAdd) return toast.error("Name required");
       const currentStateId = modalOpen ? newData.stateId : editData.stateId;
       const currentCountryId = modalOpen ? newData.countryId : editData.countryId;
       if(!currentStateId) return toast.error("Select State first");
 
       try {
-        const searchRes = await searchCityApi(newCityName.trim());
+        const searchRes = await searchCityApi(nameToAdd);
         if (searchRes?.status === 200) {
              const rows = searchRes.data.records || searchRes.data || []; // check structure
              const items = Array.isArray(rows) ? rows : []; 
              const existing = items.find(r => 
-                (r.Name || r.name || "").toLowerCase() === newCityName.trim().toLowerCase() && 
+                (r.Name || r.name || "").toLowerCase() === nameToAdd.toLowerCase() && 
                 String(r.StateId || r.stateId) === String(currentStateId)
              );
              if (existing) return toast.error("City with this name already exists in selected state");
@@ -516,20 +569,25 @@ const Locations = () => {
       }
 
       try {
-          const res = await addCityApi({ name: newCityName, stateId: currentStateId, countryId: currentCountryId, userId });
+          const res = await addCityApi({ name: nameToAdd, stateId: currentStateId, countryId: currentCountryId, userId });
           if(res?.status === 200 || res?.status === 201) {
               toast.success("City added");
               setAddCityModalOpen(false);
               setNewCityName("");
 
+              let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
               const resCi = await getCitiesApi(1, 1000);
               if(resCi?.status === 200) {
                   const rows = resCi.data.records || resCi.data || [];
-                  const created = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCityName.toLowerCase() && (r.StateId || r.stateId) == currentStateId);
                   setCities(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name, stateId: r.StateId || r.stateId })));
 
-                  if(created) {
-                       const createdId = created.Id || created.id;
+                  if (!createdId) {
+                      const created = rows.find(r => (r.Name || r.name || "").trim().toLowerCase() === nameToAdd.toLowerCase() && (r.StateId || r.stateId) == currentStateId);
+                      if (created) createdId = created.Id || created.id;
+                  }
+
+                  if(createdId) {
                        if(modalOpen) setNewData(prev => ({ ...prev, cityId: createdId }));
                        if(editModalOpen) setEditData(prev => ({ ...prev, cityId: createdId }));
                    }
@@ -583,6 +641,8 @@ const Locations = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshCtx();
+                refreshInactiveCtx();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModal(true)}
@@ -608,6 +668,8 @@ const Locations = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshCtx();
+                refreshInactiveCtx();
                 loadRows();
             }}
             />
@@ -685,7 +747,7 @@ const Locations = () => {
                </div>
                 <div>
                     <InputField
-                         label="Address"
+                         label="Address *"
                          value={newData.address}
                          onChange={(e) => setNewData({...newData, address: e.target.value})}
                          className="mt-1"

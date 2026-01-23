@@ -310,7 +310,7 @@ const NewProduct = () => {
         
         // --- NAVIGATION LOGIC ---
         if (location.state?.returnTo) {
-             const createdId = id || res.data?.id; 
+             const createdId = id || res.data?.record?.id || res.data?.id; 
              navigate(location.state.returnTo, { 
                  state: { 
                      preserveState: location.state.preserveState,
@@ -383,9 +383,24 @@ const NewProduct = () => {
         });
         if (res.status === 200) {
             showSuccessToast("Category added successfully");
+            
+            // Optimistic update
+            const created = res.data.record || res.data;
+            if (created) {
+                const normalized = {
+                   id: created.id || created.Id,
+                   name: created.name || created.CategoryName,
+                   CategoryName: created.CategoryName || created.name
+                };
+                setCategories(prev => [normalized, ...prev]);
+                setProduct(prev => ({ ...prev, CategoryId: normalized.id }));
+            } else {
+                // fallback if API behaves unexpectedly (though ideally we fix the API)
+                loadDropdowns();
+            }
+
             setCategoryModalOpen(false);
             setNewCategory({ name: "", description: "", parentCategoryId: null });
-            loadDropdowns(); 
         } else {
             showErrorToast(res.message || "Failed to add category");
         }
@@ -418,9 +433,23 @@ const NewProduct = () => {
       const res = await addUnitApi({ ...newUnit, userId: currentUserId });
       if (res?.status === 200) {
         showSuccessToast("Unit added");
+        
+        // Optimistic update
+        const created = res.data.record || res.data;
+        if (created) {
+            const normalized = {
+               id: created.id || created.Id,
+               name: created.name || created.UnitName,
+               UnitName: created.UnitName || created.name
+            };
+            setUnits(prev => [normalized, ...prev]);
+            setProduct(prev => ({ ...prev, UnitId: normalized.id }));
+        } else {
+             loadDropdowns();
+        }
+
         setNewUnit({ name: "", description: "" });
         setUnitModalOpen(false);
-        loadDropdowns();
       } else {
         showErrorToast("Failed to add unit");
       }
@@ -451,9 +480,23 @@ const NewProduct = () => {
       const res = await addBrandApi({ ...newBrand, userId: currentUserId });
       if (res?.status === 200) {
         showSuccessToast("Brand added");
+        
+        // Optimistic update
+        const created = res.data.record || res.data;
+        if (created) {
+            const normalized = {
+               id: created.id || created.Id,
+               name: created.name || created.BrandName,
+               BrandName: created.BrandName || created.name
+            };
+            setBrands(prev => [normalized, ...prev]);
+            setProduct(prev => ({ ...prev, BrandId: normalized.id }));
+        } else {
+             loadDropdowns();
+        }
+
         setNewBrand({ name: "", description: "" });
         setBrandModalOpen(false);
-        loadDropdowns();
       } else if (res?.status === 409) {
         showErrorToast(res.data.message || "Brand Name already exists");
       } else {

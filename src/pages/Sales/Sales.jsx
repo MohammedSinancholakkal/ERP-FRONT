@@ -206,11 +206,8 @@ const Sales = () => {
     setFilterPayment("");
     setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
-    setPage(1);
+    setShowInactive(false); // Reset inactive
     await fetchAllData();
-    if (showInactive) {
-      loadInactiveSales();
-    }
   };
 
   const handleExportExcel = () => {
@@ -327,7 +324,8 @@ const Sales = () => {
         onClose={() => setColumnModalOpen(false)} 
         visibleColumns={visibleColumns} 
         setVisibleColumns={setVisibleColumns} 
-        defaultColumns={defaultColumns} 
+        defaultColumns={defaultColumns}
+        zIndex={5000}
       />
 
       <PageLayout>
@@ -407,7 +405,6 @@ const Sales = () => {
                 onRefresh={handleRefresh}
                 
                 onColumnSelector={() => {
-                     setTempVisibleColumns(visibleColumns);
                      setColumnModalOpen(true);
                 }}
                 

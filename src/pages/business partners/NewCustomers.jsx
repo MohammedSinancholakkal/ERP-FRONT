@@ -131,7 +131,13 @@ const NewCustomer = () => {
   // Handle return from NewEmployee with new ID
   useEffect(() => {
     if (location.state?.newEmployeeId && location.state?.field) {
-        const { newEmployeeId, field } = location.state;
+        const { newEmployeeId, field, preservedState } = location.state;
+        
+        // Restore form data if available
+        if (preservedState) {
+            setForm(prev => ({ ...prev, ...preservedState }));
+        }
+
         // Reload employees to ensure the new one is in the list
         getEmployeesApi(1, 5000).then(res => {
              const arr = parseArrayFromResponse(res).map((e) => ({
@@ -319,17 +325,24 @@ const NewCustomer = () => {
                const res = await addCountryApi({ name: newCountryName.trim(), userId: 1 });
                created = res?.data?.record || res?.data || null;
            }
-           if (!created || (!created.id && !created.Id && !created.CountryId && !created.countryId)) {
-               created = { ...created, id: `t_${Date.now()}`, CountryName: newCountryName.trim() };
-           }
            
-           created = { ...created, CountryName: created.CountryName ?? created.name ?? newCountryName.trim(), name: created.name ?? created.CountryName ?? newCountryName.trim() };
+           if (!created || (!created.id && !created.Id && !created.CountryId && !created.countryId)) {
+               // Fallback if API fails to return object but claims success (rare, but keeping safety)
+               created = { id: `t_${Date.now()}`, CountryName: newCountryName.trim(), name: newCountryName.trim() };
+           } else {
+               // Normalize
+               created = { ...created, CountryName: created.CountryName ?? created.name ?? newCountryName.trim(), name: created.name ?? created.CountryName ?? newCountryName.trim(), id: created.Id ?? created.id };
+           }
 
            setCountries(prev => [created, ...prev]);
-           update("countryId", created.Id ?? created.id);
+           update("countryId", created.id);
            update("stateId", null);
            update("cityId", null);
-           loadStatesForCountry(created.Id ?? created.id); 
+           
+           // We do NOT call loadStatesForCountry(created.id) here because a new country has no states.
+           // Just clearing states is correct.
+           setStates([]);
+           setCities([]);
 
            setNewCountryName("");
            setAddCountryModalOpen(false);
@@ -370,19 +383,27 @@ const NewCustomer = () => {
             const res = await addStateApi({ name: newState.name.trim(), countryId: Number(newState.countryId), userId: 1 });
             created = res?.data?.record || res?.data || null;
         }
+        
         if (!created || (!created.id && !created.Id && !created.StateId && !created.stateId)) {
-            created = { ...created, id: `t_${Date.now()}`, StateName: newState.name.trim(), CountryId: newState.countryId };
+             created = { id: `t_${Date.now()}`, StateName: newState.name.trim(), CountryId: newState.countryId, name: newState.name.trim() };
+        } else {
+             created = { 
+               ...created, 
+               StateName: created.StateName ?? created.name ?? newState.name.trim(), 
+               name: created.name ?? created.StateName ?? newState.name.trim(), 
+               CountryId: created.CountryId ?? newState.countryId,
+               id: created.Id ?? created.id
+             };
         }
-
-        created = { ...created, StateName: created.StateName ?? created.name ?? newState.name.trim(), name: created.name ?? created.StateName ?? newState.name.trim(), CountryId: created.CountryId ?? newState.countryId };
 
         setStates(prev => [created, ...prev]);
         setStatesMaster(prev => [created, ...prev]);
         
         if(String(created.CountryId) === String(form.countryId)) {
-             update("stateId", created.Id ?? created.id);
+             update("stateId", created.id);
              update("cityId", null);
-             loadCitiesForState(created.Id ?? created.id);
+             // Similar to Country, a new State has no cities, so clear cities.
+             setCities([]); 
         }
 
         setNewState({ name: "", countryId: "" });
@@ -432,22 +453,23 @@ const NewCustomer = () => {
         }
 
         if(!created || (!created.id && !created.Id && !created.StateId && !created.stateId && !created.CityId && !created.cityId)) {
-             created = { ...created, id: `t_${Date.now()}`, CityName: newCity.name.trim(), CountryId: newCity.countryId, StateId: newCity.stateId };
+             created = { id: `t_${Date.now()}`, CityName: newCity.name.trim(), CountryId: newCity.countryId, StateId: newCity.stateId, name: newCity.name.trim() };
+        } else {
+             created = {
+               ...created,
+               CityName: created.CityName ?? created.name ?? newCity.name.trim(),
+               name: created.name ?? created.CityName ?? newCity.name.trim(),
+               CountryId: created.CountryId ?? newCity.countryId,
+               StateId: created.StateId ?? newCity.stateId,
+               id: created.Id ?? created.id
+             };
         }
-
-        created = {
-          ...created,
-          CityName: created.CityName ?? created.name ?? newCity.name.trim(),
-          name: created.name ?? created.CityName ?? newCity.name.trim(),
-          CountryId: created.CountryId ?? newCity.countryId,
-          StateId: created.StateId ?? newCity.stateId,
-        };
 
         setCities(prev => [created, ...prev]);
         setCitiesMaster(prev => [created, ...prev]);
 
         if (String(created.StateId) === String(form.stateId)) {
-            update("cityId", created.Id ?? created.id);
+            update("cityId", created.id);
         }
 
         setNewCity({ name: "", countryId: "", stateId: "" });
@@ -480,13 +502,24 @@ const NewCustomer = () => {
       }
 
       try {
-           const res = await addCustomerGroupApi({ name: newGroupName.trim() });
-           const created = res.data?.record || res.data || { id: res.data?.id, name: newGroupName.trim() }; 
+           const res = await addCustomerGroupApi({ groupName: newGroupName.trim(), userId: 1 });
+           // Optimistic update
+           let created = res.data?.record || res.data;
            
-           const normalized = { ...created, GroupName: created.GroupName ?? created.name ?? newGroupName.trim(), name: created.name ?? created.GroupName ?? newGroupName.trim() };
+           if (!created || (!created.id && !created.Id)) {
+                // Fallback
+                created = { id: `t_${Date.now()}`, name: newGroupName.trim(), GroupName: newGroupName.trim() };
+           }
+           
+           const normalized = { 
+               ...created, 
+               GroupName: created.GroupName ?? created.name ?? newGroupName.trim(), 
+               name: created.name ?? created.GroupName ?? newGroupName.trim(),
+               id: created.Id ?? created.id 
+           };
            
            setCustomerGroups(prev => [normalized, ...prev]);
-           update("customerGroupId", normalized.Id ?? normalized.id);
+           update("customerGroupId", normalized.id);
            
            setNewGroupName("");
            setAddCustomerGroupModalOpen(false);
@@ -518,12 +551,22 @@ const NewCustomer = () => {
 
       try {
            const res = await addRegionApi({ name: newRegionName.trim() });
-           const created = res.data?.record || res.data || { id: res.data?.id, name: newRegionName.trim() };
+           let created = res.data?.record || res.data;
+           
+           if (!created || (!created.id && !created.Id)) {
+                // Fallback
+                created = { id: `t_${Date.now()}`, name: newRegionName.trim(), RegionName: newRegionName.trim() };
+           }
 
-           const normalized = { ...created, RegionName: created.RegionName ?? created.name ?? newRegionName.trim(), name: created.name ?? created.RegionName ?? newRegionName.trim() };
+           const normalized = { 
+               ...created, 
+               RegionName: created.RegionName ?? created.name ?? newRegionName.trim(), 
+               name: created.name ?? created.RegionName ?? newRegionName.trim(),
+               id: created.Id ?? created.id 
+           };
 
            setRegions(prev => [normalized, ...prev]);
-           update("regionId", normalized.Id ?? normalized.id);
+           update("regionId", normalized.id);
 
            setNewRegionName("");
            setAddRegionModalOpen(false);
@@ -688,7 +731,7 @@ const NewCustomer = () => {
       // --- DUPLICATE CHECKS END ---
 
       const payload = {
-        companyName: form.companyName?.trim(),
+        name: form.companyName?.trim(),
         countryId: form.countryId ? Number(form.countryId) : null,
         stateId: form.stateId ? Number(form.stateId) : null,
         cityId: form.cityId ? Number(form.cityId) : null,
@@ -833,7 +876,7 @@ const handleRestore = async () => {
                        navigate("/app/businesspartners/customers");
                    }
                }}
-               className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'}`}
+                className={`p-2 rounded border transition-colors ${theme === 'emerald' ? 'bg-white border-gray-200 hover:bg-emerald-50 text-gray-600' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-800 border-gray-700 text-gray-300'}`}
              >
                 <ArrowLeft size={24} />
              </button>
@@ -1310,7 +1353,7 @@ const handleRestore = async () => {
                       type="button"
                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                       disabled={isInactive}
-                      onClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname } })}
+                      onClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname, preservedState: form } })}
                    >
                       <Star size={16} />
                    </button>

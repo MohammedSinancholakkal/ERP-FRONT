@@ -27,11 +27,14 @@ const Pagination = ({
   const handleRefresh = async () => {
     if (onRefresh) {
         setIsRefreshing(true);
-        await onRefresh();
-        setTimeout(() => {
-            setIsRefreshing(false);
-            toast.success("Refreshed");
-        }, 500); 
+        try {
+          await onRefresh();
+          toast.success("Refreshed");
+        } catch (error) {
+          toast.error("Failed to refresh");
+        } finally {
+          setIsRefreshing(false);
+        }
     }
   };
 
@@ -56,7 +59,7 @@ const Pagination = ({
         <button
           disabled={page === 1}
           onClick={() => setPage(1)}
-          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
+           className={`p-1 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
         >
           <ChevronsLeft size={16} />
         </button>
@@ -64,7 +67,7 @@ const Pagination = ({
         <button
           disabled={page === 1}
           onClick={() => setPage(page - 1)}
-          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
+          className={`p-1 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
         >
           <ChevronLeft size={16} />
         </button>
@@ -86,7 +89,7 @@ const Pagination = ({
         <button
           disabled={page === totalPages}
           onClick={() => setPage(page + 1)}
-          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
+          className={`p-1 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
         >
           <ChevronRight size={16} />
         </button>
@@ -94,7 +97,7 @@ const Pagination = ({
         <button
           disabled={page === totalPages}
           onClick={() => setPage(totalPages)}
-          className={`p-1 border rounded disabled:opacity-50 ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-gray-300' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}
+          className={`p-1 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
         >
           <ChevronsRight size={16} />
         </button>
@@ -103,7 +106,7 @@ const Pagination = ({
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className={`p-1 border rounded ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-blue-400' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-blue-400'}`}
+            className={`p-1 border rounded transition-all ${theme === 'emerald' ? 'bg-emerald-700 border-emerald-500 hover:bg-emerald-600 text-blue-400' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#50398f] text-white' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-blue-400'}`}
             title="Refresh"
           >
             <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />

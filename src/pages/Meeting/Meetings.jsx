@@ -2,7 +2,7 @@ import MasterTable from "../../components/MasterTable";
 import FilterBar from "../../components/FilterBar";
 import Pagination from "../../components/Pagination";
 import PageLayout from "../../layout/PageLayout";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   getMeetingsApi, 
   getInactiveMeetingsApi, 
@@ -18,9 +18,83 @@ import { useTheme } from "../../context/ThemeContext";
 import ContentCard from "../../components/ContentCard";
 
 
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  
+  try {
+    let year, month, day, hours, minutes;
+    
+    // Case 1: ISO format with Z or timezone (e.g., "2026-01-22T14:30:00.000Z")
+    if (typeof dateString === 'string' && (dateString.includes('Z') || dateString.match(/[+-]\d{2}:\d{2}$/))) {
+      // Just extract the time portion without timezone conversion
+      const timeStr = dateString.substring(0, 19); // "2026-01-22T14:30:00"
+      const [datePart, timePart] = timeStr.split('T');
+      const [y, m, d] = datePart.split('-');
+      const [h, min] = timePart.split(':');
+      
+      year = parseInt(y);
+      month = parseInt(m);
+      day = parseInt(d);
+      hours = parseInt(h);
+      minutes = parseInt(min);
+    }
+    // Case 2: Local string format (e.g., "2026-01-22 14:30:00")
+    else if (typeof dateString === 'string' && dateString.includes(' ')) {
+      const [datePart, timePart] = dateString.split(' ');
+      const [y, m, d] = datePart.split('-');
+      const [h, min] = timePart.split(':');
+      
+      year = parseInt(y);
+      month = parseInt(m);
+      day = parseInt(d);
+      hours = parseInt(h);
+      minutes = parseInt(min);
+    }
+    // Case 3: Datetime format with T (e.g., "2026-01-22T14:30:00")
+    else if (typeof dateString === 'string' && dateString.includes('T')) {
+      const timeStr = dateString.split('.')[0]; // Remove milliseconds
+      const [datePart, timePart] = timeStr.split('T');
+      const [y, m, d] = datePart.split('-');
+      const [h, min] = timePart.split(':');
+      
+      year = parseInt(y);
+      month = parseInt(m);
+      day = parseInt(d);
+      hours = parseInt(h);
+      minutes = parseInt(min);
+    }
+    // Case 4: Direct date object
+    else if (dateString instanceof Date) {
+      year = dateString.getFullYear();
+      month = dateString.getMonth() + 1;
+      day = dateString.getDate();
+      hours = dateString.getHours();
+      minutes = dateString.getMinutes();
+    }
+    else {
+      return dateString;
+    }
+    
+    // Format as MM-DD-YYYY HH:MM AM/PM
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+    
+    const formattedMonth = String(month).padStart(2, '0');
+    const formattedDay = String(day).padStart(2, '0');
+    const formattedHour = String(displayHours).padStart(2, '0');
+    const formattedMin = String(minutes).padStart(2, '0');
+    
+    return `${formattedMonth}-${formattedDay}-${year} ${formattedHour}:${formattedMin} ${ampm}`;
+  } catch (e) {
+    console.error("Date formatting error:", e, dateString);
+    return dateString;
+  }
+};
+
 const Meetings = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   /* Column Visibility State */
   const defaultColumns = {
@@ -153,7 +227,14 @@ const Meetings = () => {
 
   useEffect(() => {
     loadMeetings(sortConfig);
-  }, []); // Initial load
+    
+    // Check if coming from edit with refresh flag
+    const params = new URLSearchParams(location.search);
+    if (params.get('refresh') === 'true') {
+      // Remove the refresh param from URL to avoid repeated refreshes
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.search]); // Trigger on location change
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -224,7 +305,11 @@ const Meetings = () => {
   const safeFiltered = Array.isArray(filteredMeetings) ? filteredMeetings : [];
   const total = safeFiltered.length;
   const startIdx = (page - 1) * limit;
-  const paginatedData = safeFiltered.slice(startIdx, startIdx + limit);
+  const paginatedData = safeFiltered.slice(startIdx, startIdx + limit).map(meeting => ({
+    ...meeting,
+    startDate: formatDate(meeting.startDate),
+    endDate: formatDate(meeting.endDate)
+  }));
 
 
 
@@ -271,8 +356,8 @@ const Meetings = () => {
                 visibleColumns.id && { key: "id", label: "ID", sortable: true, className: "capitalize" },
                 visibleColumns.meetingName && { key: "meetingName", label: "Meeting Name", sortable: true, className: "capitalize" },
                 visibleColumns.meetingType && { key: "meetingType", label: "Meeting Type", sortable: true, className: "capitalize" },
-                visibleColumns.startDate && { key: "startDate", label: "Start Date", sortable: true, className: "capitalize" },
-                visibleColumns.endDate && { key: "endDate", label: "End Date", sortable: true, className: "capitalize" },
+                visibleColumns.startDate && { key: "startDate", label: "Start Date (IST)", sortable: true, className: "capitalize" },
+                visibleColumns.endDate && { key: "endDate", label: "End Date (IST)", sortable: true, className: "capitalize" },
                 visibleColumns.department && { key: "department", label: "Department", sortable: true, className: "capitalize" },
                 visibleColumns.location && { key: "location", label: "Location", sortable: true, className: "capitalize" },
                 visibleColumns.organizedBy && { key: "organizedBy", label: "Organized By", sortable: true, className: "capitalize" },

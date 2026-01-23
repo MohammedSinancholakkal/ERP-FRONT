@@ -14,7 +14,9 @@ import {
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
@@ -29,6 +31,10 @@ import InputField from "../../components/InputField";
 
 const AgendaItemTypes = () => {
   const { theme } = useTheme();
+  const { 
+      refreshAgendaItemTypes, 
+      refreshInactiveAgendaItemTypes 
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -357,6 +363,8 @@ const AgendaItemTypes = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshAgendaItemTypes();
+                refreshInactiveAgendaItemTypes();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -376,6 +384,8 @@ const AgendaItemTypes = () => {
             setPage(1);
             setSortConfig({ key: "id", direction: "asc" });
             setShowInactive(false);
+            refreshAgendaItemTypes();
+            refreshInactiveAgendaItemTypes();
             loadRows();
           }}
         />

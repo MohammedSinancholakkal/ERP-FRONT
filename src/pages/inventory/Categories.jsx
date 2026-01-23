@@ -447,6 +447,7 @@ const handleRestore = async () => {
                 setSearchText("");
                 setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
+                setShowInactive(false);
                 loadCategories(1, limit, { key: "id", direction: "asc" });
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -468,6 +469,7 @@ const handleRestore = async () => {
                 setSearchText("");
                 setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
+                setShowInactive(false);
                 loadCategories(1, limit, { key: "id", direction: "asc" });
               }}
           />

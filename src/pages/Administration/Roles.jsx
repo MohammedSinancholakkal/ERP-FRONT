@@ -331,6 +331,27 @@ const Roles = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setSearchText("");
+    setSortConfig({ key: null, direction: 'asc' });
+    setPage(1);
+    setShowInactive(false);
+    
+    try {
+        const res = await getRolesApi(1, limit, null, 'asc');
+        if (res?.status === 200) {
+          const rawRecords = res.data.records || [];
+          const normalized = normalizeRows(rawRecords);
+          const visibleRoles = normalized.filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+          setRoles(visibleRoles);
+          setTotalRecords(res.data.total);
+          // showSuccessToast("Refreshed");
+        }
+    } catch (err) {
+        toast.error("Error refreshing roles");
+    }
+  };
+
   // ADD
   const handleAddRole = async () => {
     if (!newRole.trim()) return toast.error("Role name required");
@@ -785,11 +806,7 @@ const Roles = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Role"
                 permissionCreate={hasPermission(PERMISSIONS.ROLE.CREATE)}
-                onRefresh={() => {
-                    setSearchText("");
-                    setPage(1);
-                    loadRoles();
-                }}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => {
                    setColumnModalOpen(true);
                 }}
@@ -799,13 +816,13 @@ const Roles = () => {
                 }}
             />
 
-             {/* PAGINATION */}
               <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={handleRefresh}
               />
           </div>
           </ContentCard>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
@@ -71,8 +71,17 @@ const SearchableSelect = ({
     }
   }, [isOpen]);
 
+  // Sort options alphabetically
+  const sortedOptions = useMemo(() => {
+    return [...options].sort((a, b) => {
+        const nameA = (a.name || "").toString().toLowerCase();
+        const nameB = (b.name || "").toString().toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+  }, [options]);
+
   // Filter options based on search
-  const filteredOptions = options.filter(opt =>
+  const filteredOptions = sortedOptions.filter(opt =>
     (opt.name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 

@@ -143,6 +143,24 @@ const Currencies = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setSearchText("");
+    setSortConfig({ key: null, direction: 'asc' });
+    setPage(1);
+    setShowInactive(false);
+    
+    try {
+        const res = await getCurrenciesApi(1, limit, null, 'asc');
+        if (res?.status === 200) {
+          setCurrencies(res.data.records);
+          setTotalRecords(res.data.total);
+          // showSuccessToast("Refreshed");
+        }
+    } catch (err) {
+        toast.error("Error refreshing currencies");
+    }
+  };
+
   // ADD
   const handleAddCurrency = async () => {
     const { currencyName, currencySymbol } = newCurrency;
@@ -442,11 +460,7 @@ const Currencies = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Currency"
                 permissionCreate={hasPermission(PERMISSIONS.CURRENCIES.CREATE)}
-                onRefresh={() => {
-                    setSearchText("");
-                    setPage(1);
-                    loadCurrencies();
-                }}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={async () => {
                     if (!showInactive) await loadInactive();
@@ -461,6 +475,13 @@ const Currencies = () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={() => {
+                    setSearchText("");
+                    setSortConfig({ key: null, direction: 'asc' });
+                    setPage(1);
+                    setShowInactive(false);
+                    loadCurrencies();
+                }}
               />
           </div>
           </ContentCard>

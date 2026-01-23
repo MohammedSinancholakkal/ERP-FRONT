@@ -243,11 +243,14 @@ const Units = () => {
   };
 
   const handleRowClick = (u) => {
+    // Determine if this row is inactive by checking if it's from the inactive list
+    const isInactiveRow = inactiveUnits.some(iu => iu.id === u.id);
+    
     setEditUnit({
         id: u.id,
         name: u.name,
         description: u.description,
-        isInactive: showInactive
+        isInactive: isInactiveRow
       });
       setEditModalOpen(true);
   };
@@ -294,7 +297,10 @@ const Units = () => {
 
       <EditModal
         isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditUnit({ id: null, name: "", description: "", isInactive: false });
+        }}
         onSave={handleUpdateUnit}
         onDelete={handleDeleteUnit}
         onRestore={handleRestoreUnit}
@@ -361,6 +367,7 @@ const Units = () => {
                     setSearchText("");
                     setSortConfig({ key: "id", direction: "asc" });
                     setPage(1);
+                    setShowInactive(false);
                     loadUnits(1, limit, { key: "id", direction: "asc" });
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
@@ -377,6 +384,7 @@ const Units = () => {
                 setSearchText("");
                 setSortConfig({ key: "id", direction: "asc" });
                 setPage(1);
+                setShowInactive(false);
                 loadUnits(1, limit, { key: "id", direction: "asc" });
               }}
             />

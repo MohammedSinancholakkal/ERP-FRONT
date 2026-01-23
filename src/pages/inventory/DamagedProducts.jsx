@@ -23,6 +23,7 @@ import {
   getCategoriesApi,
   getWarehousesApi,
   getLastPurchasePriceApi,
+  searchDamagedProductsApi, // ADDED
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
 import SortableHeader from "../../components/SortableHeader";
@@ -193,13 +194,26 @@ const DamagedProducts = () => {
     }
   };
 
-  const loadDamaged = async (p = page, l = limit, currentSort = sortConfig) => {
+  const loadDamaged = async (p = page, l = limit, currentSort = sortConfig, query = searchText) => {
     setLoading(true);
     try {
       const { key, direction } = currentSort;
-      const res = await getDamagedProductsApi(p, l, key, direction); // Pass sort params
-      setDamaged(res.data.records || []);
-      setTotal(res.data.total || 0);
+      let res;
+      if (query && query.trim().length > 0) {
+           res = await searchDamagedProductsApi(query);
+           const data = res.data.records || res.data || [];
+           setDamaged(data);
+           // For search, we set total later dynamically based on filtered list length or here if no other filters
+           // But since we have category filter, we'll let computeDisplayed handle 'total' for pagination? 
+           // No, usually 'total' drives pagination. 
+           // If search returns ALL, 'total' is just length.
+           // However, we also have 'filterCategory'. 
+           // If we assume search returns EVERYTHING matching text, we can filter by category on client.
+      } else {
+           res = await getDamagedProductsApi(p, l, key, direction); // Pass sort params
+           setDamaged(res.data.records || []);
+           setTotal(res.data.total || 0);
+      }
     } catch (err) {
       setDamaged([]);
       setTotal(0);
@@ -221,9 +235,31 @@ const DamagedProducts = () => {
     loadProducts();
     loadCategories();
     loadWarehouses();
-    loadDamaged(page, limit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pagination / Sort Effect (Only if NO search text)
+  useEffect(() => {
+     if (!searchText.trim()) {
+        loadDamaged(page, limit);
+     }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit]);
+
+  // Debounced Search Effect
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          if (searchText.trim()) {
+            setPage(1);
+            loadDamaged(1, limit, sortConfig, searchText);
+          } else {
+            // If cleared, reload normal paginated
+             loadDamaged(1, limit, sortConfig, "");
+          }
+      }, 500);
+      return () => clearTimeout(timer);
+  }, [searchText]);
+
 
   /* =========================================================
       PRODUCT SELECTION AUTO-FILL — robust
@@ -446,41 +482,35 @@ const DamagedProducts = () => {
   const computeDisplayed = () => {
     let list = Array.isArray(damaged) ? [...damaged] : [];
 
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
-      list = list.filter(
-        (r) =>
-          String(r.Name ?? r.name ?? "")
-            .toLowerCase()
-            .includes(q) ||
-          String(r.Code ?? r.code ?? "")
-            .toLowerCase()
-            .includes(q) ||
-          String(r.CategoryName ?? r.categoryName ?? "")
-            .toLowerCase()
-            .includes(q)
-      );
-    }
-
+    // REMOVED CLIENT SIDE TEXT FILTERING as we now use backend search
+    
     if (filterCategory) {
       list = list.filter(
         (r) => String(r.CategoryId ?? r.categoryId) === String(filterCategory)
       );
     }
 
-    // list.sort((a, b) => (a.Id ?? a.id ?? 0) - (b.Id ?? b.id ?? 0)); // REMOVED CLIENT SIDE SORT
-
     return list;
   };
-
-
 
   const [displayed, setDisplayed] = useState([]);
 
   useEffect(() => {
-    setDisplayed(computeDisplayed());
+    const filtered = computeDisplayed();
+    
+    // If we are searching, we likely got ALL results, so we should filter down 'total' for pagination
+    if (searchText.trim()) {
+       setTotal(filtered.length);
+       // Now slice for client-side pagination of search results
+       const startIdx = (page - 1) * limit;
+       setDisplayed(filtered.slice(startIdx, startIdx + limit));
+    } else {
+       // Normal pagination mode, 'damaged' is already sliced
+       setDisplayed(filtered);
+       // Total is already set in loadDamaged
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [damaged, searchText, filterCategory]);
+  }, [damaged, searchText, filterCategory, page, limit]);
 
   // --- SORTING LOGIC ---
   // Client side sorting removed
@@ -863,6 +893,7 @@ const DamagedProducts = () => {
                 onRefresh={() => {
                     setSearchText("");
                     setPage(1);
+                    setShowInactive(false); // Reset inactive
                     loadDamaged(1, limit);
                 }}
                 

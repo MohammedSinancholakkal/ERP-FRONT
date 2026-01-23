@@ -15,6 +15,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
@@ -29,6 +30,10 @@ import InputField from "../../components/InputField";
 
 const CustomerGroups = () => {
   const { theme } = useTheme();
+  const { 
+      refreshCustomerGroups, 
+      refreshInactiveCustomerGroups 
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -164,31 +169,57 @@ const CustomerGroups = () => {
   };
 
   // ===============================
-  // Add
+  // Validation Helper
   // ===============================
-  const handleAdd = async () => {
-    if (!newItem.name?.trim()) return toast.error("Name is required");
-    const nameToCheck = newItem.name.trim();
-    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
-    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
-    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+  const validateName = (name) => {
+    if (!name?.trim()) return "Name is required";
+    const nameToCheck = name.trim();
+    if (nameToCheck.length < 2) return "Name must be at least 2 characters";
+    if (nameToCheck.length > 50) return "Name must be at most 50 characters";
+    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return "Name allows only characters";
+    return null;
+  };
 
-    // Check for duplicates
+  // ===============================
+  // Duplicate Check Helper
+  // ===============================
+  const checkDuplicate = async (name, excludeId = null) => {
     try {
-      const searchRes = await searchCustomerGroupApi(newItem.name.trim());
+      // First check against current rows (loaded data)
+      const existing = rows.find(
+        (r) => (r.name || "").toLowerCase() === name.trim().toLowerCase() &&
+               (excludeId ? r.id !== excludeId : true)
+      );
+      if (existing) return "Customer group with this name already exists";
+
+      // Then check via search API to ensure no duplicates in database
+      const searchRes = await searchCustomerGroupApi(name.trim());
       if (searchRes?.status === 200) {
-        const rows = Array.isArray(searchRes.data)
+        const items = Array.isArray(searchRes.data)
           ? searchRes.data
           : searchRes.data?.records || [];
-        const existing = rows.find(
-          (r) => (r.Name || r.name || "").toLowerCase() === newItem.name.trim().toLowerCase()
+        const apiExisting = items.find(
+          (r) => (r.Name || r.name || "").toLowerCase() === name.trim().toLowerCase() &&
+                 (excludeId ? (r.Id || r.id) !== excludeId : true)
         );
-        if (existing) return toast.error("Customer group with this name already exists");
+        if (apiExisting) return "Customer group with this name already exists";
       }
     } catch (err) {
       console.error(err);
-      return toast.error("Error checking duplicates");
+      // Don't fail the operation if search API fails, proceed with local check
     }
+    return null;
+  };
+
+  // ===============================
+  // Add
+  // ===============================
+  const handleAdd = async () => {
+    const validationError = validateName(newItem.name);
+    if (validationError) return toast.error(validationError);
+
+    const duplicateError = await checkDuplicate(newItem.name);
+    if (duplicateError) return toast.error(duplicateError);
 
     try {
       const res = await addCustomerGroupApi({
@@ -205,7 +236,13 @@ const CustomerGroups = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Server error");
+      if (err.response?.status === 409) {
+        toast.error("Customer group with this name already exists");
+      } else if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else {
+        toast.error("Server error");
+      }
     }
   };
 
@@ -216,36 +253,18 @@ const CustomerGroups = () => {
     setEditItem({
       id: row.id,
       name: row.name,
-      isInactive: inactive,
+      isInactive: inactive === true, // Ensure boolean value
     });
 
     setEditModalOpen(true);
   };
 
   const handleUpdate = async () => {
-    if (!editItem.name?.trim()) return toast.error("Name is required");
-    const nameToCheck = editItem.name.trim();
-    if (nameToCheck.length < 2) return toast.error("Name must be at least 2 characters");
-    if (nameToCheck.length > 50) return toast.error("Name must be at most 50 characters");
-    if (!/^[a-zA-Z\s]+$/.test(nameToCheck)) return toast.error("Name allows only characters");
+    const validationError = validateName(editItem.name);
+    if (validationError) return toast.error(validationError);
 
-     // Check for duplicates
-     try {
-      const searchRes = await searchCustomerGroupApi(editItem.name.trim());
-      if (searchRes?.status === 200) {
-        const rows = Array.isArray(searchRes.data)
-          ? searchRes.data
-          : searchRes.data?.records || [];
-        const existing = rows.find(
-          (r) => (r.Name || r.name || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
-                 (r.Id || r.id) !== editItem.id
-        );
-        if (existing) return toast.error("Customer group with this name already exists");
-      }
-    } catch (err) {
-      console.error(err);
-      return toast.error("Error checking duplicates");
-    }
+    const duplicateError = await checkDuplicate(editItem.name, editItem.id);
+    if (duplicateError) return toast.error(duplicateError);
 
     try {
       const res = await updateCustomerGroupApi(editItem.id, {
@@ -261,7 +280,13 @@ const CustomerGroups = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Update failed");
+      if (err.response?.status === 409) {
+        toast.error("Customer group with this name already exists");
+      } else if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else {
+        toast.error("Update failed");
+      }
     }
   };
 
@@ -344,6 +369,8 @@ const CustomerGroups = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshCustomerGroups();
+                refreshInactiveCustomerGroups();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -364,6 +391,8 @@ const CustomerGroups = () => {
               setPage(1);
               setSortConfig({ key: "id", direction: "asc" });
               setShowInactive(false);
+              refreshCustomerGroups();
+              refreshInactiveCustomerGroups();
               loadRows();
             }}
           />
@@ -397,7 +426,15 @@ const CustomerGroups = () => {
        {/* EDIT MODAL */}
        <EditModal
           isOpen={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
+          onClose={() => {
+            setEditModalOpen(false);
+            // Reset editItem when modal closes to prevent stale state
+            setEditItem({
+              id: null,
+              name: "",
+              isInactive: false,
+            });
+          }}
           onSave={handleUpdate}
           onDelete={handleDelete}
           onRestore={handleRestore}

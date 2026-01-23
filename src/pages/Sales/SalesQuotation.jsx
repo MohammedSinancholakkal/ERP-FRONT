@@ -261,11 +261,8 @@ const SalesQuotation = () => {
     setFilterExpiry("");
     setSortConfig({ key: null, direction: 'asc' });
     setPage(1);
-    setPage(1);
+    setShowInactive(false); // Reset inactive
     await fetchAllData();
-    if (showInactive) {
-      loadInactiveQuotations();
-    }
     // toast.success("Refreshed");
   };
 

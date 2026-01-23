@@ -15,6 +15,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
@@ -29,6 +30,10 @@ import InputField from "../../components/InputField";
 
 const Incomes = () => {
   const { theme } = useTheme();
+  const { 
+    refreshIncomes: refreshCtx, 
+    refreshInactiveIncomes: refreshInactiveCtx 
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -181,7 +186,7 @@ const Incomes = () => {
           ? searchRes.data
           : searchRes.data?.records || [];
         const existing = rows.find(
-          (r) => (r.Name || r.name || "").toLowerCase() === newItem.name.trim().toLowerCase()
+          (r) => (r.Name || r.name || r.IncomeName || r.incomeName || "").toLowerCase() === newItem.name.trim().toLowerCase()
         );
         if (existing) return toast.error("Income type with this name already exists");
       }
@@ -237,7 +242,7 @@ const Incomes = () => {
           ? searchRes.data
           : searchRes.data?.records || [];
         const existing = rows.find(
-          (r) => (r.Name || r.name || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
+          (r) => (r.Name || r.name || r.IncomeName || r.incomeName || "").toLowerCase() === editItem.name.trim().toLowerCase() && 
                  (r.Id || r.id) !== editItem.id
         );
         if (existing) return toast.error("Income type with this name already exists");
@@ -344,6 +349,8 @@ const Incomes = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshCtx();
+                refreshInactiveCtx();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -363,6 +370,8 @@ const Incomes = () => {
             setPage(1);
             setSortConfig({ key: "id", direction: "asc" });
             setShowInactive(false);
+            refreshCtx();
+            refreshInactiveCtx();
             loadRows();
           }}
         />

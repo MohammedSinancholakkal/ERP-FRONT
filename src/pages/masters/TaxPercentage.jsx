@@ -11,6 +11,7 @@ import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessTo
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
+
 import {
   addTaxPercentageApi,
   getTaxPercentagesApi,
@@ -28,6 +29,7 @@ import InputField from "../../components/InputField";
 
 const TaxPercentage = () => {
   const { theme } = useTheme();
+
 
   // STATES
   const [modalOpen, setModalOpen] = useState(false);

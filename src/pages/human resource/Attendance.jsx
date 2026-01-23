@@ -399,6 +399,15 @@ const Attendance = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setSearchText("");
+    setPage(1);
+    setSortConfig({ key: null, direction: 'asc' });
+    setShowInactive(false);
+    await loadAttendance();
+    // showSuccessToast("Refreshed");
+  };
+
   const totalRecords = total; // Use server value
   // const totalPages = Math.max(1, Math.ceil(total / limit)); // Unused variable usually handled by Pagination component
   // Pagination component handles pagination logic internally based on total and limit
@@ -424,7 +433,7 @@ const Attendance = () => {
       >
         <div className="p-0 space-y-4">
           <div className="mb-4">
-            <label className="text-sm opacity-80 mb-1 block">Employee</label>
+            <label className="text-sm opacity-80 mb-1 block">Employee *</label>
             <SearchableSelect
               value={form.employeeId}
               onChange={(val) => {
@@ -534,7 +543,7 @@ const Attendance = () => {
         <div className="p-0 space-y-4">
           {/* EMPLOYEE */}
           <div className="mb-4">
-            <label className="text-sm opacity-80 mb-1 block">Employee</label>
+            <label className="text-sm opacity-80 mb-1 block">Employee *</label>
             <SearchableSelect
               value={editForm.employeeId}
               onChange={(val) => {
@@ -638,7 +647,7 @@ const Attendance = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="Add Attendance"
                 permissionCreate={hasPermission(PERMISSIONS.HR.ATTENDANCE.CREATE)}
-                onRefresh={() => loadAttendance()}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => {
                     setTempVisibleColumns(visibleColumns);
                     setColumnModalOpen(true);
@@ -656,6 +665,7 @@ const Attendance = () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={handleRefresh}
               />
           </div>
           </ContentCard>

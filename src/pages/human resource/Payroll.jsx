@@ -19,6 +19,7 @@ import { hasPermission } from "../../utils/permissionUtils";
 import { format } from "date-fns";
 import { PERMISSIONS } from "../../constants/permissions";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import { showSuccessToast } from "../../utils/notificationUtils";
 
 
 const Payroll = () => {
@@ -134,10 +135,19 @@ const fetchPayrolls = async () => {
       }
     } catch (err) {
       console.error("Failed to load inactive payrolls", err);
-      toast.error("Failed to load inactive records");
+      showErrorToast("Failed to load inactive records");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setSearchText("");
+    setPage(1);
+    setSortConfig({ key: null, direction: 'asc' });
+    setShowInactive(false);
+    await fetchPayrolls();
+    // showSuccessToast("Refreshed");
   };
 
   const handleToggleInactive = async () => {
@@ -248,7 +258,7 @@ const fetchPayrolls = async () => {
                 onCreate={() => navigate("/app/hr/newpayroll")}
                 createLabel="New Payroll"
                 permissionCreate={hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)}
-                onRefresh={fetchPayrolls}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => {
                     setTempVisibleColumns(visibleColumns);
                     setColumnModalOpen(true);
@@ -263,6 +273,7 @@ const fetchPayrolls = async () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={handleRefresh}
               />
           </div>
           </ContentCard>

@@ -572,7 +572,10 @@ const Customers = () => {
           onRefresh={() => {
               setSearchText("");
               setPage(1);
-              loadCustomers();
+              setSortConfig({ key: "id", direction: "asc" });
+              setShowInactive(false);
+              handleResetFilters();
+              loadCustomers({ key: "id", direction: "asc" });
           }}
           onColumnSelector={() => {
               setTempVisibleColumns(visibleColumns);
@@ -594,7 +597,10 @@ const Customers = () => {
             onRefresh={() => {
               setSearchText("");
               setPage(1);
-              loadCustomers();
+              setSortConfig({ key: "id", direction: "asc" });
+              setShowInactive(false);
+              handleResetFilters();
+              loadCustomers({ key: "id", direction: "asc" });
             }}
           />
           </div>

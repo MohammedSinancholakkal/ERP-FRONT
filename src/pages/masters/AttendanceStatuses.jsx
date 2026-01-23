@@ -15,6 +15,7 @@ import {
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import { useMasters } from "../../context/MastersContext";
 
 import MasterTable from "../../components/MasterTable";
 import PageLayout from "../../layout/PageLayout";
@@ -29,6 +30,10 @@ import InputField from "../../components/InputField";
 
 const AttendanceStatuses = () => {
   const { theme } = useTheme();
+  const { 
+    refreshAttendanceStatuses: refreshCtx, 
+    refreshInactiveAttendanceStatuses: refreshInactiveCtx 
+  } = useMasters();
   // ===============================
   // State Declarations
   // ===============================
@@ -347,6 +352,8 @@ const AttendanceStatuses = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshCtx();
+                refreshInactiveCtx();
                 loadRows();
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
@@ -366,6 +373,8 @@ const AttendanceStatuses = () => {
             setPage(1);
             setSortConfig({ key: "id", direction: "asc" });
             setShowInactive(false);
+            refreshCtx();
+            refreshInactiveCtx();
             loadRows();
           }}
         />

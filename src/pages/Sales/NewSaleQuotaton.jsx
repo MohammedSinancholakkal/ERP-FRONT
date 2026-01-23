@@ -11,7 +11,7 @@ import {
   Check,
   ArchiveRestore
 } from "lucide-react";
-import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
+import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast, showLoadingToast, dismissToast } from "../../utils/notificationUtils";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import ReactDOM from "react-dom";
 import PageLayout from "../../layout/PageLayout";
@@ -263,6 +263,20 @@ useEffect(() => {
         }
 
         setCustomer(quotation.CustomerId ?? quotation.customerId ?? quotation.Customer ?? "");
+        
+        // Patch customersList if inactive customer is missing
+        const cId = quotation.CustomerId ?? quotation.customerId ?? quotation.Customer;
+        const cName = quotation.CustomerName || quotation.customerName || quotation.companyName || quotation.CompanyName;
+        
+        if (cId && cName) {
+             setCustomersList(prev => {
+                 if (!prev.find(c => String(c.id) === String(cId))) {
+                     return [...prev, { id: cId, companyName: cName }];
+                 }
+                 return prev;
+             });
+        }
+
         // remove: payment account and invoice handling (not used)
         // setInvoiceNo(sale.VNo || "");
         if (quotation.Date) setDate(String(quotation.Date).split("T")[0]);
@@ -498,13 +512,22 @@ useEffect(() => {
       if (res.status === 200) {
         toast.success("Brand added");
 
-        const updatedBrands = await getBrandsApi(1, 1000);
-        if (updatedBrands.status === 200) {
-          setBrandsList(updatedBrands.data.records);
-          const newBrand = updatedBrands.data.records.find(b => b.name === newBrandName);
-          if (newBrand) {
-            setNewItem(prev => ({ ...prev, brandId: newBrand.id, productId: "", productName: "" }));
-          }
+        // Optimistic update
+        const created = res.data.record || res.data;
+        if (created) {
+           const normalized = {
+               ...created,
+               id: created.id || created.Id,
+               name: created.name || created.Name 
+           };
+           setBrandsList(prev => [normalized, ...prev]);
+           
+           // Select it
+           setNewItem(prev => ({ ...prev, brandId: normalized.id, productId: "", productName: "" }));
+           
+           if (isProductModalOpen) {
+               setNewProductData(prev => ({ ...prev, brandId: normalized.id }));
+           }
         }
 
         setIsBrandModalOpen(false);
@@ -606,15 +629,32 @@ useEffect(() => {
       const res = await addProductApi(payload);
       if (res.status === 200) {
         toast.success("Product added");
+        
+        const created = res.data.record || res.data;
+        if (created) {
+           const normalized = {
+               ...created,
+               id: created.id || created.Id,
+               ProductName: created.ProductName || created.name,
+               // Normalize other fields if needed
+               UnitId: created.UnitId || created.unitId,
+               unitName: created.unitName || created.UnitName,
+               UnitPrice: created.UnitPrice || created.unitPrice,
+               BrandId: created.BrandId || created.brandId,
+               UnitsInStock: created.UnitsInStock || 0
+           };
+           
+           // Try to fix unitName/BrandName if missing (as addProductApi might only return IDs)
+           const unitObj = unitsList.find(u => String(u.id) === String(normalized.UnitId));
+           if (unitObj) normalized.unitName = unitObj.name || unitObj.UnitName;
+           
+           const brandObj = brandsList.find(b => String(b.id) === String(normalized.BrandId));
+           if (brandObj) normalized.brandName = brandObj.name || brandObj.BrandName;
 
-        const updatedProducts = await getProductsApi(1, 1000);
-        if (updatedProducts.status === 200) {
-          setProductsList(updatedProducts.data.records);
-          const newProduct = updatedProducts.data.records.find(p => (p.ProductName === newProductData.name || p.ProductName === newProductData.name) && String(p.BrandId) === String(newProductData.brandId));
-          if (newProduct) {
-            handleProductSelect(newProduct.id);
-          }
+           setProductsList(prev => [normalized, ...prev]);
+           handleProductSelect(normalized.id);
         }
+        
         setIsProductModalOpen(false);
       }
     } catch (error) {
@@ -680,7 +720,7 @@ const handleSaveQuotation = async () => {
   if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
   if (rows.length === 0) return toast.error("Please add at least one item");
 
-  if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+  if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
 
   const detailsLen = details?.trim().length || 0;
   if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
@@ -757,7 +797,7 @@ const handleUpdateQuotation = async () => {
   if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
   if (rows.length === 0) return toast.error("Please add at least one item");
 
-  if (vehicleNo && vehicleNo.length > 10) return showErrorToast("Vehicle No must be max 10 characters");
+  if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
 
   const detailsLen = details?.trim().length || 0;
   if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
@@ -832,15 +872,11 @@ const handleDeleteQuotation = async () => {
 
     if (!result.isConfirmed) return;
 
-    Swal.fire({
-      title: "Deleting...",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    const toastId = showLoadingToast("Deleting...");
 
   try {
     const res = await deleteQuotationApi(id, { userId });
-    Swal.close();
+    dismissToast(toastId);
 
     if (res.status === 200) {
         showSuccessToast("Quotation deleted successfully.");
@@ -849,7 +885,7 @@ const handleDeleteQuotation = async () => {
         showErrorToast("Failed to delete quotation");
     }
   } catch (error) {
-    Swal.close();
+    dismissToast(toastId);
     console.error("DELETE QUOTATION ERROR:", error);
     showErrorToast("Error deleting quotation");
   }
@@ -860,15 +896,11 @@ const handleRestoreQuotation = async () => {
 
     if (!result.isConfirmed) return;
 
-    Swal.fire({
-      title: "Restoring...",
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    const toastId = showLoadingToast("Restoring...");
 
     try {
       const res = await restoreQuotationApi(id, { userId });
-      Swal.close();
+      dismissToast(toastId);
       if (res.status === 200) {
         showSuccessToast("Quotation restored successfully.");
         navigate("/app/sales/salesquotations");
@@ -876,7 +908,7 @@ const handleRestoreQuotation = async () => {
         showErrorToast("Failed to restore quotation");
       }
     } catch (error) {
-      Swal.close();
+      dismissToast(toastId);
       console.error("RESTORE ERROR", error);
       showErrorToast("Error restoring quotation");
     }

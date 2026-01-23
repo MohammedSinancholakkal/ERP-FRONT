@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Star,
 } from "lucide-react";
@@ -11,7 +11,6 @@ import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import MasterTable from "../../components/MasterTable";
 import ContentCard from "../../components/ContentCard";
-import Swal from "sweetalert2";
 import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import { useTheme } from "../../context/ThemeContext";
 import { useMasters } from "../../context/MastersContext";
@@ -41,7 +40,8 @@ const States = () => {
     loadStates: loadStatesCtx, 
     // refreshStates, 
     loadInactiveStates: loadInactiveCtx, 
-    refreshInactiveStates 
+    refreshInactiveStates,
+    refreshStates
   } = useMasters();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -77,6 +77,7 @@ const States = () => {
 
   // SEARCH
   const [searchText, setSearchText] = useState("");
+  const searchRef = useRef(0);
 
   // COLUMN PICKER
   const defaultColumns = {
@@ -116,7 +117,7 @@ const States = () => {
       id: r.StateId ?? r.stateId ?? r.id ?? null,
       name: capitalize(r.StateName ?? r.stateName ?? r.name ?? ""),
       countryId: r.CountryId ?? r.countryId ?? "",
-      countryName: capitalize(r.CountryName ?? r.countryName ?? ""),
+      countryName: capitalize(r.CountryName ?? r.countryName ?? r.Country?.Name ?? r.Country?.name ?? ""),
     })); 
 
   // LOAD DROPDOWNS
@@ -161,15 +162,22 @@ const States = () => {
 
   const handleSearch = async (text) => {
     setSearchText(text);
+    searchRef.current += 1;
+    const currentId = searchRef.current;
+
     if (!text.trim()) {
         const { data, total } = await loadStatesCtx(1, limit, "");
-        setStates(normalizeRows(data || []));
-        setTotalRecords(total || 0);
+        if (currentId === searchRef.current) {
+            setStates(normalizeRows(data || []));
+            setTotalRecords(total || 0);
+        }
         return;
     }
     const { data, total } = await loadStatesCtx(1, limit, text);
-    setStates(normalizeRows(data || []));
-    setTotalRecords(total || 0);
+    if (currentId === searchRef.current) {
+        setStates(normalizeRows(data || []));
+        setTotalRecords(total || 0);
+    }
   };
 
   const handleAdd = async () => {
@@ -294,17 +302,18 @@ const States = () => {
   // --- QUICK ADD HANDLER ---
   const handleAddCountry = async () => {
       // VALIDATIONS
-      if(!newCountryName.trim()) return toast.error("Name required");
-      if (newCountryName.trim().length < 2) return toast.error("Name must be at least 2 characters");
-      if (newCountryName.trim().length > 20) return toast.error("Name must be at most 20 characters");
-      if (!/^[a-zA-Z\s]+$/.test(newCountryName.trim())) return toast.error("Name allows only characters");
+      const nameToAdd = newCountryName.trim();
+      if(!nameToAdd) return toast.error("Name required");
+      if (nameToAdd.length < 2) return toast.error("Name must be at least 2 characters");
+      if (nameToAdd.length > 20) return toast.error("Name must be at most 20 characters");
+      if (!/^[a-zA-Z\s]+$/.test(nameToAdd)) return toast.error("Name allows only characters");
 
       // Check for duplicates
       try {
-        const searchRes = await searchCountryApi(newCountryName.trim());
+        const searchRes = await searchCountryApi(nameToAdd);
         if (searchRes?.status === 200) {
             const rows = searchRes.data.records || searchRes.data || [];
-            const existing = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.trim().toLowerCase());
+            const existing = rows.find(r => (r.Name || r.name || "").toLowerCase() === nameToAdd.toLowerCase());
             if (existing) return toast.error("Country with this name already exists");
         }
       } catch (err) {
@@ -313,20 +322,28 @@ const States = () => {
       }
 
       try {
-          const res = await addCountryApi({ name: newCountryName, userId });
+          const res = await addCountryApi({ name: nameToAdd, userId });
           if(res?.status === 200 || res?.status === 201) {
               toast.success("Country added");
               setAddCountryModalOpen(false);
               setNewCountryName("");
+              
+              // Try to get ID from response first
+              let createdId = res.data?.record?.Id || res.data?.record?.id || res.data?.Id || res.data?.id;
+
               // Reload and select
               const resC = await getCountriesApi(1, 1000);
               if(resC?.status === 200) {
                   const rows = resC.data.records || resC.data || [];
-                  const created = rows.find(r => (r.Name || r.name || "").toLowerCase() === newCountryName.toLowerCase());
                   setCountries(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
                   
-                  if(created) {
-                      const createdId = created.Id || created.id;
+                  // Fallback search if ID not found in response
+                  if (!createdId) {
+                      const created = rows.find(r => (r.Name || r.name || "").trim().toLowerCase() === nameToAdd.toLowerCase());
+                      if (created) createdId = created.Id || created.id;
+                  }
+                  
+                  if(createdId) {
                       if(modalOpen) setNewData(prev => ({ ...prev, countryId: createdId }));
                       if(editModalOpen) setEditData(prev => ({ ...prev, countryId: createdId }));
                   }
@@ -378,10 +395,17 @@ const States = () => {
             permissionCreate={hasPermission(PERMISSIONS.STATES.CREATE)}
             onRefresh={() => {
               setSearchText("");
-              setPage(1);
+              searchRef.current += 1;
+              refreshStates(); // Invalidate cache
+              refreshInactiveStates();
               setSortConfig({ key: "id", direction: "asc" });
               setShowInactive(false);
-              loadStates();
+              
+              if (page === 1) {
+                  loadStates();
+              } else {
+                  setPage(1);
+              }
             }}
             onColumnSelector={() => setColumnModal(true)}
             onToggleInactive={async () => {

@@ -509,6 +509,11 @@ const handleEditRoles = async () => {
 
     if (!v.trim()) {
       setPage(1);
+      // We don't call loadUsers here immediately, let the debounce/effect or user action handle it, 
+      // but usually search input triggers on change. 
+      // If this is passed to MasterTable as onSearch, it might be debounced there? 
+      // Actually checking MasterTable usage... it seems it's passed as onSearch.
+      // For now, keeping existing logic but cleaner if possible.
       loadUsers();
       return;
     }
@@ -524,6 +529,29 @@ const handleEditRoles = async () => {
       setTotalRecords(items.length);
     } catch {
       toast.error("Search failed");
+    }
+  };
+
+  const handleRefresh = async () => {
+    setSearchText("");
+    setPage(1);
+    setSortConfig({ key: null, direction: 'asc' });
+    setShowInactive(false);
+    
+    // Explicit fetch to reset view immediately
+    try {
+        const res = await getUsersApi(1, limit, null, 'asc');
+        if (res?.status === 200) {
+            const normalized = (res.data.records || []).map((item) => ({
+              ...item,
+              userImage: item.userImage ? fullImageURL(item.userImage) : "",
+            }));
+            setUsers(normalized);
+            setTotalRecords(res.data.total);
+            // showSuccessToast("Refreshed");
+        }
+    } catch (err) {
+        toast.error("Error refreshing users");
     }
   };
 
@@ -1161,12 +1189,7 @@ const handleEditRoles = async () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New User"
                 permissionCreate={hasPermission(PERMISSIONS.USER.CREATE)}
-                onRefresh={() => {
-                    setSearchText("");
-                    setPage(1);
-                    loadUsers();
-                    if (showInactive) loadInactiveUsers();
-                }}
+                onRefresh={handleRefresh}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={async () => {
                     if (!showInactive) await loadInactiveUsers();
@@ -1180,6 +1203,7 @@ const handleEditRoles = async () => {
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
+                onRefresh={handleRefresh}
               />
         </div>
         </ContentCard>

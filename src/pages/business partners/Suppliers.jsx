@@ -514,7 +514,10 @@ const Suppliers = () => {
           onRefresh={() => {
               setSearchText("");
               setPage(1);
-              loadSuppliers();
+              setSortConfig({ key: "id", direction: "asc" });
+              setShowInactive(false);
+              handleResetFilters();
+              loadSuppliers({ key: "id", direction: "asc" });
           }}
           onColumnSelector={() => {
               setTempVisibleColumns(visibleColumns);
@@ -536,7 +539,10 @@ const Suppliers = () => {
           onRefresh={() => {
             setSearchText("");
             setPage(1);
-            loadSuppliers();
+            setSortConfig({ key: "id", direction: "asc" });
+            setShowInactive(false);
+            handleResetFilters();
+            loadSuppliers({ key: "id", direction: "asc" });
           }}
         />
         </div>

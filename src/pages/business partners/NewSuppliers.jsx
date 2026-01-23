@@ -131,7 +131,28 @@ const NewSupplier = () => {
   // Handle return from NewEmployee with new ID
   useEffect(() => {
     if (location.state?.newEmployeeId && location.state?.field) {
-        const { newEmployeeId, field } = location.state;
+        const { newEmployeeId, field, preservedState } = location.state;
+        
+        // Restore preserved form data if available
+        if (preservedState) {
+             setForm(prev => ({ ...prev, ...preservedState }));
+             
+             // Restore Cascading Lists if IDs exist
+             if (preservedState.countryId) {
+                 loadStatesForCountry(preservedState.countryId, { 
+                     preserve: true, 
+                     presetStateId: preservedState.stateId,
+                     presetCityId: preservedState.cityId 
+                 });
+             }
+             if (preservedState.stateId) {
+                 loadCitiesForState(preservedState.stateId, {
+                     preserve: true,
+                     presetCityId: preservedState.cityId
+                 });
+             }
+        }
+
         // Reload employees to ensure the new one is in the list
         getEmployeesApi(1, 5000).then(res => {
              const arr = parseArrayFromResponse(res).map((e) => ({
@@ -852,7 +873,7 @@ const handleRestore = async () => {
                        navigate("/app/businesspartners/suppliers");
                    }
                }}
-               className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'}`}
+                className={`p-2 rounded border transition-colors ${theme === 'emerald' ? 'bg-white border-gray-200 hover:bg-emerald-50 text-gray-600' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-800 border-gray-700 text-gray-300'}`}
              >
                 <ArrowLeft size={24} />
              </button>
@@ -1329,7 +1350,7 @@ const handleRestore = async () => {
                       type="button"
                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                       disabled={isInactive}
-                      onClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname } })}
+                      onClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname, preservedState: form } })}
                    >
                       <Star size={16} />
                    </button>

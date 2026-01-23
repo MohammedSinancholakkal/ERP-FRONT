@@ -30,6 +30,7 @@ const TaxTypes = () => {
   const { 
     loadTaxTypes: loadTaxTypesCtx, 
     loadInactiveTaxTypes: loadInactiveCtx,
+    refreshTaxTypes,
     refreshInactiveTaxTypes
   } = useMasters();
 
@@ -370,6 +371,8 @@ const TaxTypes = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshTaxTypes();
+                refreshInactiveTaxTypes();
                 loadTaxTypes();
               }}
               onColumnSelector={() => setColumnModal(true)}
@@ -391,6 +394,8 @@ const TaxTypes = () => {
                 setPage(1);
                 setSortConfig({ key: "id", direction: "asc" });
                 setShowInactive(false);
+                refreshTaxTypes();
+                refreshInactiveTaxTypes();
                 loadTaxTypes();
               }}
             />
