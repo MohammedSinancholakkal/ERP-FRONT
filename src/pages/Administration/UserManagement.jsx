@@ -10,7 +10,8 @@ import {
   X,
   Save,
   Trash2,
-  Search
+  Search,
+  ArchiveRestore
 } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
 import { useTheme } from "../../context/ThemeContext";
@@ -162,6 +163,8 @@ const UserManagement = () => {
     userImagePreview: "",
     isInactive: false,
   });
+
+  const [loading, setLoading] = useState(false);
 
   // Roles Modal
   const [rolesModalOpen, setRolesModalOpen] = useState(false);
@@ -557,6 +560,7 @@ const handleEditRoles = async () => {
 
   // Add user
   const handleAdd = async () => {
+    if (loading) return;
     try {
       if (!newUser.username.trim() || !newUser.displayName.trim() || !newUser.password.trim()) {
         return toast.error("Missing required fields");
@@ -577,12 +581,17 @@ const handleEditRoles = async () => {
         return toast.error("Passwords do not match");
       }
 
+      setLoading(true);
+
       // Check duplicates (Username)
       try {
         const searchRes = await searchUserApi(newUser.username.trim());
         const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
         const existing = rows.find(u => u.username?.toLowerCase() === newUser.username.trim().toLowerCase());
-        if (existing) return toast.error("Username already exists");
+        if (existing) {
+          setLoading(false);
+          return toast.error("Username already exists");
+        }
       } catch (err) {
         console.error(err);
       }
@@ -593,7 +602,10 @@ const handleEditRoles = async () => {
             const searchRes = await searchUserApi(newUser.email.trim());
             const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
             const existing = rows.find(u => u.email?.toLowerCase() === newUser.email.trim().toLowerCase());
-            if (existing) return toast.error("Email already exists");
+            if (existing) {
+              setLoading(false);
+              return toast.error("Email already exists");
+            }
         } catch (err) {
             console.error(err);
         }
@@ -629,6 +641,8 @@ const handleEditRoles = async () => {
       }
     } catch (err) {
       toast.error("Add failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -657,6 +671,7 @@ const handleEditRoles = async () => {
 
   // Update user
   const handleUpdate = async () => {
+    if (loading) return;
     try {
       if (!editData.username.trim() || !editData.displayName.trim()) {
         return toast.error("Missing required fields");
@@ -669,6 +684,8 @@ const handleEditRoles = async () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (editData.email && !emailRegex.test(editData.email.trim())) return toast.error("Invalid email format");
 
+      setLoading(true);
+
       // Check duplicates (Username)
       try {
         const searchRes = await searchUserApi(editData.username.trim());
@@ -677,7 +694,10 @@ const handleEditRoles = async () => {
             u.username?.toLowerCase() === editData.username.trim().toLowerCase() && 
             (u.userId || u.UserId) !== editData.userId
         );
-        if (existing) return toast.error("Username already exists");
+        if (existing) {
+          setLoading(false);
+          return toast.error("Username already exists");
+        }
       } catch (err) {
         console.error(err);
       }
@@ -691,7 +711,10 @@ const handleEditRoles = async () => {
                 u.email?.toLowerCase() === editData.email.trim().toLowerCase() && 
                 (u.userId || u.UserId) !== editData.userId
             );
-            if (existing) return toast.error("Email already exists");
+            if (existing) {
+              setLoading(false);
+              return toast.error("Email already exists");
+            }
         } catch (err) {
             console.error(err);
         }
@@ -720,6 +743,8 @@ const handleEditRoles = async () => {
       }
     } catch (err) {
       toast.error("Update failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -825,10 +850,18 @@ const handleEditRoles = async () => {
               {hasPermission(PERMISSIONS.USER.CREATE) && (
               <button
                 onClick={handleAdd}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
-                disabled={!hasPermission(PERMISSIONS.USER.CREATE)}
+                disabled={loading || !hasPermission(PERMISSIONS.USER.CREATE)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
+                {loading ? (
+                    <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                    </>
+                ) : (
+                    <>
+                    <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
+                    </>
+                )}
               </button>
               )}
               
@@ -990,19 +1023,30 @@ const handleEditRoles = async () => {
               {hasPermission(PERMISSIONS.USER.EDIT) && !editData.isInactive && (
                 <button
                   onClick={handleUpdate}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
+                  disabled={loading}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
+                  {loading ? (
+                      <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                      </>
+                  ) : (
+                      <>
+                      <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Update
+                      </>
+                  )}
                 </button>
               )}
               {editData.isInactive && (
                  <button
                   onClick={handleRestore}
-                  className="flex items-center gap-2 bg-green-600/20 border border-green-600 text-green-400 px-3 py-1.5 rounded hover:bg-green-600/30 transition-colors"
+                   className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>
               )}
+
+              
               
               <button 
                 onClick={handleEditRoles}

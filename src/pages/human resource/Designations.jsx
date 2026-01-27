@@ -352,6 +352,7 @@ const Designations = () => {
   title={editDesignation.isInactive ? "Restore Designation" : "Edit Designation"}
   permissionDelete={hasPermission(PERMISSIONS.HR.DESIGNATIONS.DELETE)}
   permissionEdit={hasPermission(PERMISSIONS.HR.DESIGNATIONS.EDIT)}
+  saveText="Update"
   width="700px"
 >
   <div className="p-0 space-y-4">

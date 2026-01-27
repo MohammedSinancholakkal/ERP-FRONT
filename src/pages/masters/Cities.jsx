@@ -765,6 +765,7 @@ const Cities = () => {
           title={`Edit City (${editCity.name})`}
           permissionDelete={hasPermission(PERMISSIONS.CITIES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.CITIES.EDIT)}
+          saveText="Update"
        >
            <div className="space-y-4">
                <div>
@@ -799,19 +800,11 @@ const Cities = () => {
                             setEditCountryModalOpen(true); 
                         }}
                     >
-                        <Pencil size={16} className="text-blue-400" />
+                        <Pencil size={16} />
                     </button>
                      )}
                      {/* Add Country Star */}
-                    {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
-                    <button
-                        type="button"
-                       className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                        onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}
-                    >
-                        <Star size={16} />
-                    </button>
-                    )}
+
                   </div>
               </div>
               <div>
@@ -835,19 +828,11 @@ const Cities = () => {
                             setEditStateModalOpen(true); 
                         }}
                     >
-                        <Pencil size={16} className="text-blue-400" />
+                        <Pencil size={16} />
                     </button>
                      )}
                     {/* Add State Star */}
-                     {hasPermission(PERMISSIONS.STATES.CREATE) && (
-                    <button
-                        type="button"
-                        className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                        onClick={() => { setStateFormName(""); setStateModalCallback(null); setAddStateModalOpen(true); }}
-                    >
-                        <Star size={16} />
-                    </button>
-                     )}
+
                   </div>
               </div>
            </div>

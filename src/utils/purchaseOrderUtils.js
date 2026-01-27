@@ -1,7 +1,17 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
-import { getPurchaseOrderByIdApi } from "../services/allAPI";
+import { getPurchaseOrderByIdApi, getSuppliersApi, getStatesApi, getCitiesApi } from "../services/allAPI";
+
+const parseArrayFromResponse = (res) => {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (res.data?.records) return res.data.records;
+  if (res.records) return res.records;
+  const maybeArray = Object.values(res).find((v) => Array.isArray(v));
+  return Array.isArray(maybeArray) ? maybeArray : [];
+};
 import { serverURL } from "../services/serverURL";
 
 // Helper: Format Currency
@@ -24,7 +34,63 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
     const purchase = res.data.purchase;
     const details = res.data.details || [];
 
-    // 2. Setup jsPDF
+    // 2. Fetch Supplier if details missing
+    // Purchase Order often returns supplier info, but let's be robust
+    // 2. Fetch Supplier if details missing OR to resolve City/State
+    if (purchase.SupplierId) {
+        try {
+            // Parallel Fetch: Suppliers list (to find one), Cities, States
+            const [supRes, citiesRes, statesRes] = await Promise.all([
+                 getSuppliersApi(1, 1000), 
+                 getCitiesApi(1, 5000),
+                 getStatesApi(1, 5000)
+            ]);
+
+            if (supRes.status === 200) {
+                 const records = supRes.data.records || supRes.data || [];
+                 const found = records.find(s => String(s.id) === String(purchase.SupplierId));
+                 
+                 // Resolve Names
+                 const cityList = parseArrayFromResponse(citiesRes);
+                 const stateList = parseArrayFromResponse(statesRes);
+
+                 if (found) {
+                     const cityId = found.CityId || found.cityId;
+                     const stateId = found.StateId || found.stateId;
+                     
+                     let resolvedCity = found.City || found.city || "";
+                     let resolvedState = found.State || found.state || "";
+
+                     if (cityId && cityList.length > 0) {
+                          const cMatch = cityList.find(c => String(c.id || c.Id || c.CityId) === String(cityId));
+                          if (cMatch) resolvedCity = cMatch.name || cMatch.Name || cMatch.CityName;
+                     }
+                     if (stateId && stateList.length > 0) {
+                          const sMatch = stateList.find(s => String(s.id || s.Id || s.StateId) === String(stateId));
+                          if (sMatch) resolvedState = sMatch.name || sMatch.Name || sMatch.StateName;
+                     }
+
+                     if(!purchase.supplierName) purchase.supplierName = found.companyName || found.CompanyName;
+                     if(!purchase.Address) purchase.Address = found.address || found.Address;
+                     if(!purchase.Phone) purchase.Phone = found.phone || found.Phone;
+                     if(!purchase.GSTIN) purchase.GSTIN = found.gstin || found.GSTIN || found.vatNo; 
+                     if(!purchase.email) purchase.email = found.email || found.Email || found.EmailAddress;
+                     
+                     // Map detailed address fields
+                     if(!purchase.AddressLine1) purchase.AddressLine1 = found.addressLine1 || found.AddressLine1;
+                     if(!purchase.AddressLine2) purchase.AddressLine2 = found.addressLine2 || found.AddressLine2;
+                     if(!purchase.City) purchase.City = resolvedCity;
+                     if(!purchase.State) purchase.State = resolvedState;
+                     if(!purchase.ZipCode) purchase.ZipCode = found.postalCode || found.PostalCode;
+                     if(!purchase.PAN) purchase.PAN = found.pan || found.PAN;
+                 }
+            }
+        } catch(err) { 
+            console.error("Supplier fetch failed", err); 
+        }
+    }
+
+    // 2. Setup jsPDF (Shifted down)
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width; 
     const pageHeight = doc.internal.pageSize.height;
@@ -70,8 +136,6 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
        doc.setFontSize(10);
        doc.text(title, pageWidth / 2, y + 4, { align: "center" });
        
-
-
        // Main Header Box (Company Info)
        const boxTopY = y + 8;
        const boxH = 30;
@@ -89,33 +153,90 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
            }
        }
 
-       // Company Name (Right Aligned in box)
+       // Company Name (Left Aligned in Right Block)
+       // Define a starting X for the right block
+       const blockX = 135; 
+
        const companyName = settings?.companyName || "";
        doc.setFontSize(16);
-       doc.text(companyName, pageWidth - margin - 5, boxTopY + 8, { align: "right" });
+       doc.text(companyName, blockX, boxTopY + 8);
        
        // Address
        doc.setFontSize(8);
        doc.setFont("helvetica", "normal");
        const address = settings?.address || "";
-       const addressLines = doc.splitTextToSize(address, 100);
-       doc.text(addressLines, pageWidth - margin - 5, boxTopY + 14, { align: "right" });
+       // split text relative to the remaining width (pageWidth - margin - blockX)
+       const remainingWidth = pageWidth - margin - blockX - 2;
+       const addressLines = doc.splitTextToSize(address, remainingWidth);
+       doc.text(addressLines, blockX, boxTopY + 14);
        
-       // Contact
-       // Contact
-       doc.text(`Phone no: ${settings?.phone || ""} Email: ${settings?.companyEmail || ""}`, pageWidth - margin - 5, boxTopY + 22, { align: "right" });
-       doc.text(`GSTIN: ${settings?.gstin || settings?.GSTIN || ""}`, pageWidth - margin - 5, boxTopY + 26, { align: "right" });
+       // Contact - Split rows
+       // 1. Email
+       doc.text(`Email: ${settings?.companyEmail || ""}`, blockX, boxTopY + 19);
+       // 2. Phone
+       doc.text(`Phone: ${settings?.phone || ""}`, blockX, boxTopY + 23);
+       // 3. GSTIN
+       doc.text(`GSTIN: ${settings?.gstin || settings?.GSTIN || ""}`, blockX, boxTopY + 27);
 
        return boxTopY + boxH;
     };
 
     // Supplier & Transport Section
     const drawSupplierSection = (y) => {
-        const sectionH = 35;
-        drawBox(margin, y, contentWidth, sectionH);
-        
-        const midX = margin + (contentWidth * 0.35); 
+        const midX = margin + (contentWidth * 0.35); // Reverted to 0.35
         const rightX = pageWidth - margin - 50; 
+        
+        // --- PRE-CALCULATE HEIGHT ---
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+
+        // Construct Address with explicit separation
+        let finalAddrLines = [];
+        const line1 = purchase.AddressLine1 || purchase.addressLine1;
+        
+        let otherParts = [];
+        if(purchase.AddressLine2 || purchase.addressLine2) otherParts.push(purchase.AddressLine2 || purchase.addressLine2);
+        if(purchase.State || purchase.state) otherParts.push(purchase.State || purchase.state);
+        if(purchase.City || purchase.city) otherParts.push(purchase.City || purchase.city);
+        if(purchase.ZipCode || purchase.postalCode) otherParts.push(purchase.ZipCode || purchase.postalCode);
+        
+        if (line1) {
+             finalAddrLines.push(line1);
+             if(otherParts.length > 0) finalAddrLines.push(otherParts.join(", "));
+        } else {
+             const full = purchase.Address || purchase.address || "";
+             if (full) {
+                 finalAddrLines.push(full);
+             } else if (otherParts.length > 0) {
+                 finalAddrLines.push(otherParts.join(", "));
+             }
+        }
+        
+        // Calculate needed height
+        const supplierWidth = (midX - margin) - 4;
+        let supplierContentH = 14;
+        
+        let calculatedLines = []; 
+        finalAddrLines.forEach(lineStr => {
+             const wrapped = doc.splitTextToSize(lineStr, supplierWidth);
+             calculatedLines.push(...wrapped);
+        });
+
+        supplierContentH += (calculatedLines.length * 3.5); // Reduced from 4
+        
+        const checkField = (val) => val ? 3.5 : 0;
+        supplierContentH += checkField(purchase.email || purchase.Email);
+        supplierContentH += checkField(purchase.Phone || purchase.phone);
+        supplierContentH += checkField(purchase.PAN || purchase.pan);
+        supplierContentH += checkField(purchase.GSTIN || purchase.gstin);
+        
+        supplierContentH += 4; 
+
+        const minHeight = 35;
+        const sectionH = Math.max(minHeight, supplierContentH);
+
+        // --- DRAW BOX ---
+        drawBox(margin, y, contentWidth, sectionH);
         
         // Vertical Dividers
         doc.line(midX, y, midX, y + sectionH); 
@@ -133,27 +254,45 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
         doc.text(purchase.supplierName || purchase.SupplierName || "", margin + 2, y + 10);
         
         doc.setFont("helvetica", "normal");
-        const suppAddr = purchase.Address || purchase.address || "";
-        const suppAddrLines = doc.splitTextToSize(suppAddr, (midX - margin) - 4);
-        doc.text(suppAddrLines, margin + 2, y + 14);
-
-
-        let detailsY = y + 14 + (suppAddrLines.length * 4);  // approx 3 units per line height
         
+        // Render Address Lines
+        let currentTextY = y + 14;
+        calculatedLines.forEach(lineStr => {
+             doc.text(lineStr, margin + 2, currentTextY);
+             currentTextY += 3.5; // Reduced from 4
+        });
+
+        let detailsY = currentTextY;
+        const lineHeight = 3.5;
+        
+        if (purchase.email || purchase.Email) {
+             doc.text(`Email: ${purchase.email || purchase.Email}`, margin + 2, detailsY);
+             detailsY += lineHeight;
+        }
+
         if (purchase.Phone || purchase.phone) {
             doc.text(`Phone: ${purchase.Phone || purchase.phone}`, margin + 2, detailsY);
-            detailsY += 4;
+            detailsY += lineHeight;
+        }
+
+        // Add PAN logic
+        const panVal = purchase.PAN || purchase.pan;
+        if(panVal) {
+             doc.text(`PAN: ${panVal}`, margin + 2, detailsY);
+             detailsY += lineHeight;
         }
         
-        const gstinVal = purchase.supplierGSTIN || purchase.SupplierGSTIN || purchase.GSTIN || purchase.gstin;
+        const gstinVal = purchase.GSTIN || purchase.gstin || purchase.supplierGSTIN;
         if (gstinVal) {
              doc.text(`GSTIN: ${gstinVal}`, margin + 2, detailsY);
         }
         
         // --- COL 2: Transport ---
         doc.setFont("helvetica", "normal");
-        doc.text("Vehicle Number:", midX + 2, y + 10);
-        doc.text(purchase.VehicleNo || purchase.vehicleNo || "-", midX + 2, y + 15);
+        const transportWidth = (rightX - midX) - 4;
+        const vehicleText = `Vehicle Number: ${purchase.VehicleNo || purchase.vehicleNo || "-"}`;
+        const vehicleLines = doc.splitTextToSize(vehicleText, transportWidth);
+        doc.text(vehicleLines, midX + 2, y + 10);
         
         // --- COL 3: PO Data ---
         doc.setFont("helvetica", "bold");
@@ -207,17 +346,17 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
         [
           { content: 'Sr.\nNo.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'Code', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Name of Product', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+          { content: 'Name of Product', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'HSN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'Qty', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Rate', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
-          { content: 'Taxable', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
+          { content: 'Rate', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'IGST', colSpan: 2, styles: { halign: 'center' } },
-          { content: 'Total', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } }
+          { content: 'Total', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
         ],
         [
           { content: '%', styles: { halign: 'center' } },
-          { content: 'Amount', styles: { halign: 'right' } }
+          { content: 'Amount', styles: { halign: 'center' } }
         ]
       ];
     } else {
@@ -299,7 +438,7 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
     });
 
     // Dynamic Height Calculation & Fillers
-    const footerNeededSpace = 85; 
+    const footerNeededSpace = 70; 
     const startTableY = currentY;
     const availableSpace = pageHeight - margin - 10 - startTableY - footerNeededSpace; 
     const estRowHeight = 9; 
@@ -307,19 +446,6 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
     
     const minTableRows = Math.max(5, dynamicMinRows);
     while(tableBody.length < minTableRows) {
-         // IGST: 9 cols. Non-IGST: 11 cols. (Purchase Order might have different standard, let me check headers)
-         // PO Headers: 
-         // IGST: Sr, Code, Name, HSN, Qty, Rate, Taxable (7) + IGST (2) + Total (1) = 10 cols?
-         // No, looking at head: 
-         // [Sr, Code, Name, HSN, Qty, Rate, Taxable, IGST (2 sub), Total]
-         // Actually jsPDF Autotable treats colSpan headers differently.
-         // Let's count body columns in map function:
-         // rowData = [index, barcode, name, hsn, qty, rate, taxable] (7)
-         // + IGST (2) OR CGST(2)+SGST(2)
-         // + Total (1)
-        // Match column count! 
-        // IGST: Sr, Code, Name, HSN, Qty, Rate, Taxable, IGST(2), Total = 10 cols
-        // Non-IGST: Sr, Code, Name, HSN, Qty, Rate, Taxable, CGST(2), SGST(2), Total = 12 cols
         const emptyRow = isIGST ? ["","","","","","","","","",""] : ["","","","","","","","","","","",""];
         tableBody.push(emptyRow);
     }
@@ -391,7 +517,7 @@ export const generatePurchaseOrderPDF = async (purchaseId, settings, title = "Pu
 
     // --- AFTER TABLE (Totals & Footer) ---
     let finalY = doc.lastAutoTable.finalY;
-    const requiredFooterH = 85; 
+    const requiredFooterH = 70; 
     if (finalY + requiredFooterH > pageHeight - margin) {
         doc.addPage();
         finalY = margin + 10;

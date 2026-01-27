@@ -408,6 +408,7 @@ const MeetingTypes = () => {
           title={editItem.isInactive ? "Restore Meeting Type" : "Edit Meeting Type"}
           permissionDelete={hasPermission(PERMISSIONS.MEETING_TYPES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.MEETING_TYPES.EDIT)}
+          saveText="Update"
        >
           <div>
              <InputField

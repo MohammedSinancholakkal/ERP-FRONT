@@ -355,6 +355,7 @@ const Departments = () => {
   title={editDepartment.isInactive ? "Restore Department" : "Edit Department"}
   permissionDelete={hasPermission(PERMISSIONS.HR.DEPARTMENTS.DELETE)}
   permissionEdit={hasPermission(PERMISSIONS.HR.DEPARTMENTS.EDIT)}
+  saveText="Update"
   width="700px"
 >
   <div className="p-0 space-y-4">

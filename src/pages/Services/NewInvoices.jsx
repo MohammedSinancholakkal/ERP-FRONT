@@ -8,7 +8,8 @@ import {
   Star,
   X,
   Edit,
-  ArchiveRestore
+  ArchiveRestore,
+  Pencil
 } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
@@ -95,6 +96,7 @@ const NewInvoices = () => {
   const [sgstRate, setSgstRate] = useState(0);
 
   const [taxAmount, setTaxAmount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   // --- CALCULATED VALUES ---
   const [netTotal, setNetTotal] = useState(0);
@@ -456,6 +458,7 @@ const NewInvoices = () => {
 
   /* ================= SAVE / UPDATE / DELETE / RESTORE ================= */
   const handleSaveInvoice = async () => {
+    if (loading) return;
     const currentUserId = userData?.userId || userData?.id || userData?.Id;
     if (!currentUserId) {
       console.error("User ID missing from session data:", userData);
@@ -507,6 +510,8 @@ const NewInvoices = () => {
       insertUserId: currentUserId
     };
 
+    setLoading(true);
+
     try {
       const res = await addServiceInvoiceApi(payload);
       if (res.status === 200) {
@@ -518,10 +523,13 @@ const NewInvoices = () => {
     } catch (error) {
       console.error("SAVE INVOICE ERROR", error);
       showErrorToast("Error saving invoice");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateInvoice = async () => {
+    if (loading) return;
     if (!customer) return showErrorToast("Please select a customer");
     if (!employee) return showErrorToast("Please select an employee");
     if (!paymentAccount) return showErrorToast("Please select a payment account");
@@ -567,6 +575,8 @@ const NewInvoices = () => {
       updateUserId: userId
     };
 
+    setLoading(true);
+
     try {
       const res = await updateServiceInvoiceApi(id, payload);
       if (res.status === 200) {
@@ -578,6 +588,8 @@ const NewInvoices = () => {
     } catch (error) {
       console.error("UPDATE INVOICE ERROR", error);
       showErrorToast("Error updating invoice");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -586,8 +598,12 @@ const handleDeleteInvoice = async () => {
 
   if (!result.isConfirmed) return;
 
+  const toastId = showLoadingToast("Deleting...");
+  setLoading(true);
+
   try {
     const res = await deleteServiceInvoiceApi(id, { userId });
+    dismissToast(toastId);
 
     if (res.status === 200) {
       showSuccessToast("Service invoice deleted successfully.");
@@ -596,8 +612,11 @@ const handleDeleteInvoice = async () => {
       showErrorToast("Failed to delete service invoice");
     }
   } catch (error) {
+    dismissToast(toastId);
     console.error("DELETE INVOICE ERROR", error);
     showErrorToast("Error deleting invoice");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -607,8 +626,12 @@ const handleRestoreInvoice = async () => {
 
   if (!result.isConfirmed) return;
 
+  const toastId = showLoadingToast("Restoring...");
+  setLoading(true);
+
   try {
     const res = await restoreServiceInvoiceApi(id, { userId });
+    dismissToast(toastId);
 
     if (res.status === 200) {
       showSuccessToast("Service invoice restored successfully.");
@@ -617,8 +640,11 @@ const handleRestoreInvoice = async () => {
       showErrorToast("Failed to restore service invoice");
     }
   } catch (error) {
+    dismissToast(toastId);
     console.error("RESTORE INVOICE ERROR", error);
     showErrorToast("Error restoring invoice");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -643,52 +669,68 @@ const handleRestoreInvoice = async () => {
       <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         <ContentCard className="!h-auto !overflow-visible">
 
-        {/* HEADER */}
-        <div className="flex items-center gap-4 mb-6">
-          <button 
-            onClick={() => {
-                if(location.state?.returnTo) {
-                    navigate(location.state.returnTo);
-                } else {
-                    navigate("/app/services/invoices");
-                }
-            }}
-            className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-800 hover:text-gray-600' : 'text-white hover:text-white-400'}`}
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>{id ? "Edit Service Invoice" : "New Service Invoice"}</h2>
-        </div>
+        {/* HEADER & ACTIONS */}
+        <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => {
+                      if(location.state?.returnTo) {
+                          navigate(location.state.returnTo);
+                      } else {
+                          navigate("/app/services/invoices");
+                      }
+                  }}
+                  className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                  <ArrowLeft size={24} />
+                </button>
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>{id ? (inactiveView ? "View Inactive Service Invoice" : "Edit Service Invoice") : "New Service Invoice"}</h2>
+            </div>
 
-        {/* ACTIONS BAR */}
-        <div className="flex gap-2 mb-6">
-          {id ? (
-            <>
-              {!inactiveView && hasPermission(PERMISSIONS.SERVICES.EDIT) && (
-              <button onClick={handleUpdateInvoice} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-700 border-gray-600 text-blue-300 hover:bg-gray-600'}`}>
-                <Save size={18} /> Update
-              </button>
-              )}
-              
-              {!inactiveView && hasPermission(PERMISSIONS.SERVICES.DELETE) && (
-              <button onClick={handleDeleteInvoice} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? 'flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500' : 'bg-red-600 border-red-500 text-white hover:bg-red-500'}`}>
-                <Trash2 size={18} /> Delete
-              </button>
-              )}
-
-              {inactiveView && (
-                  <button onClick={handleRestoreInvoice} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
-                      <ArchiveRestore size={18} /> Restore
+            <div className="flex items-center gap-3">
+              {id ? (
+                <>
+                  {!inactiveView && hasPermission(PERMISSIONS.SERVICES.EDIT) && (
+                  <button onClick={handleUpdateInvoice} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border-gray-600 text-blue-300'}`}>
+                    {loading ? (
+                        <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                        </>
+                    ) : (
+                        <>
+                        <Save size={18} /> Update
+                        </>
+                    )}
                   </button>
+                  )}
+                  
+                  {!inactiveView && hasPermission(PERMISSIONS.SERVICES.DELETE) && (
+                  <button onClick={handleDeleteInvoice} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-500'}`}>
+                    <Trash2 size={18} /> Delete
+                  </button>
+                  )}
+
+                  {inactiveView && (
+                      <button onClick={handleRestoreInvoice} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-green-600 text-white hover:bg-green-500'}`}>
+                          <ArchiveRestore size={18} /> Restore
+                      </button>
+                  )}
+                </>
+              ) : (
+                hasPermission(PERMISSIONS.SERVICES.CREATE) && (
+                <button onClick={handleSaveInvoice} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]   text-white' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
+                  {loading ? (
+                      <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                      </>
+                  ) : (
+                      <>
+                      <Save size={18} /> Save
+                      </>
+                  )}
+                </button>
+                )
               )}
-            </>
-          ) : (
-            hasPermission(PERMISSIONS.SERVICES.CREATE) && (
-            <button onClick={handleSaveInvoice} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]   text-white' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
-              <Save size={18} /> Save
-            </button>
-            )
-          )}
+            </div>
         </div>
         <hr className="mb-4 border-gray-300" />
         {/* TOP SECTION */}
@@ -708,16 +750,16 @@ const handleRestoreInvoice = async () => {
                      onChange={setCustomer}
                      placeholder="Select customer..."
                      disabled={inactiveView}
-                     className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                     className={`${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
                    />
                  </div>
                  <button
                     type="button"
                     className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                    onClick={() => !inactiveView && navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                    onClick={() => !inactiveView && navigate(customer ? `/app/businesspartners/newcustomer/${customer}` : "/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
                     disabled={inactiveView}
                  >
-                     <Star size={16} />
+                     {customer ? <Pencil size={16} /> : <Star size={16} />}
                  </button>
                </div>
              </div>
@@ -784,16 +826,16 @@ const handleRestoreInvoice = async () => {
                      onChange={setEmployee}
                      placeholder="Select employee..."
                      disabled={inactiveView}
-                     className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                     className={`${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
                    />
                  </div>
                  <button
                     type="button"
                     className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                    onClick={() => !inactiveView && navigate("/app/hr/newemployee", { state: { returnTo: location.pathname } })}
+                    onClick={() => !inactiveView && navigate(employee ? `/app/hr/newemployee/${employee}` : "/app/hr/newemployee", { state: { returnTo: location.pathname } })}
                     disabled={inactiveView}
                  >
-                     <Star size={16} />
+                     {employee ? <Pencil size={16} /> : <Star size={16} />}
                  </button>
                </div>
              </div>
@@ -909,8 +951,9 @@ const handleRestoreInvoice = async () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 {/* Grand Total */}
+                {/* Net Total (Moved to Top) */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Grand Total</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Net Total</label>
                   <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
                     {grandTotal.toFixed(2)}
                   </div>
@@ -1040,8 +1083,9 @@ const handleRestoreInvoice = async () => {
                 })()}
 
                 {/* Net Total (Full Width) */}
+                {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
-                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Net Total</label>
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Taxable Amount</label>
                   <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
                     {netTotal.toFixed(2)}
                   </div>

@@ -359,6 +359,7 @@ const Countries = () => {
           title={editData.isInactive ? "Restore Country" : "Edit Country"}
           permissionDelete={hasPermission(PERMISSIONS.COUNTRIES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.COUNTRIES.EDIT)}
+          saveText="Update"
        >
            <div className="space-y-4">
               <div>

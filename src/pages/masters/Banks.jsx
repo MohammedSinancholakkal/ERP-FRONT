@@ -637,6 +637,7 @@ const Banks = () => {
           title={editItem.isInactive ? "Restore Bank" : "Edit Bank"}
           permissionDelete={hasPermission(PERMISSIONS.BANKS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.BANKS.EDIT)}
+          saveText="Update"
        >
             <div className="grid grid-cols-2 gap-4">
               <div>

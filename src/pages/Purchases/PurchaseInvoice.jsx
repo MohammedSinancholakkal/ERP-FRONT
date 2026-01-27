@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext";
-import { getPurchaseByIdApi, getSuppliersApi, getTaxTypesApi } from "../../services/allAPI";
+import { getPurchaseByIdApi, getSuppliersApi, getTaxTypesApi, getStatesApi, getCitiesApi } from "../../services/allAPI";
 // import logo from "../../assets/logo.png"; // Assuming a logo exists, or placeholder
+
+const parseArrayFromResponse = (res) => {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (res.data?.records) return res.data.records;
+  if (res.records) return res.records;
+  const maybeArray = Object.values(res).find((v) => Array.isArray(v));
+  return Array.isArray(maybeArray) ? maybeArray : [];
+};
 
 const PurchaseInvoice = () => {
   const { id } = useParams();
@@ -33,18 +43,50 @@ const PurchaseInvoice = () => {
 
           // Fetch supplier details
           if (purchaseData?.SupplierId) {
-            const suppliersRes = await getSuppliersApi(1, 1000);
+             // Parallel fetch
+            const [suppliersRes, statesRes, citiesRes] = await Promise.all([
+                 getSuppliersApi(1, 1000),
+                 getStatesApi(1, 5000),
+                 getCitiesApi(1, 5000)
+            ]);
+
             if (suppliersRes?.status === 200) {
-              const supplierRecord = suppliersRes.data?.records?.find(
-                (s) => s.id === purchaseData.SupplierId
+              const supplierRecord = (suppliersRes.data?.records || []).find(
+                (s) => s.id === purchaseData.SupplierId || s.Id === purchaseData.SupplierId
               );
+              
               if (supplierRecord) {
+                 // Resolve City and State Names
+                  let cityName = supplierRecord.city || supplierRecord.City || "";
+                  let stateName = supplierRecord.state || supplierRecord.State || "";
+                  
+                  const cityList = parseArrayFromResponse(citiesRes);
+                  const stateList = parseArrayFromResponse(statesRes);
+
+                  const cityId = supplierRecord.CityId || supplierRecord.cityId;
+                  const stateId = supplierRecord.StateId || supplierRecord.stateId;
+
+                  if (!cityName && cityId && citiesRes?.status === 200) {
+                      const foundCity = cityList.find(c => String(c.id || c.Id || c.CityId) === String(cityId));
+                      if(foundCity) cityName = foundCity.name || foundCity.Name || foundCity.CityName;
+                  }
+
+                  if (!stateName && stateId && statesRes?.status === 200) {
+                      const foundState = stateList.find(st => String(st.id || st.Id || st.StateId) === String(stateId));
+                      if(foundState) stateName = foundState.name || foundState.Name || foundState.StateName;
+                  }
+
                 setSupplier({
-                  companyName: supplierRecord.companyName || "",
-                  contactName: supplierRecord.contactName || "",
-                  email: supplierRecord.email || "",
-                  phone: supplierRecord.phone || "",
-                  address: supplierRecord.address || ""
+                  companyName: supplierRecord.companyName || supplierRecord.CompanyName || "",
+                  contactName: supplierRecord.contactName || supplierRecord.ContactName || "",
+                  email: supplierRecord.email || supplierRecord.Email || "",
+                  phone: supplierRecord.phone || supplierRecord.Phone || "",
+                  address: supplierRecord.address || supplierRecord.AddressLine1 || "",
+                  addressLine2: supplierRecord.addressLine2 || supplierRecord.AddressLine2 || "",
+                  city: cityName,
+                  state: stateName,
+                  zipCode: supplierRecord.postalCode || supplierRecord.PostalCode || supplierRecord.zipCode || "",
+                  gstin: supplierRecord.gstin || supplierRecord.GSTIN || ""
                 });
               }
             }
@@ -80,7 +122,7 @@ const PurchaseInvoice = () => {
             <h3 className="text-xl font-bold text-white mb-1">{settings?.companyName || "Home Button"}</h3>
             <p>Phone: {settings?.phone || ""}</p>
             <p>Email: {settings?.companyEmail || ""}</p>
-            <p>GSTIN: {settings?.vatNo || ""}</p>
+            {supplier?.gstin && <p>GSTIN: {supplier.gstin}</p>}
           </div>
           <div>
             <p className="text-sm text-gray-400 mb-2 font-semibold">To</p>
@@ -89,6 +131,9 @@ const PurchaseInvoice = () => {
             </h3>
             <p className="mb-4 text-gray-200">
               {supplier?.address || "Address not available"}
+              {supplier?.address && <br />}
+              {supplier?.addressLine2 && <>{supplier.addressLine2} </>}
+              {supplier?.state ? `"${supplier.state}" ` : ""}{supplier?.city ? `"${supplier.city}"` : ""}{supplier?.zipCode ? ` - ${supplier.zipCode}` : ""}
             </p>
             
             <p className="text-sm text-gray-300 mb-1">

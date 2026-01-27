@@ -310,6 +310,7 @@ const CustomerReceive = () => {
         width="750px"
         permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
         permissionDelete={false} // Disable delete for demo or implement if needed
+        saveText="Update"
         isInactive={editData.isInactive}
       >
         <div className="p-0 grid grid-cols-2 gap-4">

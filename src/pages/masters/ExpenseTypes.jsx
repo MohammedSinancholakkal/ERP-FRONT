@@ -420,6 +420,7 @@ const ExpenseTypes = () => {
           title={editItem.isInactive ? "Restore Expense Type" : "Edit Expense Type"}
           permissionDelete={hasPermission(PERMISSIONS.EXPENSE_TYPES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.EXPENSE_TYPES.EDIT)}
+          saveText="Update"
        >
            <div>
               <InputField

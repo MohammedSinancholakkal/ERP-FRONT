@@ -301,6 +301,7 @@ const TaxTypes = () => {
           onDelete={handleDeleteTaxType}
           onRestore={handleRestoreTaxType}
           isInactive={editTaxType.isInactive}
+          saveText="Update"
           >
             <div className="mt-3">
               <label className="block text-sm mb-1">Tax Category</label>

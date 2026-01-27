@@ -408,10 +408,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             {renderSection("Sales", <Receipt className="w-5 h-5" />, openSales, setOpenSales, "/app/sales", salesLinks)}
             {renderSection("Purchasing", <ShoppingCart className="w-5 h-5" />, openPurchasing, setOpenPurchasing, "/app/purchasing", purchaseLinks)}
             {renderSection("Services", <FileText className="w-5 h-5" />, openServices, setOpenServices, "/app/services", servicesLinks)}
-            {/* {renderSection("Cash / Bank", <Wallet className="w-5 h-5" />, openCashBank, setOpenCashBank, "/app/cashbank", cashBankLinks)} */}
-            {/* {renderSection("Financial", <Landmark className="w-5 h-5" />, openFinancial, setOpenFinancial, "/app/financial", financialLinks)} */}
+            {renderSection("Cash / Bank", <Wallet className="w-5 h-5" />, openCashBank, setOpenCashBank, "/app/cashbank", cashBankLinks)}
+            {renderSection("Financial", <Landmark className="w-5 h-5" />, openFinancial, setOpenFinancial, "/app/financial", financialLinks)}
             {renderSection("Human Resource", <Users2 className="w-5 h-5" />, openHR, setOpenHR, "/app/hr", hrLinks)}
-            {/* {renderSection("Reports", <BarChart3 className="w-5 h-5" />, openReports, setOpenReports, "/app/reports", reportsLinks)} */}
+            {renderSection("Reports", <BarChart3 className="w-5 h-5" />, openReports, setOpenReports, "/app/reports", reportsLinks)}
             {renderSection("Administration", <Shield className="w-5 h-5" />, openAdmin, setOpenAdmin, "/app/administration", adminLinks)}
 
           </ul>

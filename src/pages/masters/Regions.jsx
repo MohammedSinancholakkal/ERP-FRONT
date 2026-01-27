@@ -368,6 +368,7 @@ const Regions = () => {
           title={editData.isInactive ? "Restore Region" : "Edit Region"}
           permissionDelete={hasPermission(PERMISSIONS.REGIONS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.REGIONS.EDIT)}
+          saveText="Update"
        >
           <div className="space-y-4">
               <div>

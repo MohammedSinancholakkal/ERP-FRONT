@@ -10,7 +10,8 @@ import {
   Check,
   X,
   Edit,
-  ArchiveRestore
+  ArchiveRestore,
+  Pencil
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
@@ -39,10 +40,11 @@ import {
   deletePurchaseApi,
   restorePurchaseApi,
   getTaxTypesApi,
-  searchPurchaseApi,
   searchSupplierApi,
   searchBrandApi,
-  searchProductApi
+  searchProductApi,
+  updateBrandApi,
+  searchPurchaseApi
 } from "../../services/allAPI";
 import { useDashboard } from "../../context/DashboardContext";
 import { useParams, useLocation } from "react-router-dom";
@@ -107,12 +109,14 @@ const NewPurchase = () => {
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
   const [newBrandDescription, setNewBrandDescription] = useState("");
+  const [editBrandId, setEditBrandId] = useState(null);
 
   // --- BOTTOM SECTION STATE ---
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [shippingCost, setShippingCost] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
   const [noTax, setNoTax] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState("");
 
   const [igstRate, setIgstRate] = useState(0);
@@ -257,6 +261,52 @@ const NewPurchase = () => {
     }
   };
 
+  // --- SYNC ROWS WITH UPDATED PRODUCTS ---
+  // Fixes issue where returning from "Edit Product" showed old product name in table
+  useEffect(() => {
+      if (productsList.length > 0) {
+          setRows(prevRows => {
+              if (prevRows.length === 0) return prevRows;
+              
+              let changed = false;
+              const newRows = prevRows.map(row => {
+                  const product = productsList.find(p => String(p.id) === String(row.productId));
+                  if (product) {
+                      let rowChanged = false;
+                      const updates = {};
+                      
+                      // Check Product Name
+                      if (product.ProductName !== row.productName) {
+                          updates.productName = product.ProductName;
+                          rowChanged = true;
+                      }
+                      
+                      // Check Unit Name (if unitId matches)
+                      // Note: UnitId might also change if product unit changed, but that's complex. 
+                      // Let's just update name if IDs match.
+                      if (String(product.UnitId) === String(row.unitId)) {
+                           // We need to look up Unit Name. 
+                           // Actually productsList items might have unitName derived or joined.
+                           // The API response lines 698+ in NewPurchases shows we normalize it.
+                           // But here we are using the raw list from getProductsApi(1,1000)
+                           // which usually contains joined UnitName/BrandName if backend supports it
+                           // or we might need to rely on what's available.
+                           // Let's stick to ProductName for now as requested.
+                      }
+
+                      if (rowChanged) {
+                          changed = true;
+                          return { ...row, ...updates };
+                      }
+                  }
+                  return row;
+              });
+              
+              return changed ? newRows : prevRows;
+          });
+      }
+  }, [productsList]);
+
   const fetchTaxTypes = async () => {
     try {
       const res = await getTaxTypesApi(1, 1000);
@@ -379,42 +429,64 @@ const NewPurchase = () => {
           if (existing) return toast.error("Brand Name already exists");
       }
 
-      const res = await addBrandApi({ 
-          name: newBrandName, 
-          description: newBrandDescription, 
-          userId 
-      });
-
-      if (res?.status === 200) {
-        toast.success("Brand added");
-        
-        // Optimistic update
-        const created = res.data.record || res.data;
-        if (created) {
-             const normalized = {
-                 id: created.id || created.Id,
-                 name: created.name || created.BrandName, 
-                 BrandName: created.BrandName || created.name,
-                 description: created.description || created.Description
-             };
-             setBrandsList(prev => [normalized, ...prev]);
-             // Auto-select
-             setNewItem(prev => ({ 
-                 ...prev, 
-                 brandId: normalized.id, 
-                 brandName: normalized.name, 
-                 productId: "", 
-                 productName: "" 
-             }));
-        }
-
-        setIsBrandModalOpen(false);
-        setNewBrandName("");
-        setNewBrandDescription("");
-      } else if (res?.status === 409) {
-          toast.error(res.data.message || "Brand Name already exists");
+      if (editBrandId) {
+         // Update existing
+         const res = await updateBrandApi(editBrandId, { name: newBrandName, description: newBrandDescription, userId });
+         if (res.status === 200) {
+            toast.success("Brand updated");
+            
+            // Update in list
+            setBrandsList(prev => prev.map(b => 
+                String(b.id) === String(editBrandId) 
+                ? { ...b, name: newBrandName, description: newBrandDescription }
+                : b
+            ));
+            
+            // If currently selected
+            if (String(newItem.brandId) === String(editBrandId)) {
+                setNewItem(prev => ({ ...prev, brandName: newBrandName }));
+            }
+            
+            setIsBrandModalOpen(false);
+            setNewBrandName("");
+            setNewBrandDescription("");
+            setEditBrandId(null);
+         } else {
+             toast.error("Failed to update brand");
+         }
       } else {
-          toast.error("Failed to add brand");
+          // Create new
+          const res = await addBrandApi({ name: newBrandName, description: newBrandDescription, userId });
+          if (res.status === 200) {
+            toast.success("Brand added");
+            // Optimistic update
+            const created = res.data.record || res.data;
+            if (created) {
+                 const normalized = {
+                     id: created.id || created.Id,
+                     name: created.Name || created.name,
+                     description: created.Description || created.description
+                 };
+                 setBrandsList(prev => [normalized, ...prev]);
+                 // Auto-select
+                 setNewItem(prev => ({ 
+                     ...prev, 
+                     brandId: normalized.id, 
+                     brandName: normalized.name, 
+                     productId: "", 
+                     productName: "" 
+                 }));
+            }
+
+            setIsBrandModalOpen(false);
+            setNewBrandName("");
+            setNewBrandDescription("");
+            setEditBrandId(null);
+          } else if (res?.status === 409) {
+              toast.error(res.data.message || "Brand Name already exists");
+          } else {
+              toast.error("Failed to add brand");
+          }
       }
     } catch (error) {
         console.error("Error adding brand", error);
@@ -831,15 +903,19 @@ const NewPurchase = () => {
         return toast.error("User session invalid. Please re-login.");
     }
 
+    if (loading) return;
+
     if (!supplier) return toast.error("Please select a supplier");
     if (!paymentAccount) return toast.error("Please select a payment account");
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
-    if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
+    if (vehicleNo && vehicleNo.length > 20) return showErrorToast("Vehicle No must be max 20 characters");
 
     const detailsLen = details?.trim().length || 0;
     if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
+    setLoading(true);
 
     const payload = {
       supplierId: supplier,
@@ -890,7 +966,10 @@ const NewPurchase = () => {
           if (searchRes?.status === 200) {
               const rows = searchRes.data.records || searchRes.data || [];
               const existing = rows.find(p => (p.invoiceNo || p.InvoiceNo || "").toLowerCase() === invoiceNo.trim().toLowerCase());
-              if (existing) return toast.error("Invoice No already exists");
+              if (existing) {
+                setLoading(false);
+                return toast.error("Invoice No already exists");
+              }
           }
       }
 
@@ -905,19 +984,24 @@ const NewPurchase = () => {
     } catch (error) {
       console.error("SAVE ERROR", error);
       toast.error("Error saving purchase");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdatePurchase = async () => {
+    if (loading) return;
     if (!supplier) return toast.error("Please select a supplier");
     if (!paymentAccount) return toast.error("Please select a payment account");
     // Tax Type is now optional
     if (rows.length === 0) return toast.error("Please add at least one item");
 
-    if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
+    if (vehicleNo && vehicleNo.length > 20) return showErrorToast("Vehicle No must be max 20 characters");
 
     const detailsLen = details?.trim().length || 0;
     if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
+    setLoading(true);
 
     const payload = {
       supplierId: supplier,
@@ -968,7 +1052,10 @@ const NewPurchase = () => {
           if (searchRes?.status === 200) {
               const rows = searchRes.data.records || searchRes.data || [];
               const existing = rows.find(p => (p.invoiceNo || p.InvoiceNo || "").toLowerCase() === invoiceNo.trim().toLowerCase() && String(p.id) !== String(id));
-              if (existing) return toast.error("Invoice No already exists");
+              if (existing) {
+                setLoading(false);
+                return toast.error("Invoice No already exists");
+              }
           }
       }
 
@@ -983,6 +1070,8 @@ const NewPurchase = () => {
     } catch (error) {
       console.error("UPDATE ERROR", error);
       toast.error("Error updating purchase");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -992,6 +1081,7 @@ const NewPurchase = () => {
     if (!result.isConfirmed) return;
   
     const toastId = showLoadingToast("Deleting...");
+    setLoading(true);
   
     try {
       const res = await deletePurchaseApi(id, { userId });
@@ -1007,6 +1097,8 @@ const NewPurchase = () => {
       dismissToast(toastId);
       console.error("DELETE INVOICE ERROR", error);
       showErrorToast("Error deleting purchase");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1017,6 +1109,7 @@ const NewPurchase = () => {
     if (!result.isConfirmed) return;
   
     const toastId = showLoadingToast("Restoring...");
+    setLoading(true);
   
     try {
       const res = await restorePurchaseApi(id, { userId });
@@ -1032,6 +1125,8 @@ const NewPurchase = () => {
       dismissToast(toastId);
       console.error("RESTORE ERROR", error);
       showErrorToast("Error restoring purchase");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1041,48 +1136,66 @@ const NewPurchase = () => {
         
         <ContentCard className="!h-auto !overflow-visible">
         {/* HEADER & ACTIONS */}
-        <div className="flex items-center gap-4 mb-6">
-            <button onClick={() => {
-                if (location.state?.returnTo) {
-                    navigate(location.state.returnTo);
-                } else {
-                    navigate("/app/purchasing/purchases");
-                }
-            }} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'} p-2 rounded-full`}>
-                <ArrowLeft size={24} />
-            </button>
-            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white-500'}`}>
-                {id ? (inactiveView ? "View Inactive Purchase" : "Edit Purchase") : "New Purchase"}
-            </h2>
-        </div>
+        <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+                <button onClick={() => {
+                    if (location.state?.returnTo) {
+                        navigate(location.state.returnTo);
+                    } else {
+                        navigate("/app/purchasing/purchases");
+                    }
+                }}className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white-500'}`}>
+                    {id ? (inactiveView ? "View Inactive Purchase" : "Edit Purchase") : "New Purchase"}
+                </h2>
+            </div>
             
-        {/* ACTIONS BAR */}
-        <div className="flex gap-2 mb-6">
-            {id ? (
-                <>
-                {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
-                <button onClick={handleUpdatePurchase}  className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border-gray-800 text-blue-300 hover:bg-gray-600'}`}>
-                    <Save size={18} /> Update
-                </button>
-                )}
-                {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.DELETE) && (
-                <button onClick={handleDeletePurchase} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
-                    <Trash2 size={18} /> Delete
-                </button>
-                )}
-                {inactiveView && (
-                    <button onClick={handleRestorePurchase} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
-                        <ArchiveRestore size={18} /> Restore
+            {/* ACTIONS BAR */}
+            <div className="flex items-center gap-3">
+                {id ? (
+                    <>
+                    {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.EDIT) && (
+                    <button onClick={handleUpdatePurchase} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-800 text-blue-300'}`}>
+                        {loading ? (
+                            <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                            </>
+                        ) : (
+                            <>
+                            <Save size={18} /> Update
+                            </>
+                        )}
                     </button>
+                    )}
+                    {!inactiveView && hasPermission(PERMISSIONS.PURCHASING.DELETE) && (
+                    <button onClick={handleDeletePurchase} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-500'}`}>
+                        <Trash2 size={18} /> Delete
+                    </button>
+                    )}
+                    {inactiveView && (
+                        <button onClick={handleRestorePurchase} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-green-600 text-white hover:bg-green-500'}`}>
+                            <ArchiveRestore size={18} /> Restore
+                        </button>
+                    )}
+                    </>
+                ) : (
+                    hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
+                    <button onClick={handleSavePurchase} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
+                        {loading ? (
+                            <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                            </>
+                        ) : (
+                            <>
+                            <Save size={18} /> Save
+                            </>
+                        )}
+                    </button>
+                    )
                 )}
-                </>
-            ) : (
-                hasPermission(PERMISSIONS.PURCHASING.CREATE) && (
-                <button onClick={handleSavePurchase} className={`flex items-center gap-2 border px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'}`}>
-                <Save size={18} /> Save
-                </button>
-                )
-            )}
+            </div>
         </div>
         <hr className="mb-4 border-gray-300" />
 
@@ -1102,16 +1215,22 @@ const NewPurchase = () => {
                      onChange={(val) => setSupplier(val)}
                      placeholder="--select--"
                      disabled={inactiveView} 
-                     className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                     className={`flex-1 font-medium ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
                  />
-                 {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && !inactiveView && (
-                  <div 
-                    className={`p-2 border rounded flex items-center justify-center cursor-pointer ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                    onClick={() => navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname } })}
-                  >
-                     <Star size={16} />
-                  </div>
-                 )}
+                  {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && !inactiveView && (
+                   <div 
+                    className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                     onClick={() => {
+                        if (supplier) {
+                            navigate(`/app/businesspartners/newsupplier/${supplier}`, { state: { returnTo: location.pathname } });
+                        } else {
+                            navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname } });
+                        }
+                     }}
+                   >
+                      {supplier ? <Pencil size={16} /> : <Star size={16} />}
+                   </div>
+                  )}
                </div>
              </div>
 
@@ -1121,16 +1240,18 @@ const NewPurchase = () => {
                  Payment Account <span className="text-dark">*</span> 
                 </label>
                 <div className="flex-1 flex items-center gap-2">
-                 <select
-                   value={paymentAccount}
-                   onChange={(e) => setPaymentAccount(e.target.value)}
-                   className={`flex-1 border-2 rounded px-3 py-1.5 outline-none disabled:opacity-50 text-sm ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400' : theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-gray-500' : 'bg-gray-900 border-gray-700 text-white focus:border-gray-500'}`}
-                   disabled={inactiveView}
-                 >
-                   <option value="">--select--</option>
-                   <option value="Cash at Hand">Cash at Hand</option>
-                   <option value="Cash at Bank">Cash at Bank</option>
-                 </select>
+                    <div className="flex-1 font-medium">
+                     <select
+                       value={paymentAccount}
+                       onChange={(e) => setPaymentAccount(e.target.value)}
+                       className={`w-full border rounded px-3 py-2 outline-none disabled:opacity-50 text-sm font-medium ${theme === 'emerald' ? 'bg-white border-emerald-300 text-emerald-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-gray-300 text-purple-800 focus:border-gray-500' : 'bg-gray-800 border-gray-600 text-white focus:border-gray-500'}`}
+                       disabled={inactiveView}
+                     >
+                       <option value="">--select--</option>
+                       <option value="Cash at Hand">Cash at Hand</option>
+                       <option value="Cash at Bank">Cash at Bank</option>
+                     </select>
+                    </div>
                  {!inactiveView && (
                     <div className="p-2 border border-transparent rounded invisible"><Star size={16} /></div>
                  )}
@@ -1150,7 +1271,7 @@ const NewPurchase = () => {
                      onChange={(val) => setTaxTypeId(val)}
                      placeholder="--select--"
                      disabled={inactiveView || noTax}
-                     className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                     className={`${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
                    />
                   </div>
                   {!inactiveView && (
@@ -1221,7 +1342,7 @@ const NewPurchase = () => {
                     <div className="flex-1 font-medium">
                        <InputField
                          value={vehicleNo}
-                         onChange={(e) => setVehicleNo(e.target.value)}
+                         onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
                          placeholder="Vehicle Number"
                          disabled={inactiveView}
                        />
@@ -1321,8 +1442,9 @@ const NewPurchase = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* Grand Total */}
+                {/* Net Total (Moved to Top) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Grand Total</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
                    <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
                       {grandTotal.toFixed(2)}
                    </div>
@@ -1443,8 +1565,9 @@ const NewPurchase = () => {
                  })()}
 
                 {/* Net Total (Full Width) */}
+                {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
-                    <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>Net Total</label>
+                    <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>Grand Total</label>
                     <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
                       {netTotal.toFixed(2)}
                     </div>
@@ -1477,15 +1600,32 @@ const NewPurchase = () => {
                   value={newItem.brandId}
                   onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
                   placeholder="--select--"
-                  className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                  className={`${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'} font-medium`}
                 />
               </div>
               {hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE) && (
-              <Star
-                size={20}
-                className={`cursor-pointer hover:scale-110 mt-6 ${theme === 'emerald' ? 'text-emerald-600' : theme === 'purple' ? 'text-purple-600' : 'text-yellow-500'}`}
-                onClick={() => setIsBrandModalOpen(true)}
-              />
+              <button
+                 type="button"
+                 className={`p-2 mt-6 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                 onClick={() => {
+                
+                     
+                     if (newItem.brandId) {
+                         const b = brandsList.find(x => String(x.id) === String(newItem.brandId));
+                         setNewBrandName(b?.name || "");
+                         setNewBrandDescription(b?.description || "");
+                         setEditBrandId(newItem.brandId);
+                         setIsBrandModalOpen(true);
+                     } else {
+                        setNewBrandName("");
+                        setNewBrandDescription("");
+                        setEditBrandId(null);
+                        setIsBrandModalOpen(true);
+                     }
+                 }}
+              >
+                  {newItem.brandId ? <Pencil size={16} /> : <Star size={16} />}
+              </button>
               )}
             </div>
           </div>
@@ -1505,20 +1645,34 @@ const NewPurchase = () => {
                   onChange={handleProductSelect}
                   placeholder="--select product--"
                   disabled={!newItem.brandId}
-                  className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                  className={`flex-1 font-medium ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
                 />
               </div>
               {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.CREATE) && (
-              <Star
-                size={20}
-                className={`cursor-pointer hover:scale-110 mt-6 ${newItem.brandId ? (theme === 'emerald' ? 'text-emerald-600' : theme === 'purple' ? 'text-purple-600' : 'text-yellow-500') : 'text-gray-500'}`}
-                onClick={() => {
-                  if (newItem.brandId) {
-                    setNewItem(prev => ({ ...prev, brandId: newItem.brandId }));
-                    openProductModal();
-                  }
-                }}
-              />
+              <button
+                  type="button"
+                  disabled={!newItem.brandId && !newItem.productId}
+                  className={`p-2 mt-6 border rounded flex items-center justify-center ${
+                      (!newItem.brandId && !newItem.productId)
+                       ? 'opacity-50 cursor-not-allowed ' + (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-gray-500')
+                       : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
+                  }`}
+                  onClick={() => {
+                        if (newItem.productId) {
+                             // Navigate to Edit Product
+                             navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preserveState: true } });
+                        } else if (newItem.brandId) {
+                             // Open Add Product Modal
+                             setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                             setIsProductModalOpen(true); // Assuming using the modal in this file
+                             // Note: NewPurchases uses openProductModal() wrapper function usually.
+                             // Let's check line 1520 in original: openProductModal();
+                             openProductModal();
+                        }
+                  }}
+              >
+                  {newItem.productId ? <Pencil size={16} /> : <Star size={16} />}
+              </button>
               )}
             </div>
           </div>
@@ -1539,6 +1693,7 @@ const NewPurchase = () => {
             <InputField
                type="number"
                label="Quantity *"
+               className="font-medium"
                value={newItem.quantity}
                onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />
@@ -1549,6 +1704,7 @@ const NewPurchase = () => {
             <InputField
               type="number"
               label="Unit Price"
+              className="font-medium"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
             />
@@ -1559,6 +1715,7 @@ const NewPurchase = () => {
             <InputField
               type="number"
               label="Discount (%)"
+              className="font-medium"
               value={newItem.discount}
               onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
             />
@@ -1570,7 +1727,7 @@ const NewPurchase = () => {
                label="Tax Percentage (%)"
                value={newItem.taxPercentage}
                readOnly
-               className="cursor-not-allowed text-gray-600"
+               className="cursor-not-allowed text-gray-600 font-medium"
             />
           </div>
 
@@ -1580,7 +1737,7 @@ const NewPurchase = () => {
                label="Unit"
                value={newItem.unitName}
                readOnly
-               className="cursor-not-allowed text-gray-600"
+               className="cursor-not-allowed text-gray-600 font-medium"
             />
           </div>
         </div>
@@ -1589,9 +1746,14 @@ const NewPurchase = () => {
       {/* --- ADD BRAND MODAL --- */}
       <AddModal
         isOpen={isBrandModalOpen}
-        onClose={() => setIsBrandModalOpen(false)}
+        onClose={() => {
+            setIsBrandModalOpen(false);
+            setEditBrandId(null);
+            setNewBrandName("");
+            setNewBrandDescription("");
+        }}
         onSave={handleCreateBrand}
-        title="Add New Brand"
+        title={editBrandId ? "Edit Brand" : "Add New Brand"}
         width="400px"
       >
         <InputField

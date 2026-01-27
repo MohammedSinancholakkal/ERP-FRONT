@@ -57,7 +57,7 @@ const PurchaseOrder = () => {
   const [filterDate, setFilterDate] = useState("");
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -341,7 +341,7 @@ const PurchaseOrder = () => {
                         </div>
                     )},
                     visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true, className: "min-w-[200px]", render: (p) => (
-                        <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300'}>{p.supplierName}</span>
+                        <span className={p.isInactive ? 'text-white' : (theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300')}>{p.supplierName}</span>
                     )},
                      visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (p) => p.date ? p.date.split('T')[0] : '' },
                     visibleColumns.vehicleNo && { key: "vehicleNo", label: "Vehicle No", sortable: true },

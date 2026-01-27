@@ -1046,7 +1046,7 @@ export const searchProductApi = (query) =>
 export const getInactiveProductsApi = () =>
   commonAPI("GET", `${serverURL}/products/inactive`, "", "");
 
-// RESTORE PRODUCT
+// // RESTORE PRODUCT
 export const restoreProductApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/products/restore/${id}`, data, "");
 
@@ -1809,3 +1809,7 @@ export const restorePurchaseOrderApi = (id, data) =>
 
 export const getPurchaseOrderByIdApi = (id) =>
   commonAPI("GET", `${serverURL}/purchase-orders/${id}`);
+
+// ================= PRODUCTS (BY ID) =================
+export const getProductByIdApi = (id) =>
+  commonAPI("GET", `${serverURL}/products/${id}`);

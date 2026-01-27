@@ -409,6 +409,7 @@ const Deductions = () => {
           title={editItem.isInactive ? "Restore Deduction Type" : "Edit Deduction Type"}
           permissionDelete={hasPermission(PERMISSIONS.DEDUCTIONS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.DEDUCTIONS.EDIT)}
+          saveText="Update"
        >
           <div>
              <InputField

@@ -41,6 +41,7 @@ import { useTheme } from "../../context/ThemeContext";
 import ContentCard from "../../components/ContentCard";
 import MasterTable from "../../components/MasterTable";
 import Pagination from "../../components/Pagination";
+import toast from "react-hot-toast";
 
 /* ------------------------------
    Small components
@@ -897,6 +898,7 @@ const Products = () => {
         title={`${editCountryData.isInactive ? "Restore Country" : "Edit Country"} (${editCountryData.name})`}
         permissionDelete={hasPermission(PERMISSIONS.COUNTRIES.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.COUNTRIES.EDIT)}
+        saveText="Update"
         zIndex={60}
       >
         <label className="block text-sm mb-1">Name *</label>
@@ -948,35 +950,23 @@ const Products = () => {
                 visibleColumns.model && { key: "Model", label: "Model", sortable: true },
                 visibleColumns.unitPrice && { key: "UnitPrice", label: "Unit Price", sortable: true },
                 visibleColumns.unitsInStock && { key: "UnitsInStock", label: "In Stock", sortable: true },
-                visibleColumns.quantityIn && { key: "QuantityIn", label: "Qty In", sortable: true },
-                visibleColumns.quantityOut && { key: "QuantityOut", label: "Qty Out", sortable: true },
+                visibleColumns.quantityIn && { key: "quantityIn", label: "Qty In", sortable: true, render: (row) => row.QuantityIn || row.quantityIn || 0 },
+                visibleColumns.quantityOut && { key: "quantityOut", label: "Qty Out", sortable: true, render: (row) => row.QuantityOut || row.quantityOut || 0 },
                 visibleColumns.reorderLevel && { key: "ReorderLevel", label: "Reorder", sortable: true },
                 visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true },
                 visibleColumns.unitName && { key: "unitName", label: "Unit", sortable: true },
                 visibleColumns.brandName && { key: "brandName", label: "Brand", sortable: true },
                 visibleColumns.supplierName && { key: "supplierName", label: "Supplier", sortable: true },
-                visibleColumns.hsnCode && { key: "hsnCode", label: "HSN", sortable: true },
-                visibleColumns.colour && { key: "colour", label: "Colour", sortable: true },
-                visibleColumns.grade && { key: "grade", label: "Grade", sortable: true },
+                visibleColumns.hsnCode && { key: "hsnCode", label: "HSN", sortable: true, render: (row) => row.HSNCode || row.hsnCode || "-" },
+                visibleColumns.colour && { key: "colour", label: "Colour", sortable: true, render: (row) => row.Colour || row.colour || "-" },
+                visibleColumns.grade && { key: "grade", label: "Grade", sortable: true, render: (row) => row.Grade || row.grade || "-" },
               ].filter(Boolean)}
               data={displayedProducts}
               sortConfig={sortConfig}
               onSort={handleSort}
               isLoading={loading}
               
-              // Row renderer to fix missing columns map
-              renderRow={(row) => ({
-                    ...row,
-                    hsnCode: row.HSNCode || row.hsnCode || "-",
-                    colour: row.Colour || row.colour || "-",
-                    grade: row.Grade || row.grade || "-",
-                    categoryName: row.categoryName || "-",
-                    unitName: row.unitName || "-",
-                    brandName: row.brandName || "-",
-                    supplierName: row.supplierName || "-",
-                    quantityIn: row.QuantityIn || 0,
-                    quantityOut: row.QuantityOut || 0,
-              })}
+
 
               actions={{
                  onEdit: (r) => navigate(`/app/inventory/editproduct/${r.id}`),

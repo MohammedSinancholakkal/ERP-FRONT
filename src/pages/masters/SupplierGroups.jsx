@@ -433,6 +433,7 @@ const SupplierGroups = () => {
           title={editItem.isInactive ? "Restore Supplier Group" : "Edit Supplier Group"}
           permissionDelete={hasPermission(PERMISSIONS.SUPPLIER_GROUPS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.SUPPLIER_GROUPS.EDIT)}
+          saveText="Update"
        >
           <div className="space-y-4">
              <div>

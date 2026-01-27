@@ -8,6 +8,7 @@ import {
   Star,
   X,
   Edit,
+  Pencil, // Added
   Check,
   ArchiveRestore
 } from "lucide-react";
@@ -40,6 +41,7 @@ import {
   getTaxTypesApi,
   searchSaleApi,
   searchBrandApi,
+  updateBrandApi, // Added
   searchProductApi,
   getNextInvoiceNoApi
 } from "../../services/allAPI";
@@ -113,6 +115,10 @@ const NewSale = () => {
   // --- QUICK CREATE BRAND MODAL STATE ---
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
+
+  // --- EDIT BRAND STATE ---
+  const [editBrandModalOpen, setEditBrandModalOpen] = useState(false);
+  const [brandEditData, setBrandEditData] = useState({ id: null, name: "" });
 
   // --- QUICK CREATE CUSTOMER MODAL STATE (Removed in favor of navigation) ---
   // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -216,6 +222,7 @@ useEffect(() => {
   const [shippingCost, setShippingCost] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
   const [noTax, setNoTax] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState("");
 
   // --- CALCULATED VALUES ---
@@ -328,8 +335,6 @@ useEffect(() => {
         setShippingCost(sale.ShippingCost);
         setPaidAmount(sale.PaidAmount);
         setNoTax(sale.NoTax === 1);
-        setPaidAmount(sale.PaidAmount);
-        setNoTax(sale.NoTax === 1);
         setDetails(sale.Details);
 
         setTaxTypeId(sale.TaxTypeId);
@@ -348,13 +353,74 @@ useEffect(() => {
           unitPrice: d.UnitPrice ?? d.unitPrice ?? 0,
           discount: d.Discount ?? d.discount ?? 0,
           total: d.Total ?? d.total ?? 0,
-          brandId: d.brandId || d.BrandId
+          brandId: d.brandId || d.BrandId,
+          orderBookerId: d.OrderBookerId || d.orderBookerId,
+          taxPercentage: d.TaxPercentage ?? d.taxPercentage ?? 0
         }));
         setRows(mappedRows);
       }
     } catch (error) {
       console.error("Error fetching sale details", error);
-      toast.error("Failed to load sale details");
+      
+      // FALLBACK for inactive records if API fails
+      if (location.state?.sale) {
+          const s = location.state.sale;
+          const raw = s.raw || {};
+          
+          setInactiveView(true);
+          
+          const cId = s.customerId || raw.CustomerId;
+          setCustomer(cId);
+          
+          if (cId && s.customerName) {
+              setCustomersList(prev => {
+                 if (!prev.find(c => String(c.id) === String(cId))) {
+                     return [...prev, { id: cId, companyName: s.customerName }];
+                 }
+                 return prev;
+              });
+          }
+          
+          setPaymentAccount(s.paymentAccount || raw.PaymentAccount || "");
+          setInvoiceNo(s.invoiceNo || raw.VNo || "");
+          setVehicleNo(s.vehicleNo || raw.VehicleNo || "");
+          if (s.date) setDate(s.date.split("T")[0]);
+          
+          setGlobalDiscount(s.discount || raw.Discount || 0);
+          setShippingCost(s.shippingCost || raw.ShippingCost || 0);
+          setPaidAmount(s.paidAmount || raw.PaidAmount || 0);
+          
+          // s.details is typically a string remark in the list view
+          setDetails(typeof s.details === 'string' ? s.details : (raw.Details || ""));
+
+          setTaxTypeId(raw.TaxTypeId || "");
+          setCgstRate(s.cgstRate || raw.CGSTRate || 0);
+          setSgstRate(s.sgstRate || raw.SGSTRate || 0);
+          setIgstRate(s.igstRate || raw.IGSTRate || 0);
+          
+          // Try to recover items from raw if present
+          const fallbackItems = raw.details || raw.items || raw.SaleItems || [];
+          if (Array.isArray(fallbackItems) && fallbackItems.length > 0) {
+              const mappedRows = fallbackItems.map(d => ({
+                  productId: d.productId || d.ProductId,
+                  productName: d.productName || d.ProductName,
+                  description: d.description || d.Description,
+                  unitId: d.unitId || d.UnitId,
+                  unitName: d.unitName || d.UnitName,
+                  quantity: d.quantity || d.Quantity || 0,
+                  unitPrice: d.unitPrice || d.UnitPrice || 0,
+                  discount: d.discount || d.Discount || 0,
+                  total: d.total || d.Total || 0,
+                  brandId: d.brandId || d.BrandId,
+                  taxPercentage: d.taxPercentage || d.TaxPercentage || 0
+              }));
+              setRows(mappedRows);
+          } else {
+              toast("Loaded Info (Items missing in inactive view)");
+          }
+      } else {
+          toast.error("Failed to load sale details");
+      }
     }
   };
 
@@ -428,6 +494,48 @@ useEffect(() => {
       console.error("Error fetching tax types", error);
     }
   };
+
+  /* ================= ROW SYNC LOGIC ================= */
+  // Sync existing rows with latest product master data when products load
+  // Sync existing rows with latest product master data when products load
+  useEffect(() => {
+    if (productsList.length > 0 && rows.length > 0) {
+       let changed = false;
+       const newRows = rows.map(row => {
+           const fresh = productsList.find(p => String(p.id) === String(row.productId));
+           if (fresh) {
+               let updatedRow = { ...row };
+               let rowChanged = false;
+
+               // Update Product Name if changed in master
+               if (fresh.ProductName && fresh.ProductName !== row.productName) {
+                   updatedRow.productName = fresh.ProductName;
+                   rowChanged = true;
+               }
+
+               // Update Tax Percentage if missing in row (0) but exists in master
+               // This handles "Edit" scenario where backend didn't return text percentage
+               const masterTax = fresh.taxPercentageValue ?? 0;
+               const currentTax = parseFloat(row.taxPercentage) || 0;
+               if (currentTax === 0 && masterTax > 0) {
+                   updatedRow.taxPercentage = masterTax;
+                   rowChanged = true;
+               }
+
+               if (rowChanged) {
+                   changed = true;
+                   return updatedRow;
+               }
+           }
+           return row;
+       });
+
+       if (changed) {
+           setRows(newRows);
+       }
+    }
+  }, [productsList, rows]);
+
 
   /* ================= LINE ITEM LOGIC ================= */
   const handleProductSelect = (productId) => {
@@ -552,6 +660,22 @@ useEffect(() => {
       console.error(error);
       toast.error("Failed to add brand");
     }
+  };
+
+  const handleEditBrandSave = async () => {
+    if (!brandEditData.name?.trim()) return toast.error("Brand name required");
+    try {
+        const res = await updateBrandApi(brandEditData.id, { 
+            name: brandEditData.name.trim(),
+            BrandName: brandEditData.name.trim(),
+            userId
+        });
+        if (res?.status === 200) {
+             toast.success("Brand updated");
+             setEditBrandModalOpen(false);
+             fetchBrands();
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
   };
 
   // --- QUICK CREATE CUSTOMER REMOVED (Replaced by Navigation) ---
@@ -762,6 +886,8 @@ const openProductModal = () => {
 
   /* ================= SAVE / UPDATE SALE ================= */
   const handleSaveSale = async () => {
+    if (loading) return;
+
     const currentUserId = userData?.userId || userData?.id || userData?.Id;
     
     if (!currentUserId) {
@@ -774,10 +900,12 @@ const openProductModal = () => {
     if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
-    if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
+    if (vehicleNo && vehicleNo.length > 20) return showErrorToast("Vehicle No must be max 20 characters");
 
     const detailsLen = details?.trim().length || 0;
     if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
+    setLoading(true);
 
     // DUPLICATE CHECK FOR INVOICE NO
     if (invoiceNo && invoiceNo.trim() !== "") {
@@ -788,7 +916,10 @@ const openProductModal = () => {
                 const existing = rows.find(s => 
                     (s.VNo || s.invoiceNo || "").toLowerCase() === invoiceNo.trim().toLowerCase()
                 );
-                if (existing) return toast.error("Invoice No already exists");
+                if (existing) {
+                  setLoading(false);
+                  return toast.error("Invoice No already exists");
+                }
             }
         } catch (e) {
             console.error("Duplicate Invoice Check Error", e);
@@ -857,19 +988,22 @@ const openProductModal = () => {
       } else {
         toast.error("Error saving sale");
       }
+    } finally {
+        setLoading(false);
     }
   };
 
   const handleUpdateSale = async () => {
-    if (!customer) return toast.error("Please select a customer");
-    if (!paymentAccount) return toast.error("Please select a payment account");
-    if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
-    if (rows.length === 0) return toast.error("Please add at least one item");
+    setLoading(true); // Added loading state
+    if (!customer) { setLoading(false); return toast.error("Please select a customer"); }
+    if (!paymentAccount) { setLoading(false); return toast.error("Please select a payment account"); }
+    if (!noTax && !taxTypeId) { setLoading(false); return toast.error("Tax Type is required"); }
+    if (rows.length === 0) { setLoading(false); return toast.error("Please add at least one item"); }
 
-    if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
+    if (vehicleNo && vehicleNo.length > 20) { setLoading(false); return showErrorToast("Vehicle No must be max 20 characters"); }
 
     const detailsLen = details?.trim().length || 0;
-    if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+    if (details && (detailsLen < 2 || detailsLen > 300)) { setLoading(false); return showErrorToast("Details must be between 2 and 300 characters"); }
 
     // DUPLICATE CHECK FOR INVOICE NO
     if (invoiceNo && invoiceNo.trim() !== "") {
@@ -946,9 +1080,9 @@ const openProductModal = () => {
         } else {
             toast.error(error.response.data.message);
         }
-      } else {
-        toast.error("Error updating sale");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -958,6 +1092,7 @@ const openProductModal = () => {
     if (!result.isConfirmed) return;
 
     const toastId = showLoadingToast("Deleting...");
+    setLoading(true);
 
     try {
       const res = await deleteSaleApi(id, { userId });
@@ -973,6 +1108,8 @@ const openProductModal = () => {
       dismissToast(toastId);
       console.error("DELETE SALE ERROR", error);
       showErrorToast("Error deleting sale");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -982,6 +1119,7 @@ const openProductModal = () => {
     if (!result.isConfirmed) return;
 
     const toastId = showLoadingToast("Restoring...");
+    setLoading(true);
 
     try {
       const res = await restoreSaleApi(id, { userId });
@@ -996,6 +1134,8 @@ const openProductModal = () => {
       dismissToast(toastId);
       console.error("RESTORE ERROR", error);
       showErrorToast("Error restoring sale");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1028,49 +1168,81 @@ const openProductModal = () => {
         <ContentCard className="!h-auto !overflow-visible">
         {/* HEADER */}
         {/* HEADER */}
-        <div className="flex items-center gap-4 mb-6">
-            <button onClick={() => navigate("/app/sales/sales")} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'} p-2 rounded-full`}>
-                <ArrowLeft size={24} />
-            </button>
-
-            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>
-                {inactiveView ? "View Inactive Sale" : (id ? "Edit Sale" : "New Sale")}
-            </h2>
-        </div>
-
-        {/* ACTIONS BAR */}
-        <div className="flex gap-2 mb-6">
-            {id ? (
-                <>
-                {!inactiveView && hasPermission(PERMISSIONS.SALES.EDIT) && (
-                <button 
-                    onClick={handleUpdateSale} 
-                    className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'}`}
-                >
-                    <Save size={18} /> Update
+        <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+                <button onClick={() => navigate("/app/sales/sales")} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                    <ArrowLeft size={24} />
                 </button>
-                )}
-                {!inactiveView && hasPermission(PERMISSIONS.SALES.DELETE) && (
-                <button onClick={handleDeleteSale} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
-                    <Trash2 size={18} /> Delete
-                </button>
-                )}
-                {inactiveView && (
-                    <button onClick={handleRestoreSale} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
-                        <ArchiveRestore size={18} /> Restore
+
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>
+                    {inactiveView ? "View Inactive Sale" : (id ? "Edit Sale" : "New Sale")}
+                </h2>
+            </div>
+
+            {/* ACTIONS BAR */}
+            <div className="flex items-center gap-3">
+                {id ? (
+                    <>
+                    {!inactiveView && hasPermission(PERMISSIONS.SALES.EDIT) && (
+                    <button 
+                        onClick={handleUpdateSale} 
+                        disabled={loading} 
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                            theme === 'emerald'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : theme === 'purple'
+                            ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                            : 'bg-gray-800 border border-gray-600 text-blue-300'
+                        }`}
+                    >
+                        {loading ? (
+                            <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                            </>
+                        ) : (
+                            <>
+                            <Save size={18} /> Update
+                            </>
+                        )}
                     </button>
+                    )}
+                    {!inactiveView && hasPermission(PERMISSIONS.SALES.DELETE) && (
+                    <button onClick={handleDeleteSale} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-500'}`}>
+                        <Trash2 size={18} /> Delete
+                    </button>
+                    )}
+                    {inactiveView && (
+                        <button onClick={handleRestoreSale} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-green-600 text-white hover:bg-green-500'}`}>
+                            <ArchiveRestore size={18} /> Restore
+                        </button>
+                    )}
+                    </>
+                ) : (
+                    hasPermission(PERMISSIONS.SALES.CREATE) && (
+                    <button 
+                    onClick={handleSaveSale} 
+                    disabled={loading}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                        theme === 'emerald'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : theme === 'purple'
+                        ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                        : 'bg-gray-800 border border-gray-600 text-blue-300'
+                    }`}
+                    >
+                        {loading ? (
+                            <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                            </>
+                        ) : (
+                            <>
+                            <Save size={18} /> Save
+                            </>
+                        )}
+                    </button>
+                    )
                 )}
-                </>
-            ) : (
-                hasPermission(PERMISSIONS.SALES.CREATE) && (
-                <button 
-                onClick={handleSaveSale} 
-                className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-white hover:bg-gray-600'}`}
-                >
-                <Save size={18} /> Save
-                </button>
-                )
-            )}
+            </div>
         </div>
         <hr className="mb-4 border-gray-300" />
 
@@ -1083,23 +1255,35 @@ const openProductModal = () => {
               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
                 Customer <span className="text-dark">*</span>
               </label>
-              <div className="flex-1 flex items-center gap-2">
+                 <div className="flex-1 flex items-center gap-2">
                 <SearchableSelect
                   options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
                   value={customer}
                   onChange={setCustomer}
                   placeholder="Select customer..."
-                  className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                  className={`flex-1 font-medium ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
                   disabled={inactiveView}
                 />
                 {!inactiveView && (
-                <button
-                    type="button"
-                    className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                    onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
-                >
-                    <Star size={16} />
-                </button>
+                    <>
+                    {customer ? (
+                        <button
+                            type="button"
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            onClick={() => navigate(`/app/businesspartners/newcustomer/${customer}`, { state: { returnTo: location.pathname } })}
+                        >
+                            <Pencil size={16} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                        >
+                            <Star size={16} />
+                        </button>
+                    )}
+                    </>
                 )}
               </div>
             </div>
@@ -1113,12 +1297,12 @@ const openProductModal = () => {
                 <select
                   value={paymentAccount}
                   onChange={(e) => setPaymentAccount(e.target.value)}
-                  className={`flex-1 border-2 rounded px-3 py-1.5 outline-none disabled:opacity-50 text-sm ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400' : theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-gray-500' : 'bg-gray-900 border-gray-700 text-white focus:border-gray-500'}`}
+                  className={`flex-1 border-2 rounded px-3 py-1.5 outline-none font-medium disabled:opacity-50 text-sm ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400' : theme === 'purple' ? 'bg-white border-gray-300 text-purple-800 focus:border-gray-500' : 'bg-gray-900 border-gray-700 text-white focus:border-gray-500'}`}
                   disabled={inactiveView}
                 >
-                  <option value="">--select--</option>
-                  <option value="Cash at Hand">Cash at Hand</option>
-                  <option value="Cash at Bank">Cash at Bank</option>
+                  <option className="text-purple-800" value="">--select--</option>
+                  <option className="text-purple-800" value="Cash at Hand">Cash at Hand</option>
+                  <option className="text-purple-800" value="Cash at Bank">Cash at Bank</option>
                 </select>
                 {!inactiveView && (
                   <div className="p-2 border border-transparent rounded invisible">
@@ -1140,7 +1324,7 @@ const openProductModal = () => {
                     value={taxTypeId}
                     onChange={setTaxTypeId}
                     placeholder="Select Tax Type..."
-                    className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                    className={`flex-1 ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
                     disabled={inactiveView || noTax}
                  />
                  </div>
@@ -1183,7 +1367,7 @@ const openProductModal = () => {
                     <div className="flex-1 font-medium">
                        <InputField
                          value={vehicleNo}
-                         onChange={(e) => setVehicleNo(e.target.value)}
+                         onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
                          placeholder="Vehicle/Transport No"
                          disabled={inactiveView}
                        />
@@ -1306,11 +1490,11 @@ const openProductModal = () => {
           <div className="lg:col-span-8">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* Grand Total */}
+                {/* Taxable Amount */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Grand Total</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
                   <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {grandTotal.toFixed(2)}
+                    {netTotal.toFixed(2)}
                   </div>
                 </div>
 
@@ -1438,10 +1622,11 @@ const openProductModal = () => {
                 })()}
 
                 {/* Net Total (Full Width) */}
+                {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
-                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Net Total</label>
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Grand Total</label>
                   <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
-                    {netTotal.toFixed(2)}
+                    {grandTotal.toFixed(2)}
                   </div>
                 </div>
 
@@ -1458,6 +1643,7 @@ const openProductModal = () => {
         onClose={() => setIsItemModalOpen(false)}
         onSave={addItemToTable}
         title={editingIndex !== null ? "Edit Line Item" : "Add Line Item"}
+        saveText={editingIndex !== null ? "Update" : "Save"}
         width="700px"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1466,18 +1652,27 @@ const openProductModal = () => {
             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}> Brand *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
+
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                 value={newItem.brandId}
                 onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
                 placeholder="--select brand--"
-                className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                className={`flex-1 font-medium ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
               />
               <button
                  type="button"
                  className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                 onClick={() => setIsBrandModalOpen(true)}
+                 onClick={() => {
+                     if (newItem.brandId) {
+                         const b = brandsList.find(x => String(x.id) === String(newItem.brandId));
+                         setBrandEditData({ id: newItem.brandId, name: b?.name || "" });
+                         setEditBrandModalOpen(true);
+                     } else {
+                         setIsBrandModalOpen(true);
+                     }
+                 }}
               >
-                  <Star size={16} />
+                  {newItem.brandId ? <Pencil size={16} /> : <Star size={16} />}
               </button>
             </div>
           </div>
@@ -1495,24 +1690,29 @@ const openProductModal = () => {
                 onChange={handleProductSelect}
                 placeholder="--select product--"
                 disabled={!newItem.brandId}
-                className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                required
+                className={`flex-1 font-medium ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
               />
                <button
                   type="button"
-                  disabled={!newItem.brandId}
+                  disabled={!newItem.brandId && !newItem.productId} // Allow if brand selected (for add) OR product selected (for edit)
                   className={`p-2 border rounded flex items-center justify-center ${
-                      !newItem.brandId 
+                      (!newItem.brandId && !newItem.productId)
                        ? 'opacity-50 cursor-not-allowed ' + (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-gray-500')
                        : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
                   }`}
                   onClick={() => {
-                    if (newItem.brandId) {
-                      setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
-                      openProductModal();
+                    if (newItem.productId) {
+                         // EDIT PRODUCT NAV
+                         navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preserveState: true } });
+                    } else if (newItem.brandId) {
+                         // ADD PRODUCT
+                         setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                         openProductModal();
                     }
                   }}
                >
-                   <Star size={16} />
+                   {newItem.productId ? <Pencil size={16} /> : <Star size={16} />}
                </button>
             </div>
           </div>
@@ -1532,6 +1732,7 @@ const openProductModal = () => {
             <InputField
               type="number"
               label="Quantity *"
+              className="font-medium"
               value={newItem.quantity}
               onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />
@@ -1542,6 +1743,7 @@ const openProductModal = () => {
             <InputField
               type="number"
               label="Unit Price"
+               className="font-medium"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
             />
@@ -1552,6 +1754,7 @@ const openProductModal = () => {
             <InputField
               type="number"
               label="Discount (%)"
+               className="font-medium"
               value={newItem.discount}
               onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
             />
@@ -1561,6 +1764,7 @@ const openProductModal = () => {
           <div>
             <InputField
                label="Unit"
+                className="font-medium"
                value={newItem.unitName}
                disabled={true} // Read only style
             />
@@ -1571,6 +1775,7 @@ const openProductModal = () => {
             <InputField
                label="Tax Percentage (%)"
                value={newItem.taxPercentage}
+                className="font-medium"
                disabled={true}
             />
           </div>
@@ -1655,8 +1860,8 @@ const openProductModal = () => {
                 options={unitsList.map(u => ({ id: u.id, name: u.name }))}
                 value={newProductData.unitId}
                 onChange={(val) => setNewProductData({ ...newProductData, unitId: val })}
-                placeholder="Select Unit"
-                className={`${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                placeholder="--select--"
+                className={`${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
              />
           </div>
 
@@ -1700,6 +1905,17 @@ const openProductModal = () => {
       </AddModal>
 
 
+      {/* --- EDIT BRAND MODAL --- */}
+      <AddModal
+            isOpen={editBrandModalOpen}
+            onClose={() => setEditBrandModalOpen(false)}
+            onSave={handleEditBrandSave}
+            title={`Edit Brand (${brandEditData.name})`}
+            saveText="Save"
+            width="400px"
+        >
+            <InputField value={brandEditData.name} onChange={e => setBrandEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+        </AddModal>
     </PageLayout>
   );
 };

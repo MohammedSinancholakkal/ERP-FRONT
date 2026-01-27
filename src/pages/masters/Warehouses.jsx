@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  Pencil,
   Star,
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
@@ -25,6 +26,9 @@ import {
   searchCountryApi,
   searchStateApi,
   searchCityApi,
+  updateCountryApi,
+  updateStateApi,
+  updateCityApi,
 } from "../../services/allAPI"; 
 import SearchableSelect from "../../components/SearchableSelect"; 
 import FilterBar from "../../components/FilterBar";
@@ -98,6 +102,16 @@ const Warehouses = () => {
 
   const [addCityModalOpen, setAddCityModalOpen] = useState(false);
   const [newCityName, setNewCityName] = useState("");
+
+  // NESTED EDIT STATES
+  const [editCountryModalOpen, setEditCountryModalOpen] = useState(false);
+  const [countryEditData, setCountryEditData] = useState({ id: null, name: "" });
+
+  const [editStateModalOpen, setEditStateModalOpen] = useState(false);
+  const [stateEditData, setStateEditData] = useState({ id: null, name: "" });
+
+  const [editCityModalOpen, setEditCityModalOpen] = useState(false);
+  const [cityEditData, setCityEditData] = useState({ id: null, name: "" });
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -606,6 +620,53 @@ const Warehouses = () => {
       }
   };
 
+  const handleEditCountrySave = async () => {
+    if (!countryEditData.name?.trim()) return toast.error("Name required");
+    try {
+        const res = await updateCountryApi(countryEditData.id, { name: countryEditData.name, userId });
+        if (res?.status === 200) {
+            toast.success("Country updated");
+            setEditCountryModalOpen(false);
+            const resC = await getCountriesApi(1, 1000);
+            if(resC?.status === 200) {
+                 setCountries((resC.data.records || resC.data || []).map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
+            }
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
+  const handleEditStateSave = async () => {
+    if (!stateEditData.name?.trim()) return toast.error("Name required");
+    try {
+        const currentState = states.find(s => String(s.id) == String(stateEditData.id));
+        const res = await updateStateApi(stateEditData.id, { name: stateEditData.name, countryId: currentState?.countryId, userId });
+        if (res?.status === 200) {
+            toast.success("State updated");
+            setEditStateModalOpen(false);
+            const resS = await getStatesApi(1, 1000);
+            if(resS?.status === 200) {
+                 setStates((resS.data.records || resS.data || []).map(r => ({ id: r.Id || r.id, name: r.Name || r.name, countryId: r.CountryId || r.countryId })));
+            }
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
+  const handleEditCitySave = async () => {
+    if (!cityEditData.name?.trim()) return toast.error("Name required");
+    try {
+        const currentCity = cities.find(c => String(c.id) == String(cityEditData.id));
+        const res = await updateCityApi(cityEditData.id, { name: cityEditData.name, stateId: currentCity?.stateId, countryId: editData.countryId, userId });
+        if (res?.status === 200) {
+            toast.success("City updated");
+            setEditCityModalOpen(false);
+            const resCi = await getCitiesApi(1, 1000);
+            if(resCi?.status === 200) {
+                 setCities((resCi.data.records || resCi.data || []).map(r => ({ id: r.Id || r.id, name: r.Name || r.name, stateId: r.StateId || r.stateId })));
+            }
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
   return (
     <PageLayout>
       <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
@@ -789,6 +850,7 @@ const Warehouses = () => {
           title={editData.isInactive ? "Restore Warehouse" : "Edit Warehouse"}
           permissionDelete={hasPermission(PERMISSIONS.WAREHOUSES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.WAREHOUSES.EDIT)}
+          saveText="Update"
        >
           <div className="space-y-4">
               <div>
@@ -827,9 +889,17 @@ const Warehouses = () => {
                                direction="down"
                            />
                            {!editData.isInactive && hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
-                               <button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
-                                   <Star size={16} className="" />
-                               </button>
+                               <div className="flex gap-1">
+                                   {editData.countryId && (
+                                    <button onClick={() => {
+                                        const c = countries.find(x => String(x.id) == String(editData.countryId));
+                                        setCountryEditData({ id: editData.countryId, name: c?.name || "" });
+                                        setEditCountryModalOpen(true);
+                                    }} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                       <Pencil size={16} />
+                                    </button>
+                                   )}
+                               </div>
                            )}
                        </div>
                    </div>
@@ -845,9 +915,17 @@ const Warehouses = () => {
                                direction="down"
                            />
                            {!editData.isInactive && hasPermission(PERMISSIONS.STATES.CREATE) && (
-                               <button onClick={() => setAddStateModalOpen(true)} disabled={!editData.countryId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
-                                   <Star size={16} className="" />
-                               </button>
+                               <div className="flex gap-1">
+                                   {editData.stateId && (
+                                    <button onClick={() => {
+                                        const s = states.find(x => String(x.id) == String(editData.stateId));
+                                        setStateEditData({ id: editData.stateId, name: s?.name || "" });
+                                        setEditStateModalOpen(true);
+                                    }} disabled={!editData.countryId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                        <Pencil size={16} />
+                                    </button>
+                                   )}
+                               </div>
                            )}
                        </div>
                    </div>
@@ -865,9 +943,17 @@ const Warehouses = () => {
                                direction="down"
                            />
                            {!editData.isInactive && hasPermission(PERMISSIONS.CITIES.CREATE) && (
-                               <button onClick={() => setAddCityModalOpen(true)} disabled={!editData.stateId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
-                                   <Star size={16} className="" />
-                               </button>
+                               <div className="flex gap-1">
+                                   {editData.cityId && (
+                                     <button onClick={() => {
+                                        const c = cities.find(x => String(x.id) == String(editData.cityId));
+                                        setCityEditData({ id: editData.cityId, name: c?.name || "" });
+                                        setEditCityModalOpen(true);
+                                     }} disabled={!editData.stateId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                        <Pencil size={16} />
+                                     </button>
+                                   )}
+                               </div>
                            )}
                        </div>
                    </div>
@@ -941,6 +1027,23 @@ const Warehouses = () => {
                    required
                />
            </AddModal>
+       )}
+
+       {/* EDIT SUB-MODALS */}
+       {editCountryModalOpen && (
+            <AddModal isOpen={true} onClose={() => setEditCountryModalOpen(false)} onSave={handleEditCountrySave} title={`Edit Country (${countryEditData.name})`} saveText="Update">
+                <InputField value={countryEditData.name} onChange={e => setCountryEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+            </AddModal>
+       )}
+       {editStateModalOpen && (
+            <AddModal isOpen={true} onClose={() => setEditStateModalOpen(false)} onSave={handleEditStateSave} title={`Edit State (${stateEditData.name})`} saveText="Update">
+                <InputField value={stateEditData.name} onChange={e => setStateEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+            </AddModal>
+       )}
+       {editCityModalOpen && (
+            <AddModal isOpen={true} onClose={() => setEditCityModalOpen(false)} onSave={handleEditCitySave} title={`Edit City (${cityEditData.name})`} saveText="Update">
+                <InputField value={cityEditData.name} onChange={e => setCityEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+            </AddModal>
        )}
 
     </PageLayout>

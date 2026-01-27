@@ -364,7 +364,7 @@ const SalesQuotation = () => {
                         </div>
                     )},
                     visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (q) => (
-                        <span className={theme === 'emerald' || theme === 'purple' ? "text-gray-900" : "text-gray-300"}>{q.customerName || q.customer || "-"}</span>
+                        <span className={q.isInactive ? "text-white" : (theme === 'emerald' || theme === 'purple' ? "text-gray-900" : "text-gray-300")}>{q.customerName || q.customer || "-"}</span>
                     )},
                     visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (q) => q.date ? new Date(q.date).toLocaleDateString() : "-" },
                     visibleColumns.discount && { key: "discount", label: "Disc", sortable: true, render: (q) => parseFloat(q.discount || 0).toFixed(2) },
@@ -385,7 +385,7 @@ const SalesQuotation = () => {
                 showInactive={showInactive}
                 sortConfig={sortConfig}
                 onSort={handleSort}
-                onRowClick={(q, isInactive) => navigate(`/app/sales/newsalequotation/${q.id}`, { state: { isInactive } })}
+                onRowClick={(q, isInactive) => navigate(`/app/sales/newsalequotation/${q.id}`, { state: { isInactive, quotation: q } })}
                 
                 // Action Bar
                 search={searchText}

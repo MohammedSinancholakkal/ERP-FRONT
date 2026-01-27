@@ -10,6 +10,7 @@ import {
   getCitiesApi,
   getRegionsApi,
   getCustomerGroupsApi,
+  getEmployeesApi,
   getCustomersApi,
   searchCustomerApi,
   getInactiveCustomersApi,
@@ -87,6 +88,7 @@ const Customers = () => {
     cities: {},
     regions: {},
     groups: {},
+    employees: {},
   });
   const [lookupLists, setLookupLists] = useState({
     countries: [],
@@ -94,6 +96,7 @@ const Customers = () => {
     cities: [],
     regions: [],
     groups: [],
+    employees: [],
   });
 
   /* Sorting */
@@ -355,12 +358,13 @@ const Customers = () => {
 
   const loadLookups = async () => {
     try {
-      const [c, s, ci, r, g] = await Promise.all([
+      const [c, s, ci, r, g, e] = await Promise.all([
         getCountriesApi(1, 5000),
         getStatesApi(1, 5000),
         getCitiesApi(1, 5000),
         getRegionsApi(1, 5000),
         getCustomerGroupsApi(1, 5000),
+        getEmployeesApi(1, 5000),
       ]);
 
       const countries = parseArrayFromResponse(c);
@@ -368,6 +372,7 @@ const Customers = () => {
       const cities = parseArrayFromResponse(ci);
       const regions = parseArrayFromResponse(r);
       const groups = parseArrayFromResponse(g);
+      const employees = parseArrayFromResponse(e).map(emp => ({ ...emp, name: `${emp.FirstName || emp.firstName || ''} ${emp.LastName || emp.lastName || ''}`.trim() }));
 
       setLookupLists({
         countries,
@@ -375,6 +380,7 @@ const Customers = () => {
         cities,
         regions,
         groups,
+        employees,
       });
 
       setLookupMaps({
@@ -383,6 +389,7 @@ const Customers = () => {
         cities: toMap(cities, ["Id", "id", "CityId"], ["CityName", "name", "label"]),
         regions: toMap(regions, ["Id", "id", "regionId", "RegionId"], ["RegionName", "regionName", "name", "label"]),
         groups: toMap(groups, ["Id", "id", "CustomerGroupId", "groupId"], ["GroupName", "groupName", "CustomerGroupName", "name", "label"]),
+        employees: toMap(employees, ["Id", "id"], ["name"]),
       });
     } catch (err) {
       console.error("lookup load error", err);
@@ -543,8 +550,20 @@ const Customers = () => {
 
              visibleColumns.pan && { key: "pan", label: "PAN", sortable: true },
              visibleColumns.gstin && { key: "gstin", label: "GSTIN", sortable: true },
-             visibleColumns.salesMan && { key: "salesMan", label: "Sales Man", sortable: true, className: "capitalize" },
-             visibleColumns.orderBooker && { key: "orderBooker", label: "Order Booker", sortable: true, className: "capitalize" },
+             visibleColumns.salesMan && { 
+                 key: "salesMan", 
+                 label: "Sales Man", 
+                 sortable: true, 
+                 className: "capitalize",
+                 render: (r) => lookupMaps.employees?.[String(r.salesMan)] || r.salesMan || ""
+             },
+             visibleColumns.orderBooker && { 
+                 key: "orderBooker", 
+                 label: "Order Booker", 
+                 sortable: true, 
+                 className: "capitalize",
+                 render: (r) => lookupMaps.employees?.[String(r.orderBooker)] || r.orderBooker || ""
+             },
           ].filter(Boolean)}
           data={paginatedData}
           inactiveData={inactiveRows}

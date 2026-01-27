@@ -482,6 +482,7 @@ const Services = () => {
           title={editItem.isInactive ? "Restore Service" : "Edit Service"}
           permissionDelete={hasPermission(PERMISSIONS.SERVICES_MASTER.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.SERVICES_MASTER.EDIT)}
+          saveText="Update"
        >
           <div className="space-y-4">
               <div>

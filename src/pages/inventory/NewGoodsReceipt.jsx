@@ -36,6 +36,7 @@ function NewGoodsReceipt() {
   const isRestoreMode = mode === "restore"
 
   const [isReadonly, setIsReadonly] = useState(isRestoreMode)
+  const [loading, setLoading] = useState(false)
 
 
 
@@ -389,19 +390,22 @@ if (isRestoreMode || inactiveFromDb) {
       userId
     }
 
+    setLoading(true)
     try {
       const res = await addGoodsReceiptApi(payload)
       if (res.status === 200) {
         showSuccessToast('Goods receipt saved successfully')
-navigate('/app/inventory/goodsreceipts', {
-  state: { refresh: true }
-})
+        navigate('/app/inventory/goodsreceipts', {
+          state: { refresh: true }
+        })
       } else {
         showErrorToast('Failed to save goods receipt')
       }
     } catch (error) {
       console.error('SAVE ERROR', error)
       showErrorToast('Error saving goods receipt')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -442,6 +446,7 @@ navigate('/app/inventory/goodsreceipts', {
       userId
     }
 
+    setLoading(true)
     try {
       const res = await updateGoodsReceiptApi(id, payload)
       if (res.status === 200) {
@@ -453,6 +458,8 @@ navigate('/app/inventory/goodsreceipts', {
     } catch (error) {
       console.error('UPDATE ERROR', error)
       showErrorToast('Error updating goods receipt')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -462,6 +469,7 @@ navigate('/app/inventory/goodsreceipts', {
 
     if (!result.isConfirmed) return;
 
+    setLoading(true);
     try {
       const res = await deleteGoodsReceiptApi(id, { userId });
 
@@ -474,6 +482,8 @@ navigate('/app/inventory/goodsreceipts', {
     } catch (error) {
       console.error("DELETE ERROR", error);
       showErrorToast("An error occurred while deleting the goods receipt.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -483,6 +493,7 @@ navigate('/app/inventory/goodsreceipts', {
 
     if (!result.isConfirmed) return
 
+    setLoading(true)
     try {
       const res = await restoreGoodsReceiptApi(id, { userId })
       if (res.status === 200) {
@@ -494,6 +505,8 @@ navigate('/app/inventory/goodsreceipts', {
     } catch (error) {
       console.error('RESTORE ERROR', error)
       showErrorToast('Error restoring goods receipt')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -502,57 +515,94 @@ navigate('/app/inventory/goodsreceipts', {
       <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         <ContentCard className="!h-auto !overflow-visible">
         {/* HEADER */}
-        <div className="flex items-center gap-4 mb-2">
-          <button onClick={() => navigate(-1)} className="hover:text-gray-500">
-            <ArrowLeft size={24} />
-          </button>
-          <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
-            {id ? (isReadonly ? "View Goods Receipt (inactive)" : "Edit Goods Receipt") : "New Goods Receipt"}
-          </h2>
-        </div>
+        <div className="mb-6">
+           <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-4">
+                 <button onClick={() => navigate(-1)} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                   <ArrowLeft size={24} />
+                 </button>
+                 <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
+                   {id ? (isReadonly ? "View Goods Receipt (inactive)" : "Edit Goods Receipt") : "New Goods Receipt"}
+                 </h2>
+              </div>
 
-        {/* ACTION BAR */}
-        <div className="flex gap-2 mb-6">
-          {id ? (
-            <>
-              {!isReadonly ? (
-                <>
-                  {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.EDIT) && (
-                  <button
-                    onClick={handleUpdateReceipt}
-                    className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'}`}
-                  >
-                    <Save size={18} /> Update
-                  </button>
-                  )}
-                  {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.DELETE) && (
-                  <button
-                    onClick={handleDeleteReceipt}
-                    className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500"
-                  >
-                    <Trash2 size={18} /> Delete
-                  </button>
-                  )}
-                </>
-              ) : (
-                <></>
-              )}
-            </>
-          ) : (
-            hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.CREATE) && (
-            <button
-              onClick={handleSaveReceipt}
-              disabled={isReadonly}
-              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <Save size={18} /> Save
-            </button>
-            )
-          )}
-        </div>
+              {/* ACTION BUTTONS */}
+              <div className="flex gap-2">
+                {id ? (
+                  <>
+                    {!isReadonly ? (
+                      <>
+                        {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.DELETE) && (
+                        <button
+                          onClick={handleDeleteReceipt}
+                          disabled={loading}
+                          className="flex items-center gap-2 bg-red-600 border border-red-500 px-6 py-2 rounded-lg text-white hover:bg-red-700 shadow-lg transition-colors"
+                        >
+                          <Trash2 size={18} /> Delete
+                        </button>
+                        )}
 
-        
-        <hr className="mb-4 border-gray-300" />
+                        {hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.EDIT) && (
+                        <button
+                          onClick={handleUpdateReceipt}
+                          disabled={loading}
+                          className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600 '} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {loading ? (
+                             <>
+                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                             </>
+                          ) : (
+                             <>
+                             <Save size={18} /> Update
+                             </>
+                          )}
+                        </button>
+                        )}
+                      </>
+                    ) : (
+                      hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.DELETE) && (
+                      <button
+                        onClick={handleRestoreReceipt}
+                        disabled={loading}
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      >
+                         {loading ? (
+                             <>
+                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Restoring...
+                             </>
+                          ) : (
+                             <>
+                             <ArchiveRestore size={18} /> Restore
+                             </>
+                          )}
+                      </button>
+                      )
+                    )}
+                  </>
+                ) : (
+                  hasPermission(PERMISSIONS.INVENTORY.GOODS_RECEIPTS.CREATE) && (
+                  <button
+                    onClick={handleSaveReceipt}
+                    disabled={isReadonly || loading}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'} ${isReadonly || loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                     {loading ? (
+                         <>
+                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                         </>
+                      ) : (
+                         <>
+                         <Save size={18} /> Save
+                         </>
+                      )}
+                  </button>
+                  )
+                )}
+              </div>
+           </div>
+           <hr className="border-gray-300" />
+        </div>
 
         {/* TOP SECTION: 2-COLUMN GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

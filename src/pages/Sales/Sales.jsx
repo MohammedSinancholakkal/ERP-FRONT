@@ -68,7 +68,7 @@ const Sales = () => {
   const [filterPayment, setFilterPayment] = useState("");
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -367,7 +367,7 @@ const Sales = () => {
                         </div>
                     )},
                     visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (s) => (
-                        <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300'}>{s.customerName || "-"}</span>
+                        <span className={s.isInactive ? "text-white" : (theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300')}>{s.customerName || "-"}</span>
                     )},
                     visibleColumns.invoiceNo && { key: "invoiceNo", label: "Invoice No", sortable: true, render: (s) => s.invoiceNo || s.VNo || "" },
                     visibleColumns.vehicleNo && { key: "vehicleNo", label: "Vehicle No", sortable: true, render: (s) => s.vehicleNo || "" },
@@ -392,7 +392,7 @@ const Sales = () => {
                 showInactive={showInactive}
                 sortConfig={sortConfig}
                 onSort={handleSort}
-                onRowClick={(s, isInactive) => navigate(`/app/sales/edit/${s.id}`, { state: { isInactive } })}
+                onRowClick={(s, isInactive) => navigate(`/app/sales/edit/${s.id}`, { state: { isInactive, sale: s } })}
                 
                 // Action Bar
                 search={searchText}

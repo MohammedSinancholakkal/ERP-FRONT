@@ -410,6 +410,7 @@ const AttendanceStatuses = () => {
           title={editItem.isInactive ? "Restore Attendance Status" : "Edit Attendance Status"}
           permissionDelete={hasPermission(PERMISSIONS.ATTENDANCE_STATUS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.ATTENDANCE_STATUS.EDIT)}
+          saveText="Update"
        >
           <div>
              <InputField

@@ -349,6 +349,7 @@ const handleRestore = async () => {
         title={`${editCategory.isInactive ? "Restore Category" : "Edit Category"}`}
         permissionDelete={hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.EDIT)}
+        saveText="Update"
       >
         {/* NAME */}
         <InputField

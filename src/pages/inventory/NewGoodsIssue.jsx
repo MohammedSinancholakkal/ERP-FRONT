@@ -36,6 +36,7 @@ function NewGoodsIssue() {
 
   // --- NEW: read-only flag when opening an inactive record ---
   const [isReadonly, setIsReadonly] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   // --- TOP SECTION STATE ---
   const [sales, setSales] = useState('')
@@ -393,6 +394,7 @@ useEffect(() => {
       userId
     }
 
+    setLoading(true)
     try {
       const res = await addGoodsIssueApi(payload)
 
@@ -405,6 +407,8 @@ useEffect(() => {
     } catch (error) {
       console.error('SAVE ERROR', error)
       showErrorToast('Error saving goods Issue')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -442,6 +446,7 @@ useEffect(() => {
       userId
     }
 
+    setLoading(true)
     try {
       const res = await updateGoodsIssueApi(id, payload)
       if (res.status === 200) {
@@ -453,29 +458,34 @@ useEffect(() => {
     } catch (error) {
       console.error('UPDATE ERROR', error)
       showErrorToast('Error updating goods issue')
+    } finally {
+      setLoading(false)
     }
   }
 
-const handleDeleteIssue = async () => {
-  if (isReadonly) return
-  const result = await showDeleteConfirm('goods issue');
+  const handleDeleteIssue = async () => {
+    if (isReadonly) return
+    const result = await showDeleteConfirm('goods issue');
 
-  if (!result.isConfirmed) return
+    if (!result.isConfirmed) return
 
-  try {
-    const res = await deleteGoodsIssueApi(id, { userId })
+    setLoading(true)
+    try {
+      const res = await deleteGoodsIssueApi(id, { userId })
 
-    if (res.status === 200) {
-      showSuccessToast('Goods issue deleted successfully.')
-      navigate('/app/inventory/goodsissue')
-    } else {
-      showErrorToast('Failed to delete goods issue.')
+      if (res.status === 200) {
+        showSuccessToast('Goods issue deleted successfully.')
+        navigate('/app/inventory/goodsissue')
+      } else {
+        showErrorToast('Failed to delete goods issue.')
+      }
+    } catch (error) {
+      console.error('DELETE ERROR', error)
+      showErrorToast('Error deleting goods issue.')
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error('DELETE ERROR', error)
-    showErrorToast('Error deleting goods issue.')
   }
-}
 
 // --- NEW: restore handler ---
 const handleRestoreIssue = async () => {
@@ -483,6 +493,7 @@ const handleRestoreIssue = async () => {
 
   if (!result.isConfirmed) return
 
+  setLoading(true)
   try {
     const res = await restoreGoodsIssueApi(id, { userId })
     if (res.status === 200) {
@@ -494,6 +505,8 @@ const handleRestoreIssue = async () => {
   } catch (error) {
     console.error('RESTORE ERROR', error)
     showErrorToast('Error restoring goods issue.')
+  } finally {
+    setLoading(false)
   }
 }
 
@@ -503,62 +516,94 @@ const handleRestoreIssue = async () => {
       <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         <ContentCard className="!h-auto !overflow-visible">
         {/* HEADER */}
-        <div className="flex items-center gap-4 mb-2">
-          <button onClick={() => navigate(-1)} className="hover:text-gray-500">
-            <ArrowLeft size={24} />
-          </button>
-          <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
-            {id ? (isReadonly ? "View Goods Issue (inactive)" : "Edit Goods Issue") : "New Goods Issue"}
-          </h2>
-        </div>
+        <div className="mb-6">
+           <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-4">
+                 <button onClick={() => navigate(-1)} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                   <ArrowLeft size={24} />
+                 </button>
+                 <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
+                   {id ? (isReadonly ? "View Goods Issue (inactive)" : "Edit Goods Issue") : "New Goods Issue"}
+                 </h2>
+              </div>
 
-        {/* ACTION BAR */}
-        <div className="flex gap-2 mb-6">
-          {id ? (
-            <>
-              {!isReadonly ? (
-                <>
-                  {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.EDIT) && (
-                  <button
-                    onClick={handleUpdateIssue}
-                    className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 '}`}
-                  >
-                    <Save size={18} /> Update
-                  </button>
-                  )}
-                  {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
-                  <button
-                    onClick={handleDeleteIssue}
-                    className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500"
-                  >
-                    <Trash2 size={18} /> Delete
-                  </button>
-                  )}
-                </>
-              ) : (
-                hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
-                <button
-                  onClick={handleRestoreIssue}
-                  className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500"
-                >
-                  <ArchiveRestore size={18} /> Restore
-                </button>
-                )
-              )}
-            </>
-          ) : (
-            hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE) && (
-            <button
-              onClick={handleSaveIssue}
-              disabled={isReadonly}
-              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <Save size={18} /> Save
-            </button>
-            )
-          )}
+               {/* ACTION BUTTONS */}
+               <div className="flex gap-2">
+                 {id ? (
+                   <>
+                     {!isReadonly ? (
+                       <>
+                         {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
+                         <button
+                           onClick={handleDeleteIssue}
+                           disabled={loading}
+                           className="flex items-center gap-2 bg-red-600 border border-red-500 px-6 py-2 rounded-lg text-white hover:bg-red-700 shadow-lg transition-colors"
+                         >
+                           <Trash2 size={18} /> Delete
+                         </button>
+                         )}
+
+                         {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.EDIT) && (
+                         <button
+                           onClick={handleUpdateIssue}
+                           disabled={loading}
+                           className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                         >
+                           {loading ? (
+                              <>
+                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                              </>
+                           ) : (
+                              <>
+                              <Save size={18} /> Update
+                              </>
+                           )}
+                         </button>
+                         )}
+                       </>
+                     ) : (
+                       hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
+                       <button
+                         onClick={handleRestoreIssue}
+                         disabled={loading}
+                         className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                       >
+                         {loading ? (
+                              <>
+                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Restoring...
+                              </>
+                           ) : (
+                              <>
+                              <ArchiveRestore size={18} /> Restore
+                              </>
+                           )}
+                       </button>
+                       )
+                     )}
+                   </>
+                 ) : (
+                   hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE) && (
+                   <button
+                     onClick={handleSaveIssue}
+                     disabled={isReadonly || loading}
+                     className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600'} ${isReadonly || loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                   >
+                     {loading ? (
+                         <>
+                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                         </>
+                      ) : (
+                         <>
+                         <Save size={18} /> Save
+                         </>
+                      )}
+                   </button>
+                   )
+                 )}
+               </div>
+           </div>
+           <hr className="border-gray-300" />
         </div>
-        <hr className="mb-4 border-gray-300" />
 
         {/* TOP SECTION: 2-COLUMN GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

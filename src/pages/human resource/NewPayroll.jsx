@@ -306,7 +306,9 @@ const NewPayroll = () => {
   
     try {
       setLoading(true);
+      const toastId = showLoadingToast("Deleting payroll...");
       await deletePayrollApi(id, { userId: 1 });
+      dismissToast(toastId);
       showSuccessToast("Payroll deleted successfully");
       navigate("/app/hr/payroll");
     } catch (error) {
@@ -324,14 +326,17 @@ const NewPayroll = () => {
 
     if (!result.isConfirmed) return;
 
+    const toastId = showLoadingToast("Restoring payroll...");
     try {
         setLoading(true);
         const res = await restorePayrollApi(id, { userId: 1 });
+        dismissToast(toastId);
         if (res.status === 200) {
             showSuccessToast("Payroll restored successfully.");
             navigate("/app/hr/payroll");
         }
     } catch (err) {
+        dismissToast(toastId);
         console.error("Restore failed", err);
         showErrorToast("Failed to restore payroll.");
     } finally {
@@ -350,33 +355,60 @@ const NewPayroll = () => {
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate("/app/hr/payroll")} className="hover:text-gray-500">
+            <button onClick={() => navigate("/app/hr/payroll")} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
               <ArrowLeft size={24} />
             </button>
             <h2 className="text-xl font-bold text-[#6448AE] mb-2">
               {isEdit ? "Edit Payroll" : "New Payroll"}
             </h2>
           </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex gap-3">
           {(isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && !location.state?.isInactive && (
           <button
             onClick={handleSavePayroll}
             disabled={loading}
-            className={`flex items-center gap-2 border px-3 py-2 rounded ${theme === 'emerald' || theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                  theme === 'emerald'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : theme === 'purple'
+                  ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                  : 'bg-gray-800 border border-gray-600 text-blue-300'
+              }`}
           >
-            <Save size={20} />
-            {loading ? "Saving..." : isEdit ? "Update" : "Save"}
+            {loading ? (
+                <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {isEdit ? "Updating..." : "Saving..."}
+                </>
+            ) : (
+                <>
+                <Save size={16} /> {isEdit ? "Update" : "Save"}
+                </>
+            )}
           </button>
           )}
 
           {isEdit && location.state?.isInactive && hasPermission(PERMISSIONS.HR.PAYROLL.DELETE) && (
             <button
                type="button"
-               onClick={handleRestorePayroll} // Define this function below
+               onClick={handleRestorePayroll} 
                disabled={loading}
-               className="flex items-center gap-2 bg-green-600 border border-green-800 px-3 py-2 rounded text-white hover:bg-green-500"
+              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                  theme === 'emerald'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : theme === 'purple'
+                  ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                  : 'bg-gray-800 border border-gray-600 text-blue-300'
+                }`}
             >
-               <ArchiveRestore size={16} /> Restore
+               {loading ? (
+                <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Restoring...
+                </>
+            ) : (
+                <>
+                <ArchiveRestore size={16} /> Restore
+                </>
+            )}
             </button>
           )}
 
@@ -386,7 +418,7 @@ const NewPayroll = () => {
               type="button"
               onClick={handleDeletePayroll}
               disabled={loading}
-              className="flex items-center gap-2 bg-red-800 border border-red-600 px-3 py-2 rounded text-red-200 hover:bg-red-700"
+              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-500'}`}
             >
               <Trash2 size={16} /> Delete
             </button>

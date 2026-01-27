@@ -116,6 +116,7 @@ const Roles = () => {
   const [showInactive, setShowInactive] = useState(false);
 
   const [newRole, setNewRole] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // EDIT MODAL
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -354,76 +355,100 @@ const Roles = () => {
 
   // ADD
   const handleAddRole = async () => {
+    if (loading) return;
     if (!newRole.trim()) return toast.error("Role name required");
     if (newRole.trim().length < 2 || newRole.trim().length > 20) return toast.error("Role Name must be 2-20 characters");
 
-    // Check duplicates
+    setLoading(true);
     try {
-        const searchRes = await searchRoleApi(newRole.trim());
-        if (searchRes?.status === 200) {
-            const rows = searchRes.data || [];
-            const existing = rows.find(r => 
-                (r.Name || r.name || r.RoleName)?.toLowerCase() === newRole.trim().toLowerCase()
-            );
-            if (existing) return toast.error("Role name already exists");
+        // Check duplicates
+        try {
+            const searchRes = await searchRoleApi(newRole.trim());
+            if (searchRes?.status === 200) {
+                const rows = searchRes.data || [];
+                const existing = rows.find(r => 
+                    (r.Name || r.name || r.RoleName)?.toLowerCase() === newRole.trim().toLowerCase()
+                );
+                if (existing) {
+                  setLoading(false);
+                  return toast.error("Role name already exists");
+                }
+            }
+        } catch(err) {
+            console.error(err);
+            setLoading(false);
+            return toast.error("Error checking duplicates");
         }
-    } catch(err) {
-        console.error(err);
-        return toast.error("Error checking duplicates");
-    }
 
-    const res = await addRoleApi({
-      name: newRole,
-      userId: user?.userId || 1,
-    });
+        const res = await addRoleApi({
+          name: newRole,
+          userId: user?.userId || 1,
+        });
 
-    if (res?.status === 200) {
-      toast.success("Role added");
-      setNewRole("");
-      setModalOpen(false);
-      loadRoles();
-    } else if (res?.status === 409) {
-      toast.error("Role already exists");
-    } else {
-      toast.error("Failed to add");
+        if (res?.status === 200) {
+          toast.success("Role added");
+          setNewRole("");
+          setModalOpen(false);
+          loadRoles();
+        } else if (res?.status === 409) {
+          toast.error("Role already exists");
+        } else {
+          toast.error("Failed to add");
+        }
+    } catch (err) {
+        toast.error("Error adding role");
+    } finally {
+        setLoading(false);
     }
   };
 
   // UPDATE
   const handleUpdateRole = async () => {
+    if (loading) return;
     if (!editRole.roleName.trim()) return toast.error("Name cannot be empty");
     if (editRole.roleName.trim().length < 2 || editRole.roleName.trim().length > 20) return toast.error("Role Name must be 2-20 characters");
 
-    // Check duplicates
+    setLoading(true);
     try {
-        const searchRes = await searchRoleApi(editRole.roleName.trim());
-        if (searchRes?.status === 200) {
-            const rows = searchRes.data || [];
-            const existing = rows.find(r => 
-                (r.Name || r.name || r.RoleName)?.toLowerCase() === editRole.roleName.trim().toLowerCase() &&
-                (r.Id || r.id) !== editRole.id
-            );
-            if (existing) return toast.error("Role name already exists");
+        // Check duplicates
+        try {
+            const searchRes = await searchRoleApi(editRole.roleName.trim());
+            if (searchRes?.status === 200) {
+                const rows = searchRes.data || [];
+                const existing = rows.find(r => 
+                    (r.Name || r.name || r.RoleName)?.toLowerCase() === editRole.roleName.trim().toLowerCase() &&
+                    (r.Id || r.id) !== editRole.id
+                );
+                if (existing) {
+                  setLoading(false);
+                  return toast.error("Role name already exists");
+                }
+            }
+        } catch(err) {
+            console.error(err);
+            setLoading(false);
+            return toast.error("Error checking duplicates");
         }
-    } catch(err) {
-        console.error(err);
-        return toast.error("Error checking duplicates");
-    }
 
-    const res = await updateRoleApi(editRole.id, {
-      name: editRole.roleName,
-      userId: user?.userId || 1,
-    });
+        const res = await updateRoleApi(editRole.id, {
+          name: editRole.roleName,
+          userId: user?.userId || 1,
+        });
 
-    if (res?.status === 200) {
-      toast.success("Role updated");
-      setEditModalOpen(false);
-      loadRoles();
-      if (showInactive) loadInactive();
-    } else if (res?.status === 409) {
-       toast.error("Role already exists");
-    } else {
-      toast.error("Update failed");
+        if (res?.status === 200) {
+          toast.success("Role updated");
+          setEditModalOpen(false);
+          loadRoles();
+          if (showInactive) loadInactive();
+        } else if (res?.status === 409) {
+           toast.error("Role already exists");
+        } else {
+          toast.error("Update failed");
+        }
+    } catch (err) {
+        toast.error("Error updating role");
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -453,7 +478,6 @@ const Roles = () => {
     }
   };
 
-  // RESTORE
   // RESTORE
   const handleRestoreRole = async () => {
     const result = await showRestoreConfirm("this role");
@@ -588,9 +612,18 @@ const Roles = () => {
             <div className={`px-5 py-2 border-b flex items-center gap-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/50 border-gray-700'}`}>
               <button
                 onClick={handleAddRole}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
+                disabled={loading}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
+                {loading ? (
+                    <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                    </>
+                ) : (
+                    <>
+                    <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
+                    </>
+                )}
               </button>
               
               <button
@@ -626,9 +659,9 @@ const Roles = () => {
           >
 
             <div className={`flex justify-between px-5 py-3 border-b ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 text-white' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] text-white' : 'bg-gray-900 border-gray-700'}`}>
-              <h2 className="text-lg font-semibold">
+              <h2 className="text-lg font-semibold ">
                 {editRole.isInactive ? "Restore Role" : "Edit Role"} ({editRole.roleName})
-              </h2>
+              </h2> 
 
               <button onClick={() => setEditModalOpen(false)} className="text-white/80 hover:text-white">
                 <X size={20} />
@@ -640,16 +673,25 @@ const Roles = () => {
               {hasPermission(PERMISSIONS.ROLE.EDIT) && !editRole.isInactive && (
                 <button
                   onClick={handleUpdateRole}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
+                  disabled={loading}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Save
+                  {loading ? (
+                      <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                      </>
+                  ) : (
+                      <>
+                      <Save size={16} className={`${theme === 'emerald' || theme === 'purple' ? 'text-white' : 'text-blue-400'}`} /> Update
+                      </>
+                  )}
                 </button>
               )}
 
               {editRole.isInactive && (
                  <button
                   onClick={handleRestoreRole}
-                  className="flex items-center gap-2 bg-green-600/20 border border-green-600 text-green-400 px-3 py-1.5 rounded hover:bg-green-600/30 transition-colors"
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${theme === 'emerald' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] text-white hover:bg-[#8066a3]' : 'bg-transparent border border-gray-500 text-gray-200 hover:bg-gray-700'}`}
                 >
                   <ArchiveRestore size={16} /> Restore
                 </button>

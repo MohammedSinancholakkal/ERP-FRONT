@@ -282,6 +282,7 @@ const TaxPercentage = () => {
         title={editItem.isInactive ? "Restore Tax Percentage" : "Edit Tax Percentage"}
         // permissionEdit={...}
         // permissionDelete={...}
+        saveText="Update"
       >
          <div className="space-y-4">
            <div>
@@ -347,7 +348,9 @@ const TaxPercentage = () => {
                 
                 page={page}
                 setPage={setPage}
-                totalPages={Math.ceil(totalRecords / limit)}
+                limit={limit}
+                setLimit={setLimit}
+                total={totalRecords}
              />
               </div>
             </ContentCard>

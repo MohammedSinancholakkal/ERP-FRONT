@@ -657,6 +657,7 @@ const UpdateStocks = () => {
         title={`${editItem.isInactive ? "Restore Stock" : "Edit Stock"}`}
         permissionDelete={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT)}
+        saveText="Update"
         width="700px"
       >
         <div className="p-0 space-y-4">

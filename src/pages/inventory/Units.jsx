@@ -308,6 +308,7 @@ const Units = () => {
         title={`${editUnit.isInactive ? "Restore Unit" : "Edit Unit"} (${editUnit.name})`}
         permissionDelete={hasPermission(PERMISSIONS.INVENTORY.UNITS.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.INVENTORY.UNITS.EDIT)}
+        saveText="Update"
       >
         {/* NAME */}
         <InputField

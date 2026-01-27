@@ -6,7 +6,9 @@ import {
   X,
   Paperclip,
   Trash2,
-  Star // Added for visual match, functional if we add logic
+  Star,
+  Pencil,
+  ArchiveRestore
 } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
@@ -33,9 +35,15 @@ import {
   searchProductApi,
   searchCategoryApi,
   searchUnitsApi,
-  searchBrandApi
+  searchBrandApi,
+  updateCategoryApi,
+  updateUnitApi,
+  updateBrandApi,
+  getProductByIdApi,
+  restoreProductApi
 } from "../../services/allAPI";
 import AddModal from "../../components/modals/AddModal";
+import toast from "react-hot-toast";
 
 const NewProduct = () => {
   const { theme } = useTheme();    
@@ -65,9 +73,9 @@ const NewProduct = () => {
     Colour: "",
 
     Grade: "",
-
     TaxPercentageId: "",
-    OpeningStock: "0"      
+    OpeningStock: "0",
+    isInactive: false
   });
 
   const [categories, setCategories] = useState([]);
@@ -96,6 +104,16 @@ const NewProduct = () => {
   // Brand
   const [brandModalOpen, setBrandModalOpen] = useState(false);
   const [newBrand, setNewBrand] = useState({ name: "", description: "" });
+
+  // --- EDIT MODAL STATES ---
+  const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
+  const [categoryEditData, setCategoryEditData] = useState({ id: null, name: "" });
+
+  const [editUnitModalOpen, setEditUnitModalOpen] = useState(false);
+  const [unitEditData, setUnitEditData] = useState({ id: null, name: "" });
+
+  const [editBrandModalOpen, setEditBrandModalOpen] = useState(false);
+  const [brandEditData, setBrandEditData] = useState({ id: null, name: "" });
 
 
   // --- INITIAL LOAD ---
@@ -169,9 +187,9 @@ const NewProduct = () => {
   const loadProductDetails = async (productId) => {
       setLoading(true);
       try {
-           const res = await getProductsApi(1, 10000);
+           const res = await getProductByIdApi(productId);
            if (res.status === 200) {
-               const found = res.data.records.find(p => String(p.id) === String(productId));
+               const found = res.data;
                if (found) {
                    setProduct({
                        productCode: found.Barcode || "",
@@ -190,10 +208,12 @@ const NewProduct = () => {
                        HSNCode: found.HSNCode || "",
                        Colour: found.Colour || "",
                        Grade: found.Grade || "",
-                       TaxPercentageId: found.TaxPercentageId || ""
+                       TaxPercentageId: found.TaxPercentageId || "",
+                       OpeningStock: found.UnitsInStock || "0",
+                       isInactive: !found.IsActive
                    });
                } else {
-                   toast.error("Product not found");
+                   showErrorToast("Product not found");
                    navigate("/app/inventory/products");
                }
            }
@@ -223,7 +243,7 @@ const NewProduct = () => {
     if (product.HSNCode && product.HSNCode.trim().length < 3) return showErrorToast("HSN Code must be at least 3 characters");
     
     const colorLen = product.Colour?.trim().length || 0;
-    if (product.Colour && (colorLen < 2 || colorLen > 10)) return showErrorToast("Colour must be between 2 and 10 characters");
+    if (product.Colour && (colorLen < 2 || colorLen > 100)) return showErrorToast("Colour must be between 2 and 100 characters");
 
     if (product.Grade && product.Grade.trim().length > 10) return showErrorToast("Grade must be at most 10 characters");
 
@@ -356,6 +376,28 @@ const NewProduct = () => {
     }
   };
 
+  const handleRestore = async () => {
+    if (!id) return;
+    const result = await showRestoreConfirm('product');
+    if (!result.isConfirmed) return;
+
+    setLoading(true);
+    try {
+        const res = await restoreProductApi(id, { userId: currentUserId });
+        if (res.status === 200) {
+            showSuccessToast("Product restored successfully");
+            navigate("/app/inventory/products");
+        } else {
+            showErrorToast(res.message || "Failed to restore product");
+        }
+    } catch (error) {
+        console.error("Restore Error", error);
+        showErrorToast("Server error during restore");
+    } finally {
+        setLoading(false);
+    }
+  };
+
   // --- QUICK ADD HANDLERS ---
   
   // Category
@@ -379,6 +421,8 @@ const NewProduct = () => {
 
         const res = await addCategoryApi({
             ...newCategory,
+            name: newCategory.name.trim(),
+            CategoryName: newCategory.name.trim(),
             userId: currentUserId
         });
         if (res.status === 200) {
@@ -430,7 +474,12 @@ const NewProduct = () => {
          if (existing) return showErrorToast("Unit Name already exists");
       }
 
-      const res = await addUnitApi({ ...newUnit, userId: currentUserId });
+      const res = await addUnitApi({ 
+           ...newUnit, 
+           name: newUnit.name.trim(),
+           UnitName: newUnit.name.trim(),
+           userId: currentUserId 
+        });
       if (res?.status === 200) {
         showSuccessToast("Unit added");
         
@@ -477,7 +526,12 @@ const NewProduct = () => {
           if (existing) return showErrorToast("Brand Name already exists");
       }
 
-      const res = await addBrandApi({ ...newBrand, userId: currentUserId });
+      const res = await addBrandApi({ 
+           ...newBrand, 
+           name: newBrand.name.trim(),
+           BrandName: newBrand.name.trim(),
+           userId: currentUserId 
+      });
       if (res?.status === 200) {
         showSuccessToast("Brand added");
         
@@ -508,6 +562,58 @@ const NewProduct = () => {
     }
   };
 
+
+  // --- EDIT HANDLERS ---
+  const handleEditCategorySave = async () => {
+    if (!categoryEditData.name?.trim()) return showErrorToast("Category name required");
+    try {
+        const res = await updateCategoryApi(categoryEditData.id, { 
+            name: categoryEditData.name.trim(),
+            CategoryName: categoryEditData.name.trim(),
+            userId: currentUserId 
+        });
+        if (res?.status === 200) {
+             showSuccessToast("Category updated");
+             setEditCategoryModalOpen(false);
+             const resC = await getCategoriesApi(1, 1000);
+             if (resC.status === 200) setCategories(resC.data.records || []);
+        } else showErrorToast("Update failed");
+    } catch(err) { console.error(err); showErrorToast("Server error"); }
+  };
+
+  const handleEditUnitSave = async () => {
+    if (!unitEditData.name?.trim()) return showErrorToast("Unit name required");
+    try {
+        const res = await updateUnitApi(unitEditData.id, { 
+            name: unitEditData.name.trim(),
+            UnitName: unitEditData.name.trim(),
+            userId: currentUserId
+        });
+        if (res?.status === 200) {
+             showSuccessToast("Unit updated");
+             setEditUnitModalOpen(false);
+             const resU = await getUnitsApi();
+             if (resU.status === 200) setUnits(resU.data.records || []);
+        } else showErrorToast("Update failed");
+    } catch(err) { console.error(err); showErrorToast("Server error"); }
+  };
+
+  const handleEditBrandSave = async () => {
+    if (!brandEditData.name?.trim()) return showErrorToast("Brand name required");
+    try {
+        const res = await updateBrandApi(brandEditData.id, { 
+            name: brandEditData.name.trim(),
+            BrandName: brandEditData.name.trim(),
+            userId: currentUserId 
+        });
+        if (res?.status === 200) {
+             showSuccessToast("Brand updated");
+             setEditBrandModalOpen(false);
+             const resB = await getBrandsApi();
+             if (resB.status === 200) setBrands(resB.data.records || []);
+        } else showErrorToast("Update failed");
+    } catch(err) { console.error(err); showErrorToast("Server error"); }
+  };
 
   // --- RENDER HELPERS ---
   const inputClass = `w-full px-3 py-2 rounded border bg-transparent outline-none transition-colors ${
@@ -542,8 +648,7 @@ const NewProduct = () => {
                             navigate("/app/inventory/products");
                         }
                     }}
-                    className={`p-2 rounded-full ${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-purple-200 text-purple-900' : 'hover:bg-gray-700'}`}
-                    >
+                   className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
                     <ArrowLeft size={24} />
                     </button>
                     <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>{id ? "Edit Product" : "New Product"}</h2>
@@ -551,32 +656,64 @@ const NewProduct = () => {
                 {/* Save Button */}
 
                 <div className="flex items-center gap-2">
-                    {id && (
-                        <button
-                            onClick={handleDelete}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
-                        >
-                            <Trash2 size={18} />
-                            Delete
-                        </button>
-                    )}
+                    {product.isInactive ? (
+                       <button
+                           onClick={handleRestore}
+                           disabled={loading}
+                           className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium text-white ${
+                               theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#6448AE] hover:bg-[#6E55B6] border border-[#6448AE]'
+                           } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                       >
+                           {loading ? (
+                                <>
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Restoring...
+                                </>
+                           ) : (
+                                <>
+                                <ArchiveRestore size={18} />
+                                Restore
+                                </>
+                           )}
+                       </button>
+                    ) : (
+                        <>
+                            {id && (
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={loading}
+                                    className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+                                >
+                                    <Trash2 size={18} />
+                                    Delete
+                                </button>
+                            )}
 
-                    <button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
-                            theme === 'emerald'
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                            : theme === 'purple'
-                            ? 'bg-[var(--theme-color)] hover:bg-[#8066a3] text-white'
-                            : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
-                        }`}
-                        style={theme === 'purple' ? { backgroundColor: '#6448AE' } : {}}
-                    >
-                        <Save size={18} />
-                        {loading ? (id ? "Updating..." : "Saving...") : (id ? "Update" : "Save")}
-                    </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={loading}
+                                className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
+                                    theme === 'emerald'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                    : theme === 'purple'
+                                    ? 'bg-[#6448AE] hover:bg-[#6E55B6] text-white'
+                                    : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
+                                } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            >
+                                {loading ? (
+                                    <>
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    {id ? "Updating..." : "Saving..."}
+                                    </>
+                                ) : (
+                                    <>
+                                    <Save size={18} />
+                                    {id ? "Update" : "Save"}
+                                    </>
+                                )}
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
             <hr className="mb-4 border-gray-300" />
@@ -597,6 +734,7 @@ const NewProduct = () => {
                            value={product.productCode}
                            onChange={(e) => setProduct({...product, productCode: e.target.value})}
                            placeholder=""
+                           disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -613,6 +751,7 @@ const NewProduct = () => {
                           value={product.ProductName}
                           onChange={(e) => setProduct({...product, ProductName: e.target.value})}
                           placeholder=""
+                          disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -628,6 +767,7 @@ const NewProduct = () => {
                           label="Model"
                           value={product.Model}
                           onChange={(e) => setProduct({...product, Model: e.target.value})}
+                          disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -663,6 +803,7 @@ const NewProduct = () => {
                           step="0.01"
                           value={product.UnitPrice}
                           onChange={(e) => setProduct({...product, UnitPrice: e.target.value})}
+                          disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -680,6 +821,7 @@ const NewProduct = () => {
                           step="0.01"
                           value={product.ReorderLevel}
                           onChange={(e) => setProduct({...product, ReorderLevel: e.target.value})}
+                          disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -699,15 +841,31 @@ const NewProduct = () => {
                                 onChange={(val) => setProduct({...product, CategoryId: val})}
                                 placeholder="--select--"
                                 className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
+                                disabled={product.isInactive}
                             />
                         </div>
-                        <button 
-                            type="button"
-                            onClick={() => setCategoryModalOpen(true)}
-                            className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                        >
-                            <Star size={16} />
-                        </button>
+                        {id && product.CategoryId && !product.isInactive && (
+                             <button 
+                                type="button"
+                                onClick={() => {
+                                    const c = categories.find(x => String(x.id || x.Id) == String(product.CategoryId));
+                                    setCategoryEditData({ id: product.CategoryId, name: c?.name || c?.CategoryName || "" });
+                                    setEditCategoryModalOpen(true);
+                                }}
+                                className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            >
+                                <Pencil size={16} />
+                            </button>
+                        )}
+                        {(!id || !product.CategoryId) && !product.isInactive && (
+                            <button 
+                                type="button"
+                                onClick={() => setCategoryModalOpen(true)}
+                                className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            >
+                                <Star size={16} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -721,15 +879,31 @@ const NewProduct = () => {
                                 value={product.UnitId}
                                 onChange={(val) => setProduct({...product, UnitId: val})}
                                 placeholder="--select--"
+                                disabled={product.isInactive}
                             />
                         </div>
-                        <button 
-                             type="button"
-                             onClick={() => setUnitModalOpen(true)}
-                             className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                        >
-                            <Star size={16} />
-                        </button>
+                        {id && product.UnitId && !product.isInactive && (
+                             <button 
+                                type="button"
+                                onClick={() => {
+                                    const u = units.find(x => String(x.id || x.Id) == String(product.UnitId));
+                                    setUnitEditData({ id: product.UnitId, name: u?.name || u?.UnitName || "" });
+                                    setEditUnitModalOpen(true);
+                                }}
+                                className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            >
+                                <Pencil size={16} />
+                            </button>
+                        )}
+                        {(!id || !product.UnitId) && !product.isInactive && (
+                            <button 
+                                 type="button"
+                                 onClick={() => setUnitModalOpen(true)}
+                                 className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            >
+                                <Star size={16} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -741,6 +915,7 @@ const NewProduct = () => {
                           label="HSN Code"
                           value={product.HSNCode}
                           onChange={(e) => setProduct({...product, HSNCode: e.target.value})}
+                          disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -758,15 +933,31 @@ const NewProduct = () => {
                                 value={product.BrandId}
                                 onChange={(val) => setProduct({...product, BrandId: val})}
                                 placeholder="--select--"
+                                disabled={product.isInactive}
                             />
                         </div>
-                         <button 
-                            type="button"
-                            onClick={() => setBrandModalOpen(true)}
-                            className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                         >
-                            <Star size={16} />
-                        </button>
+                        {id && product.BrandId && !product.isInactive && (
+                             <button 
+                                type="button"
+                                onClick={() => {
+                                    const b = brands.find(x => String(x.id || x.Id) == String(product.BrandId));
+                                    setBrandEditData({ id: product.BrandId, name: b?.name || b?.BrandName || "" });
+                                    setEditBrandModalOpen(true);
+                                }}
+                                className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            >
+                                <Pencil size={16} />
+                            </button>
+                        )}
+                        {(!id || !product.BrandId) && !product.isInactive && (
+                            <button 
+                                type="button"
+                                onClick={() => setBrandModalOpen(true)}
+                                className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            >
+                                <Star size={16} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -780,6 +971,7 @@ const NewProduct = () => {
                             value={product.SupplierId}
                             onChange={(val) => setProduct({...product, SupplierId: val})}
                             placeholder="--select--"
+                            disabled={product.isInactive}
                         />
                     </div>
                      {/* Spacer */}
@@ -797,6 +989,7 @@ const NewProduct = () => {
                             value={product.TaxPercentageId}
                             onChange={(val) => setProduct({...product, TaxPercentageId: val})}
                             placeholder="--select--"
+                            disabled={product.isInactive}
                         />
                     </div>
                      {/* Spacer */}
@@ -813,6 +1006,7 @@ const NewProduct = () => {
                           label="Colour"
                           value={product.Colour}
                           onChange={(e) => setProduct({...product, Colour: e.target.value})}
+                          disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -827,6 +1021,7 @@ const NewProduct = () => {
                           label="Grade"
                           value={product.Grade}
                           onChange={(e) => setProduct({...product, Grade: e.target.value})}
+                          disabled={product.isInactive}
                       />
                     </div>
                      {/* Spacer */}
@@ -852,11 +1047,12 @@ const NewProduct = () => {
                          <button 
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
+                            disabled={product.isInactive}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors border ${
                                 theme === 'emerald' 
                                 ? 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200' :
                                 theme === 'purple' ? 'bg-[#6448AE] text-white': 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                            }`}
+                            } ${product.isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}
                          >
                             <Paperclip size={16} />
                             <span className="text-sm">Select File</span>
@@ -892,6 +1088,7 @@ const NewProduct = () => {
                         textarea
                         rows={3}
                         className="resize-y"
+                        disabled={product.isInactive}
                     />
                 </div>
 
@@ -988,9 +1185,41 @@ const NewProduct = () => {
                 />
             </div>
         </AddModal>
+        {/* --- EDIT CATEGORY MODAL --- */}
+        <AddModal
+            isOpen={editCategoryModalOpen}
+            onClose={() => setEditCategoryModalOpen(false)}
+            onSave={handleEditCategorySave}
+            title={`Edit Category (${categoryEditData.name})`}
+            saveText="Save"
+            zIndex={1150}
+        >
+            <InputField value={categoryEditData.name} onChange={e => setCategoryEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+        </AddModal>
 
+        {/* --- EDIT UNIT MODAL --- */}
+        <AddModal
+            isOpen={editUnitModalOpen}
+            onClose={() => setEditUnitModalOpen(false)}
+            onSave={handleEditUnitSave}
+            title={`Edit Unit (${unitEditData.name})`}
+            saveText="Save"
+            zIndex={1150}
+        >
+            <InputField value={unitEditData.name} onChange={e => setUnitEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+        </AddModal>
 
-
+        {/* --- EDIT BRAND MODAL --- */}
+        <AddModal
+            isOpen={editBrandModalOpen}
+            onClose={() => setEditBrandModalOpen(false)}
+            onSave={handleEditBrandSave}
+            title={`Edit Brand (${brandEditData.name})`}
+            saveText="Save"
+            zIndex={1150}
+        >
+            <InputField value={brandEditData.name} onChange={e => setBrandEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+        </AddModal>
     </PageLayout>
   );
 };

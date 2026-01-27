@@ -474,6 +474,7 @@ const Shippers = () => {
           title={editItem.isInactive ? "Restore Shipper" : "Edit Shipper"}
           permissionDelete={hasPermission(PERMISSIONS.SHIPPERS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.SHIPPERS.EDIT)}
+          saveText="Update"
        >
           <div className="space-y-4">
             <div>

@@ -1,7 +1,17 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
-import { getPurchaseByIdApi, getSuppliersApi } from "../services/allAPI";
+import { getPurchaseByIdApi, getSuppliersApi, getSupplierByIdApi, getStatesApi, getCitiesApi } from "../services/allAPI";
+
+const parseArrayFromResponse = (res) => {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (res.data?.records) return res.data.records;
+  if (res.records) return res.records;
+  const maybeArray = Object.values(res).find((v) => Array.isArray(v));
+  return Array.isArray(maybeArray) ? maybeArray : [];
+};
 import { serverURL } from "../services/serverURL";
 
 // Helper: Format Currency
@@ -24,24 +34,55 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
     const purchase = res.data.purchase;
     const details = res.data.details || [];
 
-    // 2. Fetch Supplier if name is missing (common in Purchase API)
-    if (!purchase.supplierName && !purchase.SupplierName && purchase.SupplierId) {
+    // 2. Fetch Supplier if details missing OR to resolve City/State
+    if (purchase.SupplierId) {
         try {
-            // Using getSuppliersApi as fallback since getSupplierById might not be available or imported
-            const supRes = await getSuppliersApi(1, 1000); 
+            // Parallel Fetch
+            const [supRes, citiesRes, statesRes] = await Promise.all([
+                 getSupplierByIdApi(purchase.SupplierId),
+                 getCitiesApi(1, 5000),
+                 getStatesApi(1, 5000)
+            ]);
+
             if (supRes.status === 200) {
-                 const records = supRes.data.records || supRes.data;
-                 const found = records.find(s => s.id == purchase.SupplierId);
-                 if (found) {
-                     purchase.supplierName = found.companyName;
-                     purchase.Address = found.address;
-                     purchase.Phone = found.phone;
-                     purchase.GSTIN = found.gstin || found.vatNo; 
-                     purchase.email = found.email;
+                 const sData = supRes.data?.supplier || supRes.data?.data || supRes.data || {};
+                 
+                 // Resolve Names
+                 const cityList = parseArrayFromResponse(citiesRes);
+                 const stateList = parseArrayFromResponse(statesRes);
+
+                 const cityId = sData.CityId || sData.cityId;
+                 const stateId = sData.StateId || sData.stateId;
+                 
+                 let resolvedCity = sData.City || sData.city || "";
+                 let resolvedState = sData.State || sData.state || "";
+
+                 if (cityId && cityList.length > 0) {
+                      const found = cityList.find(c => String(c.id || c.Id || c.CityId) === String(cityId));
+                      if (found) resolvedCity = found.name || found.Name || found.CityName;
                  }
+                 if (stateId && stateList.length > 0) {
+                      const found = stateList.find(s => String(s.id || s.Id || s.StateId) === String(stateId));
+                      if (found) resolvedState = found.name || found.Name || found.StateName;
+                 }
+                 
+                 // Assign
+                 if(!purchase.supplierName) purchase.supplierName = sData.companyName || sData.CompanyName;
+                 if(!purchase.Address) purchase.Address = sData.address || sData.Address;
+                 if(!purchase.Phone) purchase.Phone = sData.phone || sData.Phone;
+                 if(!purchase.GSTIN) purchase.GSTIN = sData.gstin || sData.GSTIN || sData.vatNo; 
+                 if(!purchase.email) purchase.email = sData.email || sData.Email || sData.EmailAddress;
+                 
+                 // Map detailed address fields
+                 if(!purchase.AddressLine1) purchase.AddressLine1 = sData.addressLine1 || sData.AddressLine1;
+                 if(!purchase.AddressLine2) purchase.AddressLine2 = sData.addressLine2 || sData.AddressLine2;
+                 if(!purchase.City) purchase.City = resolvedCity;
+                 if(!purchase.State) purchase.State = resolvedState;
+                 if(!purchase.ZipCode) purchase.ZipCode = sData.postalCode || sData.PostalCode;
+                 if(!purchase.PAN) purchase.PAN = sData.pan || sData.PAN;
             }
         } catch(err) { 
-            console.error("Supplier fetch failed", err); 
+            console.error("Supplier/Address fetch failed", err); 
         }
     }
 
@@ -108,37 +149,95 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
            }
        }
 
-       // Company Name (Right Aligned in box)
+       // Company Name (Left Aligned in Right Block)
+       // Define a starting X for the right block
+       const blockX = 135; 
+
        const companyName = settings?.companyName || "";
        doc.setFontSize(16);
-       doc.text(companyName, pageWidth - margin - 5, boxTopY + 8, { align: "right" });
+       doc.text(companyName, blockX, boxTopY + 8); // Default align is left
        
        // Address
        doc.setFontSize(8);
        doc.setFont("helvetica", "normal");
        const address = settings?.address || "";
-       const addressLines = doc.splitTextToSize(address, 100);
-       doc.text(addressLines, pageWidth - margin - 5, boxTopY + 14, { align: "right" });
+       // split text relative to the remaining width (pageWidth - margin - blockX)
+       const remainingWidth = pageWidth - margin - blockX - 2;
+       const addressLines = doc.splitTextToSize(address, remainingWidth);
+       doc.text(addressLines, blockX, boxTopY + 14);
        
-       // Contact
-       doc.text(`Phone no: ${settings?.phone || ""} Email: ${settings?.companyEmail || ""}`, pageWidth - margin - 5, boxTopY + 22, { align: "right" });
-       doc.text(`GSTIN: ${settings?.gstin || settings?.GSTIN || ""}`, pageWidth - margin - 5, boxTopY + 26, { align: "right" });
-
+       // Contact - Split rows
+       // 1. Email
+       doc.text(`Email: ${settings?.companyEmail || ""}`, blockX, boxTopY + 19);
+       // 2. Phone
+       doc.text(`Phone: ${settings?.phone || ""}`, blockX, boxTopY + 23);
+       // 3. GSTIN
+       doc.text(`GSTIN: ${settings?.gstin || settings?.GSTIN || ""}`, blockX, boxTopY + 27);
+       
        return boxTopY + boxH;
     };
 
     // Supplier & Transport Section
     const drawSupplierSection = (y) => {
-        const sectionH = 35;
-        drawBox(margin, y, contentWidth, sectionH);
-        
-        const midX = margin + (contentWidth * 0.35); 
+        const midX = margin + (contentWidth * 0.35); // Reverted to 0.35
         const rightX = pageWidth - margin - 50; 
+        
+        // --- PRE-CALCULATE HEIGHT ---
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+
+        // Construct Address
+        let finalAddrLines = [];
+        const line1 = purchase.AddressLine1 || purchase.addressLine1;
+        
+        let otherParts = [];
+        if(purchase.AddressLine2 || purchase.addressLine2) otherParts.push(purchase.AddressLine2 || purchase.addressLine2);
+        if(purchase.State || purchase.state) otherParts.push(purchase.State || purchase.state);
+        if(purchase.City || purchase.city) otherParts.push(purchase.City || purchase.city);
+        if(purchase.ZipCode || purchase.postalCode) otherParts.push(purchase.ZipCode || purchase.postalCode);
+        
+        if (line1) {
+             finalAddrLines.push(line1);
+             if(otherParts.length > 0) finalAddrLines.push(otherParts.join(", "));
+        } else {
+             const full = purchase.Address || purchase.address || "";
+             if (full) {
+                 finalAddrLines.push(full);
+             } else if (otherParts.length > 0) {
+                 finalAddrLines.push(otherParts.join(", "));
+             }
+        }
+        
+        // Calculate needed height for Supplier
+        const supplierWidth = (midX - margin) - 4;
+        let supplierContentH = 14; 
+        
+        let calculatedLines = []; // Store them to reuse
+        finalAddrLines.forEach(lineStr => {
+             const wrapped = doc.splitTextToSize(lineStr, supplierWidth);
+             calculatedLines.push(...wrapped);
+        });
+
+        supplierContentH += (calculatedLines.length * 3.5); // Reduced from 4
+        
+        const checkField = (val) => val ? 3.5 : 0;
+        supplierContentH += checkField(purchase.email || purchase.Email);
+        supplierContentH += checkField(purchase.Phone || purchase.phone);
+        supplierContentH += checkField(purchase.PAN || purchase.pan);
+        supplierContentH += checkField(purchase.supplierGSTIN || purchase.SupplierGSTIN || purchase.GSTIN || purchase.gstin);
+        
+        supplierContentH += 4; // Buffer
+
+        const minHeight = 35;
+        const sectionH = Math.max(minHeight, supplierContentH);
+
+        // --- DRAW BOX ---
+        drawBox(margin, y, contentWidth, sectionH);
         
         // Vertical Dividers
         doc.line(midX, y, midX, y + sectionH); 
         doc.line(rightX, y, rightX, y + sectionH); 
-        doc.line(margin, y + 6, pageWidth - margin, y + 6); // Headers line
+        doc.line(margin, y + 6, pageWidth - margin, y + 6); 
 
         // Headers
         doc.setFontSize(8);
@@ -151,16 +250,33 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
         doc.text(purchase.supplierName || purchase.SupplierName || "", margin + 2, y + 10);
         
         doc.setFont("helvetica", "normal");
-        const suppAddr = purchase.Address || purchase.address || "";
-        const suppAddrLines = doc.splitTextToSize(suppAddr, (midX - margin) - 4);
-        doc.text(suppAddrLines, margin + 2, y + 14);
+        
+        // Render Address Lines
+        let currentTextY = y + 14;
+        calculatedLines.forEach(lineStr => {
+             doc.text(lineStr, margin + 2, currentTextY);
+             currentTextY += 3.5; // Reduced from 4
+        });
+        
+        let detailsY = currentTextY; 
+        const lineHeight = 3.5; 
 
-
-        let detailsY = y + 14 + (suppAddrLines.length * 4);  // approx 3 units per line height
+        // Email if available?
+        if (purchase.email || purchase.Email) {
+             doc.text(`Email: ${purchase.email || purchase.Email}`, margin + 2, detailsY);
+             detailsY += lineHeight;
+        }
         
         if (purchase.Phone || purchase.phone) {
             doc.text(`Phone: ${purchase.Phone || purchase.phone}`, margin + 2, detailsY);
-            detailsY += 4;
+            detailsY += lineHeight;
+        }
+
+        // Add PAN logic
+        const panVal = purchase.PAN || purchase.pan;
+        if(panVal) {
+             doc.text(`PAN: ${panVal}`, margin + 2, detailsY);
+             detailsY += lineHeight;
         }
         
         const gstinVal = purchase.supplierGSTIN || purchase.SupplierGSTIN || purchase.GSTIN || purchase.gstin;
@@ -170,12 +286,14 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
         
         // --- COL 2: Transport ---
         doc.setFont("helvetica", "normal");
-        doc.text("Vehicle Number:", midX + 2, y + 10);
-        doc.text(purchase.VehicleNo || purchase.vehicleNo || "-", midX + 2, y + 15);
+        const transportWidth = (rightX - midX) - 4;
+        const vehicleText = `Vehicle Number: ${purchase.VehicleNo || purchase.vehicleNo || "-"}`;
+        const vehicleLines = doc.splitTextToSize(vehicleText, transportWidth);
+        doc.text(vehicleLines, midX + 2, y + 10);
         
         // --- COL 3: PO/Invoice Data ---
         doc.setFont("helvetica", "bold");
-        doc.text("Invoice No:", rightX + 2, y + 10); // Changed from PO No to Invoice No
+        doc.text("Invoice No:", rightX + 2, y + 10);
         doc.text("Date:", rightX + 2, y + 15);
         
         doc.setFont("helvetica", "normal");
@@ -219,17 +337,17 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
         [
           { content: 'Sr.\nNo.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'Code', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Name of Product', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+          { content: 'Name of Product', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'HSN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'Qty', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Rate', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
-          { content: 'Taxable', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
+          { content: 'Rate', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'IGST', colSpan: 2, styles: { halign: 'center' } },
-          { content: 'Total', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } }
+          { content: 'Total', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
         ],
         [
           { content: '%', styles: { halign: 'center' } },
-          { content: 'Amount', styles: { halign: 'right' } }
+          { content: 'Amount', styles: { halign: 'center' } }
         ]
       ];
     } else {
@@ -297,7 +415,8 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
             item.HSNCode || item.hsnCode || item.Product?.hsnCode || item.Product?.HSNCode || "",
             `${qty}`,
             formatCurrency(rate),
-            isTaxApplicable ? formatCurrency(taxable) : ""
+
+            isTaxApplicable ? formatCurrency(taxable) : formatCurrency(taxable)
         ];
 
         if (isIGST) {
@@ -311,7 +430,7 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
     });
 
     // Dynamic Height Calculation & Fillers
-    const footerNeededSpace = 85; 
+    const footerNeededSpace = 72; 
     const startTableY = currentY;
     const availableSpace = pageHeight - margin - 10 - startTableY - footerNeededSpace; 
     const estRowHeight = 8; 
@@ -332,7 +451,7 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
       { content: 'Total', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
       { content: details.reduce((a,b)=>a+Number(b.Quantity||b.quantity||0),0).toFixed(2), styles: { halign: 'center', fontStyle: 'bold' } },
       { content: '', styles: { halign: 'right' } },
-      { content: isTaxApplicable ? totalTaxable.toFixed(2) : "", styles: { halign: 'right', fontStyle: 'bold' } },
+      { content: totalTaxable.toFixed(2), styles: { halign: 'right', fontStyle: 'bold' } },
     ];
     
     if (isIGST) {
@@ -394,7 +513,7 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
 
     // --- AFTER TABLE (Totals & Footer) ---
     let finalY = doc.lastAutoTable.finalY;
-    const requiredFooterH = 85; 
+    const requiredFooterH = 70; 
     if (finalY + requiredFooterH > pageHeight - margin) {
         doc.addPage();
         finalY = margin + 10;
@@ -407,7 +526,7 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
 
     // --- RIGHT COLUMN: TOTALS ---
     let rY = startFooterY;
-    const rightRowH = 9; 
+    const rightRowH = 7; 
     const rValX = pageWidth - margin - 8;
     const rLabelX = midX + 2;
     
@@ -421,7 +540,7 @@ export const generatePurchaseInvoicePDF = async (purchaseId, settings, title = "
         rY += h;
     };
     
-    drawRightRow("Taxable Amount", isTaxApplicable ? totalTaxable.toFixed(2) : "", rightRowH);
+    drawRightRow("Taxable Amount", totalTaxable.toFixed(2), rightRowH);
     if (isIGST) {
         drawRightRow("Add : IGST", totalIGST.toFixed(2), rightRowH);
     } else {

@@ -442,6 +442,7 @@ const CustomerGroups = () => {
           title={editItem.isInactive ? "Restore Customer Group" : "Edit Customer Group"}
           permissionDelete={hasPermission(PERMISSIONS.CUSTOMER_GROUPS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.CUSTOMER_GROUPS.EDIT)}
+          saveText="Update"
        >
           <div>
               <div className="flex gap-2 items-start">

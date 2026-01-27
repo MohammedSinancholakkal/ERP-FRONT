@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Save, Star, X, ArrowLeft, Trash2, ArchiveRestore } from "lucide-react";
+import { Save, Star, X, ArrowLeft, Trash2, ArchiveRestore, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -31,6 +31,11 @@ import {
   searchRegionApi,
   searchSupplierGroupApi,
   searchSupplierApi,
+  updateCountryApi,
+  updateStateApi,
+  updateCityApi,
+  updateRegionApi,
+  updateSupplierGroupApi,
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -68,6 +73,22 @@ const NewSupplier = () => {
   const [addCityModalOpen, setAddCityModalOpen] = useState(false);
   const [addSupplierGroupModalOpen, setAddSupplierGroupModalOpen] = useState(false);
   const [addRegionModalOpen, setAddRegionModalOpen] = useState(false);
+
+  // Edit Modal States
+  const [editCountryModalOpen, setEditCountryModalOpen] = useState(false);
+  const [countryEditData, setCountryEditData] = useState({ id: null, name: "" });
+
+  const [editStateModalOpen, setEditStateModalOpen] = useState(false);
+  const [stateEditData, setStateEditData] = useState({ id: null, name: "" });
+
+  const [editCityModalOpen, setEditCityModalOpen] = useState(false);
+  const [cityEditData, setCityEditData] = useState({ id: null, name: "" });
+
+  const [editRegionModalOpen, setEditRegionModalOpen] = useState(false);
+  const [regionEditData, setRegionEditData] = useState({ id: null, name: "" });
+
+  const [editSupplierGroupModalOpen, setEditSupplierGroupModalOpen] = useState(false);
+  const [supplierGroupEditData, setSupplierGroupEditData] = useState({ id: null, name: "" });
 
   // New Item States
   const [newCountryName, setNewCountryName] = useState("");
@@ -350,7 +371,11 @@ const NewSupplier = () => {
       try {
           let created = null;
           if (typeof addCountryApi === "function") {
-              const res = await addCountryApi({ name: newCountryName.trim(), userId: 1 });
+              const res = await addCountryApi({ 
+                name: newCountryName.trim(),
+                CountryName: newCountryName.trim(), 
+                userId: 1 
+              });
               created = res?.data?.record || res?.data || null;
           }
            if (!created || (!created.id && !created.Id && !created.CountryId && !created.countryId)) {
@@ -399,7 +424,12 @@ const NewSupplier = () => {
     try {
         let created = null;
         if (typeof addStateApi === "function") {
-            const res = await addStateApi({ name: newState.name.trim(), countryId: Number(newState.countryId), userId: 1 });
+            const res = await addStateApi({ 
+                name: newState.name.trim(),
+                StateName: newState.name.trim(), 
+                countryId: Number(newState.countryId), 
+                userId: 1 
+            });
             created = res?.data?.record || res?.data || null;
         }
         if (!created || (!created.id && !created.Id && !created.StateId && !created.stateId)) {
@@ -460,6 +490,7 @@ const NewSupplier = () => {
         if (typeof addCityApi === "function") {
              const res = await addCityApi({
                 name: newCity.name.trim(),
+                CityName: newCity.name.trim(),
                 countryId: Number(newCity.countryId),
                 stateId: Number(newCity.stateId),
                 userId: 1,
@@ -518,7 +549,11 @@ const NewSupplier = () => {
       }
 
       try {
-           const res = await addSupplierGroupApi({ name: newGroupName.trim() });
+           const res = await addSupplierGroupApi({ 
+                name: newGroupName.trim(),
+                groupName: newGroupName.trim(),
+                GroupName: newGroupName.trim()
+            });
            const created = res.data?.record || res.data || { id: res.data?.id, name: newGroupName.trim() }; // basic fallback
            
            // Normalize
@@ -556,7 +591,10 @@ const NewSupplier = () => {
       }
 
       try {
-           const res = await addRegionApi({ name: newRegionName.trim() });
+           const res = await addRegionApi({ 
+                name: newRegionName.trim(),
+                RegionName: newRegionName.trim()
+            });
            const created = res.data?.record || res.data || { id: res.data?.id, name: newRegionName.trim() };
 
            // Normalize
@@ -576,6 +614,111 @@ const NewSupplier = () => {
                toast.error("Failed to add region");
            }
       }
+  };
+
+  // --- EDIT HANDLERS ---
+  const handleEditCountrySave = async () => {
+    if (!countryEditData.name?.trim()) return toast.error("Country name required");
+    try {
+        const res = await updateCountryApi(countryEditData.id, { 
+            name: countryEditData.name.trim(), 
+            CountryName: countryEditData.name.trim(),
+            userId: 1 
+        });
+        if (res?.status === 200) {
+            toast.success("Country updated");
+            setEditCountryModalOpen(false);
+            const resC = await getCountriesApi(1, 5000);
+            setCountries(parseArrayFromResponse(resC));
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
+  const handleEditStateSave = async () => {
+    if (!stateEditData.name?.trim()) return toast.error("State name required");
+    try {
+        const currentState = statesMaster.find(s => String(s.id) == String(stateEditData.id) || String(s.Id) == String(stateEditData.id));
+        const res = await updateStateApi(stateEditData.id, { 
+            name: stateEditData.name.trim(), 
+            StateName: stateEditData.name.trim(),
+            countryId: currentState?.CountryId || currentState?.countryId, 
+            userId: 1 
+        });
+        if (res?.status === 200) {
+            toast.success("State updated");
+            setEditStateModalOpen(false);
+            const resS = await getStatesApi(1, 5000);
+            const arr = parseArrayFromResponse(resS);
+            setStatesMaster(arr);
+            if(form.countryId) {
+                 const filteredStates = arr.filter((s) => String(s.CountryId ?? s.countryId) === String(form.countryId));
+                 setStates(filteredStates);
+            } else {
+                 setStates(arr);
+            }
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
+  const handleEditCitySave = async () => {
+    if (!cityEditData.name?.trim()) return toast.error("City name required");
+    try {
+        const currentCity = citiesMaster.find(c => String(c.id) == String(cityEditData.id) || String(c.Id) == String(cityEditData.id));
+        const res = await updateCityApi(cityEditData.id, { 
+            name: cityEditData.name.trim(), 
+            CityName: cityEditData.name.trim(),
+            stateId: currentCity?.StateId || currentCity?.stateId, 
+            countryId: currentCity?.CountryId || currentCity?.countryId, 
+            userId: 1 
+        });
+        if (res?.status === 200) {
+            toast.success("City updated");
+            setEditCityModalOpen(false);
+            const resC = await getCitiesApi(1, 5000);
+            const arr = parseArrayFromResponse(resC);
+            setCitiesMaster(arr);
+            if(form.stateId) {
+                const filteredCities = arr.filter((c) => String(c.StateId ?? c.stateId) === String(form.stateId));
+                setCities(filteredCities);
+            } else {
+                setCities(arr);
+            }
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
+  const handleEditRegionSave = async () => {
+    if (!regionEditData.name?.trim()) return toast.error("Region name required");
+    try {
+        const res = await updateRegionApi(regionEditData.id, { 
+            name: regionEditData.name.trim(),
+            RegionName: regionEditData.name.trim() 
+        });
+        if (res?.status === 200) {
+             toast.success("Region updated");
+             setEditRegionModalOpen(false);
+             const resR = await getRegionsApi(1, 5000);
+             setRegions(parseArrayFromResponse(resR));
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
+  const handleEditSupplierGroupSave = async () => {
+    if (!supplierGroupEditData.name?.trim()) return toast.error("Group name required");
+    try {
+        const res = await updateSupplierGroupApi(supplierGroupEditData.id, { 
+            groupName: supplierGroupEditData.name.trim(),
+            GroupName: supplierGroupEditData.name.trim(),
+            name: supplierGroupEditData.name.trim(),
+            userId: 1 
+        });
+        if (res?.status === 200) {
+             toast.success("Group updated");
+             setEditSupplierGroupModalOpen(false);
+             const resG = await getSupplierGroupsApi(1, 5000);
+             setSupplierGroups(parseArrayFromResponse(resG));
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
   };
 
   const validate = () => {
@@ -846,10 +989,10 @@ const handleRestore = async () => {
 
   if (isEditMode && isLoading) {
     return (
-      <div className="h-[90vh] flex items-center justify-center bg-gray-900 text-white">
+      <div className={`h-[90vh] flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-50' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200' : 'bg-gray-900'}`}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-gray-300">Loading supplier...</span>
+          <div className={`w-10 h-10 border-4 rounded-full animate-spin ${theme === 'emerald' ? 'border-emerald-500 border-t-transparent' : theme === 'purple' ? 'border-[#6448AE] border-t-transparent' : 'border-blue-500 border-t-transparent'}`}></div>
+          <span className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-[#6448AE] font-medium' : 'text-gray-300'}`}>Loading supplier...</span>
         </div>
       </div>
     );
@@ -862,64 +1005,76 @@ const handleRestore = async () => {
         
           {/* HEADER */}
         {/* HEADER */}
-        <div className="flex items-center gap-4 mb-2">
-             <button 
-               onClick={() => {
-                   if (location.state?.from) {
-                       navigate(location.state.from);
-                   } else if (location.state?.returnTo) {
-                       navigate(location.state.returnTo);
-                   } else {
-                       navigate("/app/businesspartners/suppliers");
-                   }
-               }}
-                className={`p-2 rounded border transition-colors ${theme === 'emerald' ? 'bg-white border-gray-200 hover:bg-emerald-50 text-gray-600' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-800 border-gray-700 text-gray-300'}`}
-             >
-                <ArrowLeft size={24} />
-             </button>
-             <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>{isEditMode ? (isInactive ? "Restore Supplier" : "Edit Supplier") : "New Supplier"}</h2>
+        <div className="mb-6">
+           <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-4">
+                 <button 
+                   onClick={() => {
+                       if (location.state?.from) {
+                           navigate(location.state.from);
+                       } else if (location.state?.returnTo) {
+                           navigate(location.state.returnTo);
+                       } else {
+                           navigate("/app/businesspartners/suppliers");
+                       }
+                   }}
+                   className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                    <ArrowLeft size={24} />
+                 </button>
+                 <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>{isEditMode ? (isInactive ? "Restore Supplier" : "Edit Supplier") : "New Supplier"}</h2>
+              </div>
+    
+              <div className="flex items-center gap-3">
+                 {isEditMode && !isInactive && hasPermission(PERMISSIONS.SUPPLIERS.DELETE) && (
+                    <button
+                        onClick={handleDelete}
+                        className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg"
+                    >
+                        <Trash2 size={18} />
+                        Delete
+                    </button>
+                 )}
+                 
+                 {isEditMode && isInactive && hasPermission(PERMISSIONS.SUPPLIERS.DELETE) && (
+                    <button 
+                      onClick={handleRestore} 
+                      className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium hover:bg-emerald-800 ${
+                          theme === 'emerald' ? 'bg-emerald-700 text-white' : theme === 'purple' ? 'bg-purple-700 text-white' : 'bg-emerald-900 border border-emerald-600 text-emerald-200'
+                      }`}
+                    >
+                      <ArchiveRestore size={18} /> Restore
+                    </button>
+                  )}
+
+                 {!isInactive && (isEditMode ? hasPermission(PERMISSIONS.SUPPLIERS.EDIT) : hasPermission(PERMISSIONS.SUPPLIERS.CREATE)) && (
+                    <button
+                      onClick={submit}
+                      disabled={isSaving}
+                      className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
+                         theme === 'emerald'
+                         ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                         : theme === 'purple'
+                         ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white'
+                         : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
+                      } ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      {isSaving ? (
+                        <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {isEditMode ? "Updating..." : "Saving..."}
+                        </>
+                      ) : (
+                        <>
+                        <Save size={18} />
+                        {isEditMode ? "Update" : "Save"}
+                        </>
+                      )}
+                    </button>
+                 )}
+              </div>
+           </div>
+           <hr className="border-gray-300" />
         </div>
 
-        {/* ACTIONS BAR */}
-        <div className="flex items-center gap-3 mb-6">
-             {!isInactive && (isEditMode ? hasPermission(PERMISSIONS.SUPPLIERS.EDIT) : hasPermission(PERMISSIONS.SUPPLIERS.CREATE)) && (
-                <button
-                onClick={submit}
-                disabled={isSaving}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
-                    theme === 'emerald'
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    : theme === 'purple'
-                    ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
-                    : 'bg-gray-800 border border-gray-600 text-blue-300'
-                }`}
-                >
-                <Save size={18} />
-                {isSaving ? "Saving..." : "Save"}
-                </button>
-             )}
-
-             {isEditMode && isInactive && hasPermission(PERMISSIONS.SUPPLIERS.DELETE) && (
-                <button 
-                  onClick={handleRestore} 
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium hover:bg-emerald-800 ${
-                      theme === 'emerald' ? 'bg-emerald-700 text-white' : theme === 'purple' ? 'bg-purple-700 text-white' : 'bg-emerald-900 border border-emerald-600 text-emerald-200'
-                  }`}
-                >
-                  <ArchiveRestore size={18} /> Restore
-                </button>
-              )}
-
-             {isEditMode && !isInactive && hasPermission(PERMISSIONS.SUPPLIERS.DELETE) && (
-                <button
-                    onClick={handleDelete}
-                    className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg">
-                    <Trash2 size={18} />
-                    Delete
-                </button>
-             )}
-        </div>
-        <hr className="mb-4 border-gray-300" />
 
           <div className="grid grid-cols-12 gap-x-6 gap-y-4 mx-2">
             {/* 1. Name */}
@@ -960,11 +1115,23 @@ const handleRestore = async () => {
                       disabled={isInactive}
                    />
                  </div>
-                 {(!isEditMode && hasPermission(PERMISSIONS.COUNTRIES.CREATE)) && (
+                 {isEditMode && form.countryId && !isInactive && hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => {
+                           const c = countries.find(x => String(x.Id || x.id) == String(form.countryId));
+                           setCountryEditData({ id: form.countryId, name: c?.name || c?.CountryName || "" });
+                           setEditCountryModalOpen(true);
+                       }}
+                    >
+                       <Pencil size={16} />
+                    </button>
+                 )}
+                 {(!isEditMode || !form.countryId) && hasPermission(PERMISSIONS.COUNTRIES.CREATE) && !isInactive && (
                    <button
                       type="button"
                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                      disabled={isInactive}
                       onClick={() => setAddCountryModalOpen(true)}
                    >
                       <Star size={16} />
@@ -991,19 +1158,31 @@ const handleRestore = async () => {
                       disabled={isInactive}
                    />
                  </div>
-                 {(!isEditMode && hasPermission(PERMISSIONS.STATES.CREATE)) && (
-                   <button
-                      type="button"
-                      className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                      disabled={isInactive}
-                      onClick={() => {
-                          setNewState(prev => ({ ...prev, countryId: form.countryId }));
-                          setAddStateModalOpen(true);
-                      }}
-                   >
-                      <Star size={16} />
-                   </button>
-                 )}
+                  {isEditMode && form.stateId && !isInactive && hasPermission(PERMISSIONS.STATES.CREATE) && (
+                     <button
+                        type="button"
+                        className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                        onClick={() => {
+                            const s = statesMaster.find(x => String(x.Id || x.id) == String(form.stateId));
+                            setStateEditData({ id: form.stateId, name: s?.name || s?.StateName || "" });
+                            setEditStateModalOpen(true);
+                        }}
+                     >
+                        <Pencil size={16} />
+                     </button>
+                  )}
+                  {(!isEditMode || !form.stateId) && hasPermission(PERMISSIONS.STATES.CREATE) && !isInactive && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => {
+                           setNewState(prev => ({ ...prev, countryId: form.countryId }));
+                           setAddStateModalOpen(true);
+                       }}
+                    >
+                       <Star size={16} />
+                    </button>
+                  )}
                </div>
             </div>
 
@@ -1021,19 +1200,31 @@ const handleRestore = async () => {
                       disabled={isInactive}
                    />
                  </div>
-                 {(!isEditMode && hasPermission(PERMISSIONS.CITIES.CREATE)) && (
-                   <button
-                      type="button"
-                      className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                      disabled={isInactive}
-                      onClick={() => {
-                          setNewCity(prev => ({ ...prev, countryId: form.countryId, stateId: form.stateId }));
-                          setAddCityModalOpen(true);
-                      }}
-                   >
-                      <Star size={16} />
-                   </button>
-                 )}
+                  {isEditMode && form.cityId && !isInactive && hasPermission(PERMISSIONS.CITIES.CREATE) && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => {
+                           const c = citiesMaster.find(x => String(x.Id || x.id) == String(form.cityId));
+                           setCityEditData({ id: form.cityId, name: c?.name || c?.CityName || "" });
+                           setEditCityModalOpen(true);
+                       }}
+                    >
+                       <Pencil size={16} />
+                    </button>
+                  )}
+                  {(!isEditMode || !form.cityId) && hasPermission(PERMISSIONS.CITIES.CREATE) && !isInactive && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => {
+                           setNewCity(prev => ({ ...prev, countryId: form.countryId, stateId: form.stateId }));
+                           setAddCityModalOpen(true);
+                       }}
+                    >
+                       <Star size={16} />
+                    </button>
+                  )}
                </div>
             </div>
 
@@ -1093,16 +1284,28 @@ const handleRestore = async () => {
                       disabled={isInactive}
                    />
                  </div>
-                 {(!isEditMode && hasPermission(PERMISSIONS.REGIONS.CREATE)) && (
-                   <button
-                      type="button"
-                      className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                      disabled={isInactive}
-                      onClick={() => setAddRegionModalOpen(true)}
-                   >
-                      <Star size={16} />
-                   </button>
-                 )}
+                  {isEditMode && form.regionId && !isInactive && hasPermission(PERMISSIONS.REGIONS.CREATE) && (
+                     <button
+                        type="button"
+                        className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                        onClick={() => {
+                            const r = regions.find(x => String(x.regionId || x.Id || x.id) == String(form.regionId));
+                            setRegionEditData({ id: form.regionId, name: r?.name || r?.RegionName || r?.regionName || "" });
+                            setEditRegionModalOpen(true);
+                        }}
+                     >
+                        <Pencil size={16} />
+                     </button>
+                  )}
+                  {(!isEditMode || !form.regionId) && hasPermission(PERMISSIONS.REGIONS.CREATE) && !isInactive && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => setAddRegionModalOpen(true)}
+                    >
+                       <Star size={16} />
+                    </button>
+                  )}
                </div>
             </div>
 
@@ -1263,16 +1466,28 @@ const handleRestore = async () => {
                       disabled={isInactive}
                    />
                  </div>
-                 {(!isEditMode && hasPermission(PERMISSIONS.SUPPLIER_GROUPS.CREATE)) && (
-                   <button
-                      type="button"
-                      className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                      disabled={isInactive}
-                      onClick={() => setAddSupplierGroupModalOpen(true)}
-                   >
-                      <Star size={16} />
-                   </button>
-                 )}
+                  {isEditMode && form.supplierGroupId && !isInactive && hasPermission(PERMISSIONS.SUPPLIER_GROUPS.CREATE) && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => {
+                           const g = supplierGroups.find(x => String(x.Id || x.id) == String(form.supplierGroupId));
+                           setSupplierGroupEditData({ id: form.supplierGroupId, name: g?.GroupName || g?.groupName || g?.name || "" });
+                           setEditSupplierGroupModalOpen(true);
+                       }}
+                    >
+                       <Pencil size={16} />
+                    </button>
+                  )}
+                  {(!isEditMode || !form.supplierGroupId) && hasPermission(PERMISSIONS.SUPPLIER_GROUPS.CREATE) && !isInactive && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => setAddSupplierGroupModalOpen(true)}
+                    >
+                       <Star size={16} />
+                    </button>
+                  )}
                </div>
             </div>
 
@@ -1345,11 +1560,19 @@ const handleRestore = async () => {
                       disabled={isInactive}
                    />
                  </div>
-                 {(!isEditMode && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE)) && (
+                 {isEditMode && form.orderBookerId && !isInactive && hasPermission(PERMISSIONS.HR.EMPLOYEES.EDIT) && (
+                    <button
+                       type="button"
+                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                       onClick={() => navigate(`/app/hr/newemployee/${form.orderBookerId}`, { state: { returnTo: location.pathname, from: location.pathname, preservedState: form } })}
+                    >
+                       <Pencil size={16} />
+                    </button>
+                 )}
+                 {(!isEditMode || !form.orderBookerId) && hasPermission(PERMISSIONS.HR.EMPLOYEES.CREATE) && !isInactive && (
                    <button
                       type="button"
                       className={`p-2 mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                      disabled={isInactive}
                       onClick={() => navigate("/app/hr/newemployee", { state: { returnTo: location.pathname, field: "orderBooker", from: location.pathname, preservedState: form } })}
                    >
                       <Star size={16} />
@@ -1512,6 +1735,66 @@ const handleRestore = async () => {
           </div>
         </AddModal>
 
+      {/* --- EDIT MODALS --- */}
+      {/* Edit Country */}
+      <AddModal
+          isOpen={editCountryModalOpen}
+          onClose={() => setEditCountryModalOpen(false)}
+          onSave={handleEditCountrySave}
+          title={`Edit Country (${countryEditData.name})`}
+          saveText="Save"
+          zIndex={1150}
+      >
+          <InputField value={countryEditData.name} onChange={e => setCountryEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+      </AddModal>
+
+      {/* Edit State */}
+      <AddModal
+          isOpen={editStateModalOpen}
+          onClose={() => setEditStateModalOpen(false)}
+          onSave={handleEditStateSave}
+          title={`Edit State (${stateEditData.name})`}
+          saveText="Save"
+          zIndex={1150}
+      >
+          <InputField value={stateEditData.name} onChange={e => setStateEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+      </AddModal>
+
+      {/* Edit City */}
+      <AddModal
+          isOpen={editCityModalOpen}
+          onClose={() => setEditCityModalOpen(false)}
+          onSave={handleEditCitySave}
+          title={`Edit City (${cityEditData.name})`}
+          saveText="Save"
+          zIndex={1150}
+      >
+          <InputField value={cityEditData.name} onChange={e => setCityEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+      </AddModal>
+
+      {/* Edit Region */}
+      <AddModal
+          isOpen={editRegionModalOpen}
+          onClose={() => setEditRegionModalOpen(false)}
+          onSave={handleEditRegionSave}
+          title={`Edit Region (${regionEditData.name})`}
+          saveText="Save"
+          zIndex={1150}
+      >
+          <InputField value={regionEditData.name} onChange={e => setRegionEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+      </AddModal>
+
+      {/* Edit Supplier Group */}
+      <AddModal
+          isOpen={editSupplierGroupModalOpen}
+          onClose={() => setEditSupplierGroupModalOpen(false)}
+          onSave={handleEditSupplierGroupSave}
+          title={`Edit Group (${supplierGroupEditData.name})`}
+          saveText="Save"
+          zIndex={1150}
+      >
+          <InputField value={supplierGroupEditData.name} onChange={e => setSupplierGroupEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+      </AddModal>
     </PageLayout>
   );
 };

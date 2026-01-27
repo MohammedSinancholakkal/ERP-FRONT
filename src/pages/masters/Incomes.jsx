@@ -408,6 +408,7 @@ const Incomes = () => {
           title={editItem.isInactive ? "Restore Income Type" : "Edit Income Type"}
           permissionDelete={hasPermission(PERMISSIONS.INCOMES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.INCOMES.EDIT)}
+          saveText="Update"
        >
           <div>
              <InputField

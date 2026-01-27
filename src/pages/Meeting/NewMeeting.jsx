@@ -110,6 +110,7 @@ const NewMeeting = () => {
     reporter: "",
     attendees: [],
   });
+  const [loading, setLoading] = useState(false);
 
   const updateField = (key, value) => {
     setForm({ ...form, [key]: value });
@@ -141,7 +142,18 @@ const NewMeeting = () => {
   useEffect(() => {
     if (location.state?.preservedState) {
         const { form: savedForm, showAttendeeModal: savedModal, attendeeForm: savedAttendeeForm, editIndex: savedEditIndex } = location.state.preservedState;
-        if (savedForm) setForm(savedForm);
+        
+        let updatedForm = savedForm ? { ...savedForm } : {};
+
+        // If returned with a new ID, update the specific field
+        if (location.state.newEmployeeId && location.state.field) {
+            updatedForm[location.state.field] = String(location.state.newEmployeeId);
+            // Reload employees to ensure the new one is in the list
+            loadEmployees(); 
+        }
+
+        setForm(updatedForm);
+        
         if (savedModal) {
             setShowAttendeeModal(true);
             setAttendeeForm(savedAttendeeForm);
@@ -473,6 +485,8 @@ const NewMeeting = () => {
   const isValidId = (val) => val && !isNaN(Number(val)) && Number(val) !== 0;
 
   const handleSave = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       // Required Fields Check (Must be present AND valid numeric IDs)
       if (!form.meetingName.trim() || !form.meetingType || !form.startDate || !form.endDate || !form.department || !form.location || !form.organizedBy || !form.reporter) {
@@ -537,6 +551,8 @@ const NewMeeting = () => {
     } catch (err) {
       console.error("SAVE MEETING ERROR:", err);
       toast.error("Failed to save meeting");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -978,6 +994,7 @@ const NewMeeting = () => {
       navigate("/app/hr/newemployee", { 
         state: { 
             returnTo: location.pathname,
+            field: type === "Organizer" ? "organizedBy" : "reporter",
             preservedState: {
                 form,
                 showAttendeeModal,
@@ -1015,8 +1032,8 @@ const NewMeeting = () => {
               <div className="flex items-center gap-4">
                  <button 
                    onClick={() => navigate("/app/meeting/meetings")}
-                    className={`p-2 rounded border transition-colors ${theme === 'emerald' ? 'bg-white border-gray-200 hover:bg-emerald-50 text-gray-600' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-800 border-gray-700 text-gray-300'}`}
-                 >
+                  className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                 
                     <ArrowLeft size={24} />
                  </button>
                  <h2 className="text-xl font-bold text-[#6448AE]">{isEdit ? "Edit Meeting" : "New Meeting"}</h2>
@@ -1034,16 +1051,25 @@ const NewMeeting = () => {
                  )}
                 <button
                   onClick={handleSave}
+                  disabled={loading}
                   className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${
                      theme === 'emerald'
                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                      : theme === 'purple'
                      ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white'
                      : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
-                  }`}
+                  } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  <Save size={18} />
-                  {isEdit ? "Update" : "Save"}
+                  {loading ? (
+                    <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {isEdit ? "Updating..." : "Saving..."}
+                    </>
+                  ) : (
+                    <>
+                    <Save size={18} />
+                    {isEdit ? "Update" : "Save"}
+                    </>
+                  )}
                 </button>
               </div>
            </div>

@@ -139,6 +139,7 @@ const EditMeeting = () => {
   
   // Feature superseded by list-view restore. Hardcode to false to prevent errors.
   const isInactive = false;
+  const [loading, setLoading] = useState(false);
 
   const activeTab = isAgenda
     ? "agenda"
@@ -433,7 +434,13 @@ const EditMeeting = () => {
     else if (type === "Agenda Item Type") setShowAgendaTypeModal(true);
     else if (type === "Resolution Status") setShowResolutionStatusModal(true);
     else if (type === "Organizer" || type === "Reporter") {
-      navigate("/app/hr/newemployee", { state: { from: location.pathname } });
+      navigate("/app/hr/newemployee", { 
+        state: { 
+            returnTo: location.pathname,
+            field: type === "Organizer" ? "organizedBy" : "reporter",
+            preservedState: { meeting, activeTab } 
+        } 
+      });
     }
   };
 
@@ -979,6 +986,31 @@ const EditMeeting = () => {
 
   /* LOAD DATA */
   useEffect(() => {
+    // Check for returned state first
+    if (location.state?.preservedState) {
+        console.log("♻️ RESTORING PRESERVED STATE", location.state);
+        const { meeting: savedMeeting } = location.state.preservedState;
+        
+        let updatedMeeting = savedMeeting ? { ...savedMeeting } : {};
+
+        // If returned with a new ID, update the specific field
+        if (location.state.newEmployeeId && location.state.field) {
+             updatedMeeting[location.state.field] = String(location.state.newEmployeeId);
+             // Reload employees to ensure the new one is in the list
+             loadEmployees();
+        }
+
+        if (Object.keys(updatedMeeting).length > 0) {
+             setMeeting(updatedMeeting);
+             // Restore recipients if present
+             if(updatedMeeting.recipients) setExternalRecipients(updatedMeeting.recipients);
+        }
+
+        // Clear state to prevent reapplying
+        window.history.replaceState({}, document.title);
+        return;
+    }
+
     getMeetingByIdApi(id).then(res => {
       console.log("🔵 RAW getMeetingByIdApi RESPONSE:", res?.data);
 
@@ -1003,7 +1035,7 @@ const EditMeeting = () => {
         }
       }
     });
-  }, [id]);
+  }, [id, location.state]);
 
   /* LOAD AGENDA ITEMS */
   useEffect(() => {
@@ -1059,6 +1091,8 @@ const EditMeeting = () => {
 
   /* SAVE / UPDATE */
   const handleSave = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       // VALIDATION
       if (!meeting.meetingName?.trim() || 
@@ -1070,6 +1104,7 @@ const EditMeeting = () => {
           !meeting.organizedBy || 
           !meeting.reporter) {
           toast.error("Please fill in all required fields.");
+          setLoading(false);
           return;
       }
 
@@ -1103,6 +1138,10 @@ const EditMeeting = () => {
     } catch (error) {
       console.error("SAVE MEETING ERROR:", error);
       toast.error("Error updating meeting");
+    } finally {
+        if (window.location.pathname.includes(id)) { // Check if still mounted/on page
+            setLoading(false);
+        }
     }
   };
 
@@ -1422,8 +1461,7 @@ const EditMeeting = () => {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => navigate("/app/meeting/meetings")}
-                    className={`p-2 rounded border transition-colors ${theme === 'emerald' ? 'bg-white border-gray-200 hover:bg-emerald-50 text-gray-600' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-800 border-gray-700 text-gray-300'}`}
-                  >
+                    className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
                     <ArrowLeft size={18} />
                   </button>
                   <h2 className="text-xl font-bold text-[#6448AE]">{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
@@ -1444,9 +1482,19 @@ const EditMeeting = () => {
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <button
                           onClick={handleSave}
-                          className={`flex items-center gap-2 px-4 py-2 border rounded${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border border-gray-600 text-blue-300 hover:bg-gray-700'}`}
+                          disabled={loading}
+                          className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border border-gray-600 text-blue-300 hover:bg-gray-700'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
-                          <Save size={16} /> Save
+                          {loading ? (
+                             <>
+                               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                               Updating...
+                             </>
+                          ) : (
+                             <>
+                               <Save size={16} /> Update
+                             </>
+                          )}
                         </button>
                         )}
         
@@ -1528,7 +1576,7 @@ const EditMeeting = () => {
 
               {/* Location */}
               <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Location </label>
+                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Location * </label>
                     <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                           <SearchableSelect

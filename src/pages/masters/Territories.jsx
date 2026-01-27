@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Star } from "lucide-react";
+import { Star, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
@@ -14,6 +14,7 @@ import {
   restoreTerritoryApi,
   getRegionsApi,
   addRegionApi,
+  updateRegionApi,
   searchRegionApi,
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
@@ -47,9 +48,11 @@ const Territories = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   
-  // Quick Add Region
   const [addRegionModalOpen, setAddRegionModalOpen] = useState(false);
   const [newRegionName, setNewRegionName] = useState("");
+
+  const [editRegionModalOpen, setEditRegionModalOpen] = useState(false);
+  const [regionEditData, setRegionEditData] = useState({ id: null, name: "" });
 
   const [rows, setRows] = useState([]);
   const [inactiveRows, setInactiveRows] = useState([]);
@@ -316,6 +319,25 @@ const Territories = () => {
       }
   }
 
+  const handleEditRegionSave = async () => {
+    if (!regionEditData.name?.trim()) return toast.error("Name required");
+    try {
+        const res = await updateRegionApi(regionEditData.id, { regionName: regionEditData.name, userId: currentUserId });
+        if (res?.status === 200) {
+            toast.success("Region updated");
+            setEditRegionModalOpen(false);
+            const resR = await getRegionsApi(1, 10000);
+            if(resR?.status === 200) {
+                const data = resR.data.records || resR.data || [];
+                setRegions(data.map(r => ({
+                  id: r.RegionId ?? r.regionId ?? r.Id ?? r.id,
+                  name: r.RegionName ?? r.regionName ?? r.Name ?? r.name
+                })));
+            }
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
   // ===============================
   // Edit / Restore
   // ===============================
@@ -543,6 +565,7 @@ const Territories = () => {
           title={editItem.isInactive ? "Restore Territory" : "Edit Territory"}
           permissionDelete={hasPermission(PERMISSIONS.TERRITORIES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.TERRITORIES.EDIT)}
+          saveText="Update"
        >
           <div className="space-y-4">
              <div>
@@ -575,13 +598,21 @@ const Territories = () => {
                         />
                     </div>
                     {!editItem.isInactive && hasPermission(PERMISSIONS.REGIONS.CREATE) && (
-                    <button
-                        onClick={() => setAddRegionModalOpen(true)}
-                        className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                        title="Quick Add Region"
-                    >
-                        <Star size={16} className="" />
-                    </button>
+                        <div className="flex gap-1">
+                             {editItem.regionId && (
+                                <button
+                                    onClick={() => {
+                                        const r = regions.find(x => String(x.id) == String(editItem.regionId));
+                                        setRegionEditData({ id: editItem.regionId, name: r?.name || "" });
+                                        setEditRegionModalOpen(true);
+                                    }}
+                                    className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                                    title="Edit Region"
+                                >
+                                    <Pencil size={16} />
+                                </button>
+                             )}
+                        </div>
                     )}
                 </div>
              </div>
@@ -612,6 +643,12 @@ const Territories = () => {
                </div>
            </div>
        </AddModal>
+
+       {editRegionModalOpen && (
+           <AddModal isOpen={true} onClose={() => setEditRegionModalOpen(false)} onSave={handleEditRegionSave} title={`Edit Region (${regionEditData.name})`} saveText="Update">
+               <InputField value={regionEditData.name} onChange={e => setRegionEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+           </AddModal>
+       )}
 
        {/* COLUMN PICKER MODAL */}
        <ColumnPickerModal

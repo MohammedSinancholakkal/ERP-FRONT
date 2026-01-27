@@ -1,8 +1,4 @@
 import React, { useState, useEffect } from "react";
-import {
-  Search, // Keeping for modals if needed, or remove if unused. Most seem unused in MasterTable, but Modals might use them.
-  X,
-} from "lucide-react";
 import MasterTable from "../../components/MasterTable";
 import { useTheme } from "../../context/ThemeContext";
 import { hasPermission } from "../../utils/permissionUtils";
@@ -10,7 +6,6 @@ import { PERMISSIONS } from "../../constants/permissions";
 
 
 import toast from "react-hot-toast";
-import Swal from "sweetalert2";
 import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 // API

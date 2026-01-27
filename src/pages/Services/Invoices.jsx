@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  List,
   Eye,
-  FileSpreadsheet,
   FileText,
-  ArchiveRestore
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -15,12 +9,11 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
+import { showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 import Pagination from "../../components/Pagination";
 import FilterBar from "../../components/FilterBar";
-import SortableHeader from "../../components/SortableHeader";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
-import Swal from "sweetalert2";
 import { 
   getCustomersApi, 
   getEmployeesApi, 
@@ -30,10 +23,10 @@ import {
   restoreServiceInvoiceApi
 } from "../../services/allAPI";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
-import MasterTable from "../../components/MasterTable"; // ADDED
+import MasterTable from "../../components/MasterTable";
 import ContentCard from "../../components/ContentCard";
-import { useTheme } from "../../context/ThemeContext"; // ADDED
-import ExportButtons from "../../components/ExportButtons"; // ADDED
+import { useTheme } from "../../context/ThemeContext";
+import ExportButtons from "../../components/ExportButtons";
 
 const defaultColumns = {
   id: true,
@@ -56,7 +49,7 @@ const defaultColumns = {
 };
 
 const Invoices = () => {
-  const { theme } = useTheme(); // ADDED
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -79,7 +72,7 @@ const Invoices = () => {
 
   // Pagination
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -231,38 +224,24 @@ const Invoices = () => {
   };
 
   const handleRestore = async (invoice) => {
-    Swal.fire({
-      title: "Restore Invoice?",
-      text: `Are you sure you want to restore invoice #${invoice.id}?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, restore",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#10b981",
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            try {
-                const res = await restoreServiceInvoiceApi(invoice.id, { userId });
-                if (res.status === 200) {
-                    Swal.fire({
-                        icon: "success",
-                        title: "Restored!",
-                        text: "Invoice has been restored.",
-                        timer: 1500,
-                        showConfirmButton: false,
-                    });
-                    // Refresh lists
-                    setInactiveRows(prev => prev.filter(r => r.id !== invoice.id));
-                    fetchAllData();
-                } else {
-                    Swal.fire("Error!", "Failed to restore invoice.", "error");
-                }
-            } catch (error) {
-                console.error("Restore error", error);
-                Swal.fire("Error!", "Error restoring invoice.", "error");
+    const result = await showRestoreConfirm(`invoice #${invoice.id}`);
+    
+    if (result.isConfirmed) {
+        try {
+            const res = await restoreServiceInvoiceApi(invoice.id, { userId });
+            if (res.status === 200) {
+                showSuccessToast("Invoice has been restored.");
+                // Refresh lists
+                setInactiveRows(prev => prev.filter(r => r.id !== invoice.id));
+                fetchAllData();
+            } else {
+                showErrorToast("Failed to restore invoice.");
             }
+        } catch (error) {
+            console.error("Restore error", error);
+            showErrorToast("Error restoring invoice.");
         }
-    });
+    }
   };
 
   const handleRefresh = async () => {
@@ -274,7 +253,6 @@ const Invoices = () => {
     setPage(1);
     setShowInactive(false); // Reset inactive
     await fetchAllData();
-    toast.success("Refreshed");
   };
 
   const calculateTaxAmount = (record, type) => {
@@ -416,7 +394,7 @@ const Invoices = () => {
                         </div>
                     )},
                     visibleColumns.customerName && { key: "customerName", label: "Customer", sortable: true, className: "min-w-[200px]", render: (p) => (
-                        <span className={theme === 'emerald' || theme === 'purple' ? "text-gray-900" : "text-gray-300"}>{p.customerName || p.customer || "-"}</span>
+                        <span className={p.isInactive ? "text-white" : (theme === 'emerald' || theme === 'purple' ? "text-gray-900" : "text-gray-300")}>{p.customerName || p.customer || "-"}</span>
                     )},
                     visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (p) => p.date ? new Date(p.date).toLocaleDateString() : "-" },
                     visibleColumns.employee && { key: "employeeName", label: "Employee", sortable: true, render: (p) => p.employeeName || p.employee || "-" },

@@ -738,6 +738,7 @@ const DamagedProducts = () => {
         permissionEdit={hasPermission(
           PERMISSIONS.INVENTORY.DAMAGED_PRODUCTS.EDIT
         )}
+        saveText="Update"
         width="760px"
       >
         <div className="space-y-4">

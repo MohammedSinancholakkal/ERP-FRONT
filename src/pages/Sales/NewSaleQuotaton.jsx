@@ -8,7 +8,7 @@ import {
   Star,
   X,
   Edit,
-  Check,
+  Pencil, // Added
   ArchiveRestore
 } from "lucide-react";
 import { showConfirmDialog, showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast, showLoadingToast, dismissToast } from "../../utils/notificationUtils";
@@ -40,6 +40,7 @@ import {
   restoreQuotationApi,
   getTaxTypesApi,
   searchBrandApi,
+  updateBrandApi, // Added
   searchProductApi,
   getNextQuotationNoApi
 } from "../../services/allAPI";
@@ -76,6 +77,7 @@ const NewSaleQuotation = () => {
   const [quotationNo, setQuotationNo] = useState(""); // ADDED
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [expiryDate, setExpiryDate] = useState("");
+
 
   // --- DROPDOWN DATA ---
   const [customersList, setCustomersList] = useState([]);
@@ -124,6 +126,10 @@ useEffect(() => {
   // --- QUICK CREATE BRAND MODAL STATE ---
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
+
+  // --- EDIT BRAND STATE ---
+  const [editBrandModalOpen, setEditBrandModalOpen] = useState(false);
+  const [brandEditData, setBrandEditData] = useState({ id: null, name: "" });
 
   // --- QUICK CREATE CUSTOMER MODAL STATE (Removed in favor of navigation) ---
   // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -210,6 +216,7 @@ useEffect(() => {
   const [igstRate, setIgstRate] = useState(0);
   const [cgstRate, setCgstRate] = useState(0);
   const [sgstRate, setSgstRate] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   // --- INITIAL DATA LOADING ---
   useEffect(() => {
@@ -312,13 +319,66 @@ useEffect(() => {
           unitPrice: d.UnitPrice ?? d.unitPrice ?? d.Price ?? 0,
           discount: d.Discount ?? d.discount ?? 0,
           total: d.Total ?? d.total ?? 0,
-          brandId: d.brandId || d.BrandId
+          brandId: d.brandId || d.BrandId,
+          taxPercentage: d.TaxPercentage ?? d.taxPercentage ?? 0
         }));
         setRows(mappedRows);
       }
     } catch (error) {
       console.error("Error fetching sale details", error);
-      toast.error("Failed to load quotation details");
+      
+      // FALLBACK
+      if (location.state?.quotation) {
+          const q = location.state.quotation;
+          const raw = q.raw || {};
+          
+          setInactiveView(true);
+          
+          const cId = q.customerId || q.CustomerId || q.customer;
+          setCustomer(cId);
+          if (cId && q.customerName) {
+              setCustomersList(prev => {
+                 if (!prev.find(c => String(c.id) === String(cId))) {
+                     return [...prev, { id: cId, companyName: q.customerName }];
+                 }
+                 return prev;
+              });
+          }
+          
+          if (q.date) setDate(q.date.split("T")[0]);
+          if (q.expiryDate) setExpiryDate(q.expiryDate.split("T")[0]);
+          
+          setGlobalDiscount(q.discount || q.Discount || 0);
+          setShippingCost(q.shippingCost || q.ShippingCost || 0);
+          setDetails(typeof q.details === 'string' ? q.details : (raw.Details || ""));
+          
+          setCgstRate(q.cgstRate || 0);
+          setSgstRate(q.sgstRate || 0);
+          setIgstRate(q.igstRate || 0);
+          
+          const fallbackItems = raw.items || raw.details || [];
+          if (Array.isArray(fallbackItems) && fallbackItems.length > 0) {
+              const mappedRows = fallbackItems.map(d => ({
+                  productId: d.productId || d.ProductId,
+                  productName: d.productName || d.ProductName,
+                  description: d.description || d.Description,
+                  unitId: d.unitId || d.UnitId,
+                  unitName: d.unitName || d.UnitName,
+                  quantity: d.quantity || d.Quantity || 0,
+                  unitPrice: d.unitPrice || d.UnitPrice || 0,
+                  discount: d.discount || d.Discount || 0,
+                  total: d.total || d.Total || 0,
+                  brandId: d.brandId || d.BrandId,
+                  taxPercentage: d.taxPercentage || d.TaxPercentage || 0
+              }));
+              setRows(mappedRows);
+          } else {
+              toast("Loaded Info (Items missing in inactive view)");
+          }
+
+      } else {
+        toast.error("Failed to load quotation details");
+      }
     }
   };
   const fetchCustomers = async () => {
@@ -415,6 +475,47 @@ useEffect(() => {
         }
     }
   }, [taxTypeId, taxTypesList]);
+
+  /* ================= ROW SYNC LOGIC ================= */
+  // Sync existing rows with latest product master data when products load
+  // Sync existing rows with latest product master data when products load
+  useEffect(() => {
+    if (productsList.length > 0 && rows.length > 0) {
+       let changed = false;
+       const newRows = rows.map(row => {
+           const fresh = productsList.find(p => String(p.id) === String(row.productId));
+           if (fresh) {
+               let updatedRow = { ...row };
+               let rowChanged = false;
+               
+               const freshName = fresh.ProductName ?? fresh.productName ?? fresh.name ?? "";
+               // Update Product Name if changed in master
+               if (freshName && freshName !== row.productName) {
+                   updatedRow.productName = freshName;
+                   rowChanged = true;
+               }
+
+               // Update Tax Percentage if missing in row (0) but exists in master
+               const masterTax = fresh.taxPercentageValue ?? 0;
+               const currentTax = parseFloat(row.taxPercentage) || 0;
+               if (currentTax === 0 && masterTax > 0) {
+                   updatedRow.taxPercentage = masterTax;
+                   rowChanged = true;
+               }
+
+               if (rowChanged) {
+                   changed = true;
+                   return updatedRow;
+               }
+           }
+           return row;
+       });
+
+       if (changed) {
+           setRows(newRows);
+       }
+    }
+  }, [productsList, rows]);
 
   /* ================= LINE ITEM LOGIC ================= */
   const handleProductSelect = (productId) => {
@@ -536,6 +637,22 @@ useEffect(() => {
     } catch (error) {
       toast.error("Failed to add brand");
     }
+  };
+
+  const handleEditBrandSave = async () => {
+    if (!brandEditData.name?.trim()) return toast.error("Brand name required");
+    try {
+        const res = await updateBrandApi(brandEditData.id, { 
+            name: brandEditData.name.trim(),
+            BrandName: brandEditData.name.trim(),
+            userId
+        });
+        if (res?.status === 200) {
+             toast.success("Brand updated");
+             setEditBrandModalOpen(false);
+             fetchBrands();
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
   };
 
   // --- QUICK CREATE CUSTOMER REMOVED (Replaced by Navigation) ---
@@ -715,15 +832,19 @@ const handleSaveQuotation = async () => {
     return toast.error("User session invalid. Please re-login.");
   }
 
+  if (loading) return;
+
   if (!customer) return toast.error("Please select a customer");
   if (!expiryDate) return toast.error("Please select expiry date");
   if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
   if (rows.length === 0) return toast.error("Please add at least one item");
 
-  if (vehicleNo && vehicleNo.length > 15) return showErrorToast("Vehicle No must be max 15 characters");
+  if (vehicleNo && vehicleNo.length > 20) return showErrorToast("Vehicle No must be max 20 characters");
 
   const detailsLen = details?.trim().length || 0;
   if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
+  setLoading(true);
 
   const payload = {
     customerId: customer,
@@ -787,11 +908,14 @@ const handleSaveQuotation = async () => {
     } else {
         toast.error("Error saving quotation");
     }
+  } finally {
+    setLoading(false);
   }
 };
 
 /* ================= UPDATE QUOTATION ================= */
 const handleUpdateQuotation = async () => {
+  if (loading) return;
   if (!customer) return toast.error("Please select a customer");
   if (!expiryDate) return toast.error("Please select expiry date");
   if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
@@ -801,6 +925,8 @@ const handleUpdateQuotation = async () => {
 
   const detailsLen = details?.trim().length || 0;
   if (details && (detailsLen < 2 || detailsLen > 300)) return showErrorToast("Details must be between 2 and 300 characters");
+
+  setLoading(true);
 
   const payload = {
     customerId: customer,
@@ -863,6 +989,8 @@ const handleUpdateQuotation = async () => {
     } else {
         toast.error("Error updating quotation");
     }
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -873,6 +1001,7 @@ const handleDeleteQuotation = async () => {
     if (!result.isConfirmed) return;
 
     const toastId = showLoadingToast("Deleting...");
+    setLoading(true);
 
   try {
     const res = await deleteQuotationApi(id, { userId });
@@ -888,6 +1017,8 @@ const handleDeleteQuotation = async () => {
     dismissToast(toastId);
     console.error("DELETE QUOTATION ERROR:", error);
     showErrorToast("Error deleting quotation");
+  } finally {
+      setLoading(false);
   }
 };
 
@@ -897,6 +1028,7 @@ const handleRestoreQuotation = async () => {
     if (!result.isConfirmed) return;
 
     const toastId = showLoadingToast("Restoring...");
+    setLoading(true);
 
     try {
       const res = await restoreQuotationApi(id, { userId });
@@ -911,6 +1043,8 @@ const handleRestoreQuotation = async () => {
       dismissToast(toastId);
       console.error("RESTORE ERROR", error);
       showErrorToast("Error restoring quotation");
+    } finally {
+        setLoading(false);
     }
 };
 
@@ -944,49 +1078,80 @@ const handleRestoreQuotation = async () => {
 
         <ContentCard className="!h-auto !overflow-visible">
         {/* HEADER & ACTIONS */}
-        {/* HEADER & ACTIONS */}
-        <div className="flex items-center gap-4 mb-6">
-            <button onClick={() => navigate("/app/sales/salesquotations")} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'hover:bg-gray-200 text-gray-700' : 'hover:bg-gray-700'} p-2 rounded-full`}>
-                <ArrowLeft size={24} />
-            </button>
-            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>
-                {inactiveView ? "View Inactive Quotation" : (id ? "Edit Quotation" : "New Quotation")}
-            </h2>
-        </div>
-
-        {/* ACTIONS BAR */}
-        <div className="flex gap-2 mb-6">
-            {id ? (
-                <>
-                {!inactiveView && hasPermission(PERMISSIONS.SALES.EDIT) && (
-                <button 
-                    onClick={handleUpdateQuotation} 
-                    className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'}`}
-                >
-                    <Save size={18} /> Update
+        <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+                <button onClick={() => navigate("/app/sales/salesquotations")} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                    <ArrowLeft size={24} />
                 </button>
-                )}
-                {!inactiveView && hasPermission(PERMISSIONS.SALES.DELETE) && (
-                <button onClick={handleDeleteQuotation} className="flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500">
-                    <Trash2 size={18} /> Delete
-                </button>
-                )}
-                {inactiveView && (
-                    <button onClick={handleRestoreQuotation} className="flex items-center gap-2 bg-green-600 border border-green-500 px-4 py-2 rounded text-white hover:bg-green-500">
-                        <ArchiveRestore size={18} /> Restore
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE] bg-clip-text text-transparent bg-gradient-to-r from-[#6448AE] to-[#8066a3]' : theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>
+                    {inactiveView ? "View Inactive Quotation" : (id ? "Edit Quotation" : "New Quotation")}
+                </h2>
+            </div>
+            
+            {/* ACTIONS BAR */}
+            <div className="flex items-center gap-3">
+                {id ? (
+                    <>
+                    {!inactiveView && hasPermission(PERMISSIONS.SALES.EDIT) && (
+                    <button 
+                        onClick={handleUpdateQuotation} 
+                        disabled={loading}
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                            theme === 'emerald'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : theme === 'purple'
+                            ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                            : 'bg-gray-800 border border-gray-600 text-blue-300'
+                        }`}
+                    >
+                        {loading ? (
+                            <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                            </>
+                        ) : (
+                            <>
+                            <Save size={18} /> Update
+                            </>
+                        )}
                     </button>
+                    )}
+                    {!inactiveView && hasPermission(PERMISSIONS.SALES.DELETE) && (
+                    <button onClick={handleDeleteQuotation} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-500'}`}>
+                        <Trash2 size={18} /> Delete
+                    </button>
+                    )}
+                    {inactiveView && (
+                        <button onClick={handleRestoreQuotation} disabled={loading} className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-green-600 text-white hover:bg-green-500'}`}>
+                            <ArchiveRestore size={18} /> Restore
+                        </button>
+                    )}
+                    </>
+                ) : (
+                    hasPermission(PERMISSIONS.SALES.CREATE) && (
+                    <button 
+                    onClick={handleSaveQuotation} 
+                    disabled={loading}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                        theme === 'emerald'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : theme === 'purple'
+                        ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md'
+                        : 'bg-gray-800 border border-gray-600 text-blue-300'
+                    }`}
+                    >
+                        {loading ? (
+                            <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                            </>
+                        ) : (
+                            <>
+                            <Save size={18} /> Save
+                            </>
+                        )}
+                    </button>
+                    )
                 )}
-                </>
-            ) : (
-                hasPermission(PERMISSIONS.SALES.CREATE) && (
-                <button 
-                onClick={handleSaveQuotation} 
-                className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-white hover:bg-gray-600'}`}
-                >
-                <Save size={18} /> Save
-                </button>
-                )
-            )}
+            </div>
         </div>
         <hr className="mb-4 border-gray-300" />
 
@@ -995,56 +1160,57 @@ const handleRestoreQuotation = async () => {
           {/* LEFT COL - Customer & Tax Type */}
           <div className="space-y-4">
             {/* Customer */}
-            <div>
-              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-               Customer <span className="text-dark">*</span> 
+            <div className="flex items-center">
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                Customer <span className="text-dark">*</span>
               </label>
-              <div className="flex items-center gap-2">
-                  <SearchableSelect
-                    options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
-                    value={customer}
-                    onChange={setCustomer}
-                    placeholder="Select customer..."
-                    className={`w-full ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
-                    disabled={inactiveView}
-                  />
-                  {!inactiveView && (
-                    <button
-                        type="button"
-                        className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                        onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
-                    >
-                        <Star size={16} />
-                    </button>
-                  )}
+                 <div className="flex-1 flex items-center gap-2">
+                <SearchableSelect
+                  options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
+                  value={customer}
+                  onChange={setCustomer}
+                  placeholder="Select customer..."
+                  className={`flex-1 font-medium ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
+                  disabled={inactiveView}
+                />
+                {!inactiveView && (
+                    <>
+                    {customer ? (
+                        <button
+                            type="button"
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            onClick={() => navigate(`/app/businesspartners/newcustomer/${customer}`, { state: { returnTo: location.pathname } })}
+                        >
+                            <Pencil size={16} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                        >
+                            <Star size={16} />
+                        </button>
+                    )}
+                    </>
+                )}
               </div>
             </div>
 
             {/* Tax Type */}
-            <div>
-              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+            <div className="flex items-center">
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
                  Tax Type <span className="text-dark">*</span> 
               </label>
-              <div className="flex items-center gap-2">
-                  <select
+              <div className="flex-1 flex items-center gap-2">
+                  <SearchableSelect
+                    options={taxTypesList.map(t => ({ id: t.id || t.typeId, name: `${t.name || t.typeName} (${t.percentage}%)` }))}
                     value={taxTypeId}
-                    onChange={(e) => setTaxTypeId(e.target.value)}
-                    className={`flex-1 border-2 rounded px-3 py-1.5 outline-none disabled:opacity-50 text-sm ${
-                        theme === "emerald"
-                          ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
-                          : theme === "purple"
-                          ? "bg-white border-gray-300 text-purple-700 focus:border-gray-500"
-                          : "bg-gray-900 border-gray-700 text-white focus:border-gray-500"
-                      }`}
+                    onChange={(val) => setTaxTypeId(val)}
+                    placeholder="--Select--"
                     disabled={inactiveView || noTax}
-                  >
-                      <option value="">--Select--</option>
-                      {taxTypesList.map(t => (
-                          <option key={t.id || t.typeId} value={t.id || t.typeId}>
-                              {t.name || t.typeName} ({t.percentage}%)
-                          </option>
-                      ))}
-                  </select>
+                    className={`flex-1 font-medium ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
+                  />
                   {!inactiveView && (
                     <div className="p-2 border border-transparent rounded invisible">
                         <Star size={16} />
@@ -1054,13 +1220,13 @@ const handleRestoreQuotation = async () => {
             </div>
 
             {/* Vehicle No - Moved to Left */}
-            <div>
-               <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Vehicle No</label>
-               <div className="flex items-center gap-2">
+            <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Vehicle No</label>
+               <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
                          value={vehicleNo}
-                         onChange={(e) => setVehicleNo(e.target.value)}
+                         onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
                          placeholder="Enter Vehicle No"
                          disabled={inactiveView}
                        />
@@ -1077,9 +1243,9 @@ const handleRestoreQuotation = async () => {
           {/* RIGHT COL - Dates */}
           <div className="space-y-4">
             {/* Quotation No */}
-            <div>
-               <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Quotation No</label>
-               <div className="flex items-center gap-2">
+            <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Quotation No</label>
+               <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
                          value={quotationNo}
@@ -1097,9 +1263,9 @@ const handleRestoreQuotation = async () => {
             </div>
 
             {/* Quotation Date */}
-            <div>
-               <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Quotation Date</label>
-               <div className="flex items-center gap-2">
+            <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Quotation Date</label>
+               <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
                          type="date"
@@ -1117,9 +1283,11 @@ const handleRestoreQuotation = async () => {
             </div>
 
             {/* Valid Until */}
-            <div>
-               <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Valid Until *</label>
-               <div className="flex items-center gap-2">
+            <div className="flex items-center">
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                Valid Until <span className="text-dark">*</span>
+               </label>
+               <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
                          type="date"
@@ -1227,8 +1395,9 @@ const handleRestoreQuotation = async () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* Grand Total */}
+                {/* Net Total (Moved to Top) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Grand Total</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
                    <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
                       {grandTotal.toFixed(2)}
                    </div>
@@ -1322,8 +1491,9 @@ const handleRestoreQuotation = async () => {
                  })()}
 
                 {/* Net Total (Full Width) */}
+                {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
-                    <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>Net Total</label>
+                    <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>Grand Total</label>
                     <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
                       {netTotal.toFixed(2)}
                     </div>
@@ -1336,43 +1506,48 @@ const handleRestoreQuotation = async () => {
        </ContentCard>
       </div>
 
-
-
-
-
       {/* --- ADD ITEM MODAL --- */}
       <AddModal
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
         onSave={addItemToTable}
         title={editingIndex !== null ? "Edit Line Item" : "Add Line Item"}
+        saveText={editingIndex !== null ? "Update" : "Save"}
         width="700px"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}> Brand *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}> Brand *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                 value={newItem.brandId}
                 onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
                 placeholder="--select brand--"
-                className={`flex-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                className={`flex-1 font-medium ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
               />
               <button
-                type="button"
-                className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                onClick={() => setIsBrandModalOpen(true)}
+                 type="button"
+                 className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                 onClick={() => {
+                     if (newItem.brandId) {
+                         const b = brandsList.find(x => String(x.id) === String(newItem.brandId));
+                         setBrandEditData({ id: newItem.brandId, name: b?.name || "" });
+                         setEditBrandModalOpen(true);
+                     } else {
+                         setIsBrandModalOpen(true);
+                     }
+                 }}
               >
-                  <Star size={16} />
+                  {newItem.brandId ? <Pencil size={16} /> : <Star size={16} />}
               </button>
             </div>
           </div>
 
           {/* Product */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Product *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Product *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={productsList
@@ -1384,21 +1559,29 @@ const handleRestoreQuotation = async () => {
                 placeholder="--select product--"
                 disabled={!newItem.brandId}
                 required
-                className={`flex-1 ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}
+                className={`flex-1 font-medium ${!newItem.brandId ? 'opacity-50 pointer-events-none' : ''} ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
               />
-              <button
-                type="button"
-                className={`p-2 border rounded flex items-center justify-center ${newItem.brandId ? (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400') : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 opacity-50 cursor-not-allowed' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 opacity-50 cursor-not-allowed' : 'bg-gray-800 border-gray-600 text-yellow-400 opacity-50 cursor-not-allowed')}`}
-                onClick={() => {
-                  if (newItem.brandId) {
-                    setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
-                    openProductModal();
-                  }
-                }}
-                disabled={!newItem.brandId}
-              >
-                  <Star size={16} />
-              </button>
+               <button
+                  type="button"
+                  disabled={!newItem.brandId && !newItem.productId} // Allow if brand selected (for add) OR product selected (for edit)
+                  className={`p-2 border rounded flex items-center justify-center ${
+                      (!newItem.brandId && !newItem.productId)
+                       ? 'opacity-50 cursor-not-allowed ' + (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-gray-500')
+                       : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
+                  }`}
+                  onClick={() => {
+                    if (newItem.productId) {
+                         // EDIT PRODUCT NAV
+                         navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preserveState: true } });
+                    } else if (newItem.brandId) {
+                         // ADD PRODUCT
+                         setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
+                         openProductModal();
+                    }
+                  }}
+               >
+                   {newItem.productId ? <Pencil size={16} /> : <Star size={16} />}
+               </button>
             </div>
           </div>
 
@@ -1417,6 +1600,7 @@ const handleRestoreQuotation = async () => {
             <InputField
               type="number"
               label="Quantity *"
+               className="font-medium"
               value={newItem.quantity}
               onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />
@@ -1427,6 +1611,7 @@ const handleRestoreQuotation = async () => {
             <InputField
               type="number"
               label="Unit Price"
+               className="font-medium"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
             />
@@ -1437,6 +1622,7 @@ const handleRestoreQuotation = async () => {
             <InputField
               type="number"
               label="Discount (%)"
+               className="font-medium"
               value={newItem.discount}
               onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
             />
@@ -1444,23 +1630,23 @@ const handleRestoreQuotation = async () => {
 
           {/* Unit (Read Only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Unit</label>
-            <input
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Unit</label>
+            <InputField
               type="text"
               value={newItem.unitName}
               readOnly
-              className={`w-full border rounded px-3 py-1.5 outline-none cursor-not-allowed text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-400'}`}
+              className="font-medium"
             />
           </div>
 
           {/* Tax Percentage (Read Only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Tax Percentage (%)</label>
-            <input
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Tax Percentage (%)</label>
+            <InputField
               type="text"
               value={newItem.taxPercentage}
               readOnly
-              className={`w-full border rounded px-3 py-2 outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-400'}`}
+              className="font-medium"
             />
           </div>
         </div>
@@ -1584,6 +1770,17 @@ const handleRestoreQuotation = async () => {
         </div>
       </AddModal>
 
+      {/* --- EDIT BRAND MODAL --- */}
+      <AddModal
+            isOpen={editBrandModalOpen}
+            onClose={() => setEditBrandModalOpen(false)}
+            onSave={handleEditBrandSave}
+            title={`Edit Brand (${brandEditData.name})`}
+            saveText="Save"
+            width="400px"
+        >
+            <InputField value={brandEditData.name} onChange={e => setBrandEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+        </AddModal>
     </PageLayout>
   );
 };

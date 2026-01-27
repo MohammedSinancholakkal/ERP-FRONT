@@ -3,11 +3,19 @@ import { Menu, User, Lock, LogOut, List, X, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { changePasswordApi, LogoutApi } from "../services/allAPI";
 import { useTheme } from "../context/ThemeContext";
+import { useSettings } from "../contexts/SettingsContext"; // Added
+import { serverURL } from "../services/serverURL"; // Added
 
 const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { theme, setTheme } = useTheme();
+  const { settings } = useSettings(); // Added
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Logo Logic
+  const companyName = settings?.companyName?.trim() || "Homebutton";
+  const baseUrl = serverURL.replace("/api", "");
+  const logoUrl = settings?.logoPath ? `${baseUrl}/${settings.logoPath}` : null;
 
   const [passwordModal, setPasswordModal] = useState(false);
 
@@ -32,19 +40,14 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ==========================
-  // LOGOUT
-  // ==========================
+  // ... (Login/Logout logic handled below, skipping to render)
+
   // ==========================
   // LOGOUT
   // ==========================
   const handleLogout = async () => {
     try {
         const refreshToken = localStorage.getItem("refreshToken");
-        // We need to modify keys in allAPI for checking body?
-        // LogoutApi definition: return await commonAPI("POST", `${serverURL}/auth/logout`);
-        // We should pass body to LogoutApi.
-        // Let's just update the call here first, then update allAPI definition.
         await LogoutApi({ refreshToken }); 
     } catch(err) {
         console.error("Logout API failed", err);
@@ -100,18 +103,31 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
         className={`
           relative flex justify-between items-center px-6 py-5 shadow 
           sticky top-0 z-30 
-          sticky top-0 z-30 
           ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-800' : theme === 'purple' ? 'bg-[#6448AE]' : 'bg-gradient-to-b from-gray-900 to-gray-900'} text-white
           border-b border-white/20
         `}
       >
         {/* Sidebar Toggle */}
         <button
-          className="text-white"
+          className="text-white z-10"
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           <Menu size={20} />
         </button>
+
+        {/* CENTER LOGO (MOBILE ONLY - When Sidebar is Closed) */}
+        {!sidebarOpen && (
+           <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 md:hidden">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain" />
+              ) : (
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold">HB</span>
+                </div>
+              )}
+              <span className="font-bold text-lg whitespace-nowrap">{companyName}</span>
+           </div>
+        )}
 
         {/* RIGHT PROFILE SECTION */}
         <div className="flex items-center gap-4" ref={menuRef}>
@@ -124,7 +140,7 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
               <User size={18} className={theme === 'purple' ? 'text-[#6448AE]' : 'text-white'} />
             </div>
             
-            <span className="font-medium capitalize text-sm">
+            <span className="font-medium capitalize text-sm hidden md:block">
               {user?.displayName || "User"}
             </span>
           </div>

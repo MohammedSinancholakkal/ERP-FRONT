@@ -408,6 +408,7 @@ const ResolutionStatuses = () => {
           title={editItem.isInactive ? "Restore Resolution Status" : "Edit Resolution Status"}
           permissionDelete={hasPermission(PERMISSIONS.RESOLUTION_STATUS.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.RESOLUTION_STATUS.EDIT)}
+          saveText="Update"
        >
           <div>
              <InputField

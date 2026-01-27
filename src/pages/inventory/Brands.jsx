@@ -326,6 +326,7 @@ const Brands = () => {
         title={`${editBrand.isInactive ? "Restore Brand" : "Edit Brand"} (${editBrand.name})`}
         permissionDelete={hasPermission(PERMISSIONS.INVENTORY.BRANDS.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.INVENTORY.BRANDS.EDIT)}
+        saveText="Update"
       >
         {/* NAME */}
         <InputField

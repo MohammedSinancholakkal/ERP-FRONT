@@ -670,6 +670,7 @@ const Expenses = () => {
         title={`${editExpense.isInactive ? "Restore Expense" : "Edit Expense"}`}
         permissionDelete={hasPermission(PERMISSIONS.CASH_BANK.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
+        saveText="Update"
         width="700px"
       >
         <div className="p-0 space-y-4">

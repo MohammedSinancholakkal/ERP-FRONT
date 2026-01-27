@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
   getRegionsApi,
   getSupplierGroupsApi,
   getInactiveSuppliersApi,
+  getInactiveSupplierGroupsApi,
 } from "../../services/allAPI";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -208,13 +209,23 @@ const Suppliers = () => {
       r.group ??
       r.Group ??
       r.supplierGroup ??
+      (r.SupplierGroup?.Name || r.SupplierGroup?.GroupName || r.supplierGroup?.name || r.supplierGroup?.groupName) ??
       "",
     countryId: r.countryId ?? r.CountryId ?? r.country ?? "",
     stateId: r.stateId ?? r.StateId ?? r.state ?? "",
     cityId: r.cityId ?? r.CityId ?? r.city ?? "",
     regionId: r.regionId ?? r.RegionId ?? r.region ?? "",
     supplierGroupId:
-      r.supplierGroupId ?? r.SupplierGroupId ?? r.supplierGroup ?? r.group ?? "",
+      r.supplierGroupId ?? 
+      r.SupplierGroupId ?? 
+      r.supplierGroup ?? 
+      r.group ?? 
+      r.GroupId ?? 
+      r.groupId ?? 
+      r.group_id ?? 
+      r.Supplier_Group_Id ?? 
+      (r.SupplierGroup?.Id || r.SupplierGroup?.id || r.supplierGroup?.Id || r.supplierGroup?.id) ??
+      "",
     address: r.address ?? r.Address ?? "",
     addressLine1: r.addressLine1 ?? r.AddressLine1 ?? "",
     addressLine2: r.addressLine2 ?? r.AddressLine2 ?? "",
@@ -276,12 +287,13 @@ const Suppliers = () => {
 
   const loadLookups = async () => {
     try {
-      const [c, s, ci, r, g] = await Promise.all([
+      const [c, s, ci, r, g, inactiveG] = await Promise.all([
         getCountriesApi(1, 5000),
         getStatesApi(1, 5000),
         getCitiesApi(1, 5000),
         getRegionsApi(1, 5000),
         getSupplierGroupsApi(1, 5000),
+        getInactiveSupplierGroupsApi(),
       ]);
 
       const countries = parseArrayFromResponse(c);
@@ -289,13 +301,16 @@ const Suppliers = () => {
       const cities = parseArrayFromResponse(ci);
       const regions = parseArrayFromResponse(r);
       const groups = parseArrayFromResponse(g);
+      const inactiveGroups = parseArrayFromResponse(inactiveG);
+      
+      const allGroups = [...groups, ...inactiveGroups];
 
       setLookupLists({
         countries,
         states,
         cities,
         regions,
-        groups,
+        groups: allGroups,
       });
 
       setLookupMaps({
@@ -303,7 +318,7 @@ const Suppliers = () => {
         states: toMap(states, ["Id", "id", "StateId"], ["StateName", "name", "label"]),
         cities: toMap(cities, ["Id", "id", "CityId"], ["CityName", "name", "label"]),
         regions: toMap(regions, ["Id", "id", "regionId", "RegionId"], ["RegionName", "regionName", "name", "label"]),
-        groups: toMap(groups, ["Id", "id", "SupplierGroupId", "groupId"], ["GroupName", "groupName", "SupplierGroupName", "name", "label"]),
+        groups: toMap(allGroups, ["Id", "id", "SupplierGroupId", "groupId"], ["GroupName", "groupName", "SupplierGroupName", "name", "label"]),
       });
     } catch (err) {
       console.error("lookup load error", err);

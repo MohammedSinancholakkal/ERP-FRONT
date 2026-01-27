@@ -372,6 +372,7 @@ const Languages = () => {
         } (${editLanguage.languageName})`}
         permissionDelete={hasPermission(PERMISSIONS.LANGUAGES.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.LANGUAGES.EDIT)}
+        saveText="Update"
         width="700px"
       >
         <div className="p-0 space-y-4">

@@ -308,6 +308,7 @@ const SupplierPayment = () => {
         width="750px"
         permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
         permissionDelete={false}
+        saveText="Update"
         isInactive={editData.isInactive}
       >
         <div className="p-0 space-y-4">

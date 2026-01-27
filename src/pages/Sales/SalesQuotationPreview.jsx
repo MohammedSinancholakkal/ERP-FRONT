@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext"; // Import hook
-import { getQuotationByIdApi, getCustomersApi, getTaxTypesApi } from "../../services/allAPI";
+import { getQuotationByIdApi, getCustomersApi, getTaxTypesApi, getStatesApi, getCitiesApi } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
+
+const parseArrayFromResponse = (res) => {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (res.data?.records) return res.data.records;
+  if (res.records) return res.records;
+  const maybeArray = Object.values(res).find((v) => Array.isArray(v));
+  return Array.isArray(maybeArray) ? maybeArray : [];
+};
 
 const SalesQuotationPreview = () => {
   const { id } = useParams();
@@ -27,28 +37,56 @@ const SalesQuotationPreview = () => {
         setQuotation(q);
         setDetails(res.data?.details || res.data?.items || q?.details || []);
 
-        if (q?.CustomerId) {
-          const customersRes = await getCustomersApi(1, 1000);
-          if (customersRes?.status === 200) {
-            const cust = (customersRes.data.records || []).find((c) => c.id === q.CustomerId);
+        // Parallel fetch
+        const [customersRes, statesRes, citiesRes, taxRes] = await Promise.all([
+             getCustomersApi(1, 1000),
+             getStatesApi(1, 5000),    // Increase limit
+             getCitiesApi(1, 5000),    // Increase limit
+             getTaxTypesApi(1, 1000)
+        ]);
+
+        if (q?.CustomerId && customersRes?.status === 200) {
+            const cust = (customersRes.data.records || []).find((c) => c.id === q.CustomerId || c.Id === q.CustomerId);
             if (cust) {
+               // Resolve City and State Names
+              let cityName = cust.city || cust.City || "";
+              let stateName = cust.state || cust.State || "";
+              
+              const cityList = parseArrayFromResponse(citiesRes);
+              const stateList = parseArrayFromResponse(statesRes);
+
+              const cityId = cust.CityId || cust.cityId;
+              const stateId = cust.StateId || cust.stateId;
+
+              if (!cityName && cityId && citiesRes?.status === 200) {
+                    const foundCity = cityList.find(c => String(c.id || c.Id || c.CityId) === String(cityId));
+                    if(foundCity) cityName = foundCity.name || foundCity.Name || foundCity.CityName;
+              }
+
+              if (!stateName && stateId && statesRes?.status === 200) {
+                    const foundState = stateList.find(st => String(st.id || st.Id || st.StateId) === String(stateId));
+                    if(foundState) stateName = foundState.name || foundState.Name || foundState.StateName;
+              }
+
               setCustomer({
-                name: cust.name || "",
-                contactName: cust.contactName || "",
-                email: cust.email || cust.emailAddress || "",
-                phone: cust.phone || "",
-                address: cust.address || ""
+                name: cust.name || cust.companyName || cust.Name || cust.CompanyName || "",
+                contactName: cust.contactName || cust.ContactName || "",
+                email: cust.email || cust.emailAddress || cust.Email || cust.EmailAddress || "",
+                phone: cust.phone || cust.Phone || "",
+                address: cust.address || cust.AddressLine1 || "",
+                addressLine2: cust.addressLine2 || cust.AddressLine2 || "",
+                city: cityName,
+                state: stateName,
+                zipCode: cust.zipCode || cust.ZipCode || cust.pincode || cust.Pincode || cust.PostalCode || "",
+                pan: cust.pan || cust.PAN || cust.Pan || "",
+                gstin: cust.gstin || cust.GSTIN || cust.Gstin || cust.GSTTIN || ""
               });
             }
-          }
-        }
+        }        
 
-        if (q?.TaxTypeId) {
-            const taxRes = await getTaxTypesApi(1, 1000);
-            if(taxRes.status === 200) {
-                const found = taxRes.data.records.find(t => String(t.typeId) === String(q.TaxTypeId) || String(t.id) === String(q.TaxTypeId));
-                if(found) setTaxTypeName(found.typeName || found.name || "");
-            }
+        if (q?.TaxTypeId && taxRes?.status === 200) {
+             const found = taxRes.data.records.find(t => String(t.typeId) === String(q.TaxTypeId) || String(t.id) === String(q.TaxTypeId));
+             if(found) setTaxTypeName(found.typeName || found.name || "");
         }
       } catch (err) {
         console.error("Error loading quotation", err);
@@ -86,16 +124,32 @@ const SalesQuotationPreview = () => {
             <h3 className={`text-lg font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{settings?.companyName || "Home Button"}</h3>
             <p>Phone: {settings?.phone || ""}</p>
             <p>Email: {settings?.companyEmail || ""}</p>
-            <p>GSTIN: {settings?.vatNo || ""}</p>
+            <p>GSTIN: {settings?.gstin || ""}</p>
           </div>
 
           {/* TO */}
           <div>
             <p className={`mb-2 font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>To</p>
             <h3 className={`text-lg font-bold mb-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer?.name || customer?.contactName || "Customer Name Not Available"}</h3>
-            <p className={`mt-2 mb-2 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>{customer?.address || "Address not available"}</p>
-            <p className="text-sm">Email: <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer?.email || "-"}</span></p>
-            <p className="text-sm">Phone: <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer?.phone || "-"}</span></p>
+            <p className={`mt-2 mb-2 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>
+                {customer?.address || "Address not available"}
+                {customer?.address && <br />}
+                {customer?.addressLine2 && <>{customer.addressLine2} </>}
+                {customer?.state ? `"${customer.state}" ` : ""}{customer?.city ? `"${customer.city}"` : ""}{customer?.zipCode ? ` - ${customer.zipCode}` : ""}
+            </p>
+            
+            {customer?.email && (
+                <p className="text-sm">Email: <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer.email}</span></p>
+            )}
+            {customer?.phone && (
+                <p className="text-sm">Phone: <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer.phone}</span></p>
+            )}
+            {customer?.pan && (
+                <p className="text-sm">PAN: <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer.pan}</span></p>
+            )}
+            {customer?.gstin && (
+                <p className="text-sm">GSTIN: <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer.gstin}</span></p>
+            )}
           </div>
 
           {/* META */}

@@ -410,6 +410,7 @@ const AttendeeTypes = () => {
           title={editItem.isInactive ? "Restore Attendee Type" : "Edit Attendee Type"}
           permissionDelete={hasPermission(PERMISSIONS.ATTENDEE_TYPES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.ATTENDEE_TYPES.EDIT)}
+          saveText="Update"
        >
           <div>
              <InputField

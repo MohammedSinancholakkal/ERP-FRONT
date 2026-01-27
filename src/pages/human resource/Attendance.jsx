@@ -538,6 +538,7 @@ const Attendance = () => {
         title={editForm.isInactive ? "Restore Attendance" : "Edit Attendance"}
         permissionDelete={hasPermission(PERMISSIONS.HR.ATTENDANCE.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.HR.ATTENDANCE.EDIT)}
+        saveText="Update"
         width="700px"
       >
         <div className="p-0 space-y-4">

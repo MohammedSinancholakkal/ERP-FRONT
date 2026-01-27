@@ -1,7 +1,17 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import toast from "react-hot-toast";
-import { getSaleByIdApi, getQuotationByIdApi } from "../services/allAPI";
+import { getSaleByIdApi, getQuotationByIdApi, getCustomerByIdApi, getStatesApi, getCitiesApi } from "../services/allAPI";
+
+const parseArrayFromResponse = (res) => {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (res.data?.records) return res.data.records;
+  if (res.records) return res.records;
+  const maybeArray = Object.values(res).find((v) => Array.isArray(v));
+  return Array.isArray(maybeArray) ? maybeArray : [];
+};
 import { serverURL } from "../services/serverURL";
 
 // COZY SANITARYWARE STYLE PDF GENERATOR (Refactored for SHREE DEVI TILES Style)
@@ -50,6 +60,63 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
         }
         fullSale = res.data.sale;
         saleDetails = res.data.details || [];
+    }
+
+    // 2. Fetch Customer if details missing OR to resolve City/State
+    const cId = fullSale.CustomerId || fullSale.customerId;
+    // Always try to fetch customer to get address details if they are partial or rely on IDs
+    if (cId) {
+        try {
+            // Fetch Customer, Cities, States in parallel
+            const [custRes, citiesRes, statesRes] = await Promise.all([
+                 getCustomerByIdApi(cId),
+                 getCitiesApi(1, 5000),
+                 getStatesApi(1, 5000)
+            ]);
+
+            if (custRes.status === 200) {
+                 const custData = custRes.data?.customer || custRes.data || {};
+                 
+                 // Resolve City/State Names if IDs exist
+                 const cityList = parseArrayFromResponse(citiesRes);
+                 const stateList = parseArrayFromResponse(statesRes);
+
+                 const cityId = custData.CityId || custData.cityId || custData.City?.id;
+                 const stateId = custData.StateId || custData.stateId || custData.State?.id;
+                 
+                 let resolvedCity = custData.City || custData.city || "";
+                 let resolvedState = custData.State || custData.state || "";
+
+                 // If name is missing or looks like an ID, try lookup
+                 if (cityId && cityList.length > 0) {
+                      const found = cityList.find(c => String(c.id || c.Id || c.CityId) === String(cityId));
+                      if (found) resolvedCity = found.name || found.Name || found.CityName;
+                 }
+                 if (stateId && stateList.length > 0) {
+                      const found = stateList.find(s => String(s.id || s.Id || s.StateId) === String(stateId));
+                      if (found) resolvedState = found.name || found.Name || found.StateName;
+                 }
+
+                 // Merge details
+                 if(!fullSale.CustomerEmail && !fullSale.email) fullSale.CustomerEmail = custData.Email || custData.email || custData.EmailAddress;
+                 if(!fullSale.CustomerPhone && !fullSale.phone) fullSale.CustomerPhone = custData.Phone || custData.phone;
+                 if(!fullSale.PAN && !fullSale.pan) fullSale.PAN = custData.PAN || custData.pan;
+                 if(!fullSale.CustomerGSTIN && !fullSale.gstin) fullSale.CustomerGSTIN = custData.GSTIN || custData.gstin || custData.GSTTIN;
+                 
+                 // Address Priority: Invoice Snapshot > Resolved Customer > Existing
+                 if(!fullSale.CustomerAddress && !fullSale.address) fullSale.CustomerAddress = custData.AddressLine1 || custData.addressLine1 || custData.Address;
+                 if(!fullSale.AddressLine2 && !fullSale.addressLine2) fullSale.AddressLine2 = custData.AddressLine2 || custData.addressLine2;
+                 
+                 // For City/State, prioritize the RESOLVED name over whatever might be there if it's suspicious?
+                 // Usually invoice snapshot is best, but here the issue IS the snapshot/data is missing/wrong.
+                 // So let's fill if missing.
+                 if(!fullSale.City && !fullSale.city) fullSale.City = resolvedCity;
+                 if(!fullSale.State && !fullSale.state) fullSale.State = resolvedState;
+                 if(!fullSale.ZipCode && !fullSale.zipCode) fullSale.ZipCode = custData.PostalCode || custData.postalCode;
+            }
+        } catch(err) {
+            console.error("Failed to fetch customer/address details", err);
+        }
     }
 
     // 2. Setup jsPDF
@@ -163,36 +230,84 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
        }
 
        // Company Name (Right Aligned in box)
+       // Company Name (Left Aligned in Right Block)
+       // Define a starting X for the right block
+       const blockX = 135; 
+
        const companyName = settings?.companyName || "";
        doc.setFontSize(16);
-       doc.text(companyName, pageWidth - margin - 5, boxTopY + 8, { align: "right" });
+       doc.text(companyName, blockX, boxTopY + 8);
        
        // Address
        doc.setFontSize(8);
        doc.setFont("helvetica", "normal");
        const address = settings?.address || "Address Line 1, City, State - Zip";
-       const addressLines = doc.splitTextToSize(address, 100);
-       doc.text(addressLines, pageWidth - margin - 5, boxTopY + 14, { align: "right" });
+       // split text relative to the remaining width (pageWidth - margin - blockX)
+       const remainingWidth = pageWidth - margin - blockX - 2;
+       const addressLines = doc.splitTextToSize(address, remainingWidth);
+       doc.text(addressLines, blockX, boxTopY + 14);
        
-       // Contact
-       doc.text(`Phone no: ${settings?.phone || ""} Email: ${settings?.companyEmail || ""}`, pageWidth - margin - 5, boxTopY + 22, { align: "right" });
-       doc.text(`GSTIN: ${settings?.vatNo || ""}, State: ${settings?.state || "33-Tamil Nadu"}`, pageWidth - margin - 5, boxTopY + 26, { align: "right" });
+       // Contact - Split rows
+       // 1. Email
+       doc.text(`Email: ${settings?.companyEmail || ""}`, blockX, boxTopY + 19);
+       // 2. Phone
+       doc.text(`Phone: ${settings?.phone || ""}`, blockX, boxTopY + 23);
+       // 3. GSTIN
+       doc.text(`GSTIN: ${settings?.gstin || ""}`, blockX, boxTopY + 27);
 
        return boxTopY + boxH;
     };
 
     // Customer & Transport Section
     const drawCustomerSection = (y) => {
-        const sectionH = 35;
+        const midX = margin + (contentWidth * 0.35); // Reverted to 0.35
+        const rightX = pageWidth - margin - 50; 
+        
+        // --- PRE-CALCULATE HEIGHT ---
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        
+        // Prepare Bill To Address
+        const custAddr = fullSale.CustomerAddress || fullSale.address || "";
+        const custAddr2 = fullSale.AddressLine2 || fullSale.addressLine2 || "";
+        const city = fullSale.City || fullSale.city || "";
+        const state = fullSale.State || fullSale.state || "";
+        const zip = fullSale.ZipCode || fullSale.zipCode || fullSale.PostalCode || fullSale.postalCode || "";
+        
+        let combinedAddr = custAddr;
+        if(custAddr2) combinedAddr += ", " + custAddr2;
+        if(state) combinedAddr += ", " + state;
+        if(city) combinedAddr += ", " + city;
+        if(zip) combinedAddr += " - " + zip;
+
+        // Bill To Width = (midX - margin) - 4 padding
+        const billToWidth = (midX - margin) - 4;
+        const custAddrLines = doc.splitTextToSize(combinedAddr, billToWidth);
+        
+        // Calculate needed height for Bill To
+        let billToContentH = 14; // Header (4) + Name (6) + spacing
+        billToContentH += (custAddrLines.length * 3.5); // Address (Reduced from 4)
+        
+        // Helper to check optional fields height
+        const checkField = (val) => val ? 3.5 : 0;
+        
+        billToContentH += checkField(fullSale.CustomerEmail || fullSale.email || fullSale.Email || fullSale.Customer?.email || fullSale.Customer?.Email);
+        billToContentH += checkField(fullSale.CustomerPhone || fullSale.phone || fullSale.contact || fullSale.Phone || fullSale.Customer?.phone || fullSale.Customer?.Phone);
+        billToContentH += checkField(fullSale.PAN || fullSale.pan || fullSale.Customer?.pan || fullSale.Customer?.PAN);
+        billToContentH += checkField(fullSale.CustomerGSTIN || fullSale.gstin || fullSale.GSTIN || fullSale.Customer?.gstin || fullSale.Customer?.GSTIN);
+        
+        billToContentH += 4; // Bottom padding
+        
+        const minHeight = 35;
+        const sectionH = Math.max(minHeight, billToContentH);
+
+        // --- DRAW BOX ---
         drawBox(margin, y, contentWidth, sectionH);
         
-        const midX = margin + (contentWidth * 0.35); // 35% for Bill To (Decreased from 45%)
-        const rightX = pageWidth - margin - 50; // Invoice Details column
-        
         // Vertical Dividers
-        doc.line(midX, y, midX, y + sectionH); // Split Bill To / Transport
-        doc.line(rightX, y, rightX, y + sectionH); // Split Transport / Invoice Data
-        doc.line(margin, y + 6, pageWidth - margin, y + 6); // Headers line
+        doc.line(midX, y, midX, y + sectionH); 
+        doc.line(rightX, y, rightX, y + sectionH); 
+        doc.line(margin, y + 6, pageWidth - margin, y + 6); 
 
         // Headers
         doc.setFontSize(8);
@@ -200,22 +315,51 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
         doc.text("Bill To", margin + 2, y + 4);
         doc.text("Transportation Details", midX + 2, y + 4);
         
-        // Invoice Details Header (Implicit)
-        
         // --- COL 1: Bill To ---
         doc.setFont("helvetica", "bold");
         doc.text(fullSale.CustomerName || "", margin + 2, y + 10);
         doc.setFont("helvetica", "normal");
-        const custAddr = fullSale.CustomerAddress || "";
-        const custAddr2 = fullSale.AddressLine2 || "";
-        const combinedAddr = custAddr + (custAddr2 ? "\n" + custAddr2 : "");
-        const custAddrLines = doc.splitTextToSize(combinedAddr, (midX - margin) - 4);
+        
         doc.text(custAddrLines, margin + 2, y + 14);
+
+        let detailsY = y + 14 + (custAddrLines.length * 3.5); // Reduced gap
+        const lineHeight = 3.5;
+
+        // Email
+        const cEmail = fullSale.CustomerEmail || fullSale.email || fullSale.Email || fullSale.Customer?.email || fullSale.Customer?.Email || "";
+        if(cEmail) {
+            doc.text(`Email: ${cEmail}`, margin + 2, detailsY);
+            detailsY += lineHeight;
+        }
+
+        // Phone
+        const cPhone = fullSale.CustomerPhone || fullSale.phone || fullSale.contact || fullSale.Phone || fullSale.Customer?.phone || fullSale.Customer?.Phone || "";
+        if(cPhone) {
+            doc.text(`Phone: ${cPhone}`, margin + 2, detailsY);
+            detailsY += lineHeight;
+        }
+
+        // PAN
+        const cPAN = fullSale.PAN || fullSale.pan || fullSale.Customer?.pan || fullSale.Customer?.PAN || "";
+        if(cPAN) {
+            doc.text(`PAN: ${cPAN}`, margin + 2, detailsY);
+            detailsY += lineHeight;
+        }
+
+        // GSTIN
+        const cGSTIN = fullSale.CustomerGSTIN || fullSale.gstin || fullSale.GSTIN || fullSale.Customer?.gstin || fullSale.Customer?.GSTIN || "";
+        if(cGSTIN) {
+            doc.text(`GSTIN: ${cGSTIN}`, margin + 2, detailsY);
+            detailsY += lineHeight;
+        }
         
         // --- COL 2: Transport ---
-        // Assuming we might have vehicle no in future, currently hardcoded or from custom field if available
+        // Transport width = (rightX - midX)
+        const transportWidth = (rightX - midX) - 4;
         doc.setFont("helvetica", "normal");
-        doc.text("VEHICLE NUMBER: " + (fullSale.VehicleNo || ""), midX + 2, y + 10);
+        const vehicleText = `VEHICLE NUMBER: ${fullSale.VehicleNo || ""}`;
+        const vehicleLines = doc.splitTextToSize(vehicleText, transportWidth);
+        doc.text(vehicleLines, midX + 2, y + 10);
         
         // --- COL 3: Invoice Data ---
         doc.setFont("helvetica", "bold");
@@ -264,37 +408,37 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
       tableHead = [
         [
           { content: 'Sr.\nNo.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Name of Product / Service', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+          { content: 'Name of Product / Service', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'HSN / SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'Qty', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Rate', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
-          { content: 'Taxable Value', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
+          { content: 'Rate', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable Value', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'IGST', colSpan: 2, styles: { halign: 'center' } },
-          { content: 'Total', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } }
+          { content: 'Total', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
         ],
         [
           { content: '%', styles: { halign: 'center' } },
-          { content: 'Amount', styles: { halign: 'right' } }
+          { content: 'Amount', styles: { halign: 'center' } }
         ]
       ];
     } else {
       tableHead = [
         [
           { content: 'Sr.\nNo.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Name of Product / Service', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+          { content: 'Name of Product / Service', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'HSN / SAC', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'Qty', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Rate', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
-          { content: 'Taxable Value', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } },
+          { content: 'Rate', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Taxable Value', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
           { content: 'CGST', colSpan: 2, styles: { halign: 'center' } },
           { content: 'SGST', colSpan: 2, styles: { halign: 'center' } },
-          { content: 'Total', rowSpan: 2, styles: { halign: 'right', valign: 'middle' } }
+          { content: 'Total', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
         ],
         [
           { content: '%', styles: { halign: 'center' } },
-          { content: 'Amount', styles: { halign: 'right' } },
+          { content: 'Amount', styles: { halign: 'center' } },
           { content: '%', styles: { halign: 'center' } },
-          { content: 'Amount', styles: { halign: 'right' } }
+          { content: 'Amount', styles: { halign: 'center' } }
         ]
       ];
     }
@@ -355,7 +499,7 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
     });
 
     // Dynamic Height Calculation
-    const footerNeededSpace = 85; 
+    const footerNeededSpace = 70; 
     const startTableY = currentY;
     const availableSpace = pageHeight - margin - 10 - startTableY - footerNeededSpace; 
     const estRowHeight = 9; 
@@ -446,7 +590,7 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
     let finalY = doc.lastAutoTable.finalY;
     
     // Check space for footer (Approx 80mm needed)
-    const requiredFooterH = 85; 
+    const requiredFooterH = 70; 
     if (finalY + requiredFooterH > pageHeight - margin) {
         doc.addPage();
         finalY = margin + 10;

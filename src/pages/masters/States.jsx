@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Star,
+  Pencil
 } from "lucide-react";
 import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
@@ -26,6 +27,7 @@ import {
   getCountriesApi,
   addCountryApi,
   searchCountryApi,
+  updateCountryApi,
 } from "../../services/allAPI";
 
 // MODALS
@@ -67,6 +69,9 @@ const States = () => {
   // QUICK ADD MODAL STATES
   const [addCountryModalOpen, setAddCountryModalOpen] = useState(false);
   const [newCountryName, setNewCountryName] = useState("");
+
+  const [editCountryModalOpen, setEditCountryModalOpen] = useState(false);
+  const [countryEditData, setCountryEditData] = useState({ id: null, name: "" });
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -357,6 +362,22 @@ const States = () => {
       }
   };
 
+  const handleEditCountrySave = async () => {
+    if (!countryEditData.name?.trim()) return toast.error("Name required");
+    try {
+        const res = await updateCountryApi(countryEditData.id, { name: countryEditData.name, userId });
+        if (res?.status === 200) {
+            toast.success("Country updated");
+            setEditCountryModalOpen(false);
+            const resC = await getCountriesApi(1, 1000);
+            if(resC?.status === 200) {
+                 const rows = resC.data.records || resC.data || [];
+                 setCountries(rows.map(r => ({ id: r.Id || r.id, name: r.Name || r.name })));
+            }
+        } else toast.error("Update failed");
+    } catch(err) { console.error(err); toast.error("Server error"); }
+  };
+
   const tableColumns = [
     visibleColumns.id && { key: "id", label: "ID", sortable: true },
     visibleColumns.name && { key: "name", label: "Name", sortable: true },
@@ -484,6 +505,7 @@ const States = () => {
           title={editData.isInactive ? "Restore State" : "Edit State"}
           permissionDelete={hasPermission(PERMISSIONS.STATES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.STATES.EDIT)}
+          saveText="Update"
        >
            <div className="space-y-4">
               <div>
@@ -514,9 +536,17 @@ const States = () => {
                         direction="up"
                       />
                       {!editData.isInactive && (
-                          <button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
-                               <Star size={16} className="" />
-                           </button>
+                          <div className="flex gap-1">
+                               {editData.countryId && (
+                                <button onClick={() => {
+                                    const c = countries.find(x => String(x.id) == String(editData.countryId));
+                                    setCountryEditData({ id: editData.countryId, name: c?.name || "" });
+                                    setEditCountryModalOpen(true);
+                                }} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                   <Pencil size={16} />
+                                </button>
+                               )}
+                          </div>
                       )}
                   </div>
               </div>
@@ -541,6 +571,12 @@ const States = () => {
                 />
             </div>
        </AddModal>
+
+       {editCountryModalOpen && (
+           <AddModal isOpen={true} onClose={() => setEditCountryModalOpen(false)} onSave={handleEditCountrySave} title={`Edit Country (${countryEditData.name})`} saveText="Save">
+               <InputField value={countryEditData.name} onChange={e => setCountryEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+           </AddModal>
+       )}
 
        {/* COLUMN PICKER MODAL */}
        <ColumnPickerModal

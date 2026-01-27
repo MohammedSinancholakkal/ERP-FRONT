@@ -153,6 +153,7 @@ function App() {
           <Route path="inventory/categories" element={<Categories />} />
           <Route path="inventory/products" element={<Products />} />
           <Route path="inventory/newproduct" element={<NewProduct />} />
+          <Route path="inventory/newproduct/:id" element={<NewProduct />} />
           <Route path="inventory/editproduct/:id" element={<NewProduct />} />
           <Route path="inventory/updatestock" element={<UpdateStocks />} />
           <Route path="inventory/damagedproducts" element={<DamagedProducts />} />
@@ -173,6 +174,7 @@ function App() {
           <Route path="hr/departments" element={<Departments />} />
           <Route path="hr/designations" element={<Designations />} />
           <Route path="hr/newemployee" element={<NewEmployee />} />
+          <Route path="hr/newemployee/:id" element={<NewEmployee />} />
           <Route path="hr/editemployee/:id" element={<NewEmployee />} />
           <Route path="hr/employees" element={<Employees />} />
           <Route path="hr/employees/:id" element={<NewEmployee />} />

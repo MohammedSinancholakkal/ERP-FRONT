@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Save, Star, X } from "lucide-react";
+import { Save, Star, X, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import PageLayout from "../../layout/PageLayout";
 import { serverURL } from "../../services/serverURL";
@@ -9,6 +9,7 @@ import {
   updateSettingsApi,
   getCurrenciesApi,
   addCurrencyApi,
+  updateCurrencyApi,
 } from "../../services/allAPI";
 import { useSettings } from "../../contexts/SettingsContext";
 import { updateFavicon } from "../../utils/updateFavicon";
@@ -61,6 +62,9 @@ const Settings = () => {
   const [faviconFile, setFaviconFile] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingCurrencyId, setEditingCurrencyId] = useState(null);
   const [newCurrencyName, setNewCurrencyName] = useState("");
   const [newCurrencySymbol, setNewCurrencySymbol] = useState("");
 
@@ -80,8 +84,12 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    fetchCurrencies();
-    fetchSettings();
+    const init = async () => {
+        setIsLoading(true);
+        await Promise.all([fetchCurrencies(), fetchSettings()]);
+        setIsLoading(false);
+    };
+    init();
   }, []);
 
   const fetchSettings = async () => {
@@ -155,7 +163,7 @@ const Settings = () => {
     }
   };
 
-  const addCurrency = async () => {
+  const handleCurrencySave = async () => {
     if (!newCurrencyName.trim() || !newCurrencySymbol.trim()) {
         toast.error("Currency Name and Symbol are required");
         return;
@@ -167,24 +175,31 @@ const Settings = () => {
         currencySymbol: newCurrencySymbol,
         userId: 1, // Hardcoded
       };
-      const res = await addCurrencyApi(reqBody);
+
+      let res;
+      if (editingCurrencyId) {
+          res = await updateCurrencyApi(editingCurrencyId, reqBody);
+      } else {
+          res = await addCurrencyApi(reqBody);
+      }
 
       if (res.status === 200 || res.status === 201) {
         await fetchCurrencies();
         
-        // Auto-select the new currency
+        // Auto-select the new/updated currency
         setCurrency(newCurrencyName);
 
         setNewCurrencyName("");
         setNewCurrencySymbol("");
+        setEditingCurrencyId(null);
         setModalOpen(false);
-        toast.success("Currency added successfully");
+        toast.success(editingCurrencyId ? "Currency updated successfully" : "Currency added successfully");
       } else {
-          toast.error("Failed to add currency");
+          toast.error(editingCurrencyId ? "Failed to update currency" : "Failed to add currency");
       }
     } catch (error) {
-      console.error("Error adding currency:", error);
-      toast.error("Error adding currency");
+      console.error("Error saving currency:", error);
+      toast.error("Error saving currency");
     }
   };
 
@@ -213,7 +228,10 @@ const Settings = () => {
   };
 
 const handleSave = async () => {
+  if (isSaving) return;
   if (!validateForm()) return;
+
+  setIsSaving(true);
 
   const formData = new FormData();
 
@@ -286,12 +304,25 @@ if (response?.status === 200) {
       toast.error("Failed to save settings");
     }
   } catch (error) {
-    toast.error("Error saving settings");
     console.error("Error saving settings:", error);
+    toast.error("Error saving settings");
+  } finally {
+    setIsSaving(false);
   }
 };
 
 
+
+  if (isLoading) {
+    return (
+      <div className={`h-[90vh] flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-50' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200' : 'bg-gray-900'}`}>
+        <div className="flex flex-col items-center gap-3">
+          <div className={`w-10 h-10 border-4 rounded-full animate-spin ${theme === 'emerald' ? 'border-emerald-500 border-t-transparent' : theme === 'purple' ? 'border-[#6448AE] border-t-transparent' : 'border-blue-500 border-t-transparent'}`}></div>
+          <span className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-[#6448AE] font-medium' : 'text-gray-300'}`}>Loading settings...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -299,16 +330,25 @@ if (response?.status === 200) {
         {/* ⭐ ONLY SETTINGS PAGE SCROLLABLE */}
         <div className={`max-h-[calc(100vh-90px)] overflow-y-auto p-6 ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-800 text-white'}`}>
           <ContentCard>
-            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Settings</h2>
+            <div className="flex items-center justify-between mb-2">
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Settings</h2>
+                <button
+                    className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-800 border-gray-600 text-blue-300'}`}
+                    onClick={handleSave}
+                    disabled={isSaving}
+                >
+                    {isSaving ? (
+                        <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                        </>
+                    ) : (
+                        <>
+                        <Save size={16} /> Save
+                        </>
+                    )}
+                </button>
+            </div>
             <hr className="mb-4 border-gray-300" />
-            
-          {/* SAVE BUTTON */}
-          <button
-            className={`flex items-center justify-center gap-2 border px-4 py-2 rounded text-sm mb-3 w-32 ${theme === 'emerald' || theme === 'purple' ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-800 border-gray-600 text-blue-300'}`}
-            onClick={handleSave}
-          >
-            <Save size={16} /> Save
-          </button>
 
           <div className="max-w-[1500px]">
             {/* COMPANY NAME */}
@@ -388,14 +428,28 @@ if (response?.status === 200) {
                 ))}
               </select>
 
-              {hasPermission(PERMISSIONS.CURRENCIES.CREATE) && (
-              <button
-                onClick={() => setModalOpen(true)}
-                className={`p-2  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-              >
-                <Star size={16} className="" />
-              </button>
-              )}
+                {hasPermission(PERMISSIONS.CURRENCIES.CREATE) && (
+                <button
+                    onClick={() => {
+                        const selected = currencies.find(c => c.currencyName === currency);
+                        if (selected) {
+                            setEditingCurrencyId(selected.id || selected.Id);
+                            setNewCurrencyName(selected.currencyName);
+                            setNewCurrencySymbol(selected.currencySymbol);
+                            setModalOpen(true);
+                        } else {
+                            setEditingCurrencyId(null);
+                            setNewCurrencyName("");
+                            setNewCurrencySymbol("");
+                            setModalOpen(true);
+                        }
+                    }}
+                    className={`p-2  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                    title={currencies.find(c => c.currencyName === currency) ? "Edit Currency" : "Add Currency"}
+                >
+                    {currencies.find(c => c.currencyName === currency) ? <Pencil size={16} /> : <Star size={16} />}
+                </button>
+                )}
             </div>
             {errors.currency && (
               <p className="text-red-400 text-sm mt-1 mb-6">
@@ -601,9 +655,9 @@ if (response?.status === 200) {
           <AddModal
             isOpen={modalOpen}
             onClose={() => setModalOpen(false)}
-            onSave={addCurrency}
-            title="Add Currency"
-            saveText="Add"
+            onSave={handleCurrencySave}
+            title={editingCurrencyId ? "Edit Currency" : "Add Currency"}
+            saveText={editingCurrencyId ? "Update" : "Add"}
           >
               <div className="space-y-4 p-1">
                   <div>

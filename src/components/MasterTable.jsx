@@ -3,6 +3,7 @@ import { useTheme } from "../context/ThemeContext";
 import { Search, Plus, RefreshCw, List, ArchiveRestore } from "lucide-react";
 import { useState } from "react"; // ADDED
 import toast from "react-hot-toast"; // ADDED
+import Pagination from "./Pagination";
 
 const MasterTable = ({
   columns,
@@ -21,6 +22,11 @@ const MasterTable = ({
   onToggleInactive,
   permissionCreate = true,
   customActions,
+  page,
+  setPage,
+  limit,
+  setLimit,
+  total,
   children,
 }) => {
   const { theme } = useTheme();
@@ -51,11 +57,7 @@ const MasterTable = ({
         cursor-pointer rounded shadow-sm border-b transition-colors
         ${
           isInactive
-            ? `opacity-40 line-through ${
-                theme === "emerald"
-                  ? "bg-gray-100 hover:bg-gray-200 text-gray-500"
-                  : "bg-gray-900 hover:bg-gray-700 text-white"
-              }`
+            ? `line-through bg-[#9CA3AF] text-white hover:bg-[#A0AEC0]`
             : `${
                 theme === "emerald"
                   ? "bg-gradient-to-r from-emerald-100 to-white hover:from-emerald-200 hover:to-white text-gray-900 border-emerald-300"
@@ -249,6 +251,19 @@ const MasterTable = ({
           </tbody>
         </table>
       </div>
+
+
+      {/* PAGINATION */}
+      {limit && (
+         <Pagination
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={total || 0}
+            onRefresh={onRefresh}
+         />
+      )}
     </div>
   );
 };

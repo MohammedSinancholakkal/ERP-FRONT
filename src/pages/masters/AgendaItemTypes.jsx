@@ -421,6 +421,7 @@ const AgendaItemTypes = () => {
           title={editItem.isInactive ? "Restore Agenda Item Type" : "Edit Agenda Item Type"}
           permissionDelete={hasPermission(PERMISSIONS.AGENDA_ITEM_TYPES.DELETE)}
           permissionEdit={hasPermission(PERMISSIONS.AGENDA_ITEM_TYPES.EDIT)}
+          saveText="Update"
        >
           <div>
              <InputField

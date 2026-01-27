@@ -14,6 +14,7 @@ const EditModal = ({
   children,
   permissionDelete = true,
   permissionEdit = true,
+  saveText = "Save",
   zIndex,
 }) => {
   const { theme } = useTheme();
@@ -33,6 +34,27 @@ const EditModal = ({
     }
   }, [isOpen]);
 
+  const [loading, setLoading] = React.useState(false);
+  const isMounted = React.useRef(true);
+
+  React.useEffect(() => {
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const handleSave = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      await onSave();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      if (isMounted.current) setLoading(false);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       if (document.activeElement.tagName === 'TEXTAREA') return;
@@ -40,7 +62,7 @@ const EditModal = ({
       // But typically Enter -> Save is expected behavior in edit form
       if (!isInactive && permissionEdit) {
          e.preventDefault();
-         onSave();
+         handleSave();
       }
     }
   };
@@ -64,7 +86,7 @@ const EditModal = ({
             permissionDelete && (
               <button
                 onClick={onDelete}
-              className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : theme === 'purple' ? 'flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500' : 'bg-red-600 border-red-900 hover:bg-red-700'}`}
+                className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : theme === 'purple' ? 'flex items-center gap-2 bg-red-600 border border-red-500 px-4 py-2 rounded text-white hover:bg-red-500' : 'bg-red-600 border-red-900 hover:bg-red-700'}`}
               >
                 <Trash2 size={16} /> Delete
               </button>
@@ -73,10 +95,20 @@ const EditModal = ({
 
           {permissionEdit && !isInactive && (
             <button
-              onClick={onSave}
-              className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
+              onClick={handleSave}
+              disabled={loading}
+              className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              <Save size={16} /> Save
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                 <>
+                   <Save size={16} /> {saveText}
+                 </>
+              )}
             </button>
           )}
         </div>
