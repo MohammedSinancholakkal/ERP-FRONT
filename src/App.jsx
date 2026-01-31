@@ -54,8 +54,7 @@ import ContraVoucher from "./pages/Financial/ContraVoucher";
 import CreditVoucher from "./pages/Financial/CreditVoucher";
 import DebitVoucher from "./pages/Financial/DebitVoucher";
 import OpeningBalance from "./pages/Financial/OpeningBalance";
-import ChartOfAccounts from "./pages/Financial/ChartOfAccounts";
-import Sales from "./pages/Sales/Sales";
+import NewAccounts from "./pages/Financial/NewAccounts";
 import SalesQuotation from "./pages/Sales/SalesQuotation";
 import SalesQuotationPreview from "./pages/Sales/SalesQuotationPreview";
 import SalesInvoicePreview from "./pages/Sales/SalesInvoicePreview";
@@ -67,6 +66,10 @@ import CustomerReceivableReport from "./pages/reports/CustomerReceivableReport";
 import StockReport from "./pages/reports/StockReport";
 import DailyClosingReport from "./pages/reports/DailyClosingReport";
 import DayClosing from "./pages/reports/DayClosing";
+import TodaysReport from "./pages/reports/TodaysReport";
+import SalesReport from "./pages/reports/SalesReport";
+import ProductWiseSalesReport from "./pages/reports/ProductWiseSalesReport";
+import PurchaseReport from "./pages/reports/PurchaseReport";
 import Settings from "./pages/Administration/Settings";
 import Translations from "./pages/Administration/Translations";
 import NewSuppliers from "./pages/business partners/NewSuppliers";
@@ -87,6 +90,9 @@ import PayrollEmployee from "./pages/human resource/PayrollEmployee";
 import EditMeeting from "./pages/Meeting/EditMeeting";
 import { hasPermission, getEntryRoute } from "./utils/permissionUtils";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ChartOfAccounts from "./pages/Financial/ChartOfAccounts";
+import Sales from "./pages/Sales/Sales";
+
 
 
 import { ThemeProvider } from "./context/ThemeContext";  
@@ -235,6 +241,7 @@ function App() {
           <Route path="financial/debitvoucher" element={<DebitVoucher />} />
           <Route path="financial/openingbalance" element={<OpeningBalance />} />
           <Route path="financial/chartofaccounts" element={<ChartOfAccounts />} />
+          <Route path="financial/newaccount" element={<NewAccounts />} />
 
           
 
@@ -301,6 +308,10 @@ function App() {
           <Route path="reports/stockreports" element={<StockReport />} />
           <Route path="reports/dailyclosingreports" element={<DailyClosingReport />} />
           <Route path="reports/dayclosing" element={<DayClosing />} />
+          <Route path="reports/todaysreport" element={<TodaysReport />} />
+          <Route path="reports/salesreport" element={<SalesReport />} />
+          <Route path="reports/productwisesalesreport" element={<ProductWiseSalesReport />} />
+          <Route path="reports/purchasereport" element={<PurchaseReport />} />
 
           </Route>
         </Routes>

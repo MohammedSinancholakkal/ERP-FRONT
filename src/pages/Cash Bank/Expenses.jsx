@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
-import {
+// import {
 //   Search,
 //   Plus,
 //   RefreshCw,
 //   List,
-  X,
-  Save,
-//   Trash2,
-  ArchiveRestore,
-  Star,
-} from "lucide-react";
+//   ArchiveRestore,
+// } from "lucide-react";
+import { X, Star, Pencil } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
 import FilterBar from "../../components/FilterBar";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -29,14 +27,16 @@ import {
   restoreExpenseApi,
   getExpenseTypesApi,
   addExpenseTypeApi,
+  updateExpenseTypeApi,
 } from "../../services/allAPI";
 import PageLayout from "../../layout/PageLayout";
-import Pagination from "../../components/Pagination";
+// import Pagination from "../../components/Pagination";
 import SearchableSelect from "../../components/SearchableSelect";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import { useDashboard } from "../../context/DashboardContext";
+import InputField from "../../components/InputField";
 
 const Expenses = () => {
     const { theme } = useTheme();
@@ -69,11 +69,6 @@ const Expenses = () => {
     setSortConfig({ key, direction });
   };
 
-  
-  // local UI for add modal expense type dropdown
-  const [expenseTypeOpen, setExpenseTypeOpen] = useState(false);
-  const [expenseTypeSearch, setExpenseTypeSearch] = useState("");
-
   // edit form
   const [editExpense, setEditExpense] = useState({
     id: null,
@@ -97,16 +92,13 @@ const Expenses = () => {
   // quick-create modal for Expense Type
   const [showExpenseTypeCreate, setShowExpenseTypeCreate] = useState(false);
   const [expenseTypeCreateName, setExpenseTypeCreateName] = useState("");
-
+  const [isEditingType, setIsEditingType] = useState(false);
+  const [editingTypeId, setEditingTypeId] = useState(null);
 
   // pagination
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
-
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const currentUserId = user?.userId || 1;
@@ -128,10 +120,8 @@ const Expenses = () => {
   // LOAD EXPENSE TYPES
   // ==========================
   const loadExpenseTypes = async () => {
-    // Use the paginated API but request a large limit so we get all types
-    // (the API returns { records, total } or array directly depending on endpoint)
     try {
-      const res = await getExpenseTypesApi(1, 5000);
+      const res = await getExpenseTypesApi(1, 1000); // Fetch enough
       if (res?.status === 200) {
         const items = res.data?.records ?? res.data;
         setExpenseTypes(items || []);
@@ -142,67 +132,123 @@ const Expenses = () => {
     }
   };
 
-  // ========================= CREATE EXPENSE TYPE (quick-create from Add modal) =========================
-  const handleCreateExpenseType = async () => {
+  // ========================= CREATE / UPDATE EXPENSE TYPE =========================
+  const handleSaveExpenseType = async () => {
     if (!expenseTypeCreateName.trim()) return toast.error("Type required");
 
-    // Duplicate Check
-    const existing = expenseTypes.find(
-      (t) => (t.typeName || t.type || "").toLowerCase() === expenseTypeCreateName.trim().toLowerCase()
-    );
-    if (existing) return toast.error("Expense type already exists");
-
     try {
-      const res = await addExpenseTypeApi({
-        typeName: expenseTypeCreateName.trim(),
-        userId: currentUserId,
-      });
+      if (isEditingType) {
+          // UPDATE
+          const res = await updateExpenseTypeApi(editingTypeId, {
+              typeName: expenseTypeCreateName.trim(),
+              userId: currentUserId
+          });
 
-      if (res?.status === 200 || res?.status === 201) {
-        // reload full list and pick the created one
-        const listRes = await getExpenseTypesApi(1, 5000);
-        const items = listRes?.data?.records ?? listRes?.data ?? [];
-        setExpenseTypes(items || []);
+          if(res?.status === 200) {
+             toast.success("Expense type updated");
+             // reload
+             const listRes = await getExpenseTypesApi(1, 1000);
+             const items = listRes?.data?.records ?? listRes?.data ?? [];
+             setExpenseTypes(items || []);
+             setShowExpenseTypeCreate(false);
+             setExpenseTypeCreateName("");
+             setIsEditingType(false);
+             setEditingTypeId(null);
+             invalidateDashboard();
+          } else {
+             toast.error(res?.response?.data?.message || "Update failed");
+          }
 
-        const found = (items || []).find(
-          (t) => (t.typeName || t.type || "").toLowerCase() === expenseTypeCreateName.trim().toLowerCase()
-        );
-
-        if (found) {
-          const id = found.typeId ?? found.id;
-          setNewExpense((p) => ({ ...p, expenseTypeId: id, expenseTypeText: found.typeName ?? found.type }));
-        }
-
-        setShowExpenseTypeCreate(false);
-        toast.success("Expense type added");
-        invalidateDashboard();
-        setExpenseTypeCreateName("");
       } else {
-        toast.error(res?.response?.data?.message || "Add failed");
+          // CREATE
+        // Duplicate Check
+        const existing = expenseTypes.find(
+        (t) => (t.typeName || t.type || "").toLowerCase() === expenseTypeCreateName.trim().toLowerCase()
+        );
+        if (existing) return toast.error("Expense type already exists");
+
+        const res = await addExpenseTypeApi({
+            typeName: expenseTypeCreateName.trim(),
+            userId: currentUserId,
+        });
+
+        if (res?.status === 200 || res?.status === 201) {
+            const listRes = await getExpenseTypesApi(1, 1000);
+            const items = listRes?.data?.records ?? listRes?.data ?? [];
+            setExpenseTypes(items || []);
+
+            const found = (items || []).find(
+            (t) => (t.typeName || t.type || "").toLowerCase() === expenseTypeCreateName.trim().toLowerCase()
+            );
+
+            if (found) {
+            const id = found.typeId ?? found.id;
+            if(modalOpen) {
+                setNewExpense((p) => ({ ...p, expenseTypeId: id }));
+            } else if(editModalOpen) {
+                setEditExpense((p) => ({ ...p, expenseTypeId: id }));
+            }
+            }
+
+            setShowExpenseTypeCreate(false);
+            toast.success("Expense type added");
+            setExpenseTypeCreateName("");
+            invalidateDashboard();
+        } else {
+            toast.error(res?.response?.data?.message || "Add failed");
+        }
       }
     } catch (err) {
-      console.error("Create expense type error:", err);
+      console.error("Save expense type error:", err);
       toast.error("Server error");
     }
   };
 
   // ==========================
-  // LOAD EXPENSES
+  // DATA LOAD & HANDLING
   // ==========================
-  const loadExpenses = async () => {
-    setSearchText("");
-    const res = await getExpensesApi(page, limit);
+  const loadData = async (overrideShowInactive = null) => {
+    try {
+        const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
+        
+        // In Expenses, we typically have server-side pagination because of volume.
+        // DebitVoucher example provided uses getDebitVouchersApi(showInactive) which returns ALL.
+        // Assuming Expenses should also follow this pattern if we want "same" behavior, 
+        // OR we adapt the pattern to server-side.
+        // Given the request "apply the complete feature", and DebitVoucher loads all, 
+        // I will attempt to align with that pattern if possible, or adapt the "Single List" approach.
+        
+        // HOWEVER, Expenses usually has pagination params (page, limit). 
+        // If we want exact match to DebitVoucher, we might lose server pagination if DebitVoucher is client-side.
+        // Let's stick to Server Pagination but structure props identically where possible.
+        
+        setSearchText(""); 
+        // Fetch Active
+        const res = await getExpensesApi(page, limit);
+        // Fetch Inactive (if needed or separate?)
+        // DebitVoucher does: getDebitVouchersApi(effectiveShowInactive).
+        
+        // If we want "Same Inactive Row" behavior, we need to pass INACTIVE data to MasterTable.
+        let activeRecords = [];
+        let inactiveRecords = [];
 
-    if (res?.status === 200) {
-      setExpenses(res.data.records || []);
-      setTotalRecords(res.data.total || 0);
-    }
-  };
+        if (res?.status === 200) {
+            activeRecords = res.data.records || [];
+            setTotalRecords(res.data.total || 0);
+        }
 
-  const loadInactive = async () => {
-    const res = await getInactiveExpensesApi();
-    if (res?.status === 200) {
-      setInactiveExpenses(res.data.records || res.data);
+        if (effectiveShowInactive) {
+            const resInactive = await getInactiveExpensesApi();
+            if (resInactive?.status === 200) {
+                inactiveRecords = resInactive.data.records || resInactive.data || [];
+            }
+        }
+        
+        setExpenses(activeRecords);
+        setInactiveExpenses(inactiveRecords);
+
+    } catch (err) {
+        console.error("loadData error", err);
     }
   };
 
@@ -211,33 +257,33 @@ const Expenses = () => {
   }, []);
 
   useEffect(() => {
-    if (showInactive) loadInactive();
-    else loadExpenses();
+    loadData();
   }, [page, limit, showInactive]);
 
-  // ==========================
-  // SEARCH
-  // ==========================
+
   // ==========================
   // SEARCH
   // ==========================
   const handleSearch = async (txt) => {
     setSearchText(txt);
-    if (!txt.trim()) return loadExpenses();
+    if (!txt.trim()) {
+        const res = await getExpensesApi(page, limit);
+        if (res?.status === 200) setExpenses(res.data.records || []);
+        return;
+    }
 
     const res = await searchExpenseApi(txt);
     if (res?.status === 200) {
       setExpenses(res.data);
-      // setTotalRecords(res.data.length); // API might return different shape for search
+      // Search usually returns flat list, so we might set total to length
+      // setTotalRecords(res.data.length); 
     }
   };
 
-  // --- FILTERED & SORTED LIST (Client-side for current page/search results) ---
+  // --- FILTERED & SORTED LIST (Client-side for loaded records) ---
   const filteredRows = React.useMemo(() => {
-    let list = expenses;
+    let list = expenses; // Start with active expenses loaded
 
-    // We already have searchText handled by API or logic above, 
-    // but if we want strictly client-side filtering on the current FETCHED set:
     if (filterExpenseType) {
         list = list.filter(e => e.expenseTypeId === filterExpenseType || (expenseTypes.find(t => (t.typeId ?? t.id) === e.expenseTypeId)?.typeName === filterExpenseType));
     }
@@ -255,7 +301,6 @@ const Expenses = () => {
         let aValue = a[sortConfig.key];
         let bValue = b[sortConfig.key];
 
-        // Derived values for sorting
         if (sortConfig.key === 'expenseType') {
             aValue = expenseTypes.find((t) => (t.typeId ?? t.id) === a.expenseTypeId)?.typeName || "";
             bValue = expenseTypes.find((t) => (t.typeId ?? t.id) === b.expenseTypeId)?.typeName || "";
@@ -287,7 +332,7 @@ const Expenses = () => {
           type: 'select',
           value: filterExpenseType,
           onChange: setFilterExpenseType,
-          options: expenseTypes.map(t => ({ id: t.typeId ?? t.id, name: t.typeName })), // Map for consistency if needed, or just use string matching
+          options: expenseTypes.map(t => ({ id: t.typeId ?? t.id, name: t.typeName })), 
           placeholder: "All Expense Types"
       },
       {
@@ -325,9 +370,7 @@ const Expenses = () => {
       paymentAccount,
       userId: currentUserId,
     });
-    console.log(res);
     
-
     if (res?.status === 200) {
       setModalOpen(false);
       toast.success("Expense added");
@@ -382,9 +425,6 @@ const Expenses = () => {
     }
   };
 
-  // ==========================
-  // DELETE
-  // ==========================
   // ==========================
   // DELETE
   // ==========================
@@ -455,211 +495,130 @@ const Expenses = () => {
     }
   };
 
-  // ==========================
-  // RENDER
-  // ==========================
+  // Render Helpers
+  const expenseTypeOptions = expenseTypes.map(t => ({ id: t.typeId ?? t.id, name: t.typeName }));
+
   return (
     <>
-      {/* ---------------- ADD EXPENSE MODAL ---------------- */}
-{/* ADD MODAL */}
-      {/* ---------------- ADD EXPENSE MODAL ---------------- */}
-      {/* ADD MODAL */}
       <AddModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={handleAdd}
         title="New Expense"
-        width="700px"
+        width="600px" // Standard width
         permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
       >
-        <div className="p-0 space-y-4">
-          {/* Expense Type (searchable input + dropdown) */}
-          <div>
-            <label className="block text-sm mb-1">
-              Expense Type <span className="text-red-500">*</span>
-            </label>
-
-            <div className="flex items-start gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={
-                    expenseTypeOpen
-                      ? expenseTypeSearch
-                      : newExpense.expenseTypeText
-                  }
-                  placeholder="Search or type…"
-                  onFocus={(e) => {
-                    setExpenseTypeOpen(true);
-                    setExpenseTypeSearch(newExpense.expenseTypeText || "");
-                  }}
-                  onChange={(e) => {
-                    const typed = e.target.value;
-                    setExpenseTypeSearch(typed);
-                    const match = expenseTypes.find(
-                      (t) =>
-                        (t.typeName || "").toLowerCase() === typed.toLowerCase()
-                    );
-                    setNewExpense((p) => ({
-                      ...p,
-                      expenseTypeText: typed,
-                      expenseTypeId: match ? match.typeId ?? match.id : "",
-                    }));
-                    setExpenseTypeOpen(true);
-                  }}
-                  onBlur={() =>
-                    setTimeout(() => setExpenseTypeOpen(false), 120)
-                  }
-                  className="w-full bg-gray-900 border border-gray-700 px-3 py-2 rounded"
-                />
-
-                {expenseTypeOpen && (
-                  <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-auto bg-gray-800 border border-gray-700 rounded z-50">
-                    {expenseTypes
-                      .filter((t) =>
-                        (t.typeName || "")
-                          .toLowerCase()
-                          .includes((expenseTypeSearch || "").toLowerCase())
-                      )
-                      .map((t) => (
-                        <div
-                          key={t.typeId ?? t.id}
-                          className="px-3 py-2 cursor-pointer hover:bg-gray-700"
-                          onMouseDown={() => {
-                            const id = t.typeId ?? t.id;
-                            setNewExpense((p) => ({
-                              ...p,
-                              expenseTypeId: id,
-                              expenseTypeText: t.typeName,
-                            }));
-                            setExpenseTypeOpen(false);
-                            setExpenseTypeSearch("");
-                          }}
-                        >
-                          {t.typeName}
-                        </div>
-                      ))}
-                    {expenseTypes.filter((t) =>
-                      (t.typeName || "")
-                        .toLowerCase()
-                        .includes((expenseTypeSearch || "").toLowerCase())
-                    ).length === 0 && (
-                      <div className="px-3 py-2 text-gray-300">No matches</div>
-                    )}
-                  </div>
+        <div className="space-y-4">
+          {/* Expense Type */}
+            <div className="flex items-end gap-2">
+                <div className="flex-1">
+                    <SearchableSelect
+                        label="Expense Type *"
+                        options={expenseTypeOptions}
+                        value={newExpense.expenseTypeId}
+                        onChange={(val) => setNewExpense({ ...newExpense, expenseTypeId: val })}
+                        placeholder="Select Expense Type"
+                    />
+                </div>
+                {hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE) && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setIsEditingType(false);
+                            setExpenseTypeCreateName("");
+                            setShowExpenseTypeCreate(true);
+                        }}
+                         className={`p-2  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                        title="New Expense Type"
+                    >
+                        <Star size={18} />
+                    </button>
                 )}
-              </div>
-
-              {hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE) && (
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseTypeCreate(true)}
-                  title="Add expense type"
-                  className="p-2 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 flex items-center"
-                >
-                  <Star size={16} className="text-yellow-300" />
-                </button>
-              )}
             </div>
-          </div>
 
-          {/* Date (selectable + typable) */}
-          <div>
-            <label className="block text-sm mb-1">
-              Date <span className="text-red-500">*</span>
-            </label>
-
-            <input
-              type="date"
-              value={newExpense.date}
-              onChange={(e) =>
-                setNewExpense((p) => ({ ...p, date: e.target.value }))
-              }
-              className={`w-full px-3 py-2 rounded border outline-none transition-colors ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-            />
-          </div>
+          {/* Date */}
+          <InputField
+            label="Date"
+            type="date"
+            value={newExpense.date}
+            onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+            required
+          />
 
           {/* Amount */}
-          <div>
-            <label className="block text-sm mb-1">
-              Amount <span className="text-red-500">*</span>
-            </label>
+          <InputField
+            label="Amount"
+            type="number"
+            value={newExpense.amount}
+            onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+            required
+          />
 
-            <input
-              type="number"
-              value={newExpense.amount}
-              onChange={(e) =>
-                setNewExpense((p) => ({ ...p, amount: e.target.value }))
-              }
-              className={`w-full px-3 py-2 rounded border outline-none transition-colors ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-            />
+          {/* Payment Account */}
+          <div className="block">
+             <label className="block text-sm mb-1 text-black font-medium">Payment Account *</label>
+             <SearchableSelect
+               options={[
+                 { id: "Cash at Hand", name: "Cash at Hand" },
+                 { id: "Cash at Bank", name: "Cash at Bank" },
+               ]}
+               value={newExpense.paymentAccount}
+               onChange={(val) => setNewExpense({ ...newExpense, paymentAccount: val })}
+               placeholder="Select Account"
+               direction="down"
+             />
           </div>
-
-          {/* Payment Account (default empty) */}
-          <div>
-            <label className="block text-sm mb-1">Payment Account *</label>
-
-            <SearchableSelect
-              options={[
-                { id: "Cash at Hand", name: "Cash at Hand" },
-                { id: "Cash at Bank", name: "Cash at Bank" },
-              ]}
-              value={newExpense.paymentAccount}
-              onChange={(val) =>
-                setNewExpense((p) => ({ ...p, paymentAccount: val }))
-              }
-              placeholder="Select Account"
-              className="w-full"
-              direction="up"
-            />
-          </div>
-
-          {/* Voucher No removed */}
         </div>
       </AddModal>
 
-{/* ---------------- QUICK-CREATE EXPENSE TYPE MODAL ---------------- */}
-{showExpenseTypeCreate && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[70]">
-    <div className="w-[500px] bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-lg border border-gray-700">
-      <div className="flex justify-between items-center px-5 py-3 border-b border-gray-700">
-        <h2 className="text-lg font-semibold">New Expense Type</h2>
-        <button onClick={() => setShowExpenseTypeCreate(false)}>
-          <X size={20} className="text-gray-300 hover:text-white" />
-        </button>
-      </div>
+    {/* Quick Create Expense Type Modal */}
+    {showExpenseTypeCreate && !isEditingType && (
+       <AddModal
+           isOpen={showExpenseTypeCreate}
+           onClose={() => setShowExpenseTypeCreate(false)}
+           onSave={handleSaveExpenseType}
+           title="New Expense Type"
+           width="400px"
+           zIndex={1200} // Ensuring it's above the main modal (default 1000)
+           permission={hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE)}
+       >
+           <div className="pt-2">
+                <InputField
+                    label="Type Name"
+                    value={expenseTypeCreateName}
+                    onChange={(e) => setExpenseTypeCreateName(e.target.value)}
+                    autoFocus
+                    required
+                />
+           </div>
+       </AddModal>
+    )}
 
-      <div className="p-6">
-        <label className="block text-sm mb-1">Type <span className="text-red-500">*</span></label>
-        <input
-          type="text"
-          value={expenseTypeCreateName}
-          onChange={(e) => setExpenseTypeCreateName(e.target.value)}
-          placeholder="Enter type"
-          className={`w-full px-3 py-2 rounded border outline-none text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-        />
-      </div>
-
-      <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-        {hasPermission(PERMISSIONS.EXPENSE_TYPES.CREATE) && (
-        <button
-          onClick={handleCreateExpenseType}
-          className="flex items-center gap-2 bg-gray-800 border border-gray-600 px-4 py-2 rounded text-sm"
+    {/* Edit Expense Type Modal using EditModal component */}
+    {showExpenseTypeCreate && isEditingType && (
+        <EditModal
+            isOpen={showExpenseTypeCreate}
+            onClose={() => setShowExpenseTypeCreate(false)}
+            onSave={handleSaveExpenseType}
+            title="Edit Expense Type"
+            width="400px"
+            zIndex={1200} // Ensuring it's above the main modal (default 1000)
+            permissionEdit={hasPermission(PERMISSIONS.EXPENSE_TYPES.EDIT)}
+            permissionDelete={false} 
+            saveText="Update"
         >
-          <Save size={16} /> Save
-        </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+             <div className="pt-2">
+                <InputField
+                    label="Type Name"
+                    value={expenseTypeCreateName}
+                    onChange={(e) => setExpenseTypeCreateName(e.target.value)}
+                    autoFocus
+                    required
+                />
+           </div>
+        </EditModal>
+    )}
 
-
-
-      {/* ---------------- EDIT EXPENSE MODAL ---------------- */}
-{/* EDIT MODAL */}
-      {/* ---------------- EDIT EXPENSE MODAL ---------------- */}
-      {/* EDIT MODAL */}
       <EditModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
@@ -667,108 +626,83 @@ const Expenses = () => {
         onDelete={handleDelete}
         onRestore={handleRestore}
         isInactive={editExpense.isInactive}
-        title={`${editExpense.isInactive ? "Restore Expense" : "Edit Expense"}`}
+        title={editExpense.isInactive ? "Restore Expense" : "Edit Expense"}
         permissionDelete={hasPermission(PERMISSIONS.CASH_BANK.DELETE)}
         permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
         saveText="Update"
-        width="700px"
+        width="600px"
       >
-        <div className="p-0 space-y-4">
-          {/* Expense Type (searchable dropdown) */}
-          <div>
-            <label className="block text-sm mb-1">Expense Type *</label>
-
-            <input
-              type="text"
-              list="expenseTypesListEdit"
-              value={
-                editExpense.expenseTypeId
-                  ? expenseTypes.find(
-                      (t) => (t.typeId ?? t.id) === editExpense.expenseTypeId
-                    )?.typeName || ""
-                  : ""
-              }
-              placeholder="Search or type…"
-              onFocus={(e) => e.target.showPicker && e.target.showPicker()}
-              onChange={(e) => {
-                const typed = e.target.value;
-
-                const match = expenseTypes.find(
-                  (t) => t.typeName.toLowerCase() === typed.toLowerCase()
-                );
-
-                setEditExpense((p) => ({
-                  ...p,
-                  expenseTypeId: match ? match.typeId ?? match.id : "",
-                }));
-              }}
-              disabled={editExpense.isInactive}
-              className={`w-full px-3 py-2 rounded border outline-none disabled:opacity-50 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-            />
-
-            <datalist id="expenseTypesListEdit">
-              {expenseTypes.map((t) => (
-                <option key={t.typeId ?? t.id} value={t.typeName} />
-              ))}
-            </datalist>
+        <div className="space-y-4">
+          <div className="flex items-end gap-2">
+             <div className="flex-1">
+                <SearchableSelect
+                    label="Expense Type *"
+                    options={expenseTypeOptions}
+                    value={editExpense.expenseTypeId}
+                    onChange={(val) => setEditExpense({ ...editExpense, expenseTypeId: val })}
+                    placeholder="Select Expense Type"
+                    disabled={editExpense.isInactive}
+                />
+             </div>
+             {hasPermission(PERMISSIONS.EXPENSE_TYPES.EDIT) && !editExpense.isInactive && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        const typeId = editExpense.expenseTypeId;
+                        if(!typeId) {
+                            return toast.error("Select a type to edit");
+                        }
+                        const type = expenseTypes.find(t => (t.typeId ?? t.id) === typeId);
+                        if(type) {
+                            setIsEditingType(true);
+                            setEditingTypeId(typeId);
+                            setExpenseTypeCreateName(type.typeName);
+                            setShowExpenseTypeCreate(true);
+                        }
+                    }}
+                    className={`p-2  border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                    title="Edit Expense Type"
+                >
+                    <Pencil size={18} />
+                </button>
+             )}
           </div>
 
-          {/* Date (selectable + typable) */}
-          <div>
-            <label className="block text-sm mb-1">Date *</label>
+          <InputField
+            label="Date"
+            type="date"
+            value={editExpense.date}
+            onChange={(e) => setEditExpense({ ...editExpense, date: e.target.value })}
+            disabled={editExpense.isInactive}
+            required
+          />
 
-            <input
-              type="date"
-              value={editExpense.date}
-              onChange={(e) =>
-                setEditExpense((p) => ({ ...p, date: e.target.value }))
-              }
-              disabled={editExpense.isInactive}
-              className={`w-full px-3 py-2 rounded border outline-none disabled:opacity-50 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-            />
+
+          <InputField
+            label="Amount"
+            type="number"
+            value={editExpense.amount}
+            onChange={(e) => setEditExpense({ ...editExpense, amount: e.target.value })}
+            disabled={editExpense.isInactive}
+            required
+          />
+
+          <div className="block">
+             <label className="block text-sm mb-1 text-black font-medium">Payment Account *</label>
+             <SearchableSelect
+               options={[
+                 { id: "Cash at Hand", name: "Cash at Hand" },
+                 { id: "Cash at Bank", name: "Cash at Bank" },
+               ]}
+               value={editExpense.paymentAccount}
+               onChange={(val) => setEditExpense({ ...editExpense, paymentAccount: val })}
+               placeholder="Select Account"
+               disabled={editExpense.isInactive}
+             />
           </div>
-
-          {/* Amount */}
-          <div>
-            <label className="block text-sm mb-1">Amount *</label>
-
-            <input
-              type="number"
-              value={editExpense.amount}
-              onChange={(e) =>
-                setEditExpense((p) => ({ ...p, amount: e.target.value }))
-              }
-              disabled={editExpense.isInactive}
-              className={`w-full px-3 py-2 rounded border outline-none disabled:opacity-50 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-            />
-          </div>
-
-          {/* Payment Account */}
-          <div>
-            <label className="block text-sm mb-1">Payment Account *</label>
-
-            <SearchableSelect
-              options={[
-                { id: "Cash at Hand", name: "Cash at Hand" },
-                { id: "Cash at Bank", name: "Cash at Bank" },
-              ]}
-              value={editExpense.paymentAccount}
-              onChange={(val) =>
-                setEditExpense((p) => ({ ...p, paymentAccount: val }))
-              }
-              placeholder="Select Account"
-              className="w-full"
-              direction="up"
-            />
-          </div>
-
-          {/* Voucher No removed */}
         </div>
       </EditModal>
 
-
-
-      {/* ---------------- COLUMN PICKER ---------------- */}
       <ColumnPickerModal
         isOpen={columnModalOpen} 
         onClose={() => setColumnModalOpen(false)} 
@@ -777,13 +711,12 @@ const Expenses = () => {
         defaultColumns={defaultColumns} 
       />
 
-
-      {/* ---------------- MAIN PAGE ---------------- */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-900' : theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+             <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2"> 
-
-            <h2 className="text-2xl font-semibold mb-4">Expenses</h2>
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Expenses</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
               columns={[
@@ -799,7 +732,7 @@ const Expenses = () => {
               sortConfig={sortConfig}
               onSort={handleSort}
               onRowClick={(e, isInactive) => openEditModal(e, isInactive)}
-              // Action Bar Props
+              
               search={searchText}
               onSearch={handleSearch}
               onCreate={() => { setNewExpense((p) => ({ ...p, date: todayStr })); setModalOpen(true); }}
@@ -818,34 +751,24 @@ const Expenses = () => {
                 if (!showInactive) await loadInactive();
                 setShowInactive(!showInactive);
               }}
+              
+              page={page}
+              setPage={setPage}
+              limit={limit}
+              setLimit={setLimit}
+              total={totalRecords}
             >
               <div className="">
                 <FilterBar filters={filters} onClear={handleClearFilters} />
               </div>
             </MasterTable>
 
-            {/* PAGINATION */}
-             <Pagination
-                  page={page}
-                  setPage={setPage}
-                  limit={limit}
-                  setLimit={setLimit}
-                  total={totalRecords}
-                  onRefresh={() => {
-                      if(page === 1) loadExpenses();
-                      else setPage(1);
-                  }}
-                />
-
           </div>
+          </ContentCard>
         </div>
       </PageLayout>
-
     </>
   );
 };
 
 export default Expenses;
-
-
-

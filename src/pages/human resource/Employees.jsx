@@ -244,7 +244,7 @@ useEffect(() => {
     // 1. Fetch Employees FIRST (Fast UI)
     try {
       setLoading(true);
-      const empRes = await getEmployeesApi(1, 5000, sortConfig.key, sortConfig.direction);
+      const empRes = await getEmployeesApi(1, 5000, sortConfig.key, sortConfig.direction);      
       
       let raw = [];
       if (empRes?.data?.records) {
@@ -359,7 +359,7 @@ useEffect(() => {
   ]);
  
   useEffect(() => {
-    fetchAllData();
+    fetchAllData();  
   }, [sortConfig]);
 
   const loadInactiveEmployees = async () => {

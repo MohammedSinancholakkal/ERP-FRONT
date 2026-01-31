@@ -4,15 +4,18 @@ import {
   Star,
 } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import EditModal from "../../components/modals/EditModal";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
-import Pagination from "../../components/Pagination";
+// import Pagination from "../../components/Pagination";
 import AddModal from "../../components/modals/AddModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
+import InputField from "../../components/InputField";
+import SearchableSelect from "../../components/SearchableSelect";
 
 const CustomerReceive = () => {
   const { theme } = useTheme();
@@ -32,9 +35,7 @@ const CustomerReceive = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempColumns, setTempColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
-  const [columnSearch, setColumnSearch] = useState("");
 
   // ------------------ DUMMY DATA ------------------
   const sampleData = [
@@ -384,9 +385,11 @@ const CustomerReceive = () => {
 
       {/* ------------------ PAGE HEADER ------------------ */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+           <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Customer Receive</h2>
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Customer Receive</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -419,10 +422,7 @@ const CustomerReceive = () => {
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={() => setShowInactive((s) => !s)}
-            />
 
-            {/* PAGINATION */}
-            <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
@@ -430,6 +430,7 @@ const CustomerReceive = () => {
                 total={totalRecords}
             />
         </div>
+        </ContentCard>
       </div>
       </PageLayout>
     </>

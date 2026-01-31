@@ -9,107 +9,21 @@ import PageLayout from "../../layout/PageLayout";
 import Pagination from "../../components/Pagination";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
+import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
+import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
+import { useTheme } from "../../context/ThemeContext";
+import toast from 'react-hot-toast';
 
 /* Searchable Dropdown */
-const SearchableDropdown = ({ options = [], value, onChange, placeholder }) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const filtered =
-    !query.trim()
-      ? options
-      : options.filter((o) => o.name.toLowerCase().includes(query.toLowerCase()));
-
-  const selected = options.find((o) => o.id == value)?.name || "";
-
-  return (
-    <div className="relative w-56">
-      <input
-        type="text"
-        value={open ? query : selected || query}
-        placeholder={placeholder}
-        onFocus={() => {
-          setOpen(true);
-          setQuery("");
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        className="bg-gray-900 border border-gray-700 rounded px-3 py-2 w-full text-sm"
-      />
-      {open && (
-        <div className="absolute left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded max-h-56 overflow-auto z-50">
-          {filtered.length ? (
-            filtered.map((o) => (
-              <div
-                key={o.id}
-                onClick={() => {
-                  onChange(o.id);
-                  setOpen(false);
-                }}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-              >
-                {o.name}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2 text-gray-400 text-sm">No results</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+import FilterBar from "../../components/FilterBar";
 
 /* COLUMN PICKER */
-const ColumnPickerModal = ({ open, onClose, visibleColumns, setVisibleColumns }) => {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50">
-      <div className="w-[500px] bg-gray-900 rounded border border-gray-700 text-white">
-        <div className="flex justify-between px-5 py-3 border-b border-gray-700">
-          <h2 className="text-lg">Column Picker</h2>
-          <button onClick={onClose}>
-            <X />
-          </button>
-        </div>
-
-        <div className="p-5 max-h-72 overflow-auto space-y-2">
-          {Object.keys(visibleColumns).map((col) => (
-            <div
-              key={col}
-              className="flex justify-between bg-gray-800 px-3 py-2 rounded border border-gray-700"
-            >
-              <span>{col.toUpperCase()}</span>
-              <input
-                type="checkbox"
-                checked={visibleColumns[col]}
-                onChange={() =>
-                  setVisibleColumns((p) => ({ ...p, [col]: !p[col] }))
-                }
-              />
-            </div>
-          ))}
-        </div>
-
-        <div className="px-5 py-3 border-t border-gray-700 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-700 rounded border border-gray-600"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 
 
 const StockReport = () => {
+    const { theme } = useTheme();
   if (!hasPermission(PERMISSIONS.REPORTS.VIEW)) {
     return (
       <div className="flex items-center justify-center h-full text-white">
@@ -191,148 +105,76 @@ const StockReport = () => {
   return (
     <>
       {/* COLUMN PICKER */}
-      <ColumnPickerModal
-        open={columnModal}
+       <ColumnPickerModal
+        isOpen={columnModal} 
         onClose={() => setColumnModal(false)}
-        visibleColumns={visibleColumns}
-        setVisibleColumns={setVisibleColumns}
+        visibleColumns={visibleColumns} 
+        setVisibleColumns={setVisibleColumns} 
+        defaultColumns={defaultColumns} 
       />
 
       {/* PAGE */}
       <PageLayout>
-<div className="p-4 text-white bg-gradient-to-b from-gray-900 to-gray-700 h-full">
-  <div className="flex flex-col h-full overflow-hidden gap-2">
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+             <ContentCard>
+          <div className="flex flex-col h-full overflow-hidden gap-2">
 
-          <h2 className="text-2xl font-semibold mb-4">Stock Report</h2>
-
-          {/* ACTION BAR */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-
-            {/* Search */}
-            <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-56">
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="bg-transparent outline-none pl-2 text-sm w-full"
-              />
-            </div>
-
-            {/* Refresh */}
-            <button className="p-1.5 bg-gray-700 border border-gray-600 rounded">
-              <RefreshCw size={16} className="text-blue-300" />
-            </button>
-
-            {/* Column Picker */}
-            <button
-              onClick={() => setColumnModal(true)}
-              className="p-1.5 bg-gray-700 border border-gray-600 rounded"
-            >
-              <List size={16} className="text-blue-300" />
-            </button>
-
-            {/* Inactive toggle */}
-            <button
-              onClick={() => setShowInactive((s) => !s)}
-              className="p-1.5 bg-gray-700 border border-gray-600 rounded flex items-center gap-1"
-            >
-              <ArchiveRestore size={16} className="text-yellow-300" />
-              <span className="text-xs opacity-70">Inactive</span>
-            </button>
-          </div>
-
-          {/* FILTERS */}
-          <div className="flex items-center gap-3 bg-gray-900 p-3 border border-gray-700 rounded mb-4">
-            <SearchableDropdown
-              options={categories}
-              value={filterCategory}
-              onChange={setFilterCategory}
-              placeholder="Filter by Category"
-            />
-
-            <button className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm">
-              Apply
-            </button>
-
-            <button
-              onClick={() => setFilterCategory("")}
-              className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
-            >
-              Clear
-            </button>
-          </div>
-
-          {/* TABLE */}
-          <div className="flex-grow overflow-auto min-h-0 w-full">
-            <div className="w-full overflow-x-auto">
-              <table className="min-w-[950px] text-center border-separate border-spacing-y-1 text-sm">
-
-                <thead className="sticky top-0 bg-gray-900 z-10">
-                  <tr>
-                    {visibleColumns.productName && <th className="pb-1 border-b">Product Name</th>}
-                    {visibleColumns.categoryName && <th className="pb-1 border-b">Category</th>}
-                    {visibleColumns.purchasePrice && <th className="pb-1 border-b">Purchase Price</th>}
-                    {visibleColumns.salePrice && <th className="pb-1 border-b">Sale Price</th>}
-                    {visibleColumns.qtyIn && <th className="pb-1 border-b">Qty In</th>}
-                    {visibleColumns.qtyOut && <th className="pb-1 border-b">Qty Out</th>}
-                    {visibleColumns.stock && <th className="pb-1 border-b">Stock</th>}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {/* ACTIVE ROWS */}
-                  {activeData.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="bg-gray-900 hover:bg-gray-700 cursor-pointer"
-                    >
-                      {visibleColumns.productName && <td className="px-2 py-2">{row.productName}</td>}
-                      {visibleColumns.categoryName && <td className="px-2 py-2">{row.categoryName}</td>}
-                      {visibleColumns.purchasePrice && <td className="px-2 py-2">{row.purchasePrice}</td>}
-                      {visibleColumns.salePrice && <td className="px-2 py-2">{row.salePrice}</td>}
-                      {visibleColumns.qtyIn && <td className="px-2 py-2">{row.qtyIn}</td>}
-                      {visibleColumns.qtyOut && <td className="px-2 py-2">{row.qtyOut}</td>}
-                      {visibleColumns.stock && <td className="px-2 py-2">{row.stock}</td>}
-                    </tr>
-                  ))}
-
-                  {/* INACTIVE ROWS */}
-                  {showInactive &&
-                    inactiveData.map((row) => (
-                      <tr
-                        key={`inactive-${row.id}`}
-                        className="bg-gray-900 opacity-40 hover:bg-gray-700 cursor-pointer line-through"
-                      >
-                        {visibleColumns.productName && <td className="px-2 py-2">{row.productName}</td>}
-                        {visibleColumns.categoryName && <td className="px-2 py-2">{row.categoryName}</td>}
-                        {visibleColumns.purchasePrice && <td className="px-2 py-2">{row.purchasePrice}</td>}
-                        {visibleColumns.salePrice && <td className="px-2 py-2">{row.salePrice}</td>}
-                        {visibleColumns.qtyIn && <td className="px-2 py-2">{row.qtyIn}</td>}
-                        {visibleColumns.qtyOut && <td className="px-2 py-2">{row.qtyOut}</td>}
-                        {visibleColumns.stock && <td className="px-2 py-2">{row.stock}</td>}
-                      </tr>
-                    ))}
-                </tbody>
-
-              </table>
-            </div>
-          </div>
-
-          {/* PAGINATION */}
-
-              <Pagination
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Stock Report</h2>
+            <hr className="mb-4 border-gray-300" />
+            
+             <MasterTable
+                columns={[
+                    visibleColumns.productName && { key: "productName", label: "Product Name", sortable: true },
+                    visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true },
+                    visibleColumns.purchasePrice && { key: "purchasePrice", label: "Purchase Price", sortable: true },
+                    visibleColumns.salePrice && { key: "salePrice", label: "Sale Price", sortable: true },
+                    visibleColumns.qtyIn && { key: "qtyIn", label: "Qty In", sortable: true },
+                    visibleColumns.qtyOut && { key: "qtyOut", label: "Qty Out", sortable: true },
+                    visibleColumns.stock && { key: "stock", label: "Stock", sortable: true },
+                ].filter(Boolean)}
+                data={activeData}
+                inactiveData={inactiveData}
+                showInactive={showInactive}
+                // sortConfig={sortConfig}
+                // onSort={handleSort}
+                // onRowClick={(r) => openEditModal(r)}
+                // Action Bar
+                search={searchText}
+                onSearch={setSearchText}
+                // onCreate={() => setModalOpen(true)}
+                createLabel="New Report"
+                // permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+                onRefresh={() => {
+                    setSearchText("");
+                    setPage(1);
+                    toast.success("Refreshed");
+                }}
+                onColumnSelector={() => setColumnModal(true)}
+                onToggleInactive={() => setShowInactive((s) => !s)}
+                
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
-                // total={totalRecords}
-                // onRefresh={handleRefresh}
-              />
-
+                total={activeData.length} // using dummy length
+            >
+             {/* FILTERS */}
+                <FilterBar
+                  filters={[
+                    {
+                      type: 'select',
+                      value: filterCategory,
+                      onChange: setFilterCategory,
+                      options: categories,
+                      placeholder: "Filter by Category"
+                    }
+                  ]}
+                  onClear={() => setFilterCategory("")}
+                />
+            </MasterTable>
+          </div>
+          </ContentCard>
         </div>
-      </div>
       </PageLayout>
       
     </>

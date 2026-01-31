@@ -589,21 +589,137 @@ export const getInactiveMeetingTypesApi = () =>
 export const restoreMeetingTypeApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/meeting-types/restore/${id}`, data);
 
-// ============================================
+
+
+
+
+// ============================================================
 // CHART OF ACCOUNTS
-// ============================================
-export const getCOAHeadsApi = async () => {
-    return await commonAPI("GET", `${serverURL}/api/chart-of-accounts`, "");
+// ============================================================
+export const getCOAHeadsApi = async (showInactive = false) => {
+  const suffix = showInactive ? '?showInactive=true' : '';
+  return await commonAPI("GET", `${serverURL}/chart-of-accounts${suffix}`, "");
 };
+
+export const addOpeningBalanceApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/chart-of-accounts/opening-balance`, reqBody);
+};
+
 export const addCOAHeadApi = async (reqBody) => {
-    return await commonAPI("POST", `${serverURL}/api/chart-of-accounts`, reqBody);
+    return await commonAPI("POST", `${serverURL}/chart-of-accounts`, reqBody);
 };
 export const updateCOAHeadApi = async (id, reqBody) => {
-    return await commonAPI("PUT", `${serverURL}/api/chart-of-accounts/${id}`, reqBody);
+    return await commonAPI("PUT", `${serverURL}/chart-of-accounts/${id}`, reqBody);
 };
 export const deleteCOAHeadApi = async (id, reqBody) => {
-    return await commonAPI("PUT", `${serverURL}/api/chart-of-accounts/delete/${id}`, reqBody);
+    return await commonAPI("PUT", `${serverURL}/chart-of-accounts/delete/${id}`, reqBody);
 };
+export const restoreCOAHeadApi = async (id, reqBody) => {
+  return await commonAPI(
+    "PUT",
+    `${serverURL}/chart-of-accounts/restore/${id}`,
+    reqBody
+  );
+};
+
+// ============================================
+// DEBIT VOUCHERS
+// ============================================
+export const getDebitVouchersApi = async (showInactive = false) => {
+    return await commonAPI("GET", `${serverURL}/debit-vouchers${showInactive ? '?showInactive=true' : ''}`, "");
+};
+
+export const addDebitVoucherApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/debit-vouchers`, reqBody);
+};
+
+export const updateDebitVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/debit-vouchers/${id}`, reqBody);
+};
+
+export const deleteDebitVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/debit-vouchers/delete/${id}`, reqBody);
+};
+
+export const restoreDebitVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/debit-vouchers/restore/${id}`, reqBody);
+};
+
+
+// ============================================
+// CREDIT VOUCHERS
+// ============================================
+export const getCreditVouchersApi = async (showInactive = false, search = "") => {
+    return await commonAPI("GET", `${serverURL}/credit-vouchers?showInactive=${showInactive}&search=${search}`, "");
+};
+
+export const addCreditVoucherApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/credit-vouchers`, reqBody);
+};
+
+export const updateCreditVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/credit-vouchers/${id}`, reqBody);
+};
+
+export const deleteCreditVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/credit-vouchers/delete/${id}`, reqBody);
+};
+
+export const restoreCreditVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/credit-vouchers/restore/${id}`, reqBody);
+};
+
+// ============================================
+// CONTRA VOUCHERS
+// ============================================
+export const getContraVouchersApi = async (showInactive = false, search = "") => {
+    return await commonAPI("GET", `${serverURL}/contra-vouchers?showInactive=${showInactive}&search=${search}`, "");
+};
+
+export const addContraVoucherApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/contra-vouchers`, reqBody);
+};
+
+export const updateContraVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/contra-vouchers/${id}`, reqBody);
+};
+
+export const deleteContraVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/contra-vouchers/delete/${id}`, reqBody);
+};
+
+export const restoreContraVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/contra-vouchers/restore/${id}`, reqBody);
+};
+
+// ============================================
+// JOURNAL VOUCHERS
+// ============================================
+export const getJournalVouchersApi = async (showInactive = false, search = "") => {
+    return await commonAPI("GET", `${serverURL}/journal-vouchers?showInactive=${showInactive}&search=${search}`, "");
+};
+
+export const addJournalVoucherApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/journal-vouchers`, reqBody);
+};
+
+export const updateJournalVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/journal-vouchers/${id}`, reqBody);
+};
+
+export const deleteJournalVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/journal-vouchers/delete/${id}`, reqBody);
+};
+
+export const restoreJournalVoucherApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/journal-vouchers/restore/${id}`, reqBody);
+};
+
+
+
+
+
+
 
 // GET AGENDA ITEMS BY MEETING
 export const getAgendaItemsApi = (meetingId) =>

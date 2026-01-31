@@ -16,7 +16,8 @@ const SearchableSelect = ({
   name,
   id,
   label,
-  required
+  required,
+  onSearchBlur
 }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
@@ -185,6 +186,9 @@ const SearchableSelect = ({
                     e.preventDefault();
                     e.stopPropagation();
                  }
+              }}
+              onBlur={(e) => {
+                  if(onSearchBlur) onSearchBlur(searchTerm);
               }}
             />
           </div>

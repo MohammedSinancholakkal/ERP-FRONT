@@ -3,7 +3,13 @@ import { ArrowLeft, Save, Calendar, DollarSign, Calculator } from "lucide-react"
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 
+import PageLayout from "../../layout/PageLayout";
+import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
+import { useTheme } from "../../context/ThemeContext";
+
 const DayClosing = () => {
+  const { theme } = useTheme();
   if (!hasPermission(PERMISSIONS.REPORTS.VIEW)) {
     return (
       <div className="flex items-center justify-center h-full text-white">
@@ -32,12 +38,13 @@ const DayClosing = () => {
   });
 
   return (
-    <div className="p-8 text-white bg-gradient-to-b from-gray-900 to-gray-800 min-h-[calc(100vh-64px)]">
+    <PageLayout>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+             <ContentCard>
+          <div className="flex flex-col h-full overflow-hidden gap-2">
 
-      {/* PAGE TITLE */}
-      <h2 className="text-2xl font-semibold mb-6">
-        Cash Closing – {today}
-      </h2>
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Cash Closing – {today}</h2>
+            <hr className="mb-4 border-gray-300" />
 
       {/* FORM AREA (STRUCTURE LIKE IMAGE) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-10 max-w-[500px]">
@@ -51,42 +58,41 @@ const DayClosing = () => {
 
           {/* BUTTON (left aligned, below labels) */}
          <button
-            className="w-32 mt-4 bg-gray-800 border border-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm">Close Day</button>
+            className={`border px-4 py-2 rounded text-sm font-medium ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}>Close Day</button>
         </div>
 
         {/* INPUT FIELDS */}
         <div className="flex flex-col gap-6">
-          <input
+          <InputField
             type="number"
             value={lastDayClosing}
-            onChange={(e) => setLastDayClosing(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            readOnly
           />
 
-          <input
+          <InputField
             type="number"
             value={receive}
-            onChange={(e) => setReceive(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            readOnly
           />
 
-          <input
+          <InputField
             type="number"
             value={payment}
-            onChange={(e) => setPayment(e.target.value)}
-            className="bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            readOnly
           />
 
-          <input
+          <InputField
             type="number"
             value={balance}
-            disabled
-            className="bg-gray-900 border border-gray-700 rounded px-3 py-2"
+            readOnly
           />
         </div>
       </div>
 
-    </div>
+      </div>
+      </ContentCard>
+     </div>
+    </PageLayout>
   );
 };
 

@@ -1,5 +1,5 @@
 // src/pages/accounts/JournalVoucher.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import PageLayout from "../../layout/PageLayout";
 import MasterTable from "../../components/MasterTable";
@@ -10,7 +10,14 @@ import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
-import { showSuccessToast, showErrorToast } from "../../utils/notificationUtils"; 
+import { showSuccessToast, showErrorToast, showDeleteConfirm, showRestoreConfirm } from "../../utils/notificationUtils";
+import { 
+  getJournalVouchersApi, 
+  addJournalVoucherApi, 
+  updateJournalVoucherApi, 
+  deleteJournalVoucherApi,
+  restoreJournalVoucherApi 
+} from "../../services/allAPI"; 
 
 const JournalVoucher = () => {
   const { theme } = useTheme();
@@ -20,14 +27,13 @@ const JournalVoucher = () => {
   // -----------------------------------
   const defaultColumns = {
     id: true,
-    vNo: true,
-    vType: true,
+    vno: true,
+    vtype: true,
     date: true,
-    coaHeadName: true,
-    coa: true,
-    remark: true,
+    account: true,
     debit: true,
     credit: true,
+    remark: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
@@ -35,19 +41,8 @@ const JournalVoucher = () => {
   // -----------------------------------
   // DATA STATES
   // -----------------------------------
-  const [dataList, setDataList] = useState([
-    {
-      id: 1,
-      vNo: "JV/2025/01",
-      vType: "Journal Entry",
-      date: "2025-01-01",
-      coaHeadName: "Cash Head",
-      coa: "1001",
-      remark: "Initial cash entry",
-      debit: 5000,
-      credit: 0,
-    },
-  ]);
+  const [dataList, setDataList] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
   
   const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(1);
@@ -69,6 +64,42 @@ const JournalVoucher = () => {
   });
 
   // -----------------------------------
+  // HANDLERS
+  // -----------------------------------
+  const loadData = async (overrideShowInactive = null, overrideSearchText = null) => {
+    try {
+      const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
+      const effectiveSearch = overrideSearchText === null ? searchText : overrideSearchText;
+
+      const res = await getJournalVouchersApi(effectiveShowInactive, effectiveSearch);
+      
+      if (res && res.status === 200) {
+        if (Array.isArray(res.data) && (res.data.length === 0 || typeof res.data[0] === 'object')) {
+             setDataList(res.data);
+        } else {
+             console.error("Invalid data format received:", res.data);
+             setDataList([]); 
+             if (typeof res.data === 'string') {
+                 showErrorToast("Server API mistmatch - Please Restart Server");
+             }
+        }
+      } else {
+        showErrorToast("Failed to load journal vouchers");
+      }
+    } catch (err) {
+      console.error(err);
+      showErrorToast("Error loading data");
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        loadData();
+    }, 400); 
+    return () => clearTimeout(timer);
+  }, [showInactive, searchText]);
+
+  // -----------------------------------
   // MODAL STATES
   // -----------------------------------
   const [modalOpen, setModalOpen] = useState(false);
@@ -81,13 +112,11 @@ const JournalVoucher = () => {
     debit: "",
     credit: "",
     remark: "",
+    isActive: true
   });
 
   const accountOptions = ["Cash at Hand", "Cash at Bank"];
 
-  // -----------------------------------
-  // HANDLERS
-  // -----------------------------------
   const resetForm = () => {
     setForm({
         id: null,
@@ -96,6 +125,7 @@ const JournalVoucher = () => {
         debit: "",
         credit: "",
         remark: "",
+        isActive: true
     });
   };
 
@@ -107,42 +137,115 @@ const JournalVoucher = () => {
   const handleRowClick = (item) => {
       setForm({
           id: item.id,
-          date: item.date,
-          account: "", // Mock
+          date: item.date ? item.date.split("T")[0] : "",
+          account: item.account,
           debit: item.debit,
           credit: item.credit,
-          remark: item.remark
+          remark: item.remark,
+          isActive: item.isActive
       });
       setEditModalOpen(true);
   };
 
-  const handleSave = () => {
-      showSuccessToast("Saved Successfully (Mock)");
-      setModalOpen(false);
-      setEditModalOpen(false);
+  const handleSave = async (e) => {
+    if(e && e.preventDefault) e.preventDefault();
+    if(!form.account || !form.date) {
+        showErrorToast("Please fill Account and Date");
+        return;
+    }
+    if(!form.debit && !form.credit) {
+        showErrorToast("Please enter Debit or Credit amount");
+        return;
+    }
+
+    try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const payload = { ...form, userId: user?.userId || 1 };
+        
+        // Convert empty strings to 0 for backend
+        payload.debit = payload.debit || 0;
+        payload.credit = payload.credit || 0;
+        
+        let res;
+        if(form.id) {
+            res = await updateJournalVoucherApi(form.id, payload);
+        } else {
+            res = await addJournalVoucherApi(payload);
+        }
+
+        if(res && (res.status === 200 || res.status === 201)){
+            showSuccessToast(form.id ? "Updated Successfully" : "Created Successfully");
+            setModalOpen(false);
+            setEditModalOpen(false);
+            await loadData();
+        } else {
+            showErrorToast("Operation Failed");
+        }
+    } catch (err) {
+        console.error(err);
+        showErrorToast("Server Error");
+    }
   };
 
-  const handleDelete = () => {
-      showSuccessToast("Deleted (Mock)");
-      setEditModalOpen(false);
+  const handleDelete = async () => {
+      const result = await showDeleteConfirm();
+      if (!result.isConfirmed) return;
+
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const res = await deleteJournalVoucherApi(form.id, { userId: user?.userId || 1 });
+        if(res && res.status === 200) {
+             showSuccessToast("Deleted Successfully");
+             setEditModalOpen(false);
+             await loadData();
+        } else {
+             showErrorToast("Delete Failed");
+        }
+      } catch (err) {
+          console.error(err);
+          showErrorToast("Server Error");
+      }
+  };
+
+  const handleRestore = async () => {
+      const result = await showRestoreConfirm();
+      if (!result.isConfirmed) return;
+
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const res = await restoreJournalVoucherApi(form.id, { userId: user?.userId || 1 });
+        if(res && res.status === 200) {
+             showSuccessToast("Restored Successfully");
+             setEditModalOpen(false);
+             await loadData();
+        } else {
+             showErrorToast("Restore Failed");
+        }
+      } catch (err) {
+          console.error(err);
+          showErrorToast("Server Error");
+      }
   };
 
   // -----------------------------------
   // COLUMNS CONFIG
   // -----------------------------------
   const columns = [
-    visibleColumns.id && { key: "id", label: "ID", sortable: true },
-    visibleColumns.vNo && { key: "vNo", label: "V No", sortable: true },
-    visibleColumns.vType && { key: "vType", label: "V Type", sortable: true },
-    visibleColumns.date && { key: "date", label: "Date", sortable: true },
-    visibleColumns.coaHeadName && { key: "coaHeadName", label: "COA Head Name", sortable: true },
-    visibleColumns.coa && { key: "coa", label: "COA", sortable: true },
-    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true },
-    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, className: "text-right" },
-    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, className: "text-right" },
+    visibleColumns.id && { key: "id", label: "ID", sortable: true, render: (item) => item.id || item.Id },
+    visibleColumns.vno && { key: "vno", label: "V No", sortable: true, render: (item) => item.vno || item.VNo },
+    visibleColumns.vtype && { key: "vtype", label: "V Type", sortable: true, render: (item) => item.vtype || item.VType },
+    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (item) => new Date(item.date || item.Date).toLocaleDateString() },
+    visibleColumns.account && { key: "account", label: "Account", sortable: true, render: (item) => item.account || item.Account },
+    // Handle potential null/undefined better
+    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (item) => (Number(item.debit || item.Debit) || 0).toFixed(2) },
+    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (item) => (Number(item.credit || item.Credit) || 0).toFixed(2) },
+    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true, render: (item) => item.remark || item.Remark },
   ].filter(Boolean);
 
-  const ModalContent = () => (
+  // -----------------------------------
+  // RENDER HELPERS
+  // -----------------------------------
+  const renderModalContent = () => (
       <div className="space-y-4">
         <div>
            <InputField
@@ -150,58 +253,76 @@ const JournalVoucher = () => {
              type="date"
              value={form.date}
              onChange={(e) => setForm({ ...form, date: e.target.value })}
+             disabled={!form.isActive}
              required
            />
         </div>
         <div>
            <label className="text-sm text-black font-medium block mb-1">Account *</label>
            <select
-             value={form.account}
-             onChange={(e) => setForm({ ...form, account: e.target.value })}
-             className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
+              value={form.account}
+              onChange={(e) => setForm({ ...form, account: e.target.value })}
+              disabled={!form.isActive}
+              className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
                   theme === "emerald"
                     ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
                     : theme === "purple"
                     ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
                     : "bg-gray-800 border-gray-700 text-white"
-             }`}
+              } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
            >
-             <option value="">Select Account</option>
-             {accountOptions.map((a) => (
-               <option key={a} value={a}>{a}</option>
-             ))}
+              <option value="">Select Account</option>
+              {accountOptions.map((opt) => (
+                 <option key={opt} value={opt}>{opt}</option>
+              ))}
            </select>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-           <InputField
-              label="Debit"
-              type="number"
-              value={form.debit}
-              onChange={(e) => setForm({ ...form, debit: e.target.value })}
-           />
-           <InputField
-              label="Credit"
-              type="number"
-              value={form.credit}
-              onChange={(e) => setForm({ ...form, credit: e.target.value })}
-           />
+        
+        <div className="flex gap-4">
+             <div className="flex-1">
+               <InputField
+                  label="Debit"
+                  type="number"
+                  value={form.debit}
+                  onChange={(e) => setForm({ ...form, debit: e.target.value })}
+                  disabled={!form.isActive}
+               />
+             </div>
+             <div className="flex-1">
+               <InputField
+                  label="Credit"
+                  type="number"
+                  value={form.credit}
+                  onChange={(e) => setForm({ ...form, credit: e.target.value })}
+                  disabled={!form.isActive}
+               />
+             </div>
         </div>
+
         <div>
-            <label className="text-sm text-black font-medium block mb-1">Remarks *</label>
+            <label className="text-sm text-black font-medium block mb-1">Remarks</label>
             <textarea
               value={form.remark}
               onChange={(e) => setForm({ ...form, remark: e.target.value })}
+              disabled={!form.isActive}
               className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors h-24 ${
                   theme === "emerald"
                     ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
                     : theme === "purple"
                     ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
                     : "bg-gray-800 border-gray-700 text-white"
-              }`}
+              } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
          </div>
       </div>
   );
+
+  // Pagination Logic
+  // const activeList = sortedList.filter(item => item.isActive);
+  // const inactiveList = sortedList.filter(item => !item.isActive);
+  // const targetList = showInactive ? inactiveList : activeList;
+  // const totalCount = targetList.length;
+  // const paginatedData = targetList.slice((page - 1) * limit, page * limit);
 
   return (
     <PageLayout>
@@ -213,7 +334,7 @@ const JournalVoucher = () => {
             title="New Journal Voucher"
             permission={hasPermission(PERMISSIONS.FINANCIAL.CREATE)}
         >
-             <ModalContent />
+             {renderModalContent()}
         </AddModal>
         
         {/* EDIT MODAL */}
@@ -222,12 +343,14 @@ const JournalVoucher = () => {
             onClose={() => setEditModalOpen(false)}
             onSave={handleSave}
             onDelete={handleDelete}
-            title="Edit Journal Voucher"
+            onRestore={handleRestore}
+            isInactive={!form.isActive}
+            title={!form.isActive ? "Restore Journal Voucher" : "Edit Journal Voucher"}
             permissionEdit={hasPermission(PERMISSIONS.FINANCIAL.EDIT)}
             permissionDelete={hasPermission(PERMISSIONS.FINANCIAL.DELETE)}
             saveText="Update"
         >
-             <ModalContent />
+             {renderModalContent()}
         </EditModal>
 
         {/* COLUMN PICKER */}
@@ -248,17 +371,27 @@ const JournalVoucher = () => {
             
                     <MasterTable
                         columns={columns}
-                        data={sortedList}
+                        data={sortedList.filter((item) => item.isActive)}
+                        inactiveData={sortedList.filter((item) => !item.isActive)}
                         
                         search={searchText}
-                        onSearch={setSearchText}
+                        onSearch={(val) => {
+                            setSearchText(val);
+                            setPage(1);
+                        }}
                         
                         onCreate={handleOpenAdd}
                         createLabel="New Voucher"
                         permissionCreate={hasPermission(PERMISSIONS.FINANCIAL.CREATE)}
                         
-                        onRefresh={() => showSuccessToast("Refreshed")}
+                        onRefresh={async () => {
+                            setSearchText("");
+                            setPage(1);
+                            await loadData(null, "");
+                        }}
                         onColumnSelector={() => setColumnModalOpen(true)}
+                        onToggleInactive={() => setShowInactive(!showInactive)}
+                        showInactive={showInactive}
                         
                         onRowClick={handleRowClick}
                         

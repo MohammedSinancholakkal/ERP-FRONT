@@ -10,7 +10,14 @@ import EditModal from "../../components/modals/EditModal";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
-import { showSuccessToast, showErrorToast } from "../../utils/notificationUtils"; 
+import { showSuccessToast, showErrorToast, showDeleteConfirm, showRestoreConfirm } from "../../utils/notificationUtils";
+import { 
+  getDebitVouchersApi, 
+  addDebitVoucherApi, 
+  updateDebitVoucherApi, 
+  deleteDebitVoucherApi,
+  restoreDebitVoucherApi 
+} from "../../services/allAPI"; 
 
 const DebitVoucher = () => {
   const { theme } = useTheme();
@@ -23,11 +30,10 @@ const DebitVoucher = () => {
     vno: true,
     vtype: true,
     date: true,
-    coaHeadName: true,
-    coa: true,
+    creditAccountHead: true,
+    account: true,
     remark: true,
-    debit: true,
-    credit: true,
+    amount: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
@@ -35,19 +41,8 @@ const DebitVoucher = () => {
   // -----------------------------------
   // DATA STATES
   // -----------------------------------
-  const [dataList, setDataList] = useState([
-    {
-      id: 1,
-      vno: "DV/2025/01",
-      vtype: "Debit Voucher",
-      date: "2025-01-01",
-      coaHeadName: "Cash Head",
-      coa: "1001",
-      remark: "Debit posting",
-      debit: 3000,
-      credit: 0,
-    },
-  ]);
+  const [dataList, setDataList] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
   
   const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(1);
@@ -68,44 +63,83 @@ const DebitVoucher = () => {
       return 0;
   });
 
+  const filteredList = sortedList.filter(item => {
+     if(!searchText) return true;
+     const lowerSearch = searchText.toLowerCase();
+     return (
+         (item.vno?.toLowerCase() || "").includes(lowerSearch) ||
+         (item.creditAccountHead?.toLowerCase() || "").includes(lowerSearch) ||
+         (item.account?.toLowerCase() || "").includes(lowerSearch) ||
+         (item.remark?.toLowerCase() || "").includes(lowerSearch) ||
+         (item.amount?.toString() || "").includes(lowerSearch)
+     );
+  });
+
+  // -----------------------------------
+  // HANDLERS
+  // -----------------------------------
+  const loadData = async (overrideShowInactive = null) => {
+    try {
+      const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
+      const res = await getDebitVouchersApi(effectiveShowInactive);
+      if (res && res.status === 200) {
+        // Validate that data is an array and NOT a string (which happens if server returns HTML)
+        if (Array.isArray(res.data) && (res.data.length === 0 || typeof res.data[0] === 'object')) {
+             setDataList(res.data);
+        } else {
+             console.error("Invalid data format received:", res.data);
+             setDataList([]); // Safety fallback
+             // Optionally show error if it's likely a config issue
+             if (typeof res.data === 'string') {
+                 showErrorToast("Server API mistmatch - Please Restart Server");
+             }
+        }
+      } else {
+        showErrorToast("Failed to load debit vouchers");
+      }
+    } catch (err) {
+      console.error(err);
+      showErrorToast("Error loading data");
+    }
+  };
+
+  React.useEffect(() => {
+    loadData();
+  }, [showInactive]);
+
   // -----------------------------------
   // MODAL STATES
   // -----------------------------------
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  
+
   const [form, setForm] = useState({
     id: null,
     date: new Date().toISOString().split("T")[0],
+    creditAccountHead: "",
     account: "",
-    debitAccountHead: "",
-    debit: "",
-    credit: "",
+    amount: "",
     remark: "",
+    isActive: true
   });
 
-  const accountOptions = ["Cash at Hand", "Cash at Bank"];
-  const debitAccountOptions = [
-    "Sales Account",
-    "Purchase Account",
-    "Expense Account",
-    "Misc Account",
-  ];
+  // ...
 
-  // -----------------------------------
-  // HANDLERS
-  // -----------------------------------
+  const accountOptions = ["Cash at Hand", "Cash at Bank"];
+
   const resetForm = () => {
     setForm({
         id: null,
         date: new Date().toISOString().split("T")[0],
+        creditAccountHead: "",
         account: "",
-        debitAccountHead: "",
-        debit: "",
-        credit: "",
+        amount: "",
         remark: "",
+        isActive: true
     });
   };
+
+  // ...
 
   const handleOpenAdd = () => {
     resetForm();
@@ -115,43 +149,105 @@ const DebitVoucher = () => {
   const handleRowClick = (item) => {
       setForm({
           id: item.id,
-          date: item.date,
-          account: "", // Mock
-          debitAccountHead: item.coaHeadName,
-          debit: item.debit,
-          credit: item.credit,
-          remark: item.remark
+          date: item.date ? item.date.split("T")[0] : "",
+          creditAccountHead: item.creditAccountHead,
+          account: item.account,
+          amount: item.amount,
+          remark: item.remark,
+          isActive: item.isActive
       });
       setEditModalOpen(true);
   };
 
-  const handleSave = () => {
-      showSuccessToast("Saved Successfully (Mock)");
-      setModalOpen(false);
-      setEditModalOpen(false);
+  const handleSave = async () => {
+    if(!form.creditAccountHead || !form.account || !form.amount || !form.date) {
+        showErrorToast("Please fill all required fields");
+        return;
+    }
+
+    try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const payload = { ...form, userId: user?.userId || 1 };
+        
+        let res;
+        if(form.id) {
+            res = await updateDebitVoucherApi(form.id, payload);
+        } else {
+            res = await addDebitVoucherApi(payload);
+        }
+
+        if(res && (res.status === 200 || res.status === 201)){
+            showSuccessToast(form.id ? "Updated Successfully" : "Created Successfully");
+            setModalOpen(false);
+            setEditModalOpen(false);
+            loadData();
+        } else {
+            showErrorToast("Operation Failed");
+        }
+    } catch (err) {
+        console.error(err);
+        showErrorToast("Server Error");
+    }
   };
 
-  const handleDelete = () => {
-      showSuccessToast("Deleted (Mock)");
-      setEditModalOpen(false);
+  const handleDelete = async () => {
+      const result = await showDeleteConfirm();
+      if (!result.isConfirmed) return;
+
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const res = await deleteDebitVoucherApi(form.id, { userId: user?.userId || 1 });
+        if(res && res.status === 200) {
+             showSuccessToast("Deleted Successfully");
+             setEditModalOpen(false);
+             loadData();
+        } else {
+             showErrorToast("Delete Failed");
+        }
+      } catch (err) {
+          console.error(err);
+          showErrorToast("Server Error");
+      }
+  };
+
+  const handleRestore = async () => {
+      const result = await showRestoreConfirm();
+      if (!result.isConfirmed) return;
+
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const res = await restoreDebitVoucherApi(form.id, { userId: user?.userId || 1 });
+        if(res && res.status === 200) {
+             showSuccessToast("Restored Successfully");
+             setEditModalOpen(false);
+             loadData();
+        } else {
+             showErrorToast("Restore Failed");
+        }
+      } catch (err) {
+          console.error(err);
+          showErrorToast("Server Error");
+      }
   };
 
   // -----------------------------------
   // COLUMNS CONFIG
   // -----------------------------------
   const columns = [
-    visibleColumns.id && { key: "id", label: "ID", sortable: true },
-    visibleColumns.vno && { key: "vno", label: "V No", sortable: true },
-    visibleColumns.vtype && { key: "vtype", label: "V Type", sortable: true },
-    visibleColumns.date && { key: "date", label: "Date", sortable: true },
-    visibleColumns.coaHeadName && { key: "coaHeadName", label: "COA Head Name", sortable: true },
-    visibleColumns.coa && { key: "coa", label: "COA", sortable: true },
-    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true },
-    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, className: "text-right" },
-    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, className: "text-right" },
+    visibleColumns.id && { key: "id", label: "ID", sortable: true, render: (item) => item.id || item.Id },
+    visibleColumns.vno && { key: "vno", label: "V No", sortable: true, render: (item) => item.vno || item.VNo },
+    visibleColumns.vtype && { key: "vtype", label: "V Type", sortable: true, render: (item) => item.vtype || item.VType },
+    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (item) => new Date(item.date || item.Date).toLocaleDateString() },
+    visibleColumns.creditAccountHead && { key: "creditAccountHead", label: "Credit A/C Head", sortable: true, render: (item) => item.creditAccountHead || item.CreditAccountHead },
+    visibleColumns.account && { key: "account", label: "Account", sortable: true, render: (item) => item.account || item.Account },
+    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true, render: (item) => item.remark || item.Remark },
+    visibleColumns.amount && { key: "amount", label: "Amount", sortable: true, render: (item) => (item.amount || item.Amount) },
   ].filter(Boolean);
 
-  const ModalContent = () => (
+  // -----------------------------------
+  // RENDER HELPERS
+  // -----------------------------------
+  const renderModalContent = () => (
       <div className="space-y-4">
         <div>
            <InputField
@@ -159,21 +255,43 @@ const DebitVoucher = () => {
              type="date"
              value={form.date}
              onChange={(e) => setForm({ ...form, date: e.target.value })}
+             disabled={!form.isActive}
              required
            />
+        </div>
+        <div>
+           <label className="text-sm text-black font-medium block mb-1">Credit Account Head *</label>
+           <select
+              value={form.creditAccountHead}
+              onChange={(e) => setForm({ ...form, creditAccountHead: e.target.value })}
+              disabled={!form.isActive}
+              className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
+                  theme === "emerald"
+                    ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
+                    : theme === "purple"
+                    ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
+                    : "bg-gray-800 border-gray-700 text-white"
+              } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+           >
+              <option value="">Select Account</option>
+              {accountOptions.map((opt) => (
+                 <option key={opt} value={opt}>{opt}</option>
+              ))}
+           </select>
         </div>
         <div>
            <label className="text-sm text-black font-medium block mb-1">Account *</label>
            <select
              value={form.account}
              onChange={(e) => setForm({ ...form, account: e.target.value })}
+             disabled={!form.isActive}
              className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
                   theme === "emerald"
                     ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
                     : theme === "purple"
                     ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
                     : "bg-gray-800 border-gray-700 text-white"
-             }`}
+             } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
            >
              <option value="">Select Account</option>
              {accountOptions.map((a) => (
@@ -182,52 +300,28 @@ const DebitVoucher = () => {
            </select>
         </div>
         <div>
-           <label className="text-sm text-black font-medium block mb-1">Debit Account Head *</label>
-           <input
-              list="debitHeadList"
-              value={form.debitAccountHead}
-              onChange={(e) => setForm({ ...form, debitAccountHead: e.target.value })}
-              placeholder="Search..."
-              className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
-                  theme === "emerald"
-                    ? "bg-emerald-50 border-emerald-600 text-emerald-900 placeholder-emerald-400 focus:border-emerald-400"
-                    : theme === "purple"
-                    ? "bg-white border-gray-300 text-purple-900 placeholder-gray-400 focus:border-gray-500"
-                    : "bg-gray-800 border-gray-700 text-white"
-              }`}
-           />
-           <datalist id="debitHeadList">
-              {debitAccountOptions.map((opt) => (
-                 <option key={opt} value={opt} />
-              ))}
-           </datalist>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
            <InputField
-              label="Debit"
+              label="Amount"
               type="number"
-              value={form.debit}
-              onChange={(e) => setForm({ ...form, debit: e.target.value })}
-           />
-           <InputField
-              label="Credit"
-              type="number"
-              value={form.credit}
-              onChange={(e) => setForm({ ...form, credit: e.target.value })}
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              disabled={!form.isActive}
+              required
            />
         </div>
         <div>
-            <label className="text-sm text-black font-medium block mb-1">Remarks *</label>
+            <label className="text-sm text-black font-medium block mb-1">Remarks</label>
             <textarea
               value={form.remark}
               onChange={(e) => setForm({ ...form, remark: e.target.value })}
+              disabled={!form.isActive}
               className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors h-24 ${
                   theme === "emerald"
                     ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
                     : theme === "purple"
                     ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
                     : "bg-gray-800 border-gray-700 text-white"
-              }`}
+              } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
          </div>
       </div>
@@ -243,7 +337,7 @@ const DebitVoucher = () => {
             title="New Debit Voucher"
             permission={hasPermission(PERMISSIONS.FINANCIAL.CREATE)}
         >
-             <ModalContent />
+             {renderModalContent()}
         </AddModal>
         
         {/* EDIT MODAL */}
@@ -252,12 +346,14 @@ const DebitVoucher = () => {
             onClose={() => setEditModalOpen(false)}
             onSave={handleSave}
             onDelete={handleDelete}
-            title="Edit Debit Voucher"
+            onRestore={handleRestore}
+            isInactive={!form.isActive}
+            title={!form.isActive ? "Restore Debit Voucher" : "Edit Debit Voucher"}
             permissionEdit={hasPermission(PERMISSIONS.FINANCIAL.EDIT)}
             permissionDelete={hasPermission(PERMISSIONS.FINANCIAL.DELETE)}
             saveText="Update"
         >
-             <ModalContent />
+             {renderModalContent()}
         </EditModal>
 
         {/* COLUMN PICKER */}
@@ -278,7 +374,8 @@ const DebitVoucher = () => {
             
                     <MasterTable
                         columns={columns}
-                        data={sortedList}
+                        data={filteredList.filter(item => item.isActive)}
+                        inactiveData={filteredList.filter(item => !item.isActive)}
                         
                         search={searchText}
                         onSearch={setSearchText}
@@ -287,8 +384,13 @@ const DebitVoucher = () => {
                         createLabel="New Voucher"
                         permissionCreate={hasPermission(PERMISSIONS.FINANCIAL.CREATE)}
                         
-                        onRefresh={() => showSuccessToast("Refreshed")}
+                        onRefresh={() => {
+                            setSearchText("");
+                            loadData();
+                        }}
                         onColumnSelector={() => setColumnModalOpen(true)}
+                        onToggleInactive={() => setShowInactive(!showInactive)}
+                        showInactive={showInactive}
                         
                         onRowClick={handleRowClick}
                         

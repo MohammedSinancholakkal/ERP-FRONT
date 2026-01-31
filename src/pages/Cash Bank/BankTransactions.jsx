@@ -1,18 +1,21 @@
 // src/pages/bank/BankTransactions.jsx
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Save,
-} from "lucide-react";
+// import {
+//   Save,
+// } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
+import ContentCard from "../../components/ContentCard";
 import EditModal from "../../components/modals/EditModal";
 import toast from "react-hot-toast";
 import PageLayout from "../../layout/PageLayout";
-import Pagination from "../../components/Pagination";
+// import Pagination from "../../components/Pagination";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
+import InputField from "../../components/InputField";
+import SearchableSelect from "../../components/SearchableSelect";
 
 const BankTransactions = () => {
   const { theme } = useTheme();
@@ -30,9 +33,7 @@ const BankTransactions = () => {
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [tempVisibleColumns, setTempVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
-  const [columnSearch, setColumnSearch] = useState("");
 
   // ------------------------- Data -------------------------
   const sampleData = [
@@ -422,9 +423,11 @@ const [editData, setEditData] = useState({
 
       {/* ---------------------- MAIN ---------------------- */}
       <PageLayout>
-        <div className={`p-4 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+          <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-2xl font-semibold mb-4">Bank Transactions</h2>
+            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Bank Transactions</h2>
+            <hr className="mb-4 border-gray-300" />
 
             <MasterTable
                 columns={[
@@ -457,17 +460,15 @@ const [editData, setEditData] = useState({
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={() => setShowInactive((s) => !s)}
-            />
 
-            {/* PAGINATION */}
-            <Pagination
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
             />
-        </div>
+          </div>
+          </ContentCard>
       </div>
       </PageLayout>
     </>

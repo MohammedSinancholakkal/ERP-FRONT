@@ -45,7 +45,13 @@ const ColumnPickerModal = ({ isOpen, onClose, visibleColumns, setVisibleColumns,
             placeholder="search columns..."
             value={searchColumn}
             onChange={(e) => setSearchColumn(e.target.value.toLowerCase())}
-            className={`w-60 border px-3 py-2 rounded text-sm outline-none focus:border-white ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-white text-[#6448AE] border-[#6448AE]' : 'bg-gray-900 border-gray-700'}`}
+            className={`w-full border px-3 py-2 rounded text-sm outline-none transition-all ${
+              theme === 'emerald' 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500' 
+                : theme === 'purple' 
+                ? 'bg-white text-[#6448AE] border-[#6448AE] focus:ring-1 focus:ring-[#6448AE] focus:border-[#6448AE]' 
+                : 'bg-gray-900 border-gray-700 focus:border-gray-500'
+            }`}
           />
         </div>
 

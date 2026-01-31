@@ -171,7 +171,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Daily Closing Reports", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Stock Reports", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Customer Receivable Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW }
+    { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Todays Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Sales Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Product Wise Sales Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Purchase Report", key: PERMISSIONS.REPORTS.VIEW }
   ];
 
   const adminLinks = [
