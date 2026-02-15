@@ -40,15 +40,14 @@ const SalesQuotation = () => {
   const [inactiveRows, setInactiveRows] = useState([]);
 
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
         direction = 'desc';
     }
-    const newConfig = { key, direction };
-    setSortConfig(newConfig);
+    setSortConfig({ key, direction });
   };
 
   const [page, setPage] = useState(1);

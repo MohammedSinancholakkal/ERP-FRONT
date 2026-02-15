@@ -17,7 +17,8 @@ const SearchableSelect = ({
   id,
   label,
   required,
-  onSearchBlur
+  onSearchBlur,
+  renderOption // New prop
 }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
@@ -112,7 +113,7 @@ const SearchableSelect = ({
       <div className={`relative ${className}`} ref={wrapperRef}>
         {label && <label className="block text-sm mb-1 text-black font-medium">{label} {required && "*"}</label>}
         <div
-          className={`w-full border-2 rounded px-3 ${compact ? 'py-1' : 'py-2'} flex justify-between items-center cursor-pointer transition-colors ${theme === 'emerald' ? `bg-emerald-50 border-emerald-600 hover:border-emerald-500 ${isOpen ? 'border-emerald-400' : ''}` : theme === 'purple' ? `bg-white border-gray-300 hover:border-gray-400 ${isOpen ? 'border-gray-500' : ''}` : 'bg-gray-800 border-gray-600 hover:border-gray-500'} ${
+          className={`w-full h-9 border-2 rounded px-3 py-1.5 flex justify-between items-center cursor-pointer transition-colors ${theme === 'emerald' ? `bg-emerald-50 border-emerald-600 hover:border-emerald-500 ${isOpen ? 'border-emerald-400' : ''}` : theme === 'purple' ? `bg-white border-gray-300 hover:border-gray-400 ${isOpen ? 'border-gray-500' : ''}` : 'bg-gray-800 border-gray-600 hover:border-gray-500'} ${
             disabled ? "opacity-50 cursor-not-allowed" : ""
           }`}
           onClick={toggleOpen}
@@ -159,7 +160,7 @@ const SearchableSelect = ({
                     }`}
                    onClick={() => handleSelect(option)}
                  >
-                   {option.name}
+                   {renderOption ? renderOption(option) : option.name}
                  </div>
                ))
              ) : (
@@ -206,7 +207,7 @@ const SearchableSelect = ({
                   }`}
                   onClick={() => handleSelect(option)}
                 >
-                  {option.name}
+                  {renderOption ? renderOption(option) : option.name}
                 </div>
               ))
             ) : (

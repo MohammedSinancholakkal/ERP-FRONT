@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSettings } from "../../contexts/SettingsContext"; // Import hook
 import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 import {
   getServiceInvoiceByIdApi,
   getCustomersApi
@@ -109,7 +110,7 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
         Loading...
       </div>
     );
@@ -117,7 +118,7 @@ useEffect(() => {
 
   if (!invoice) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
         Invoice not found
       </div>
     );
@@ -128,12 +129,13 @@ useEffect(() => {
     (invoice?.VNo && invoice.VNo.trim()) ? invoice.VNo : `INV-${String(invoice?.Id ?? "").padStart(4, "0")}`;
 
   return (
-    <div className={`h-screen p-4 md:p-10 flex justify-center overflow-y-auto ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
-      <div className={`w-full max-w-[1280px] border rounded-lg shadow-2xl p-6 md:p-8 h-fit ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+    <div className={`h-screen overflow-hidden p-4 md:p-10 flex justify-center font-sans ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
+      <ContentCard className="w-full max-w-[1280px] !p-0">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
 
         {/* HEADER */}
         <div className={`flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-8 gap-4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
-          <h1 className="text-3xl font-semibold">Service Invoice</h1>
+          <h1 className={`text-3xl font-semibold ${theme === 'purple' ? 'text-purple-800' : ''}`}>Service Invoice</h1>
           <p className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-300'}`}>
             Date: {new Date().toLocaleDateString()}
           </p>
@@ -295,7 +297,8 @@ useEffect(() => {
           </div>
         </div>
 
-      </div>
+        </div>
+      </ContentCard>
     </div>
   );
 };

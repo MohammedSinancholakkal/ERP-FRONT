@@ -65,16 +65,15 @@ const AttendeeTypes = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
   const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
-      direction = null;
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
     }
-    setSortConfig({ key: direction ? key : null, direction });
+    setSortConfig({ key, direction });
   };
 
   // REMOVED CLIENT SIDE SORT LOGIC
@@ -327,7 +326,7 @@ const AttendeeTypes = () => {
       <ContentCard>
       <div className="flex flex-col h-full overflow-hidden gap-2">
 
-        <h2 className="text-xl font-bold text-[#6448AE] mb-2">Attendee Types</h2>
+        <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Attendee Types</h2>
         <hr className="mb-4 border-gray-300" />
 
         <MasterTable

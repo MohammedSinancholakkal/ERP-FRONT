@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext";
 import { getPurchaseByIdApi, getSuppliersApi, getTaxTypesApi, getStatesApi, getCitiesApi } from "../../services/allAPI";
+import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 // import logo from "../../assets/logo.png"; // Assuming a logo exists, or placeholder
 
 const parseArrayFromResponse = (res) => {
@@ -17,6 +19,7 @@ const parseArrayFromResponse = (res) => {
 const PurchaseInvoice = () => {
   const { id } = useParams();
   const { settings } = useSettings(); // Hook to access global settings
+  const { theme } = useTheme();
   const [purchase, setPurchase] = useState(null);
   const [details, setDetails] = useState([]);
   const [supplier, setSupplier] = useState(null);
@@ -101,55 +104,56 @@ const PurchaseInvoice = () => {
     fetchInvoice();
   }, [id]);
 
-  if (loading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Loading...</div>;
-  if (!purchase) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Invoice not found</div>;
+  if (loading) return <div className={`min-h-screen flex items-center justify-center ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>Loading...</div>;
+  if (!purchase) return <div className={`min-h-screen flex items-center justify-center ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>Invoice not found</div>;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-10 flex justify-center font-sans">
-      <div className="w-full max-w-[1280px] bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8 border border-gray-700">
+    <div className={`h-screen overflow-hidden p-4 md:p-10 flex justify-center font-sans ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
+      <ContentCard className="w-full max-w-[1280px] !p-0">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-600 pb-4 mb-8 gap-4">
-          <h1 className="text-4xl font-light text-white opacity-90">Bill</h1>
+        <div className={`flex flex-col md:flex-row justify-between items-start md:items-end border-b pb-4 mb-8 gap-4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-600'}`}>
+          <h1 className={`text-2xl font-medium opacity-90 ${theme === 'purple' ? 'text-purple-800' : (theme === 'emerald' ? 'text-gray-900' : 'text-white')}`}>Bill</h1>
           <div className="text-left md:text-right">
-            <p className="text-lg font-medium text-gray-300">Date: {new Date().toLocaleDateString()}</p>
+            <p className={`text-lg font-medium ${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-300'}`}>Date: {new Date().toLocaleDateString()}</p>
           </div>
         </div>
 
         {/* ADDRESS SECTION */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 text-gray-300">
+        <div className={`grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-300'}`}>
           <div>
-            <p className="text-sm text-gray-400 mb-1">From</p>
-            <h3 className="text-xl font-bold text-white mb-1">{settings?.companyName || "Home Button"}</h3>
+            <p className={`mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>From</p>
+            <h3 className={`text-xl font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{settings?.companyName || "Home Button"}</h3>
             <p>Phone: {settings?.phone || ""}</p>
             <p>Email: {settings?.companyEmail || ""}</p>
             {supplier?.gstin && <p>GSTIN: {supplier.gstin}</p>}
           </div>
           <div>
-            <p className="text-sm text-gray-400 mb-2 font-semibold">To</p>
-            <h3 className="text-xl font-bold text-white mb-3">
+            <p className={`mb-2 font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>To</p>
+            <h3 className={`text-xl font-bold mb-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
               {supplier?.companyName || "Supplier Name Not Available"}
             </h3>
-            <p className="mb-4 text-gray-200">
+            <p className={`mb-4 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>
               {supplier?.address || "Address not available"}
               {supplier?.address && <br />}
               {supplier?.addressLine2 && <>{supplier.addressLine2} </>}
               {supplier?.state ? `"${supplier.state}" ` : ""}{supplier?.city ? `"${supplier.city}"` : ""}{supplier?.zipCode ? ` - ${supplier.zipCode}` : ""}
             </p>
             
-            <p className="text-sm text-gray-300 mb-1">
+            <p className="mb-1">
               Email:{" "}
-              <span className="text-white">
+              <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
                 {supplier?.email || "-"}
               </span>
             </p>
-            <p className="text-sm text-gray-300 mb-3">
+            <p className="mb-3">
               Phone:{" "}
-              <span className="text-white">
+              <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
                 {supplier?.phone || "-"}
               </span>
             </p>
 
-            <p className="text-sm text-gray-400 mb-1">Bill #{purchase.InvoiceNo || purchase.VNo || "N/A"}</p>
+            <p className={`mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>Bill #{purchase.InvoiceNo || purchase.VNo || "N/A"}</p>
             <p>Order Date: {new Date(purchase.Date).toLocaleDateString()}</p>
             <p>Due Date : {new Date(purchase.Date).toLocaleDateString()}</p>
           </div>
@@ -157,24 +161,24 @@ const PurchaseInvoice = () => {
 
         {/* TABLE */}
         <div className="mb-8 overflow-x-auto">
-          <table className="w-full text-left min-w-[600px]">
-            <thead>
-              <tr className="border-b border-gray-600 text-gray-200 font-bold">
-                <th className="py-2">Product</th>
-                <th className="py-2 text-right">Unit Price</th>
-                <th className="py-2 text-center">Quantity</th>
-                <th className="py-2 text-center">Discount (%)</th>
-                <th className="py-2 text-right">Line Total</th>
+          <table className="w-full text-left border-separate border-spacing-y-1 min-w-[600px] text-sm">
+            <thead className={`border-b ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 text-gray-700' : 'border-gray-600 text-gray-200'}`}>
+              <tr className="font-semibold">
+                <th className="py-2 px-2">Product</th>
+                <th className="py-2 px-2 text-right">Unit Price</th>
+                <th className="py-2 px-2 text-center">Quantity</th>
+                <th className="py-2 px-2 text-center">Discount (%)</th>
+                <th className="py-2 px-2 text-right">Line Total</th>
               </tr>
             </thead>
-            <tbody className="text-gray-300">
+            <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>
               {details.map((item, index) => (
-                <tr key={index} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
-                  <td className="py-3">{item.productName}</td>
-                  <td className="py-3 text-right">{parseFloat(item.UnitPrice).toFixed(2)}</td>
-                  <td className="py-3 text-center">{item.Quantity}</td>
-                  <td className="py-3 text-center">{parseFloat(item.Discount).toFixed(2)}</td>
-                  <td className="py-3 text-right">{parseFloat(item.Total).toFixed(2)}</td>
+                <tr key={index} className={`${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 hover:bg-gray-100' : 'bg-gray-800 hover:bg-gray-700/50'} transition-colors`}>
+                  <td className="py-3 px-2">{item.productName}</td>
+                  <td className="py-3 px-2 text-right">{parseFloat(item.UnitPrice).toFixed(2)}</td>
+                  <td className="py-3 px-2 text-center">{item.Quantity}</td>
+                  <td className="py-3 px-2 text-center">{parseFloat(item.Discount).toFixed(2)}</td>
+                  <td className="py-3 px-2 text-right">{parseFloat(item.Total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -183,57 +187,58 @@ const PurchaseInvoice = () => {
 
         {/* TOTALS */}
         <div className="flex justify-start md:justify-end">
-          <div className="w-full md:w-1/2 space-y-3 text-gray-300">
-            <div className="flex justify-between border-b border-gray-700 pb-2">
+          <div className={`w-full md:w-[420px] space-y-3 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
+            <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
               <span>Subtotal:</span>
               <span>{parseFloat(purchase.GrandTotal).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between border-b border-gray-700 pb-2">
+            <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
               <span>Fix Discount:</span>
               <span>{parseFloat(purchase.Discount).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between border-b border-gray-700 pb-2">
+            <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
               <span>Total Discount:</span>
               <span>{parseFloat(purchase.TotalDiscount).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between border-b border-gray-700 pb-2">
+            <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
             {purchase.TaxTypeId && (
-                <div className="flex justify-between border-b border-gray-700 pb-2">
+                <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                   <span>Tax Type:</span>
                   <span>{taxTypeName}</span>
                 </div>
             )}
             
             {(parseFloat(purchase.IGSTRate) > 0) ? (
-                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                 <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                     <span>IGST ({parseFloat(purchase.IGSTRate)}%):</span>
                     <span>{parseFloat(purchase.Vat || purchase.TotalTax).toFixed(2)}</span>
                  </div>
             ) : (parseFloat(purchase.CGSTRate) > 0 || parseFloat(purchase.SGSTRate) > 0) ? (
                  <>
-                  <div className="flex justify-between border-b border-gray-700 pb-2">
+                  <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                     <span>CGST ({parseFloat(purchase.CGSTRate)}%):</span>
                     <span>{(parseFloat(purchase.Vat || purchase.TotalTax)/2).toFixed(2)}</span>
                  </div>
-                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                 <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                     <span>SGST ({parseFloat(purchase.SGSTRate)}%):</span>
                     <span>{(parseFloat(purchase.Vat || purchase.TotalTax)/2).toFixed(2)}</span>
                  </div>
                  </>
             ) : (
-                 <div className="flex justify-between border-b border-gray-700 pb-2">
+                 <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                     <span>Tax:</span>
                     <span>{parseFloat(purchase.Vat || purchase.TotalTax).toFixed(2)}</span>
                  </div>
             )}
             </div>
-            <div className="flex justify-between font-bold text-white text-lg pt-2 border-t border-gray-600">
+            <div className={`flex justify-between font-bold text-lg pt-styling-2 border-t ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 text-gray-900' : 'border-gray-600 text-white'}`}>
               <span>Grand Total:</span>
               <span>{parseFloat(purchase.NetTotal).toFixed(2)}</span>
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </ContentCard>
     </div>
   );
 };

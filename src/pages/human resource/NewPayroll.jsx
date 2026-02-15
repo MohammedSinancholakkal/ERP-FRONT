@@ -358,7 +358,7 @@ const NewPayroll = () => {
             <button onClick={() => navigate("/app/hr/payroll")} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
               <ArrowLeft size={24} />
             </button>
-            <h2 className="text-xl font-bold text-[#6448AE] mb-2">
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>
               {isEdit ? "Edit Payroll" : "New Payroll"}
             </h2>
           </div>
@@ -512,10 +512,10 @@ const NewPayroll = () => {
                     <td className="p-3">{r.employeeName}</td>
                     <td className="p-3">{r.bankAccount}</td>
                     <td className="p-3">{r.bankName}</td>
-                    <td className="p-3">{Number(r.basicSalary).toFixed(2)}</td>
-                    <td className="p-3">{Number(r.totalIncome).toFixed(2)}</td>
-                    <td className="p-3">{Number(r.totalDeduction).toFixed(2)}</td>
-                    <td className="p-3 font-semibold">{Number(r.takeHome).toFixed(2)}</td>
+                    <td className="p-3">{Number(r.basicSalary).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-3">{Number(r.totalIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-3">{Number(r.totalDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-3 font-semibold">{Number(r.takeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 flex gap-2">
                        {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
                        <>
@@ -561,14 +561,14 @@ const NewPayroll = () => {
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Basic Salary</label>
                      <div className="flex-1 font-medium">
-                        <input value={Number(sumBasic).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                        <input value={Number(sumBasic).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
                     </div>
                  </div>
 
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                      <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
                       <div className="flex-1 font-medium">
-                        <input value={Number(sumIncome).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                        <input value={Number(sumIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
                      </div>
                  </div>
              </div>
@@ -578,14 +578,14 @@ const NewPayroll = () => {
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                      <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
                       <div className="flex-1 font-medium">
-                        <input value={Number(sumDeduction).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                        <input value={Number(sumDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
                      </div>
                  </div>
 
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                      <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Take Home Pay</label>
                       <div className="flex-1 font-medium">
-                        <input value={Number(sumTakeHome).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                        <input value={Number(sumTakeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
                      </div>
                  </div>
 
@@ -594,7 +594,7 @@ const NewPayroll = () => {
                          Total Payment Amount <span className="text-dark">*</span>
                      </label>
                       <div className="flex-1 font-medium">
-                        <input value={Number(totalPaymentAmount).toFixed(2)} readOnly className={`w-full border rounded px-3 py-2 text-right font-semibold ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
+                        <input value={Number(totalPaymentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} readOnly className={`w-full border rounded px-3 py-2 text-right font-semibold ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
                      </div>
                  </div>
              </div>

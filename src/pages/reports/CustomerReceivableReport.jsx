@@ -5,6 +5,7 @@ import ContentCard from "../../components/ContentCard";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { useTheme } from "../../context/ThemeContext";
 import toast from 'react-hot-toast';
+import { getCustomerReceivablesApi } from "../../services/allAPI";
 
 /* COLUMN PICKER MODAL */
 
@@ -30,14 +31,44 @@ const CustomerReceivableReport = () => {
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
   /* Sample Data */
-  const activeData = [
-    { id: 1, name: "Customer A", receivable: 6000, received: 2500, balance: 3500 },
-    { id: 2, name: "Customer B", receivable: 5000, received: 1500, balance: 3500 }
-  ];
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const inactiveData = [
-    { id: 3, name: "Customer C", receivable: 4000, received: 1000, balance: 3000 }
-  ];
+  /* Fetch Data */
+  const fetchReport = async () => {
+      try {
+          setLoading(true);
+          const res = await getCustomerReceivablesApi();
+          if (res.status === 200) {
+              setData(res.data.map(d => ({
+                ...d,
+                receivable: Math.round(d.receivable || 0),
+                received: Math.round(d.received || 0),
+                balance: Math.round(d.balance || 0)
+              })));
+          } else {
+              toast.error("Failed to load report data");
+          }
+      } catch (error) {
+          console.error("Error fetching report:", error);
+          toast.error("Failed to load report data");
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  React.useEffect(() => {
+      fetchReport();
+  }, []);
+
+  // Filtered Data
+  const filteredData = data.filter(d => 
+      d.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      (d.phone && d.phone.includes(searchText))
+  );
+
+  // Pagination Logic (Client-side for now as report is simple)
+  const paginatedData = filteredData.slice((page - 1) * limit, page * limit);
 
   return (
     <>
@@ -57,41 +88,44 @@ const CustomerReceivableReport = () => {
              <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
 
-            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Customer Receivable Report</h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Customer Receivable Report</h2>
             <hr className="mb-4 border-gray-300" />
             
             <MasterTable
                 columns={[
                     visibleColumns.name && { key: "name", label: "Customer Name", sortable: true },
-                    visibleColumns.receivable && { key: "receivable", label: "Receivable", sortable: true },
-                    visibleColumns.received && { key: "received", label: "Received", sortable: true },
-                    visibleColumns.balance && { key: "balance", label: "Balance", sortable: true },
+                    visibleColumns.receivable && { key: "receivable", label: "Receivable", sortable: true, render: (r) => (r.receivable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                    visibleColumns.received && { key: "received", label: "Received", sortable: true, render: (r) => (r.received || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                    visibleColumns.balance && { key: "balance", label: "Balance", sortable: true, render: (r) => (r.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                 ].filter(Boolean)}
-                data={activeData}
-                inactiveData={inactiveData}
-                showInactive={showInactive}
+                data={paginatedData}
+                // inactiveData={inactiveData}
+                // showInactive={showInactive}
                 // sortConfig={sortConfig}
                 // onSort={handleSort}
-                // onRowClick={(r) => openEditModal(r)}
+                
                 // Action Bar
                 search={searchText}
                 onSearch={setSearchText}
+                
+                // Remove Create Button for Report
                 // onCreate={() => setModalOpen(true)}
-                createLabel="New Receive"
-                // permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+                // createLabel="New Receive"
+                
                 onRefresh={() => {
+                    fetchReport();
                     setSearchText("");
                     setPage(1);
-                    toast.success("Refreshed");
                 }}
                 onColumnSelector={() => setColumnModal(true)}
-                onToggleInactive={() => setShowInactive((s) => !s)}
+                // onToggleInactive={() => setShowInactive((s) => !s)}
                 
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
-                total={activeData.length} // using dummy length
+                total={filteredData.length}
+                loading={loading}
             />
           </div>
           </ContentCard>

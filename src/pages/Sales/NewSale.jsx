@@ -81,7 +81,7 @@ const NewSale = () => {
   const [paymentAccount, setPaymentAccount] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(new Date().toLocaleString("en-CA", { timeZone: "Asia/Kolkata" }).split(",")[0]);
   const [taxTypeId, setTaxTypeId] = useState("");
 
   // --- DROPDOWN DATA ---
@@ -328,7 +328,7 @@ useEffect(() => {
         }
 
         setPaymentAccount(sale.PaymentAccount);
-        setInvoiceNo(sale.VNo || "");
+        setInvoiceNo(sale.invoiceNo || sale.InvoiceNo || sale.VNo || "");
         setVehicleNo(sale.VehicleNo || "");
         setDate(sale.Date.split('T')[0]);
         setGlobalDiscount(sale.Discount);
@@ -382,7 +382,7 @@ useEffect(() => {
           }
           
           setPaymentAccount(s.paymentAccount || raw.PaymentAccount || "");
-          setInvoiceNo(s.invoiceNo || raw.VNo || "");
+          setInvoiceNo(s.invoiceNo || raw.InvoiceNo || raw.VNo || "");
           setVehicleNo(s.vehicleNo || raw.VehicleNo || "");
           if (s.date) setDate(s.date.split("T")[0]);
           
@@ -572,7 +572,7 @@ useEffect(() => {
     setNewItem(prev => ({ ...prev, total: calculateItemTotal() }));
   }, [newItem.quantity, newItem.unitPrice, newItem.discount]);
 
-  const addItemToTable = () => {
+  const addItemToTable = async () => {
     if (!newItem.productId) {
       toast.error("Please select a product");
       return;
@@ -897,7 +897,8 @@ const openProductModal = () => {
 
     if (!customer) return toast.error("Please select a customer");
     if (!paymentAccount) return toast.error("Please select a payment account");
-    if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
+    if (!paymentAccount) return toast.error("Please select a payment account");
+    // if (!noTax && !taxTypeId) return toast.error("Tax Type is required");
     if (rows.length === 0) return toast.error("Please add at least one item");
 
     if (vehicleNo && vehicleNo.length > 20) return showErrorToast("Vehicle No must be max 20 characters");
@@ -977,6 +978,7 @@ const openProductModal = () => {
         toast.error("Failed to add sale or Out of Stock");
       }
     } catch (error) {
+      setLoading(false); // Ensure loading stops immediately on error
       console.error("SAVE ERROR", error);
       if (error.response && error.response.data && error.response.data.message) {
         const msg = error.response.data.message.toLowerCase();
@@ -997,7 +999,8 @@ const openProductModal = () => {
     setLoading(true); // Added loading state
     if (!customer) { setLoading(false); return toast.error("Please select a customer"); }
     if (!paymentAccount) { setLoading(false); return toast.error("Please select a payment account"); }
-    if (!noTax && !taxTypeId) { setLoading(false); return toast.error("Tax Type is required"); }
+    if (!paymentAccount) { setLoading(false); return toast.error("Please select a payment account"); }
+    // if (!noTax && !taxTypeId) { setLoading(false); return toast.error("Tax Type is required"); }
     if (rows.length === 0) { setLoading(false); return toast.error("Please add at least one item"); }
 
     if (vehicleNo && vehicleNo.length > 20) { setLoading(false); return showErrorToast("Vehicle No must be max 20 characters"); }
@@ -1073,6 +1076,7 @@ const openProductModal = () => {
         toast.error("Failed to update sale");
       }
     } catch (error) {
+      setLoading(false); // Ensure loading stops immediately on error
       console.error("UPDATE ERROR", error);
       if (error.response && error.response.data && error.response.data.message) {
         if (error.response.data.message.includes("Insufficient stock")) {
@@ -1163,9 +1167,10 @@ const openProductModal = () => {
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         
-        <ContentCard className="!h-auto !overflow-visible">
+        <ContentCard>
+        <div className="h-full overflow-y-auto pr-2">
         {/* HEADER */}
         {/* HEADER */}
         <div className="flex items-center justify-between gap-4 mb-6">
@@ -1262,9 +1267,9 @@ const openProductModal = () => {
                   onChange={setCustomer}
                   placeholder="Select customer..."
                   className={`flex-1 font-medium ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
-                  disabled={inactiveView}
+                  disabled={inactiveView || !!id}
                 />
-                {!inactiveView && (
+                {!inactiveView && !id && (
                     <>
                     {customer ? (
                         <button
@@ -1298,7 +1303,7 @@ const openProductModal = () => {
                   value={paymentAccount}
                   onChange={(e) => setPaymentAccount(e.target.value)}
                   className={`flex-1 border-2 rounded px-3 py-1.5 outline-none font-medium disabled:opacity-50 text-sm ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400' : theme === 'purple' ? 'bg-white border-gray-300 text-purple-800 focus:border-gray-500' : 'bg-gray-900 border-gray-700 text-white focus:border-gray-500'}`}
-                  disabled={inactiveView}
+                  disabled={inactiveView || !!id}
                 >
                   <option className="text-purple-800" value="">--select--</option>
                   <option className="text-purple-800" value="Cash at Hand">Cash at Hand</option>
@@ -1315,7 +1320,7 @@ const openProductModal = () => {
             {/* Tax Type */}
              <div className="flex items-center">
                <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-                  Tax Type <span className="text-dark">*</span>
+                  Tax Type
                </label>
                <div className="flex-1 flex items-center gap-2">
                  <div className="flex-1 font-medium">
@@ -1325,10 +1330,10 @@ const openProductModal = () => {
                     onChange={setTaxTypeId}
                     placeholder="Select Tax Type..."
                     className={`flex-1 ${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'}`}
-                    disabled={inactiveView || noTax}
+                    disabled={inactiveView || noTax || !!id}
                  />
                  </div>
-                 {!inactiveView && (
+                 {!inactiveView && !id && (
                   <div className="p-2 border border-transparent rounded invisible">
                       <Star size={16} />
                   </div>
@@ -1369,7 +1374,7 @@ const openProductModal = () => {
                          value={vehicleNo}
                          onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
                          placeholder="Vehicle/Transport No"
-                         disabled={inactiveView}
+                         disabled={inactiveView || !!id}
                        />
                    </div>
                    {!inactiveView && (
@@ -1389,7 +1394,7 @@ const openProductModal = () => {
                          type="date"
                          value={date}
                          onChange={(e) => setDate(e.target.value)}
-                         disabled={inactiveView}
+                         disabled={inactiveView || !!id}
                        />
                    </div>
                    {!inactiveView && (
@@ -1406,7 +1411,7 @@ const openProductModal = () => {
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
             <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Line Items</label>
-            {!inactiveView && (
+            {!inactiveView && !id && (
             <button
               onClick={openItemModal}
               className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
@@ -1418,7 +1423,7 @@ const openProductModal = () => {
 
           <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm text-left">
-              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
                 <tr>
                   <th className="p-3">Product Name</th>
                   <th className="p-3">Description</th>
@@ -1439,9 +1444,9 @@ const openProductModal = () => {
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toFixed(2)}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
-                     {!inactiveView && (
+                     {!inactiveView && !id && (
                        <>
                       <Edit 
                         size={18} 
@@ -1480,22 +1485,25 @@ const openProductModal = () => {
                     textarea
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    className="w-full h-full min-h-[440px] resize-none"
-                    disabled={inactiveView}
+                    className="w-full h-full min-h-[150px] resize-none"
+                    disabled={inactiveView || !!id}
                 />
               </div>
           </div>
 
           {/* RIGHT COLUMN - TOTALS (Span 8) -> 2-Col Grid */}
           <div className="lg:col-span-8">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                 
                 {/* Taxable Amount */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {netTotal.toFixed(2)}
-                  </div>
+                  <InputField
+                    value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    readOnly
+                    className="text-right font-bold"
+                    inputClassName="py-1"
+                  />
                 </div>
 
                 {/* Total Tax */}
@@ -1503,19 +1511,22 @@ const openProductModal = () => {
                    <div className="flex justify-between mb-1">
                       <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
                             onChange={(e) => setNoTax(e.target.checked)}
                             className="w-4 h-4 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
-                            disabled={inactiveView}
+                            disabled={inactiveView || !!id}
                           />
                       </div>
                    </div>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {noTax ? "0.00" : taxAmount.toFixed(2)}
-                  </div>
+                  <InputField
+                    value={noTax ? "0.00" : taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    readOnly
+                    className="text-right"
+                    inputClassName="py-1"
+                  />
                 </div>
 
                 {/* Discount (Input) */}
@@ -1525,17 +1536,22 @@ const openProductModal = () => {
                         type="number"
                         value={globalDiscount}
                         onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
-                        disabled={inactiveView}
+                        disabled={inactiveView || !!id}
+                        formatted
                         className="text-right w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
                 {/* Total Discount (ReadOnly) */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {totalDiscount.toFixed(2)}
-                  </div>
+                  <InputField
+                    value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    readOnly
+                    className="text-right"
+                    inputClassName="py-1"
+                  />
                 </div>
 
                 {/* Shipping Cost */}
@@ -1545,8 +1561,10 @@ const openProductModal = () => {
                         type="number"
                         value={shippingCost}
                         onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
-                        disabled={inactiveView}
+                        disabled={inactiveView || !!id}
+                        formatted
                         className="text-right w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
@@ -1558,24 +1576,32 @@ const openProductModal = () => {
                         value={paidAmount}
                         onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
                         disabled={inactiveView}
-                        className="text-right w-full"
+                        formatted
+                        className="w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
                 {/* Change */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {changeAmount.toFixed(2)}
-                  </div>
+                  <InputField
+                    value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    readOnly
+                    className="text-right"
+                    inputClassName="py-1"
+                  />
                 </div>
 
                 {/* Due */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {dueAmount.toFixed(2)}
-                  </div>
+                  <InputField
+                    value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    readOnly
+                    className="text-right"
+                    inputClassName="py-1"
+                  />
                 </div>
                 
                 {/* Tax Breakdown */}
@@ -1587,11 +1613,12 @@ const openProductModal = () => {
                        return (
                          <div className="md:col-span-2">
                            <label className="block text-sm mb-1 text-gray-500">IGST %</label>
-                           <input
+                           <InputField
                               type="number"
                               value={igstRate}
                               readOnly
-                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                              className="text-right"
+                              inputClassName="py-1"
                            />
                          </div>
                        );
@@ -1600,20 +1627,22 @@ const openProductModal = () => {
                          <>
                            <div>
                            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
-                           <input
-                              type="number"
-                              value={cgstRate}
-                              readOnly
-                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           <InputField
+                               type="number"
+                               value={cgstRate}
+                               readOnly
+                               className="text-right"
+                               inputClassName="py-1"
                            />
                           </div>
                           <div>
                            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
-                           <input
-                              type="number"
-                              value={sgstRate}
-                              readOnly
-                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                           <InputField
+                               type="number"
+                               value={sgstRate}
+                               readOnly
+                               className="text-right"
+                               inputClassName="py-1"
                            />
                           </div>
                          </>
@@ -1625,15 +1654,20 @@ const openProductModal = () => {
                 {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
                   <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Grand Total</label>
-                  <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
-                    {grandTotal.toFixed(2)}
-                  </div>
+                  <InputField
+                    value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    readOnly
+                    className="text-right font-bold text-2xl"
+                    style={{ fontSize: '1.5rem' }}
+                    inputClassName="py-1 text-2xl"
+                  />
                 </div>
 
              </div>
           </div>
         </div>
 
+        </div>
     </ContentCard>
       </div>
 
@@ -1746,6 +1780,7 @@ const openProductModal = () => {
                className="font-medium"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+              formatted
             />
           </div>
 
@@ -1883,6 +1918,7 @@ const openProductModal = () => {
              label="Unit Price *"
              value={newProductData.price}
              onChange={(e) => setNewProductData({ ...newProductData, price: e.target.value })}
+             formatted
           />
 
           {/* Reorder Level */}

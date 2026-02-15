@@ -3,12 +3,13 @@ import { Menu, User, Lock, LogOut, List, X, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { changePasswordApi, LogoutApi } from "../services/allAPI";
 import { useTheme } from "../context/ThemeContext";
-import { useSettings } from "../contexts/SettingsContext"; // Added
-import { serverURL } from "../services/serverURL"; // Added
+import { useSettings } from "../contexts/SettingsContext"; 
+import { serverURL } from "../services/serverURL"; 
+import SearchableSelect from "./SearchableSelect";
 
 const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { theme, setTheme } = useTheme();
-  const { settings } = useSettings(); // Added
+  const { settings } = useSettings(); 
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -25,6 +26,21 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
     confirmPassword: "",
   });
 
+  // Options for SearchableSelect
+  const languageOptions = [
+    { id: "English", name: "English" },
+    { id: "Hindi", name: "Hindi" },
+    { id: "Tamil", name: "Tamil" }
+  ];
+
+  const themeOptions = [
+    { id: "dark", name: "Dark Theme" },
+    { id: "light", name: "Light Theme" },
+    { id: "emerald", name: "Emerald Green" },
+    { id: "purple", name: "Purple Theme" },
+    { id: "blue", name: "Blue Theme" }
+  ];
+
   const menuRef = useRef();
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -39,8 +55,6 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // ... (Login/Logout logic handled below, skipping to render)
 
   // ==========================
   // LOGOUT
@@ -105,6 +119,7 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
           sticky top-0 z-30 
           ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-800' : theme === 'purple' ? 'bg-[#6448AE]' : 'bg-gradient-to-b from-gray-900 to-gray-900'} text-white
           border-b border-white/20
+          print:hidden
         `}
       >
         {/* Sidebar Toggle */}
@@ -170,10 +185,6 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
                 </p>
                 <p className={`text-[11px] ${theme === 'purple' ? 'text-purple-700' : 'text-gray-300'}`}>Manage your account</p>
               </div>
-
-              {/* <button className="flex items-center gap-2 px-3 py-1.5 w-full hover:bg-gray-800 text-gray-200 text-sm">
-                <User size={16} /> My Profile
-              </button> */}
 
               <button
                 onClick={() => setPasswordModal(true)}
@@ -271,17 +282,17 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
 
       {/* =================== SETTINGS PANEL =================== */}
       {settingsOpen && (
-        <div className="fixed inset-0 z-40 flex">
+        <div className="fixed inset-0 z-[60]">
           {/* BACKDROP */}
           <div
-            className="flex-1 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn"
             onClick={() => setSettingsOpen(false)}
           ></div>
 
           {/* SLIDE PANEL */}
           <div
             className={`
-              w-80 h-full 
+              absolute right-0 top-0 h-full w-80
               ${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-900 to-emerald-800 border-emerald-700' : theme === 'purple' ? 'bg-gray-50 border-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 border-gray-700 text-white'}
               border-l
               shadow-2xl p-5 
@@ -290,7 +301,7 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
           >
             {/* Header */}
             <div className="flex justify-between items-center mb-5">
-              <h2 className={`text-lg font-semibold ${theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>Settings</h2>
+              <h2 className={`text-lg font-semibold ${theme === 'purple' ? 'text-purple-800 font-medium' : 'text-white'}`}>Settings</h2>
 
               <button
                 onClick={() => setSettingsOpen(false)}
@@ -302,40 +313,24 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
 
             {/* Language */}
             <div className="mb-6">
-              <label className={`block text-sm mb-2 ${theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
-                Language
-              </label>
-
-              <select
-                className={`
-                  w-full border rounded px-3 py-2 text-sm outline-none
-                  ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600 focus:border-white text-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900 focus:border-purple-500 focus:ring-1 focus:ring-purple-500' : 'bg-gray-900 border-gray-700 focus:border-white text-white'}
-                `}
-              >
-                <option className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>English</option>
-                <option className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>Hindi</option>
-                <option className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>Tamil</option>
-              </select>
+              <SearchableSelect 
+                  label="Language"
+                  options={languageOptions}
+                  value="English" 
+                  onChange={() => {}} 
+                  placeholder="Select Language"
+               />
             </div>
 
             {/* Theme */}
             <div>
-              <label className={`block text-sm mb-2 ${theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Theme</label>
-
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                className={`
-                  w-full border rounded px-3 py-2 text-sm outline-none
-                  ${theme === 'emerald' ? 'bg-emerald-800 border-emerald-600 focus:border-white text-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900 focus:border-purple-500 focus:ring-1 focus:ring-purple-500' : 'bg-gray-900 border-gray-700 focus:border-white text-white'}
-                `}
-              >
-                <option value="dark" className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>Dark Theme</option>
-                <option value="light" className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>Light Theme</option>
-                <option value="emerald" className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>Emerald Green</option>
-                <option value="purple" className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>Purple Theme</option>
-                <option value="blue" className={theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gray-900'}>Blue Theme</option>
-              </select>
+               <SearchableSelect 
+                  label="Theme"
+                  options={themeOptions}
+                  value={theme}
+                  onChange={(val) => setTheme(val)}
+                  placeholder="Select Theme"
+              />
             </div>
           </div>
         </div>
@@ -344,11 +339,18 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
       {/* Slide Animation */}
       <style>{`
         @keyframes slideLeft {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0%); }
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0%); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         .animate-slideLeft {
-          animation: slideLeft 0.3s ease-out;
+          animation: slideLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
         }
       `}</style>
     </>

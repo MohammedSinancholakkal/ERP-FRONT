@@ -305,12 +305,12 @@ function App() {
 
           <Route path="reports/supplierpayablereport" element={<SuppliersPayableReport />} />
           <Route path="reports/customerreceivablereport" element={<CustomerReceivableReport />} />
-          <Route path="reports/stockreports" element={<StockReport />} />
-          <Route path="reports/dailyclosingreports" element={<DailyClosingReport />} />
+          <Route path="reports/stockreport" element={<StockReport />} />
+          <Route path="reports/dailyclosingreport" element={<DailyClosingReport />} />
           <Route path="reports/dayclosing" element={<DayClosing />} />
           <Route path="reports/todaysreport" element={<TodaysReport />} />
-          <Route path="reports/salesreport" element={<SalesReport />} />
-          <Route path="reports/productwisesalesreport" element={<ProductWiseSalesReport />} />
+          <Route path="reports/salereport" element={<SalesReport />} />
+          <Route path="reports/productwisesalereport" element={<ProductWiseSalesReport />} />
           <Route path="reports/purchasereport" element={<PurchaseReport />} />
 
           </Route>

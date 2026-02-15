@@ -68,7 +68,8 @@ const Invoices = () => {
   const [filterEmployee, setFilterEmployee] = useState("");
   const [filterDate, setFilterDate] = useState("");
 
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
   // Pagination
   const [page, setPage] = useState(1);

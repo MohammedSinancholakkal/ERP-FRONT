@@ -100,17 +100,16 @@ const Banks = () => {
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
   const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
-      direction = null;
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
     }
     setPage(1);
-    setSortConfig({ key: direction ? key : null, direction });
+    setSortConfig({ key, direction });
   };
 
   // Client-side sort logic removed
@@ -496,7 +495,7 @@ const Banks = () => {
       <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         <ContentCard>
             <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Banks</h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Banks</h2>
             <hr className="mb-4 border-gray-300" />
 
             <MasterTable

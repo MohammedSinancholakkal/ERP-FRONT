@@ -14,6 +14,7 @@ import ContentCard from "../../components/ContentCard";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { useTheme } from "../../context/ThemeContext";
 import toast from 'react-hot-toast';
+import { getStockReportApi } from "../../services/allAPI";
 
 /* Searchable Dropdown */
 import FilterBar from "../../components/FilterBar";
@@ -59,48 +60,54 @@ const StockReport = () => {
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  /* Dropdown Dummy Data */
-  const categories = [
-    { id: 1, name: "Electronics" },
-    { id: 2, name: "Stationery" }
-  ];
-
-  /* Table Dummy Data */
-  const activeData = [
-    {
-      id: 1,
-      productName: "Monitor",
-      categoryName: "Electronics",
-      purchasePrice: 5000,
-      salePrice: 6500,
-      qtyIn: 50,
-      qtyOut: 20,
-      stock: 30
-    },
-    {
-      id: 2,
-      productName: "Notebook",
-      categoryName: "Stationery",
-      purchasePrice: 20,
-      salePrice: 35,
-      qtyIn: 100,
-      qtyOut: 40,
-      stock: 60
+  /* State for Data */
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  /* Fetch Data */
+  const fetchReport = async () => {
+    try {
+        setLoading(true);
+        const res = await getStockReportApi();
+        if (res.status === 200) {
+            setData(res.data.records || []);
+        } else {
+            toast.error("Failed to load stock report");
+        }
+    } catch (error) {
+        console.error("Error fetching stock report:", error);
+        toast.error("Failed to load stock report");
+    } finally {
+        setLoading(false);
     }
-  ];
+  };
 
-  const inactiveData = [
-    {
-      id: 3,
-      productName: "Headphones",
-      categoryName: "Electronics",
-      purchasePrice: 1200,
-      salePrice: 1800,
-      qtyIn: 30,
-      qtyOut: 25,
-      stock: 5
-    }
-  ];
+  React.useEffect(() => {
+    fetchReport();
+  }, []);
+
+
+  // DERIVE CATEGORIES FOR FILTER
+  // We can just extract unique category names from the loaded 'data'
+  const categories = React.useMemo(() => {
+    const unique = [...new Set(data.map(d => d.categoryName).filter(Boolean))];
+    return unique.map((c, i) => ({ id: c, name: c }));
+  }, [data]);
+
+   // Filtered Data
+   const filteredData = data.filter(d => {
+    const matchesSearch = d.productName.toLowerCase().includes(searchText.toLowerCase()) ||
+                          (d.categoryName && d.categoryName.toLowerCase().includes(searchText.toLowerCase()));
+    
+    const matchesCategory = filterCategory ? d.categoryName === filterCategory : true;
+    
+    return matchesSearch && matchesCategory;
+   });
+
+   // Pagination
+   const paginatedData = filteredData.slice((page - 1) * limit, page * limit);
+
+
 
   return (
     <>
@@ -119,44 +126,40 @@ const StockReport = () => {
              <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
 
-            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Stock Report</h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Stock Report</h2>
             <hr className="mb-4 border-gray-300" />
             
              <MasterTable
                 columns={[
                     visibleColumns.productName && { key: "productName", label: "Product Name", sortable: true },
                     visibleColumns.categoryName && { key: "categoryName", label: "Category", sortable: true },
-                    visibleColumns.purchasePrice && { key: "purchasePrice", label: "Purchase Price", sortable: true },
-                    visibleColumns.salePrice && { key: "salePrice", label: "Sale Price", sortable: true },
+                    visibleColumns.purchasePrice && { key: "purchasePrice", label: "Purchase Price", sortable: true, render: (r) => (r.purchasePrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                    visibleColumns.salePrice && { key: "salePrice", label: "Sale Price", sortable: true, render: (r) => (r.salePrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                     visibleColumns.qtyIn && { key: "qtyIn", label: "Qty In", sortable: true },
                     visibleColumns.qtyOut && { key: "qtyOut", label: "Qty Out", sortable: true },
                     visibleColumns.stock && { key: "stock", label: "Stock", sortable: true },
                 ].filter(Boolean)}
-                data={activeData}
-                inactiveData={inactiveData}
-                showInactive={showInactive}
-                // sortConfig={sortConfig}
-                // onSort={handleSort}
-                // onRowClick={(r) => openEditModal(r)}
+                data={paginatedData}
+                // activeData and inactiveData removed - using single active list
+                
                 // Action Bar
                 search={searchText}
                 onSearch={setSearchText}
-                // onCreate={() => setModalOpen(true)}
-                createLabel="New Report"
-                // permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+                
                 onRefresh={() => {
+                    fetchReport();
                     setSearchText("");
                     setPage(1);
-                    toast.success("Refreshed");
                 }}
                 onColumnSelector={() => setColumnModal(true)}
-                onToggleInactive={() => setShowInactive((s) => !s)}
+                // onToggleInactive removed for reports usually
                 
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
-                total={activeData.length} // using dummy length
+                total={filteredData.length}
+                loading={loading}
             >
              {/* FILTERS */}
                 <FilterBar

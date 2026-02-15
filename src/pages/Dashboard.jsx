@@ -12,9 +12,7 @@ import {
 } from "../components/charts";
 import DashboardCard from "../components/DashboardCard";
 
-/* =========================
-   SUB SECTIONS
-========================= */
+
 
 
 /* =========================
@@ -185,7 +183,7 @@ const Dashboard = () => {
 
   return (
     <div className={`h-full overflow-y-auto p-6 text-sm ${isLight ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-      <h2 className="text-2xl font-semibold mb-4">Dashboard</h2>
+      <h2 className={`text-2xl font-semibold mb-4 ${theme === 'emerald' || theme === 'purple' ? 'text-purple-800 font-medium' : 'text-white'}`}>Dashboard</h2>
 
       {/* ================= TOP STATS ================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -235,7 +233,7 @@ const Dashboard = () => {
       </div>
 
       {/* ================= CHARTS ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <DashboardCard
           title={`Sales, Purchase & Expense Report Summary – ${currentYear}`}
           color="bg-blue-400"

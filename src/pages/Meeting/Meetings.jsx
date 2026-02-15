@@ -136,7 +136,8 @@ const Meetings = () => {
   const [loading, setLoading] = useState(false);
 
   // Sorting
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
   /* Derived Filter Lists */
   const [dropdownOptions, setDropdownOptions] = useState({
@@ -237,9 +238,9 @@ const Meetings = () => {
   }, [location.search]); // Trigger on location change
 
   const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
     }
     const newConfig = { key, direction };
     setSortConfig(newConfig);
@@ -347,7 +348,7 @@ const Meetings = () => {
       <PageLayout>
         <div className="p-6 h-full">
             <ContentCard>
-                <h2 className="text-xl font-bold text-[#6448AE] mb-2">Meetings</h2>
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Meetings</h2>
                 <hr className="mb-4 border-gray-300" />
 
             {/* MASTER TABLE */}

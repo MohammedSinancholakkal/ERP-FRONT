@@ -804,6 +804,7 @@ const NewProduct = () => {
                           value={product.UnitPrice}
                           onChange={(e) => setProduct({...product, UnitPrice: e.target.value})}
                           disabled={product.isInactive}
+                          formatted
                       />
                     </div>
                      {/* Spacer */}

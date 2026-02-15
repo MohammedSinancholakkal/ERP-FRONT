@@ -40,7 +40,7 @@ const DashboardCard = ({ title, color, children }) => {
       </div>
 
       {/* Body */}
-      {!collapsed && <div className="p-4 h-72">{children}</div>}
+      {!collapsed && <div className="p-6 h-56">{children}</div>}
     </div>
   );
 };

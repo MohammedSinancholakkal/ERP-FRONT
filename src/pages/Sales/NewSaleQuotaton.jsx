@@ -1074,9 +1074,10 @@ const handleRestoreQuotation = async () => {
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
 
-        <ContentCard className="!h-auto !overflow-visible">
+        <ContentCard>
+        <div className="h-full overflow-y-auto pr-2">
         {/* HEADER & ACTIONS */}
         <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -1322,7 +1323,7 @@ const handleRestoreQuotation = async () => {
 
           <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200 shadow-sm' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm text-left">
-              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-700' : 'bg-gray-700 text-gray-300'} font-medium border-b ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-600'}`}>
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
                 <tr>
                   <th className="p-3">Product Name</th>
                   <th className="p-3">Description</th>
@@ -1343,7 +1344,7 @@ const handleRestoreQuotation = async () => {
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-medium' : 'text-gray-300'}`}>{parseFloat(row.total).toFixed(2)}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                         {!inactiveView && (
                           <>
@@ -1384,7 +1385,7 @@ const handleRestoreQuotation = async () => {
                     textarea
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    className="w-full h-full min-h-[440px] resize-none"
+                    className="w-full h-full min-h-[150px] resize-none"
                     disabled={inactiveView}
                 />
              </div>
@@ -1392,15 +1393,18 @@ const handleRestoreQuotation = async () => {
 
           {/* RIGHT: TOTALS (Spans 8) */}
           <div className="lg:col-span-8">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
 
                 {/* Grand Total */}
                 {/* Net Total (Moved to Top) */}
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
-                   <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                      {grandTotal.toFixed(2)}
-                   </div>
+                   <InputField
+                      value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right font-bold"
+                      inputClassName="py-1"
+                   />
                 </div>
 
                 {/* Total Tax */}
@@ -1408,7 +1412,7 @@ const handleRestoreQuotation = async () => {
                    <div className="flex justify-between mb-1">
                       <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
@@ -1418,9 +1422,12 @@ const handleRestoreQuotation = async () => {
                           />
                       </div>
                    </div>
-                   <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                      {noTax ? "0.00" : taxAmount.toFixed(2)}
-                   </div>
+                   <InputField
+                      value={noTax ? "0.00" : taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right"
+                      inputClassName="py-1"
+                   />
                 </div>
 
                 {/* Discount (Input) */}
@@ -1431,16 +1438,21 @@ const handleRestoreQuotation = async () => {
                         value={globalDiscount}
                         onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
                         disabled={inactiveView}
+                        formatted
                         className="text-right w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
                 {/* Total Discount (ReadOnly) */}
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
-                   <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                      {totalDiscount.toFixed(2)}
-                   </div>
+                   <InputField
+                      value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right"
+                      inputClassName="py-1"
+                   />
                 </div>
 
                 {/* Shipping Cost */}
@@ -1451,7 +1463,9 @@ const handleRestoreQuotation = async () => {
                         value={shippingCost}
                         onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
                         disabled={inactiveView}
+                        formatted
                         className="text-right w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
@@ -1465,9 +1479,12 @@ const handleRestoreQuotation = async () => {
                        return (
                          <div className="md:col-span-1"> {/* Or col-span-2 if needed */}
                            <label className="block text-sm mb-1 text-gray-500">IGST ({igstRate}%)</label>
-                           <div className={`w-full border rounded px-3 py-2 text-right cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}>
-                              {((grandTotal - globalDiscount) * igstRate / 100).toFixed(2)}
-                           </div>
+                           <InputField
+                               value={((grandTotal - globalDiscount) * igstRate / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                               readOnly
+                               className="text-right"
+                               inputClassName="py-1"
+                           />
                          </div>
                        );
                      } else {
@@ -1475,15 +1492,21 @@ const handleRestoreQuotation = async () => {
                          <>
                            <div>
                               <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST ({cgstRate}%)</label>
-                              <div className={`w-full border rounded px-3 py-2 text-right cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}>
-                                 {((grandTotal - globalDiscount) * cgstRate / 100).toFixed(2)}
-                              </div>
+                              <InputField
+                                   value={((grandTotal - globalDiscount) * cgstRate / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                   readOnly
+                                   className="text-right"
+                                   inputClassName="py-1"
+                               />
                            </div>
                            <div>
                               <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST ({sgstRate}%)</label>
-                              <div className={`w-full border rounded px-3 py-2 text-right cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}>
-                                 {((grandTotal - globalDiscount) * sgstRate / 100).toFixed(2)}
-                              </div>
+                              <InputField
+                                   value={((grandTotal - globalDiscount) * sgstRate / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                   readOnly
+                                   className="text-right"
+                                   inputClassName="py-1"
+                               />
                            </div>
                          </>
                        );
@@ -1494,15 +1517,20 @@ const handleRestoreQuotation = async () => {
                 {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
                     <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>Grand Total</label>
-                    <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
-                      {netTotal.toFixed(2)}
-                    </div>
+                    <InputField
+                      value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right font-bold text-2xl"
+                      inputClassName="py-1 text-2xl"
+                      style={{ fontSize: '1.5rem' }}
+                    />
                 </div>
 
              </div>
           </div>
         </div>
 
+        </div>
        </ContentCard>
       </div>
 
@@ -1614,6 +1642,7 @@ const handleRestoreQuotation = async () => {
                className="font-medium"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+              formatted
             />
           </div>
 
@@ -1625,6 +1654,7 @@ const handleRestoreQuotation = async () => {
                className="font-medium"
               value={newItem.discount}
               onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
+              formatted
             />
           </div>
 
@@ -1715,6 +1745,7 @@ const handleRestoreQuotation = async () => {
             label="Unit Price *"
             value={newProductData.price}
             onChange={(e) => setNewProductData({ ...newProductData, price: e.target.value })}
+            formatted
           />
 
           <InputField

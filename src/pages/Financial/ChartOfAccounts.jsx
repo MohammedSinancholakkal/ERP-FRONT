@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCOAHeadsApi } from '../../services/allAPI';
+import { getCOAHeadsApi, deleteCOAHeadApi } from '../../services/allAPI';
 import ColumnPickerModal from '../../components/modals/ColumnPickerModal';
-import { ChevronDown, ChevronRight, Folder, FileText, Plus, Minus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, FileText, Plus, Minus, Edit, Trash2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
-import { showErrorToast } from '../../utils/notificationUtils';
+import { showErrorToast, showSuccessToast, showDeleteConfirm } from '../../utils/notificationUtils';
 import PageLayout from '../../layout/PageLayout';
 import ContentCard from '../../components/ContentCard';
 import MasterTable from '../../components/MasterTable';
@@ -17,9 +17,7 @@ const ChartOfAccounts = () => {
     const [loading, setLoading] = useState(true);
     const [expandedNodes, setExpandedNodes] = useState({}); 
     
-    // Pagination & Search
-    const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(25);
+
     const [searchText, setSearchText] = useState("");
 
     // Column Picker
@@ -30,8 +28,8 @@ const ChartOfAccounts = () => {
         headCode: true,
         headName: true,
         openingBalance: true,
-        balance: true
-        // actions: true  <-- REMOVED
+        balance: true,
+        actions: true 
     };
     const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
     
@@ -85,6 +83,23 @@ const ChartOfAccounts = () => {
                 roots.push(node);
             } else {
                 if(map[parent]) {
+                    // Filter: Remove Sundry Creditors/Debtors/Input Tax from specific sections
+                    const pName = map[parent].headName;
+                    if (
+                        ((node.headName === 'Sundry Creditors' || node.headName === 'Sundry Debtors') && 
+                         (pName === 'Non Current Liabilities' || pName === 'Non Current Assets')) ||
+                        (node.headName === 'Input Tax' && pName === 'Non Current Assets')
+                    ) {
+                        return;
+                    }
+
+                    // Merge "Opening Balance Adjustment" into "Equity"
+                    if (node.headName === 'Opening Balance Adjustment' && pName === 'Equity') {
+                        map[parent].openingBalance = (Number(map[parent].openingBalance) || 0) + (Number(node.openingBalance) || 0);
+                        map[parent].balance = (Number(map[parent].balance) || 0) + (Number(node.balance) || 0);
+                        return;
+                    }
+
                     map[parent].children.push(node);
                 }
             }
@@ -100,17 +115,21 @@ const ChartOfAccounts = () => {
                  let childOpening = 0;
                  let childBalance = 0;
                  
-                 node.children.forEach(child => {
+                node.children.forEach(child => {
                      processNode(child);
-                     childOpening += child.openingBalance;
-                     childBalance += child.balance;
+                     // Use secure parsing
+                     childOpening += (Number(child.openingBalance) || 0);
+                     childBalance += (Number(child.balance) || 0);
                  });
 
                  // Add children sums to current node (Recursive Summation)
                  // This works for both Folders (DB=0) and Mixed Nodes (DB=Value)
-                 node.openingBalance += childOpening;
-                 node.balance += childBalance;
-                 // If it IS a transaction node, it keeps its own DB balance (children sum + own should be same if it has no children)
+                 const currentOpening = Number(node.openingBalance) || 0;
+                 const currentBalance = Number(node.balance) || 0;
+
+                 // Fix precision issues
+                 node.openingBalance = parseFloat((currentOpening + childOpening).toFixed(2));
+                 node.balance = parseFloat((currentBalance + childBalance).toFixed(2));
              }
         };
 
@@ -143,11 +162,7 @@ const ChartOfAccounts = () => {
         return flattened;
     }, [treeData, expandedNodes, searchText, accounts]);
 
-    // 3. Client-Side Pagination
-    const paginatedData = useMemo(() => {
-        const start = (page - 1) * limit;
-        return tableData.slice(start, start + limit);
-    }, [tableData, page, limit]);
+
 
     const handleToggle = (node) => {
         setExpandedNodes(prev => ({ ...prev, [node.headCode]: !prev[node.headCode] }));
@@ -164,6 +179,20 @@ const ChartOfAccounts = () => {
     // Row click enters Edit Mode
     const handleRowClick = (row) => {
         navigate('/app/financial/newaccount', { state: { account: row } });
+    };
+
+    const handleDelete = async (row) => {
+        const result = await showDeleteConfirm(`Delete "${row.headName}"?`, "Are you sure you want to delete this account?");
+        if (!result.isConfirmed) return;
+        
+        try {
+            await deleteCOAHeadApi(row._id || row.id || row.Id);
+            showSuccessToast("Account deleted successfully");
+            fetchData();
+        } catch (error) {
+            console.error("Delete error:", error);
+            showErrorToast("Failed to delete account");
+        }
     };
 
     // Columns Definition
@@ -216,14 +245,47 @@ const ChartOfAccounts = () => {
         visibleColumns.openingBalance && {
             key: 'openingBalance',
             label: 'Opening Balance',
-            render: (row) => Number(row.openingBalance || 0).toFixed(2)
+            render: (row) => {
+                let amount = Number(row.openingBalance || 0);
+                if (['L', 'EQ', 'I'].includes(row.headType)) amount = -amount;
+                if (amount === 0) amount = 0; // Fix -0
+                return amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
         },
         visibleColumns.balance && {
             key: 'balance',
             label: 'Balance',
-            render: (row) => Number(row.balance || 0).toFixed(2)
+            render: (row) => {
+                let amount = Number(row.balance || 0);
+                if (['L', 'EQ', 'I'].includes(row.headType)) amount = -amount;
+                if (amount === 0) amount = 0; // Fix -0
+                return amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+        },
+        visibleColumns.actions && {
+            key: 'actions',
+            label: 'Action',
+            sortable: false,
+            className: "text-center w-24", 
+            render: (row) => (
+                <div className="flex items-center justify-center gap-2">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); handleRowClick(row); }}
+                        className="p-1 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Edit"
+                    >
+                        <Edit size={16} />
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(row); }}
+                        className="p-1 rounded-md text-red-600 hover:bg-red-50 transition-colors"
+                        title="Delete"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+            )
         }
-        // Removed Actions Column
     ].filter(Boolean);
 
     return (
@@ -231,17 +293,13 @@ const ChartOfAccounts = () => {
              <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
                 <ContentCard>
                      <div className="flex flex-col h-full overflow-hidden gap-2">
-                            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Chart of Accounts</h2>
+                            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Chart of Accounts</h2>
                             <hr className="mb-4 border-gray-300" />
 
                             <MasterTable 
                                 columns={columns}
-                                data={paginatedData}
+                                data={tableData}
                                 total={tableData.length}
-                                page={page}
-                                setPage={setPage}
-                                limit={limit}
-                                setLimit={setLimit}
                                 search={searchText}
                                 onSearch={setSearchText}
                                 onCreate={() => handleAddClick(null)}
@@ -252,7 +310,7 @@ const ChartOfAccounts = () => {
                                 }}
                                 onColumnSelector={() => setColumnModal(true)}
                                 disableToolbar={false}
-                                onRowClick={handleRowClick}
+                                disablePagination={true}
                             />
                      </div>
                 </ContentCard>

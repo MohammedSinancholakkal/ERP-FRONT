@@ -1521,6 +1521,7 @@ const handleRestore = async () => {
                     onChange={(e) => update("previousCredit", e.target.value)}
                     disabled={isInactive}
                     placeholder="0.00"
+                    formatted
                   />
                 </div>
                  {/* Spacer */}

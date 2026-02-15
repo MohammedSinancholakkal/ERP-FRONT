@@ -1198,6 +1198,10 @@ export const getInactiveStocksApi = () =>
 export const restoreStockApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/stocks/restore/${id}`, data, "");
 
+// STOCK REPORT SUMMARY
+export const getStockReportApi = () =>
+  commonAPI("GET", `${serverURL}/stocks/report`, "", "");
+
 
 
 
@@ -1449,8 +1453,8 @@ export const getExpenseTypesSimpleApi = () =>
 // SETTINGS API
 // ===============================
 
-export const getSettingsApi = () =>
-  commonAPI("GET", `${serverURL}/settings`, "", "");
+// export const getSettingsApi = () =>
+//   commonAPI("GET", `${serverURL}/settings`, "", "");
 
 export const addSettingsApi = (data) =>
   commonAPI("POST", `${serverURL}/settings/add`, data, true);
@@ -1493,6 +1497,10 @@ export const getInactiveSuppliersApi = () =>
 export const restoreSupplierApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/suppliers/restore/${id}`, data);
 
+// PAYABLE REPORT
+export const getSupplierPayablesApi = () =>
+  commonAPI("GET", `${serverURL}/suppliers/payable-report`);
+
 
 
 // ======================= Customers APIs =======================
@@ -1527,6 +1535,10 @@ export const getInactiveCustomersApi = () =>
 // RESTORE
 export const restoreCustomerApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/customers/restore/${id}`, data);
+
+// RECEIVABLE REPORT
+export const getCustomerReceivablesApi = () =>
+  commonAPI("GET", `${serverURL}/customers/receivable-report`);
 
 
 
@@ -1606,11 +1618,28 @@ export const restoreAttendanceApi = (id, data) =>
 
 
 
+// ======================= Settings APIs =======================
+export const getSettingsApi = () => 
+  commonAPI("GET", `${serverURL}/settings`);
+
+
 // ======================= Purchases APIs =======================
 
 // LIST (paginated)
-export const getPurchasesApi = (page, limit, sortBy = null, order = null) =>
-  commonAPI("GET", `${serverURL}/purchases?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
+export const getPurchasesApi = (page, limit, sortBy = null, order = null, filters = {}) => {
+  let url = `${serverURL}/purchases?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`;
+  if(filters.startDate) url += `&startDate=${filters.startDate}`;
+  if(filters.endDate) url += `&endDate=${filters.endDate}`;
+  return commonAPI("GET", url);
+};
+
+// PRODUCT WISE SALES REPORT
+export const getProductWiseSalesApi = (filters = {}) => {
+    let url = `${serverURL}/sales/product-wise-report?`;
+    if(filters.startDate) url += `startDate=${filters.startDate}&`;
+    if(filters.endDate) url += `endDate=${filters.endDate}`;
+    return commonAPI("GET", url);
+};
 
 // GET BY ID
 export const getPurchaseByIdApi = (id) =>

@@ -727,10 +727,13 @@ const NewCustomer = () => {
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     
+    if (!form.phone?.trim()) return "Phone number is required";
     if (form.phone) {
          if (form.phone.length !== 10) return "Phone number must be exactly 10 digits";
          if (!/^\d+$/.test(form.phone)) return "Phone number can only contain digits";
     }
+
+    if (!form.orderBookerId) return "Order Booker is required";
     
     
     if (form.postalCode && form.postalCode.length !== 6) return "Zip Code must be exactly 6 digits";
@@ -873,8 +876,8 @@ const NewCustomer = () => {
         if (res?.status === 200 || res?.status === 201) {
           toast.success("Customer updated");
           invalidateDashboard();
-          if (location.state?.returnTo) {
-             navigate(location.state.returnTo, { state: { newCustomerId: id } }); 
+          if(location.state?.returnTo) {
+             navigate(location.state.returnTo, { state: { ...location.state, newCustomerId: id, openModalOnReturn: location.state.openModalOnReturn } }); 
           } else {
              navigate("/app/businesspartners/customers");
           }
@@ -888,8 +891,8 @@ const NewCustomer = () => {
           toast.success("Customer created");
           invalidateDashboard();
           const createdId = res.data.record?.id || res.data?.id; 
-          if (location.state?.returnTo) {
-             navigate(location.state.returnTo, { state: { newCustomerId: createdId } });
+          if(location.state?.returnTo) {
+             navigate(location.state.returnTo, { state: { ...location.state, newCustomerId: createdId, openModalOnReturn: location.state.openModalOnReturn } });
           } else {
              navigate("/app/businesspartners/customers");
           }
@@ -981,9 +984,9 @@ const handleRestore = async () => {
                  <button 
                    onClick={() => {
                        if (location.state?.from) {
-                           navigate(location.state.from);
+                           navigate(location.state.from, { state: { ...location.state } });
                        } else if (location.state?.returnTo) {
-                           navigate(location.state.returnTo);
+                           navigate(location.state.returnTo, { state: { ...location.state } });
                        } else {
                            navigate("/app/businesspartners/customers");
                        }
@@ -1338,6 +1341,7 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Phone"
+                    required
                     value={form.phone}
                     onChange={(e) => update("phone", e.target.value)}
                     disabled={isInactive}
@@ -1491,6 +1495,7 @@ const handleRestore = async () => {
                     onChange={(e) => update("previousCredit", e.target.value)}
                     disabled={isInactive}
                     placeholder="0.00"
+                    formatted
                   />
                 </div>
                  {/* Spacer */}
@@ -1549,6 +1554,7 @@ const handleRestore = async () => {
                   <div className="flex-1 font-medium">
                    <SearchableSelect
                       label="Order Booker"
+                      required
                       options={employees}
                       value={form.orderBookerId}
                       onChange={(val) => update("orderBookerId", val)}

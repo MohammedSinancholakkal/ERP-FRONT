@@ -121,7 +121,7 @@ const OpeningBalance = () => {
                 <div className="flex flex-col gap-6">
                     {/* Header */}
                     <div>
-                        <h2 className="text-xl font-bold text-[#6448AE] mb-2">Opening Balance</h2>
+                        <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Opening Balance</h2>
                         <hr className="border-gray-300" />
                     </div>
 
@@ -207,6 +207,7 @@ const OpeningBalance = () => {
                                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
                                     required
                                     className="w-full"
+                                    formatted
                                 />
                             </div>
                         </div>

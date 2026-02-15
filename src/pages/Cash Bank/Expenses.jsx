@@ -59,7 +59,8 @@ const Expenses = () => {
   const [filterPaymentAccount, setFilterPaymentAccount] = useState("");
 
   // SORT
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -552,6 +553,7 @@ const Expenses = () => {
             value={newExpense.amount}
             onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
             required
+            formatted
           />
 
           {/* Payment Account */}
@@ -685,6 +687,7 @@ const Expenses = () => {
             onChange={(e) => setEditExpense({ ...editExpense, amount: e.target.value })}
             disabled={editExpense.isInactive}
             required
+            formatted
           />
 
           <div className="block">
@@ -715,7 +718,7 @@ const Expenses = () => {
         <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
              <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2"> 
-            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Expenses</h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Expenses</h2>
             <hr className="mb-4 border-gray-300" />
 
             <MasterTable
@@ -724,7 +727,7 @@ const Expenses = () => {
                 visibleColumns.expenseType && { key: "expenseType", label: "Expense Type", sortable: true, render: (r) => expenseTypes.find((t) => (t.typeId ?? t.id) === r.expenseTypeId)?.typeName || "-" },
                 visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (r) => r.date?.split("T")[0] },
                 visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment Account", sortable: true },
-                visibleColumns.amount && { key: "amount", label: "Amount", sortable: true },
+                visibleColumns.amount && { key: "amount", label: "Amount", sortable: true, render: (r) => (r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
               ].filter(Boolean)}
               data={sortedList}
               inactiveData={inactiveExpenses}

@@ -22,21 +22,23 @@ const Layout = () => {
   }, []);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden print:h-auto print:overflow-visible">
 
       {/* SIDEBAR */}
-      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <div className="print:hidden">
+         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 print:block print:w-full print:h-auto print:overflow-visible">
 
         {/* TOPBAR (fixed height ALWAYS 64px) */}
-        <div className="h-16 flex-shrink-0">
+        <div className="h-16 flex-shrink-0 print:hidden">
           <Topbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         </div>
 
         {/* MAIN CONTENT */}
-        <div className="flex-1 overflow-hidden bg-gray-100">
+        <div className="flex-1 overflow-hidden bg-gray-100 print:overflow-visible print:bg-white print:h-auto">
           <Outlet />
         </div>
 

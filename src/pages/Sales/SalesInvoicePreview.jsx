@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext"; // Import hook
 import { getSaleByIdApi, getCustomersApi, getTaxTypesApi, getStatesApi, getCitiesApi } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
@@ -16,9 +17,8 @@ const parseArrayFromResponse = (res) => {
 
 const SalesInvoicePreview = () => {
   const { id } = useParams();
-  const { settings } = useSettings(); // Global settings
+  const { settings } = useSettings();
   const { theme } = useTheme();
-
   const [sale, setSale] = useState(null);
   const [details, setDetails] = useState([]);
   const [customer, setCustomer] = useState(null);
@@ -104,12 +104,13 @@ const SalesInvoicePreview = () => {
   const invoiceNo = (sale?.VNo && String(sale.VNo).trim()) ? sale.VNo : `INV-${String(sale?.Id ?? "").padStart(4, "0")}`;
 
   return (
-    <div className={`min-h-screen p-4 md:p-10 flex justify-center font-sans ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
-      <div className={`w-full max-w-[1280px] border rounded-lg shadow-2xl p-6 md:p-8 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+    <div className={`h-screen overflow-hidden p-4 md:p-10 flex justify-center font-sans ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
+      <ContentCard className="w-full max-w-[1280px] !p-0">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
         
         {/* HEADER */}
         <div className={`flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-8 gap-4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
-          <h1 className="text-3xl font-semibold">Sales Invoice</h1>
+          <h1 className={`text-2xl font-medium ${theme === 'purple' ? 'text-purple-800' : ''}`}>Sales Invoice</h1>
           <div className="text-left md:text-right">
              <p className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-300'}`}>Date: {new Date().toLocaleDateString()}</p>
           </div>
@@ -229,7 +230,8 @@ const SalesInvoicePreview = () => {
           </div>
         </div>
 
-      </div>
+        </div>
+      </ContentCard>
     </div>
   );
 };

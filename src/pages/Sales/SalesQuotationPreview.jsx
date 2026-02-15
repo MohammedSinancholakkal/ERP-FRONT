@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useSettings } from "../../contexts/SettingsContext"; // Import hook
 import { getQuotationByIdApi, getCustomersApi, getTaxTypesApi, getStatesApi, getCitiesApi } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
+import ContentCard from "../../components/ContentCard";
 
 const parseArrayFromResponse = (res) => {
   if (!res) return [];
@@ -104,12 +105,13 @@ const SalesQuotationPreview = () => {
   const qNo = (quotation?.VNo && String(quotation.VNo).trim()) ? quotation.VNo : `Q-${String(quotation?.Id ?? "").padStart(4, "0")}`;
 
   return (
-    <div className={`min-h-screen p-4 md:p-10 flex justify-center font-sans ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
-      <div className={`w-full max-w-[1280px] border rounded-lg shadow-2xl p-6 md:p-8 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+    <div className={`h-screen overflow-hidden p-4 md:p-10 flex justify-center font-sans ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 text-gray-900' : 'bg-gray-900 text-white'}`}>
+      <ContentCard className="w-full max-w-[1280px] !p-0">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
         
         {/* HEADER */}
         <div className={`flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-8 gap-4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
-          <h1 className="text-3xl font-semibold">Sales Quotation</h1>
+          <h1 className={`text-2xl font-medium ${theme === 'purple' ? 'text-purple-800' : ''}`}>Sales Quotation</h1>
           <div className="text-left md:text-right">
              <p className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-300'}`}>Date: {new Date().toLocaleDateString()}</p>
           </div>
@@ -226,7 +228,8 @@ const SalesQuotationPreview = () => {
             <div className={`flex justify-between font-semibold text-lg pt-3 border-t ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 text-gray-900' : 'border-gray-600 text-white'}`}><span>Grand Total:</span><span>{(Number(quotation.NetTotal) || 0).toFixed(2)}</span></div>
           </div>
         </div>
-      </div>
+        </div>
+      </ContentCard>
     </div>
   );
 };

@@ -119,7 +119,7 @@ const Products = () => {
   const currentUserId = user?.userId || 1;
 
   // sort/search/filters
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'desc' });
 
   const handleSort = (key) => {
     let direction = 'asc';

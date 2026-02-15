@@ -666,8 +666,9 @@ const handleRestoreInvoice = async () => {
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-        <ContentCard className="!h-auto !overflow-visible">
+      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <ContentCard>
+          <div className="h-full overflow-y-auto pr-2">
 
         {/* HEADER & ACTIONS */}
         <div className="flex items-center justify-between gap-4 mb-6">
@@ -880,7 +881,7 @@ const handleRestoreInvoice = async () => {
 
           <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm text-left">
-              <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-gray-700' : 'bg-gray-700 text-gray-300'} font-medium`}>
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
                 <tr>
                   <th className="p-3">Service Name</th>
                   <th className="p-3">Description</th>
@@ -899,7 +900,7 @@ const handleRestoreInvoice = async () => {
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-gray-300'}`}>{parseFloat(row.total).toFixed(2)}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                       {!inactiveView && (
                           <>
@@ -940,7 +941,7 @@ const handleRestoreInvoice = async () => {
                     textarea
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    className="w-full h-full min-h-[440px] resize-none"
+                    className="w-full h-full min-h-[150px] resize-none"
                     disabled={inactiveView}
                 />
               </div>
@@ -948,15 +949,18 @@ const handleRestoreInvoice = async () => {
 
           {/* RIGHT COLUMN - TOTALS (Span 8) -> 2-Col Grid */}
           <div className="lg:col-span-8">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                 
                 {/* Grand Total */}
                 {/* Net Total (Moved to Top) */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Net Total</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right font-bold ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {grandTotal.toFixed(2)}
-                  </div>
+                   <InputField
+                      value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right font-bold"
+                      inputClassName="py-1"
+                   />
                 </div>
 
                 {/* Total Tax */}
@@ -964,7 +968,7 @@ const handleRestoreInvoice = async () => {
                    <div className="flex justify-between mb-1">
                       <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
@@ -974,9 +978,12 @@ const handleRestoreInvoice = async () => {
                           />
                       </div>
                    </div>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {noTax ? "0.00" : taxAmount.toFixed(2)}
-                  </div>
+                   <InputField
+                      value={noTax ? "0.00" : taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right"
+                      inputClassName="py-1"
+                   />
                 </div>
 
                 {/* Discount (Input) */}
@@ -987,16 +994,21 @@ const handleRestoreInvoice = async () => {
                         value={globalDiscount}
                         onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
                         disabled={inactiveView}
+                        formatted
                         className="text-right w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
                 {/* Total Discount (ReadOnly) */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {totalDiscount.toFixed(2)}
-                  </div>
+                   <InputField
+                      value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right"
+                      inputClassName="py-1"
+                   />
                 </div>
 
                 {/* Shipping Cost */}
@@ -1007,7 +1019,9 @@ const handleRestoreInvoice = async () => {
                         value={shippingCost}
                         onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
                         disabled={inactiveView}
-                        className="text-right w-full"
+                        formatted
+                        className="w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
@@ -1019,24 +1033,32 @@ const handleRestoreInvoice = async () => {
                         value={paidAmount}
                         onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
                         disabled={inactiveView}
-                        className="text-right w-full"
+                        formatted
+                        className="w-full"
+                        inputClassName="py-1"
                     />
                 </div>
 
                 {/* Change */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {changeAmount.toFixed(2)}
-                  </div>
+                   <InputField
+                      value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right"
+                      inputClassName="py-1"
+                   />
                 </div>
 
                 {/* Due */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
-                  <div className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-300'}`}>
-                    {dueAmount.toFixed(2)}
-                  </div>
+                   <InputField
+                      value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right"
+                      inputClassName="py-1"
+                   />
                 </div>
                 
                 {/* Tax Breakdown */}
@@ -1048,11 +1070,11 @@ const handleRestoreInvoice = async () => {
                        return (
                          <div className="md:col-span-2">
                            <label className="block text-sm mb-1 text-gray-500">IGST %</label>
-                           <input
-                              type="number"
+                           <InputField
                               value={igstRate}
                               readOnly
-                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                              className="text-right"
+                              inputClassName="py-1"
                            />
                          </div>
                        );
@@ -1061,20 +1083,20 @@ const handleRestoreInvoice = async () => {
                          <>
                            <div>
                            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
-                           <input
-                              type="number"
+                           <InputField
                               value={cgstRate}
                               readOnly
-                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                              className="text-right"
+                              inputClassName="py-1"
                            />
                           </div>
                           <div>
                            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
-                           <input
-                              type="number"
+                           <InputField
                               value={sgstRate}
                               readOnly
-                              className={`w-full border rounded px-3 py-2 text-right outline-none cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                              className="text-right"
+                              inputClassName="py-1"
                            />
                           </div>
                          </>
@@ -1086,16 +1108,20 @@ const handleRestoreInvoice = async () => {
                 {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
                   <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Taxable Amount</label>
-                  <div className={`w-full border rounded px-4 py-3 text-right font-bold text-2xl ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-white'}`}>
-                    {netTotal.toFixed(2)}
-                  </div>
+                    <InputField
+                      value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      readOnly
+                      className="text-right font-bold text-2xl"
+                      inputClassName="py-1 text-2xl"
+                      style={{ fontSize: '1.5rem' }}
+                    />
                 </div>
 
              </div>
           </div>
         </div>
-
-      </ContentCard>
+        </div>
+       </ContentCard>
       </div>
 
 
@@ -1168,6 +1194,7 @@ const handleRestoreInvoice = async () => {
                     total: calculateItemTotal(qty, price, disc)
                   });
               }}
+              formatted
             />
           </div>
 
@@ -1191,6 +1218,7 @@ const handleRestoreInvoice = async () => {
                   });
               }}
               required
+              formatted
             />
           </div>
 
@@ -1198,7 +1226,7 @@ const handleRestoreInvoice = async () => {
           <div>
             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total</label>
             <div className={`w-full border rounded px-3 py-2 outline-none ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-gray-300'}`}>
-                {parseFloat(newItem.total || 0).toFixed(2)}
+                {parseFloat(newItem.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         </div>

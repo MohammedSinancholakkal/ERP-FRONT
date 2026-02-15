@@ -2,7 +2,11 @@
   margin: 0px;
   padding: 0px;
   box-sizing: border-box;
-  /* background: "linear-gradient(to bottom, #111827, #374151)" !important; */
+}
+
+body {
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem;
 }
 
 @tailwind base;

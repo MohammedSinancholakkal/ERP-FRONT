@@ -70,7 +70,8 @@ const Purchase = () => {
   const [suppliers, setSuppliers] = useState([]);
   
   // Sorting
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
   useEffect(() => {
     fetchSuppliers();
@@ -120,8 +121,9 @@ const Purchase = () => {
 
               const normalized = rows.map((inv) => ({
                 ...inv,
-                supplierName:
-                  inv.supplierName || suppliers.find((s) => String(s.id) === String(inv.supplierId) || String(s.id) === String(inv.SupplierId))?.name || "-"
+                 details: inv.details ?? inv.Details,
+                 supplierName:
+                   inv.supplierName || suppliers.find((s) => String(s.id) === String(inv.supplierId) || String(s.id) === String(inv.SupplierId))?.name || "-"
               }));
 
               setPurchasesList(normalized);
@@ -154,6 +156,7 @@ const Purchase = () => {
         let rows = res.data.records || [];
         rows = rows.map((r) => ({
           ...r,
+          details: r.details ?? r.Details,
           supplierName: r.supplierName || suppliers.find((s) => String(s.id) === String(r.supplierId) || String(s.id) === String(r.SupplierId))?.name || "-"
         }));
         setPurchasesList(rows);
@@ -386,6 +389,7 @@ const Purchase = () => {
                     visibleColumns.due && { key: "due", label: "Due", sortable: true },
                     visibleColumns.change && { key: "change", label: "Change", sortable: true },
                     visibleColumns.details && { key: "details", label: "Details", sortable: true },
+                    
                 ].filter(Boolean)}
                 data={sortedList}
                 inactiveData={inactiveRows}

@@ -747,7 +747,7 @@ const handleRestoreIssue = async () => {
         {/* TOTAL QUANTITY */}
         <div className="mb-6 flex justify-end">
           <div className={`border rounded px-4 py-2 font-bold ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-800' : theme === 'purple' ? 'bg-white border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-600'}`}>
-            Total Quantity: {totalQuantity.toFixed(2)}
+            Total Quantity: {totalQuantity.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
 

@@ -40,7 +40,10 @@ const AddModal = ({ isOpen, onClose, onSave, title = "New Item", children, saveT
     } catch (error) {
       console.error(error);
     } finally {
-      if (isMounted.current) setLoading(false);
+      // Small delay to ensure smooth UI transition
+      setTimeout(() => {
+          setLoading(false);
+      }, 300);
     }
   };
 

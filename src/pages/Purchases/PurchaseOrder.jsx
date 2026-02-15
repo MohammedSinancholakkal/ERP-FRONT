@@ -69,7 +69,8 @@ const PurchaseOrder = () => {
   const [settings, setSettings] = useState({});
   
   // Sorting
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
   useEffect(() => {
     fetchSuppliers();

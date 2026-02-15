@@ -73,19 +73,14 @@ const Sales = () => {
   const [totalPages, setTotalPages] = useState(1);
 
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+        direction = 'desc';
     }
-    const newConfig = { key, direction };
-    setSortConfig(newConfig);
-    // Trigger server-side fetch on sort change will happen via useEffect if we depend on sortConfig? 
-    // Or we call fetchAllData(page, limit, newConfig) directly?
-    // Better to just call fetchAllData with new config or add sortConfig to dependency array of useEffect.
-    // Adding to useEffect dependency is cleaner.
+    setSortConfig({ key, direction });
   };
 
   // --- PAYMENT ACCOUNTS DROPDOWN ---
@@ -133,7 +128,7 @@ const Sales = () => {
       // Fetch both in parallel
       const [customersRes, salesRes] = await Promise.all([
         getCustomersApi(1, 1000),
-        getSalesApi(page, limit, sortConfig.key, sortConfig.direction)
+        getSalesApi(page, limit, sortConfig.key, sortConfig.direction) // Pass sort params
       ]);
 
       // PROCESS CUSTOMERS
@@ -204,7 +199,7 @@ const Sales = () => {
     setFilterCustomer("");
     setFilterDate("");
     setFilterPayment("");
-    setSortConfig({ key: null, direction: 'asc' });
+    setSortConfig({ key: "id", direction: 'desc' });
     setPage(1);
     setShowInactive(false); // Reset inactive
     await fetchAllData();

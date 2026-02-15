@@ -19,6 +19,7 @@ import ContentCard from "../../components/ContentCard";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { useTheme } from "../../context/ThemeContext";
 import toast from 'react-hot-toast';
+import { getSupplierPayablesApi } from "../../services/allAPI";
 
 /* COLUMN PICKER DROPDOWN */
 
@@ -43,15 +44,39 @@ const SuppliersPayableReport = () => {
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  /* Sample Data */
-  const activeData = [
-    { id: 1, companyName: "Supplier A", payable: 5000, paid: 2000, balance: 3000 },
-    { id: 2, companyName: "Supplier B", payable: 4000, paid: 1000, balance: 3000 }
-  ];
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const inactiveData = [
-    { id: 3, companyName: "Supplier C", payable: 3000, paid: 500, balance: 2500 }
-  ];
+  /* Fetch Data */
+  const fetchReport = async () => {
+      try {
+          setLoading(true);
+          const res = await getSupplierPayablesApi();
+          if (res.status === 200) {
+              setData(res.data);
+          } else {
+              toast.error("Failed to load report data");
+          }
+      } catch (error) {
+          console.error("Error fetching report:", error);
+          toast.error("Failed to load report data");
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  React.useEffect(() => {
+      fetchReport();
+  }, []);
+
+  // Filtered Data
+  const filteredData = data.filter(d => 
+      d.companyName.toLowerCase().includes(searchText.toLowerCase()) ||
+      (d.phone && d.phone.includes(searchText))
+  );
+
+  // Pagination Logic
+  const paginatedData = filteredData.slice((page - 1) * limit, page * limit);
 
   return (
     <>
@@ -70,41 +95,40 @@ const SuppliersPayableReport = () => {
             <ContentCard>
           <div className="flex flex-col h-full overflow-hidden gap-2">
 
-            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Suppliers Payable Report</h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Suppliers Payable Report</h2>
             <hr className="mb-4 border-gray-300" />
             
              <MasterTable
                 columns={[
                     visibleColumns.companyName && { key: "companyName", label: "Company Name", sortable: true },
-                    visibleColumns.payable && { key: "payable", label: "Payable", sortable: true },
-                    visibleColumns.paid && { key: "paid", label: "Paid", sortable: true },
-                    visibleColumns.balance && { key: "balance", label: "Balance", sortable: true },
+                    visibleColumns.payable && { key: "payable", label: "Payable", sortable: true, render: (r) => (r.payable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                    visibleColumns.paid && { key: "paid", label: "Paid", sortable: true, render: (r) => (r.paid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                    visibleColumns.balance && { key: "balance", label: "Balance", sortable: true, render: (r) => (r.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                 ].filter(Boolean)}
-                data={activeData}
-                inactiveData={inactiveData}
-                showInactive={showInactive}
-                // sortConfig={sortConfig}
-                // onSort={handleSort}
-                // onRowClick={(r) => openEditModal(r)}
+                data={paginatedData}
+                // inactiveData={inactiveData}
+                // showInactive={showInactive}
+                
                 // Action Bar
                 search={searchText}
                 onSearch={setSearchText}
-                // onCreate={() => setModalOpen(true)}
-                createLabel="New Report"
-                // permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+                
+                // createLabel="New Report"
+                
                 onRefresh={() => {
+                    fetchReport();
                     setSearchText("");
                     setPage(1);
-                    toast.success("Refreshed");
                 }}
                 onColumnSelector={() => setColumnModal(true)}
-                onToggleInactive={() => setShowInactive((s) => !s)}
+                // onToggleInactive={() => setShowInactive((s) => !s)}
                 
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
-                total={activeData.length} // using dummy length
+                total={filteredData.length}
+                loading={loading}
             />
           </div>
           </ContentCard>

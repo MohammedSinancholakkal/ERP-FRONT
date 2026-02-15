@@ -984,7 +984,7 @@ const handleRestore = async () => {
                className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
             <ArrowLeft size={24} />
           </button>
-           <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
+           <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>
             {isRestoreMode ? "Restore Employee" : (isEditMode ? "Edit Employee" : "New Employee")}
           </h2>
            </div>
@@ -1167,6 +1167,7 @@ const handleRestore = async () => {
                         onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))}
                         disabled={isRestoreMode}
                         className="font-medium"
+                        formatted
                       />
                     </div>
 
@@ -1406,6 +1407,7 @@ const handleRestore = async () => {
                         required
                         disabled={isRestoreMode}
                         className="font-medium"
+                        formatted
                       />
                     </div>
 
@@ -1487,7 +1489,7 @@ const handleRestore = async () => {
                             incomes.map((r) => (
                               <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'}`}>
                                 <td className="py-2 pr-4">{r.typeName}</td>
-                                <td className="py-2 w-24">{r.amount}</td>
+                                <td className="py-2 w-24">{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 <td className="py-2">{r.description || "-"}</td>
                                 <td className="py-2">
                                   <button
@@ -1550,7 +1552,7 @@ const handleRestore = async () => {
                           ) : deductions.map(r => (
                             <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-900'}`}>
                               <td className="py-2 pr-4">{r.typeName}</td>
-                              <td className="py-2 w-24">{r.amount}</td>
+                              <td className="py-2 w-24">{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                               <td className="py-2">{r.description || "-"}</td>
                               <td className="py-2">
                                 <button className="p-1 mr-2" onClick={() => { setEditingDeductionId(r.id); setDeductionForm({ typeId: r.typeId, amount: r.amount, description: r.description }); setShowDeductionModal(true); }}><Pencil size={14} /></button>
@@ -1597,6 +1599,7 @@ const handleRestore = async () => {
                  <input 
                    type="number" 
                    value={incomeForm.amount} 
+                   formatted 
                    onChange={(e) => setIncomeForm(p => ({ ...p, amount: e.target.value }))} 
                    className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
                    autoFocus 
@@ -1639,6 +1642,7 @@ const handleRestore = async () => {
                  <input 
                    type="number" 
                    value={deductionForm.amount} 
+                   formatted 
                    onChange={(e) => setDeductionForm(p => ({ ...p, amount: e.target.value }))} 
                    className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
                    autoFocus

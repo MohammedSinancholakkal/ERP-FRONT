@@ -391,7 +391,7 @@ const handleBack = () => {
             <button onClick={handleBack} className="hover:text-gray-500">
               <ArrowLeft size={24} />
             </button>
-            <h2 className="text-xl font-bold text-[#6448AE] mb-2">Employee Payroll</h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Employee Payroll</h2>
           </div>
           
           <div className="flex justify-end gap-2">
@@ -454,10 +454,11 @@ const handleBack = () => {
           <div className="mb-6">
             <InputField
               label={<>Basic Salary <span className="text-dark"></span></>}
-              type="number"
+              type="text"
               value={basicSalary}
               onChange={setBasicSalary}
               required
+              formatted
             />
           </div>
 
@@ -497,7 +498,7 @@ const handleBack = () => {
                     incomes.map((r) => (
                       <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
                         <td className="p-2">{r.type?.name ?? r.typeName}</td>
-                        <td className="p-2 text-right">{Number(r.amount).toFixed(2)}</td>
+                        <td className="p-2 text-right">{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="p-2">{r.note || "-"}</td>
                         <td className="p-2 text-right">
                           <button
@@ -563,7 +564,7 @@ const handleBack = () => {
                     deductions.map((r) => (
                       <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
                         <td className="py-2 pr-4">{r.type?.name ?? r.typeName}</td>
-                        <td className="py-2 w-24 text-right">{Number(r.amount).toFixed(2)}</td>
+                        <td className="py-2 w-24 text-right">{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="py-2">{r.note || "-"}</td>
                         <td className="py-2 text-right">
                           <button
@@ -600,21 +601,21 @@ const handleBack = () => {
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                  <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
                   <div className="flex-1 font-medium">
-                     <input value={Number(summaryTotalIncome).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                     <input value={Number(summaryTotalIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
                  </div>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                  <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
                   <div className="flex-1 font-medium">
-                     <input value={Number(totalDeduction).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                     <input value={Number(totalDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
                  </div>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                  <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-bold' : 'text-gray-300'}`}>Take Home Pay</label>
                   <div className="flex-1 font-medium">
-                     <input value={Number(takeHomePay).toFixed(2)} disabled className={`w-full border rounded px-3 py-2 text-right font-bold text-lg ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
+                     <input value={Number(takeHomePay).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right font-bold text-lg ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
                  </div>
               </div>
           </div>
@@ -655,8 +656,9 @@ const handleBack = () => {
             <div>
                <InputField 
                     label="Amount *" 
-                    type="number" 
+                    type="text" 
                     value={incomeForm.amount} 
+                    formatted
                     onChange={(e) => setIncomeForm((p) => ({ ...p, amount: e.target.value }))} 
                />
             </div>
@@ -702,8 +704,9 @@ const handleBack = () => {
             <div>
               <InputField 
                     label="Amount *" 
-                    type="number" 
+                    type="text" 
                     value={deductionForm.amount} 
+                    formatted
                     onChange={(e) => setDeductionForm((p) => ({ ...p, amount: e.target.value }))} 
                />
             </div>

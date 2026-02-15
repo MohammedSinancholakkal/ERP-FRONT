@@ -98,7 +98,7 @@ const DamagedProducts = () => {
   const [filterCategory, setFilterCategory] = useState("");
   
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'desc' });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -107,7 +107,7 @@ const DamagedProducts = () => {
     }
     const newConfig = { key, direction };
     setSortConfig(newConfig);
-    loadDamaged(page, limit, newConfig);
+    loadDamaged(1, limit, newConfig);
   };
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -696,6 +696,7 @@ const DamagedProducts = () => {
                      step="0.01"
                      value={newDP.PurchasePrice ?? ""}
                      onChange={(e) => setNewDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))}
+                     formatted
                   />
 
                   <InputField
@@ -817,6 +818,7 @@ const DamagedProducts = () => {
                      value={editDP.PurchasePrice ?? ""}
                      onChange={(e) => setEditDP((prev) => ({ ...prev, PurchasePrice: e.target.value }))}
                      disabled={editDP.isInactive}
+                     formatted
                   />
 
                   <InputField

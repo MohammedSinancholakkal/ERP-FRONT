@@ -79,7 +79,8 @@ const Designations = () => {
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   // SORT
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
 
 
 
@@ -421,7 +422,7 @@ const Designations = () => {
         <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
           <ContentCard>  
           <div className="flex flex-col h-full overflow-hidden gap-2">
-            <h2 className={`text-xl font-bold mb-2 ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>Designations</h2>
+            <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Designations</h2>
             <hr className="mb-4 border-gray-300" />
 
             <MasterTable

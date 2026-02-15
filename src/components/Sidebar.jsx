@@ -53,7 +53,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         : null;
 
 
-  const formatRoute = (item) => item.replace(/\s+/g, "").toLowerCase();
+  const formatRoute = (item) => item.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 
   // Close all dropdowns
   const closeAll = () => {
@@ -168,14 +168,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const reportsLinks = [
     { label: "Day Closing", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Daily Closing Reports", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Stock Reports", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Today's Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Daily Closing Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Stock Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Sale Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Product Wise Sale Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Purchase Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Customer Receivable Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Todays Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Sales Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Product Wise Sales Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Purchase Report", key: PERMISSIONS.REPORTS.VIEW }
+    { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW }
   ];
 
   const adminLinks = [
@@ -368,13 +368,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
 
 
-        {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-3 sidebar-scroll">
-          <ul className="space-y-1 text-sm">
-
+{/* STICKY TOP SECTION: Search & Dashboard */}
+        <div className="px-3 pt-3 space-y-1 shrink-0">
             {/* SEARCH BAR */}
             {sidebarOpen && (
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-5 ${theme === 'emerald' ? 'bg-emerald-100' : theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}>
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-2 ${theme === 'emerald' ? 'bg-emerald-100' : theme === 'purple' ? 'bg-white' : 'bg-gray-800'}`}>
                 <Search className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-[#6448AE]' : 'text-gray-400'}`} size={18} />
                 <input
                   type="text"
@@ -388,7 +386,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
             {/* DASHBOARD */}
             {hasPermission(PERMISSIONS.DASHBOARD.VIEW) && (
-            <li>
+            <div>
               <NavLink
                 to="/app/dashboard"
                 onClick={() => closeAll()}
@@ -401,8 +399,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 <LineChart className="w-5 h-5 " />
                 {sidebarOpen && <span>Dashboard</span>}
               </NavLink>
-            </li>
+            </div>
             )}
+        </div>
+
+        {/* CONTENT */}
+        <div className="flex-1 overflow-y-auto px-3 pb-3 sidebar-scroll mt-2">
+          <ul className="space-y-1 text-sm">
 
             {/* MENU SECTIONS */}
             {renderSection("Masters", <Folder className="w-5 h-5" />, openMasters, setOpenMasters, "/app/masters", masterLinks)}
