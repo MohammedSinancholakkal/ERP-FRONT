@@ -229,8 +229,26 @@ useEffect(() => {
     fetchTaxTypes();
   }, []);
 
-  // --- HANDLE RETURN FROM NEW CUSTOMER ---
+  // --- HANDLE RETURN FROM NEW CUSTOMER / EMPLOYEE / OTHER ---
   useEffect(() => {
+    // 1. Restore Preserved State First
+    if (location.state?.preservedState) {
+        const { ...savedForm } = location.state.preservedState;
+        
+        if (savedForm.customer !== undefined) setCustomer(savedForm.customer);
+        if (savedForm.vehicleNo !== undefined) setVehicleNo(savedForm.vehicleNo);
+        if (savedForm.quotationNo !== undefined) setQuotationNo(savedForm.quotationNo);
+        if (savedForm.date !== undefined) setDate(savedForm.date);
+        if (savedForm.expiryDate !== undefined) setExpiryDate(savedForm.expiryDate);
+        if (savedForm.globalDiscount !== undefined) setGlobalDiscount(savedForm.globalDiscount);
+        if (savedForm.shippingCost !== undefined) setShippingCost(savedForm.shippingCost);
+        if (savedForm.noTax !== undefined) setNoTax(savedForm.noTax);
+        if (savedForm.details !== undefined) setDetails(savedForm.details);
+        if (savedForm.taxTypeId !== undefined) setTaxTypeId(savedForm.taxTypeId);
+        if (savedForm.rows !== undefined) setRows(savedForm.rows);
+    }
+
+    // 2. Handle specific new entity IDs returning
     if (location.state?.newCustomerId) {
       const newId = location.state.newCustomerId;
       getCustomersApi(1, 1000).then(res => {
@@ -245,7 +263,11 @@ useEffect(() => {
              }
          }
       });
-      window.history.replaceState({}, document.title);
+    }
+
+    // Clear state so manual refreshes don't re-trigger
+    if (location.state?.preservedState || location.state?.newCustomerId) {
+        window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
@@ -1162,7 +1184,7 @@ const handleRestoreQuotation = async () => {
           <div className="space-y-4">
             {/* Customer */}
             <div className="flex items-center">
-              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                 Customer <span className="text-dark">*</span>
               </label>
                  <div className="flex-1 flex items-center gap-2">
@@ -1180,7 +1202,7 @@ const handleRestoreQuotation = async () => {
                         <button
                             type="button"
                             className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                            onClick={() => navigate(`/app/businesspartners/newcustomer/${customer}`, { state: { returnTo: location.pathname } })}
+                            onClick={() => navigate(`/app/businesspartners/newcustomer/${customer}`, { state: { returnTo: location.pathname, preservedState: { customer, vehicleNo, quotationNo, date, expiryDate, globalDiscount, shippingCost, noTax, details, taxTypeId, rows } } })}
                         >
                             <Pencil size={16} />
                         </button>
@@ -1188,7 +1210,7 @@ const handleRestoreQuotation = async () => {
                         <button
                             type="button"
                             className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname, preservedState: { customer, vehicleNo, quotationNo, date, expiryDate, globalDiscount, shippingCost, noTax, details, taxTypeId, rows } } })}
                         >
                             <Star size={16} />
                         </button>
@@ -1200,7 +1222,7 @@ const handleRestoreQuotation = async () => {
 
             {/* Tax Type */}
             <div className="flex items-center">
-              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                  Tax Type <span className="text-dark">*</span> 
               </label>
               <div className="flex-1 flex items-center gap-2">
@@ -1222,7 +1244,7 @@ const handleRestoreQuotation = async () => {
 
             {/* Vehicle No - Moved to Left */}
             <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Vehicle No</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Vehicle No</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1245,14 +1267,14 @@ const handleRestoreQuotation = async () => {
           <div className="space-y-4">
             {/* Quotation No */}
             <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Quotation No</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Quotation No</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
                          value={quotationNo}
                          onChange={(e) => setQuotationNo(e.target.value)}
                          readOnly={true}
-                         className="bg-gray-100 text-gray-500 cursor-not-allowed" // Make it look read-only
+                         className=" text-gray-500 cursor-not-allowed" // Make it look read-only
                        />
                    </div>
                    {!inactiveView && (
@@ -1265,7 +1287,7 @@ const handleRestoreQuotation = async () => {
 
             {/* Quotation Date */}
             <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Quotation Date</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Quotation Date</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1285,7 +1307,7 @@ const handleRestoreQuotation = async () => {
 
             {/* Valid Until */}
             <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                 Valid Until <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -1310,11 +1332,11 @@ const handleRestoreQuotation = async () => {
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Line Items</label>
             {!inactiveView && (
             <button
               onClick={openItemModal}
-              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
+             className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300'}`}
             >
               <Plus size={16} /> Add
             </button>
@@ -1344,7 +1366,7 @@ const handleRestoreQuotation = async () => {
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-white'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                         {!inactiveView && (
                           <>
@@ -1377,7 +1399,7 @@ const handleRestoreQuotation = async () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* LEFT: DETAILS (Spans 4) */}
           <div className="lg:col-span-4 flex flex-col">
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                Details
              </label>
               <div className="flex-1 font-medium">
@@ -1398,7 +1420,7 @@ const handleRestoreQuotation = async () => {
                 {/* Grand Total */}
                 {/* Net Total (Moved to Top) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Taxable Amount</label>
                    <InputField
                       value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1410,7 +1432,7 @@ const handleRestoreQuotation = async () => {
                 {/* Total Tax */}
                 <div>
                    <div className="flex justify-between mb-1">
-                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
+                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
                           <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
                           <input
@@ -1432,7 +1454,7 @@ const handleRestoreQuotation = async () => {
 
                 {/* Discount (Input) */}
                 <div>
-                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Discount</label>
+                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Discount</label>
                     <InputField
                         type="number"
                         value={globalDiscount}
@@ -1446,7 +1468,7 @@ const handleRestoreQuotation = async () => {
 
                 {/* Total Discount (ReadOnly) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Discount</label>
                    <InputField
                       value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1457,7 +1479,7 @@ const handleRestoreQuotation = async () => {
 
                 {/* Shipping Cost */}
                 <div>
-                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Shipping Cost</label>
+                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Shipping Cost</label>
                     <InputField
                         type="number"
                         value={shippingCost}
@@ -1491,7 +1513,7 @@ const handleRestoreQuotation = async () => {
                        return (
                          <>
                            <div>
-                              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST ({cgstRate}%)</label>
+                              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>CGST ({cgstRate}%)</label>
                               <InputField
                                    value={((grandTotal - globalDiscount) * cgstRate / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                    readOnly
@@ -1500,7 +1522,7 @@ const handleRestoreQuotation = async () => {
                                />
                            </div>
                            <div>
-                              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST ({sgstRate}%)</label>
+                              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>SGST ({sgstRate}%)</label>
                               <InputField
                                    value={((grandTotal - globalDiscount) * sgstRate / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                    readOnly
@@ -1546,7 +1568,7 @@ const handleRestoreQuotation = async () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}> Brand *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}> Brand *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
@@ -1575,7 +1597,7 @@ const handleRestoreQuotation = async () => {
 
           {/* Product */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Product *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Product *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={productsList
@@ -1600,7 +1622,7 @@ const handleRestoreQuotation = async () => {
                   onClick={() => {
                     if (newItem.productId) {
                          // EDIT PRODUCT NAV
-                         navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preserveState: true } });
+                         navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preservedState: { customer, vehicleNo, quotationNo, date, expiryDate, globalDiscount, shippingCost, noTax, details, taxTypeId, rows }, showItemModal: true, newItemData: newItem } });
                     } else if (newItem.brandId) {
                          // ADD PRODUCT
                          setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
@@ -1660,7 +1682,7 @@ const handleRestoreQuotation = async () => {
 
           {/* Unit (Read Only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Unit</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Unit</label>
             <InputField
               type="text"
               value={newItem.unitName}
@@ -1671,7 +1693,7 @@ const handleRestoreQuotation = async () => {
 
           {/* Tax Percentage (Read Only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Tax Percentage (%)</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Tax Percentage (%)</label>
             <InputField
               type="text"
               value={newItem.taxPercentage}
@@ -1757,7 +1779,7 @@ const handleRestoreQuotation = async () => {
 
           {/* CATEGORY */}
           <div className="relative">
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Category *</label>
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Category *</label>
              <SearchableSelect
                 options={categoriesList.map(c => ({ id: c.id, name: c.name }))}
                 value={newProductData.CategoryId}
@@ -1769,7 +1791,7 @@ const handleRestoreQuotation = async () => {
 
           {/* UNIT */}
           <div className="relative">
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Unit *</label>
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Unit *</label>
              <SearchableSelect
                 options={unitsList.map(u => ({ id: u.id, name: u.name }))}
                 value={newProductData.unitId}
@@ -1781,7 +1803,7 @@ const handleRestoreQuotation = async () => {
 
           {/* BRAND */}
           <div className="relative">
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Brand *</label>
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Brand *</label>
              <SearchableSelect
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                 value={newProductData.brandId}

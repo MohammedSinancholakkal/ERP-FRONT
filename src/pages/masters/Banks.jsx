@@ -55,9 +55,8 @@ const Banks = () => {
   const currentRole = localStorage.getItem("role"); 
   const currentUserId = user?.userId || 1;
   
-  // PERMISSION CHECK
-  const canAssignCompanyBank = currentRole?.toLowerCase() === 'superadmin' && 
-    (user?.userId === 1 || user?.id === 1 || user?.username?.toLowerCase() === 'superadmin');
+  // PERMISSION CHECK: only userId === 1 is considered superadmin
+  const canAssignCompanyBank = user?.userId === 1;
 
   // Add Item State
   const [newItem, setNewItem] = useState({
@@ -67,6 +66,7 @@ const Banks = () => {
     Branch: "",
     SignaturePicture: null,
     isCompanyBank: false,
+    isInternalBank: false,
   });
 
   // Edit Item State
@@ -80,6 +80,7 @@ const Banks = () => {
     existingSignature: "",
     isInactive: false,
     isCompanyBank: false,
+    isInternalBank: false,
   });
 
   // Preview
@@ -92,6 +93,7 @@ const Banks = () => {
     acNumber: true,
     branch: true,
     isCompanyBank: true,
+    isInternalBank: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
@@ -137,6 +139,7 @@ const Banks = () => {
         branch: capitalize(r.Branch || r.branch),
         signature: r.SignaturePicture || r.signaturePicture,
         isCompanyBank: !!(r.IsCompanyBank ?? r.isCompanyBank),
+        isInternalBank: !!(r.IsInternalBank ?? r.isInternalBank),
     }));
 
   // ===============================
@@ -303,7 +306,8 @@ const Banks = () => {
       const payload = { 
           ...newItem, 
           userId: currentUserId,
-          isCompanyBank: newItem.isCompanyBank 
+          isCompanyBank: newItem.isCompanyBank,
+          isInternalBank: newItem.isInternalBank
       };
       const res = await addBankApi(payload);
 
@@ -317,6 +321,7 @@ const Banks = () => {
             Branch: "",
             SignaturePicture: null,
             isCompanyBank: false,
+            isInternalBank: false,
         });
         setPreview("");
         setPage(1);
@@ -344,6 +349,7 @@ const Banks = () => {
       SignaturePicture: null,
       isInactive: inactive,
       isCompanyBank: row.isCompanyBank,
+      isInternalBank: row.isInternalBank,
     });
     
     if(row.signature) {
@@ -412,6 +418,7 @@ const Banks = () => {
           userId: currentUserId,
           SignaturePicture: editItem.SignaturePicture,
           isCompanyBank: editItem.isCompanyBank,
+          isInternalBank: editItem.isInternalBank,
       }
       const res = await updateBankApi(editItem.id, payload);
 
@@ -484,6 +491,16 @@ const Banks = () => {
         sortable: true,
         render: (item) => item.isCompanyBank ? (
             <span className="flex items-center justify-center text-green-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </span>
+        ) : null
+    },
+    visibleColumns.isInternalBank && { 
+        key: "isInternalBank", 
+        label: "Internal Bank", 
+        sortable: true,
+        render: (item) => item.isInternalBank ? (
+            <span className="flex items-center justify-center text-blue-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </span>
         ) : null
@@ -572,7 +589,7 @@ const Banks = () => {
                   <InputField label="Branch" value={newItem.Branch} onChange={e => setNewItem({...newItem, Branch: e.target.value})} />
               </div>
              <div className="col-span-2">
-                  <label className="text-sm text-dark">Signature</label>
+                  <label className="text-sm font-medium text-dark">Signature</label>
                   <div className="mt-2 w-full">
                        <div className="w-full border-2 border-dashed border-gray-700 rounded-lg bg-gray-white flex flex-col items-center justify-center relative overflow-hidden h-[160px]">
                             {preview ? (
@@ -608,19 +625,30 @@ const Banks = () => {
                        </div>
                   </div>
              </div>
-             <div className="col-span-2">
+             <div className="col-span-2 mt-2">
                  {canAssignCompanyBank && (
-                     <label className={`flex items-center gap-2 bg-[#6448AE] p-2 rounded border border-gray-700 w-fit ${!!companyBankId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                     <label className={`flex items-center gap-2 cursor-pointer w-fit ${!!companyBankId ? 'opacity-50 cursor-not-allowed' : ''}`}>
                          <input 
                             type="checkbox" 
                             checked={newItem.isCompanyBank} 
                             onChange={e => setNewItem({...newItem, isCompanyBank: e.target.checked})} 
-                            className="w-4 h-4"
+                            className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             disabled={!!companyBankId}
                          />
-                         <span className="text-sm text-white">Apply as Company Bank Account</span>
+                         <span className="text-sm font-medium text-dark">Apply as Company Bank Account</span>
                      </label>
                  )}
+             </div>
+             <div className="col-span-2 mt-2">
+                 <label className="flex items-center gap-2 cursor-pointer w-fit">
+                     <input 
+                        type="checkbox" 
+                        checked={newItem.isInternalBank} 
+                        onChange={e => setNewItem({...newItem, isInternalBank: e.target.checked})} 
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                     />
+                     <span className="text-sm font-medium text-dark">Apply as Internal Bank Account</span>
+                 </label>
              </div>
           </div>
        </AddModal>
@@ -653,7 +681,7 @@ const Banks = () => {
               </div>
              {!editItem.isInactive && (
                 <div className="col-span-2">
-                    <label className="text-sm text-dark">Signature</label>
+                    <label className="text-sm font-medium text-dark">Signature</label>
                      <div className="mt-2 w-full">
                        <div className="w-full border-2 border-dashed border-gray-700 rounded-lg bg-white flex flex-col items-center justify-center relative overflow-hidden h-[160px]">
                             {preview ? (
@@ -692,16 +720,30 @@ const Banks = () => {
              )}
              
              {!editItem.isInactive && canAssignCompanyBank && (
-                 <div className="col-span-2">
-                     <label className={`flex items-center gap-2 bg-[#6448AE] p-2 rounded border border-gray-700 w-fit ${(!!companyBankId && editItem.id !== companyBankId) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                 <div className="col-span-2 mt-2">
+                     <label className={`flex items-center gap-2 cursor-pointer w-fit ${(!!companyBankId && editItem.id !== companyBankId) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                          <input 
                             type="checkbox" 
                             checked={editItem.isCompanyBank} 
                             onChange={e => setEditItem({...editItem, isCompanyBank: e.target.checked})} 
-                            className="w-4 h-4 bg-[#6448AE]"
+                            className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             disabled={!!companyBankId && editItem.id !== companyBankId}
                          />
-                         <span className="text-sm text-white ">Apply as Company Bank Account</span>
+                         <span className="text-sm font-medium text-dark">Apply as Company Bank Account</span>
+                     </label>
+                 </div>
+             )}
+             
+             {!editItem.isInactive && (
+                 <div className="col-span-2 mt-2">
+                     <label className="flex items-center gap-2 cursor-pointer w-fit">
+                         <input 
+                            type="checkbox" 
+                            checked={editItem.isInternalBank} 
+                            onChange={e => setEditItem({...editItem, isInternalBank: e.target.checked})} 
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                         />
+                         <span className="text-sm font-medium text-dark">Apply as Internal Bank Account</span>
                      </label>
                  </div>
              )}

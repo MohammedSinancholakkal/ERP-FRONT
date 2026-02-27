@@ -77,7 +77,8 @@ const end = Math.min(page * limit, totalRecords);
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  // SORT
+  // SORT CONFIG
+  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {

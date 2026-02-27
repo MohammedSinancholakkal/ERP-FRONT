@@ -5,6 +5,8 @@ import ContentCard from "../../components/ContentCard";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import { useTheme } from "../../context/ThemeContext";
 import toast from 'react-hot-toast';
+import { getDailyClosingReportApi } from "../../services/allAPI";
+import { useEffect } from "react";
 
 /* COLUMN PICKER */
 
@@ -31,36 +33,26 @@ const DailyClosingReport = () => {
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
-  /* Dummy Data */
-  const activeData = [
-    {
-      id: 1,
-      date: "2025-02-05",
-      lastDayClosing: 5000,
-      receive: 2000,
-      payment: 1500,
-      balance: 5500
-    },
-    {
-      id: 2,
-      date: "2025-02-06",
-      lastDayClosing: 5500,
-      receive: 3000,
-      payment: 1200,
-      balance: 7300
-    }
-  ];
+  /* Data */
+  const [rows, setRows] = useState([]);
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const inactiveData = [
-    {
-      id: 3,
-      date: "2025-02-01",
-      lastDayClosing: 4500,
-      receive: 1000,
-      payment: 800,
-      balance: 4700
+  const fetchData = async () => {
+    try {
+      const res = await getDailyClosingReportApi(page, limit);
+      if (res.status === 200) {
+        setRows(res.data.records);
+        setTotalRecords(res.data.total);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load daily closing report");
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [page, limit, searchText]);
 
   return (
     <>
@@ -84,15 +76,13 @@ const DailyClosingReport = () => {
             
              <MasterTable
                 columns={[
-                    visibleColumns.date && { key: "date", label: "Date", sortable: true },
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (r) => new Date(r.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) },
                     visibleColumns.lastDayClosing && { key: "lastDayClosing", label: "Last Day Closing", sortable: true, render: (r) => (r.lastDayClosing || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                     visibleColumns.receive && { key: "receive", label: "Receive", sortable: true, render: (r) => (r.receive || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                     visibleColumns.payment && { key: "payment", label: "Payment", sortable: true, render: (r) => (r.payment || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                     visibleColumns.balance && { key: "balance", label: "Balance", sortable: true, render: (r) => (r.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                 ].filter(Boolean)}
-                data={activeData}
-                inactiveData={inactiveData}
-                showInactive={showInactive}
+                data={rows}
                 // sortConfig={sortConfig}
                 // onSort={handleSort}
                 // onRowClick={(r) => openEditModal(r)}
@@ -108,13 +98,12 @@ const DailyClosingReport = () => {
                     toast.success("Refreshed");
                 }}
                 onColumnSelector={() => setColumnModal(true)}
-                onToggleInactive={() => setShowInactive((s) => !s)}
                 
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
-                total={activeData.length} // using dummy length
+                total={totalRecords}
             />
           </div>
           </ContentCard>

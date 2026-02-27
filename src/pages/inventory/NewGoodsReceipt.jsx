@@ -224,13 +224,17 @@ function NewGoodsReceipt() {
 
       if (res.status === 200) {
         const records = Array.isArray(res?.data?.records) ? res.data.records : []
-        const normalized = records.map(r => ({
-          id: r.id ?? r.Id ?? r.PurchaseId,
-          reference: r.reference ?? r.Reference ?? r.VNo ?? r.invoiceNo ?? '',
-          name: r.reference ?? r.Reference ?? r.VNo ?? r.invoiceNo ?? '',
-          supplierId: r.SupplierId ?? r.supplierId ?? r.Supplier?.id ?? r.supplier?.id ?? r.supplierId ?? r.SupplierId,
-          supplierName: r.SupplierName ?? r.supplierName ?? r.Supplier?.name ?? r.supplier?.name ?? r.Supplier?.companyName ?? ''
-        }))
+        const normalized = records.map(r => {
+          const idVal = r.id ?? r.Id ?? r.PurchaseId;
+          const refVal = r.reference ?? r.Reference ?? r.invoiceNo ?? r.InvoiceNo ?? r.VNo ?? r.vno ?? r.vNo ?? r.Vno ?? '';
+          return {
+            id: idVal,
+            reference: refVal,
+            name: refVal || `Purchase #${idVal}`,
+            supplierId: r.SupplierId ?? r.supplierId ?? r.Supplier?.id ?? r.supplier?.id ?? r.supplierId ?? r.SupplierId,
+            supplierName: r.SupplierName ?? r.supplierName ?? r.Supplier?.name ?? r.supplier?.name ?? r.Supplier?.companyName ?? ''
+          };
+        })
         setPurchasesList(normalized)
         return normalized
       }
@@ -513,7 +517,8 @@ if (isRestoreMode || inactiveFromDb) {
   return (
     <PageLayout>
       <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-        <ContentCard className="!h-auto !overflow-visible">
+        <ContentCard>
+          <div className="h-full overflow-y-auto pr-2">
         {/* HEADER */}
         <div className="mb-6">
            <div className="flex items-center justify-between mb-2">
@@ -521,7 +526,7 @@ if (isRestoreMode || inactiveFromDb) {
                  <button onClick={() => navigate(-1)} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
                    <ArrowLeft size={24} />
                  </button>
-                 <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
+                 <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-[#6448AE]'}`}>
                    {id ? (isReadonly ? "View Goods Receipt (inactive)" : "Edit Goods Receipt") : "New Goods Receipt"}
                  </h2>
               </div>
@@ -610,8 +615,8 @@ if (isRestoreMode || inactiveFromDb) {
           <div className="space-y-4">
              {/* Purchase */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-                 Purchase <span className="text-dark">*</span>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
+                 Purchase <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span>
                </label>
                 <div className="flex-1 font-medium">
                  <SearchableSelect
@@ -627,8 +632,8 @@ if (isRestoreMode || inactiveFromDb) {
 
              {/* Supplier */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-                 Supplier <span className="text-dark">*</span>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
+                 Supplier <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span>
                </label>
                 <div className="flex-1 font-medium">
                  <InputField
@@ -636,14 +641,14 @@ if (isRestoreMode || inactiveFromDb) {
                     readOnly
                     disabled
                     placeholder="Supplier Name"
-                    className="bg-gray-100 cursor-not-allowed"
+                    className=" cursor-not-allowed"
                  />
                </div>
              </div>
 
              {/* Date */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                  Date
                </label>
                 <div className="flex-1 font-medium">
@@ -661,8 +666,8 @@ if (isRestoreMode || inactiveFromDb) {
           <div className="space-y-4">
              {/* Employee */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-                 Employee <span className="text-dark">*</span>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
+                 Employee <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span>
                </label>
                 <div className="flex-1 font-medium">
                   <SearchableSelect
@@ -678,7 +683,7 @@ if (isRestoreMode || inactiveFromDb) {
 
              {/* Reference */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                  Reference
                </label>
                 <div className="flex-1 font-medium">
@@ -696,30 +701,30 @@ if (isRestoreMode || inactiveFromDb) {
         {/* ROW 3: LINE ITEMS */}
         <div className="mb-8">
           <div className="flex gap-2 mb-2 font-medium">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Line Items</label>
             <button
               onClick={openItemModal}
               disabled={isReadonly}
-              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border border-gray-600 text-blue-300'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-700 border border-gray-600 text-white hover:bg-gray-600'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Plus size={16} /> Add
             </button>
           </div>
 
-          <div className={`border rounded overflow-x-auto ${theme === 'emerald' ? 'bg-white border-gray-200' : theme === 'purple' ? 'bg-white border-purple-100' : 'bg-gray-800 border-gray-700'}`}>
-            <table className="w-full text-sm">
-              <thead className={theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-700'}>
+          <div className={`border rounded overflow-x-auto min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+            <table className="w-full text-sm text-left">
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-b border-purple-100' : 'bg-gray-900 text-gray-200'} font-medium`}>
                 <tr>
-                  <th className="p-3">Product</th>
+                  <th className="p-3">Product Name</th>
                   <th className="p-3">Description</th>
                   <th className="p-3">Warehouse</th>
-                  <th className="p-3">Qty</th>
+                  <th className="p-3">Quantity</th>
                   <th className="p-3 w-16"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={`divide-y ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-100' : 'divide-gray-700'}`}>
                 {rows.map((r, i) => (
-                  <tr key={i} className={`border-t text-center ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50 text-gray-700' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50 text-gray-700' : 'border-gray-700 hover:bg-gray-700/50 text-gray-300'} ${isReadonly ? 'opacity-80' : ''}`}>
+                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-200 hover:bg-gray-750'} ${isReadonly ? 'opacity-80' : ''}`}>
                     <td className="p-3">{r.productName}</td>
                     <td className="p-3">{r.description}</td>
                     <td className="p-3">{r.warehouseName}</td>
@@ -742,12 +747,17 @@ if (isRestoreMode || inactiveFromDb) {
                 ))}
               </tbody>
             </table>
+            {rows.length === 0 && (
+              <div className="p-8 text-center text-gray-500">
+                No items added. Click "+ Add" to start.
+              </div>
+            )}
           </div>
         </div>
 
         {/* ROW 4: TOTAL QUANTITY */}
         <div className="mb-6 flex justify-end">
-          <div className={`border rounded px-4 py-2 font-bold ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-800' : theme === 'purple' ? 'bg-white border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-600'}`}>
+          <div className={`border rounded px-4 py-2 font-bold ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-800' : theme === 'purple' ? 'bg-white border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-600 text-white'}`}>
             Total Quantity: {totalQuantity.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
@@ -783,8 +793,8 @@ if (isRestoreMode || inactiveFromDb) {
         <div className="grid grid-cols-1 gap-5">
            {/* PRODUCT */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-             Product <span className="text-dark">*</span> 
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
+             Product <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span> 
             </label>
             <SearchableSelect
               value={newItem.productId}
@@ -859,6 +869,7 @@ if (isRestoreMode || inactiveFromDb) {
           </div>
         </div>
       </AddModal>
+          </div>
       </ContentCard>
       </div>
     </PageLayout>

@@ -274,8 +274,27 @@ useEffect(() => {
     }
   }, [taxTypeId, taxTypesList]);
 
-  // --- HANDLE RETURN FROM NEW CUSTOMER ---
+  // --- HANDLE RETURN FROM NEW CUSTOMER / EMPLOYEE / OTHER ---
   useEffect(() => {
+    // 1. Restore Preserved State First
+    if (location.state?.preservedState) {
+        const { ...savedForm } = location.state.preservedState;
+        
+        if (savedForm.customer !== undefined) setCustomer(savedForm.customer);
+        if (savedForm.paymentAccount !== undefined) setPaymentAccount(savedForm.paymentAccount);
+        if (savedForm.invoiceNo !== undefined) setInvoiceNo(savedForm.invoiceNo);
+        if (savedForm.vehicleNo !== undefined) setVehicleNo(savedForm.vehicleNo);
+        if (savedForm.date !== undefined) setDate(savedForm.date);
+        if (savedForm.globalDiscount !== undefined) setGlobalDiscount(savedForm.globalDiscount);
+        if (savedForm.shippingCost !== undefined) setShippingCost(savedForm.shippingCost);
+        if (savedForm.paidAmount !== undefined) setPaidAmount(savedForm.paidAmount);
+        if (savedForm.noTax !== undefined) setNoTax(savedForm.noTax);
+        if (savedForm.details !== undefined) setDetails(savedForm.details);
+        if (savedForm.taxTypeId !== undefined) setTaxTypeId(savedForm.taxTypeId);
+        if (savedForm.rows !== undefined) setRows(savedForm.rows);
+    }
+
+    // 2. Handle specific new entity IDs returning
     if (location.state?.newCustomerId) {
       const newId = location.state.newCustomerId;
       getCustomersApi(1, 1000).then(res => {
@@ -290,7 +309,11 @@ useEffect(() => {
              }
          }
       });
-      window.history.replaceState({}, document.title);
+    }
+
+    // Clear state so manual refreshes don't re-trigger
+    if (location.state?.preservedState || location.state?.newCustomerId) {
+        window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
@@ -1257,7 +1280,7 @@ const openProductModal = () => {
           <div className="space-y-4">
             {/* Customer */}
             <div className="flex items-center">
-              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                 Customer <span className="text-dark">*</span>
               </label>
                  <div className="flex-1 flex items-center gap-2">
@@ -1275,7 +1298,7 @@ const openProductModal = () => {
                         <button
                             type="button"
                             className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                            onClick={() => navigate(`/app/businesspartners/newcustomer/${customer}`, { state: { returnTo: location.pathname } })}
+                            onClick={() => navigate(`/app/businesspartners/newcustomer/${customer}`, { state: { returnTo: location.pathname, preservedState: { customer, paymentAccount, invoiceNo, vehicleNo, date, globalDiscount, shippingCost, paidAmount, noTax, details, taxTypeId, rows } } })}
                         >
                             <Pencil size={16} />
                         </button>
@@ -1283,7 +1306,7 @@ const openProductModal = () => {
                         <button
                             type="button"
                             className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                            onClick={() => navigate("/app/businesspartners/newcustomer", { state: { returnTo: location.pathname, preservedState: { customer, paymentAccount, invoiceNo, vehicleNo, date, globalDiscount, shippingCost, paidAmount, noTax, details, taxTypeId, rows } } })}
                         >
                             <Star size={16} />
                         </button>
@@ -1295,7 +1318,7 @@ const openProductModal = () => {
 
             {/* Payment Account */}
             <div className="flex items-center">
-              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+              <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                 Payment Account <span className="text-dark">*</span>
               </label>
               <div className="flex-1 flex items-center gap-2">
@@ -1319,7 +1342,7 @@ const openProductModal = () => {
 
             {/* Tax Type */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                   Tax Type
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -1346,7 +1369,7 @@ const openProductModal = () => {
           <div className="space-y-4">
              {/* Invoice No */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Invoice No</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Invoice No</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1354,7 +1377,7 @@ const openProductModal = () => {
                          onChange={(e) => setInvoiceNo(e.target.value)}
                          placeholder="Auto-generated"
                          readOnly={true}
-                         className="bg-gray-100 text-gray-500 cursor-not-allowed" // Make it look read-only
+                         className="text-gray-500 cursor-not-allowed" // Make it look read-only
                        />
                    </div>
                    {!inactiveView && (
@@ -1367,7 +1390,7 @@ const openProductModal = () => {
 
              {/* Vehicle No */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Vehicle No</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Vehicle No</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1387,7 +1410,7 @@ const openProductModal = () => {
 
              {/* Date */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Date</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Date</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1410,11 +1433,11 @@ const openProductModal = () => {
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Line Items</label>
             {!inactiveView && !id && (
             <button
               onClick={openItemModal}
-              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
+              className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300'}`}
             >
               <Plus size={16} /> Add
             </button>
@@ -1444,7 +1467,7 @@ const openProductModal = () => {
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-white'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                      {!inactiveView && !id && (
                        <>
@@ -1477,7 +1500,7 @@ const openProductModal = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* LEFT COLUMN - DETAILS (Span 4) */}
           <div className="lg:col-span-4 flex flex-col">
-              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                 Details
               </label>
                <div className="flex-1 font-medium">
@@ -1497,7 +1520,7 @@ const openProductModal = () => {
                 
                 {/* Taxable Amount */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Taxable Amount</label>
                   <InputField
                     value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
@@ -1509,7 +1532,7 @@ const openProductModal = () => {
                 {/* Total Tax */}
                 <div>
                    <div className="flex justify-between mb-1">
-                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
+                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
                           <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
                           <input
@@ -1531,7 +1554,7 @@ const openProductModal = () => {
 
                 {/* Discount (Input) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Discount</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Discount</label>
                     <InputField
                         type="number"
                         value={globalDiscount}
@@ -1545,7 +1568,7 @@ const openProductModal = () => {
 
                 {/* Total Discount (ReadOnly) */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Discount</label>
                   <InputField
                     value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
@@ -1556,7 +1579,7 @@ const openProductModal = () => {
 
                 {/* Shipping Cost */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Shipping Cost</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Shipping Cost</label>
                     <InputField
                         type="number"
                         value={shippingCost}
@@ -1584,7 +1607,7 @@ const openProductModal = () => {
 
                 {/* Change */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Change</label>
                   <InputField
                     value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
@@ -1595,7 +1618,7 @@ const openProductModal = () => {
 
                 {/* Due */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Due</label>
                   <InputField
                     value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
@@ -1626,7 +1649,7 @@ const openProductModal = () => {
                        return (
                          <>
                            <div>
-                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>CGST %</label>
                            <InputField
                                type="number"
                                value={cgstRate}
@@ -1636,7 +1659,7 @@ const openProductModal = () => {
                            />
                           </div>
                           <div>
-                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>SGST %</label>
                            <InputField
                                type="number"
                                value={sgstRate}
@@ -1653,7 +1676,7 @@ const openProductModal = () => {
                 {/* Net Total (Full Width) */}
                 {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
-                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Grand Total</label>
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Grand Total</label>
                   <InputField
                     value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
@@ -1683,7 +1706,7 @@ const openProductModal = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}> Brand *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}> Brand *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
 
@@ -1713,7 +1736,7 @@ const openProductModal = () => {
 
           {/* Product */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}> Product *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}> Product *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
                 options={productsList
@@ -1736,9 +1759,9 @@ const openProductModal = () => {
                        : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
                   }`}
                   onClick={() => {
-                    if (newItem.productId) {
+                     if (newItem.productId) {
                          // EDIT PRODUCT NAV
-                         navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preserveState: true } });
+                         navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preservedState: { customer, paymentAccount, invoiceNo, vehicleNo, date, globalDiscount, shippingCost, paidAmount, noTax, details, taxTypeId, rows }, showItemModal: true, newItemData: newItem } });
                     } else if (newItem.brandId) {
                          // ADD PRODUCT
                          setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
@@ -1878,7 +1901,7 @@ const openProductModal = () => {
 
           {/* CATEGORY DROPDOWN */}
           <div className="relative">
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Category</label>
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Category</label>
              <SearchableSelect
                 options={categoriesList.map(c => ({ id: c.id, name: c.name }))}
                 value={newProductData.CategoryId}
@@ -1890,7 +1913,7 @@ const openProductModal = () => {
 
           {/* UNIT DROPDOWN */}
           <div className="relative">
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Unit</label>
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Unit</label>
              <SearchableSelect
                 options={unitsList.map(u => ({ id: u.id, name: u.name }))}
                 value={newProductData.unitId}
@@ -1902,7 +1925,7 @@ const openProductModal = () => {
 
           {/* BRAND DROPDOWN */}
           <div className="relative">
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Brand</label>
+             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Brand</label>
              <SearchableSelect
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                 value={newProductData.brandId}

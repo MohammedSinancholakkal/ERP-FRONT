@@ -1,77 +1,82 @@
-// src/pages/accounts/CashAdjustment.jsx
 import React, { useState, useEffect } from "react";
-// import {
-//   Save,
-// } from "lucide-react";
 import MasterTable from "../../components/MasterTable";
 import ContentCard from "../../components/ContentCard";
 import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import EditModal from "../../components/modals/EditModal";
 import PageLayout from "../../layout/PageLayout";
-// import Pagination from "../../components/Pagination";
 import AddModal from "../../components/modals/AddModal";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
 import { useTheme } from "../../context/ThemeContext";
 import InputField from "../../components/InputField";
 import SearchableSelect from "../../components/SearchableSelect";
+import { getCOAHeadsApi, getCashAdjustmentsApi, addCashAdjustmentApi } from "../../services/allAPI";
+import { showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 const CashAdjustment = () => {
   const { theme } = useTheme();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("currentUser"));
+    if (user) setCurrentUser(user);
+  }, []);
+
   /* --------------------------- Column Picker --------------------------- */
   const defaultColumns = {
     id: true,
     voucherName: true,
+    voucherType: true,
     voucherDate: true,
-    adjustmentType: true,
     coaHeadName: true,
     coa: true,
-    amount: true,
     remarks: true,
     debit: true,
+    amount: true,
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
   /* ------------------------------- Data ------------------------------- */
-  const sampleData = [
-    {
-      id: 1,
-      voucherName: "CA-001",
-      voucherDate: "2024-01-10",
-      adjustmentType: "Debit",
-      coaHeadName: "Cash Adjustment",
-      coa: "5001",
-      amount: 2000,
-      remarks: "Cash shortage",
-      debit: 2000,
-    },
-  ];
-
-  const [rows, setRows] = useState(sampleData);
-  const [inactiveRows] = useState([]);
-  const [showInactive, setShowInactive] = useState(false);
+  const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");
+  const [coaList, setCoaList] = useState([]);
+  
   /* ---------------------------- Pagination ---------------------------- */
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const totalRecords = rows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
+  const fetchData = async () => {
+    try {
+      const res = await getCashAdjustmentsApi(page, limit, false, searchText, "t.VDate DESC, t.Id DESC", "DESC");
+      if (res.status === 200) {
+        setRows(res.data.records);
+        setTotalRecords(res.data.total);
+      }
+    } catch (err) {
+      console.error(err);
+      showErrorToast("Failed to fetch cash adjustments");
+    }
+  };
+
+  useEffect(() => {
+    getCOAHeadsApi().then((res) => {
+      if (res.status === 200) setCoaList(res.data);
+    });
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [page, limit, searchText]);
 
   /* ------------------------------ Modal ------------------------------ */
   const [modalOpen, setModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
   const today = new Date().toISOString().split("T")[0];
-
-  const nextCode = `CA-${String(rows.length + 1).padStart(3, "0")}`;
 
   const [newAdj, setNewAdj] = useState({
     date: today,
-    code: nextCode,
     type: "",
     coaHeadName: "",
     coa: "",
@@ -79,105 +84,51 @@ const CashAdjustment = () => {
     remarks: "",
   });
 
-  const [editData, setEditData] = useState({
-    id: null,
-    voucherDate: today,
-    voucherName: "",
-    adjustmentType: "",
-    coaHeadName: "",
-    coa: "",
-    amount: "",
-    remarks: "",
-    isInactive: false,
-  });
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (
       !newAdj.date ||
-      !newAdj.code ||
       !newAdj.type ||
-      !newAdj.coaHeadName ||
       !newAdj.coa ||
       !newAdj.amount ||
       !newAdj.remarks
     ) {
-      alert("❗ All fields are required.");
+      showErrorToast("❗ All fields are required.");
       return;
     }
 
-    const entry = {
-      id: rows.length + 1,
-      voucherName: newAdj.code,
-      voucherDate: newAdj.date,
-      adjustmentType: newAdj.type,
-      coaHeadName: newAdj.coaHeadName,
-      coa: newAdj.coa,
-      amount: Number(newAdj.amount),
-      remarks: newAdj.remarks,
-      debit: newAdj.type === "Debit" ? Number(newAdj.amount) : 0,
-    };
-
-    setRows([...rows, entry]);
-    setModalOpen(false);
-
-    setNewAdj({
-      date: today,
-      code: `CA-${String(rows.length + 2).padStart(3, "0")}`,
-      type: "",
-      coaHeadName: "",
-      coa: "",
-      amount: "",
-      remarks: "",
-    });
-  };
-
-  const handleUpdate = () => {
-    // validation
-     if (
-      !editData.voucherDate ||
-      !editData.adjustmentType ||
-      !editData.coaHeadName ||
-      !editData.coa ||
-      !editData.amount ||
-      !editData.remarks
-    ) {
-      alert("❗ All fields are required.");
-      return;
+    try {
+      const reqBody = {
+        date: newAdj.date,
+        type: newAdj.type,
+        coa: newAdj.coa,
+        amount: newAdj.amount,
+        remarks: newAdj.remarks,
+        userId: currentUser?.id
+      };
+      
+      const res = await addCashAdjustmentApi(reqBody);
+      if (res.status === 201 || res.status === 200) {
+        showSuccessToast("Cash adjustment created successfully");
+        setModalOpen(false);
+        setNewAdj({
+          date: today,
+          type: "",
+          coaHeadName: "",
+          coa: "",
+          amount: "",
+          remarks: "",
+        });
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+      showErrorToast("Error creating adjustment");
     }
-
-    setRows(rows.map(r => r.id === editData.id ? {
-        ...r,
-        voucherDate: editData.voucherDate,
-        adjustmentType: editData.adjustmentType,
-        coaHeadName: editData.coaHeadName,
-        coa: editData.coa,
-        amount: Number(editData.amount),
-        remarks: editData.remarks,
-        debit: editData.adjustmentType === "Debit" ? Number(editData.amount) : 0,
-    } : r));
-
-    setEditModalOpen(false);
-  };
-
-  const openEditModal = (row) => {
-    setEditData({
-      id: row.id,
-      voucherDate: row.voucherDate,
-      voucherName: row.voucherName,
-      adjustmentType: row.adjustmentType,
-      coaHeadName: row.coaHeadName,
-      coa: row.coa,
-      amount: row.amount,
-      remarks: row.remarks,
-      isInactive: false,
-    });
-    setEditModalOpen(true);
   };
 
   /* ------------------------------ Render ------------------------------ */
   return (
     <>
-      {/* --------------------------- ADD MODAL --------------------------- */}
       {/* --------------------------- ADD MODAL --------------------------- */}
       <AddModal
         isOpen={modalOpen}
@@ -199,16 +150,6 @@ const CashAdjustment = () => {
             />
           </div>
 
-          {/* Code Auto Generated */}
-          <div>
-            <label className="text-sm">Code *</label>
-            <input
-              value={newAdj.code}
-              readOnly
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 opacity-70 cursor-not-allowed"
-            />
-          </div>
-
           {/* Adjustment Type */}
           <div>
             <label className="text-sm">Adjustment Type *</label>
@@ -225,14 +166,22 @@ const CashAdjustment = () => {
 
           {/* COA Head Name */}
           <div>
-            <label className="text-sm">COA Head Name *</label>
-            <input
+            <SearchableSelect 
+              label="Offsetting Account *"
+              options={coaList.map(h => ({
+                  id: h.headName,
+                  name: `${h.headCode} - ${h.headName}`
+              }))}
               value={newAdj.coaHeadName}
-              onChange={(e) =>
-                setNewAdj({ ...newAdj, coaHeadName: e.target.value })
-              }
-              placeholder="Cash Adjustment"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              onChange={(val) => {
+                  const selected = coaList.find(c => c.headName === val);
+                  setNewAdj({ 
+                      ...newAdj, 
+                      coaHeadName: val,
+                      coa: selected ? selected.headCode : newAdj.coa
+                  });
+              }}
+              placeholder="Select Account Head"
             />
           </div>
 
@@ -241,9 +190,9 @@ const CashAdjustment = () => {
             <label className="text-sm">COA *</label>
             <input
               value={newAdj.coa}
-              onChange={(e) => setNewAdj({ ...newAdj, coa: e.target.value })}
-              placeholder="5001"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
+              readOnly
+              placeholder="Auto-filled"
+              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 opacity-70 cursor-not-allowed"
             />
           </div>
 
@@ -272,107 +221,6 @@ const CashAdjustment = () => {
         </div>
       </AddModal>
 
-      {/* --------------------------- MAIN PAGE --------------------------- */}
-      <EditModal
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSave={handleUpdate}
-        title="Edit Cash Adjustment"
-        width="700px"
-        permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
-        permissionDelete={false}
-        saveText="Update"
-        isInactive={editData.isInactive}
-      >
-        <div className="p-0 space-y-4">
-           {/* Voucher Date */}
-          <div>
-            <label className="text-sm">Voucher Date *</label>
-            <input
-              type="date"
-              value={editData.voucherDate}
-              onChange={(e) => setEditData({ ...editData, voucherDate: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              disabled={editData.isInactive}
-            />
-          </div>
-
-          {/* Code Auto Generated - Read Only */}
-          <div>
-            <label className="text-sm">Code *</label>
-            <input
-              value={editData.voucherName}
-              readOnly
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 opacity-70 cursor-not-allowed"
-            />
-          </div>
-
-          {/* Adjustment Type */}
-          <div>
-            <label className="text-sm">Adjustment Type *</label>
-            <select
-              value={editData.adjustmentType}
-              onChange={(e) => setEditData({ ...editData, adjustmentType: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            >
-              <option value="">Select Type</option>
-              <option value="Debit">Debit (-)</option>
-              <option value="Credit">Credit (+)</option>
-            </select>
-          </div>
-
-          {/* COA Head Name */}
-          <div>
-            <label className="text-sm">COA Head Name *</label>
-            <input
-              value={editData.coaHeadName}
-              onChange={(e) =>
-                setEditData({ ...editData, coaHeadName: e.target.value })
-              }
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            />
-          </div>
-
-          {/* COA Code */}
-          <div>
-            <label className="text-sm">COA *</label>
-            <input
-              value={editData.coa}
-              onChange={(e) => setEditData({ ...editData, coa: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            />
-          </div>
-
-           {/* Amount */}
-            <InputField
-              label="Amount *"
-              type="number"
-              value={editData.amount}
-              onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
-              disabled={editData.isInactive}
-              formatted
-            />
-
-           {/* Remarks */}
-          <div>
-            <label className="text-sm">Remarks *</label>
-            <textarea
-              value={editData.remarks}
-              onChange={(e) =>
-                setEditData({ ...editData, remarks: e.target.value })
-              }
-              rows={2}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            />
-          </div>
-
-        </div>
-      </EditModal>
-
        <ColumnPickerModal
         isOpen={columnModalOpen}
         onClose={() => setColumnModalOpen(false)}
@@ -392,33 +240,29 @@ const CashAdjustment = () => {
              <MasterTable
                 columns={[
                     visibleColumns.id && { key: "id", label: "ID", sortable: true },
-                    visibleColumns.voucherName && { key: "voucherName", label: "Voucher", sortable: true },
-                    visibleColumns.voucherDate && { key: "voucherDate", label: "Date", sortable: true },
-                    visibleColumns.adjustmentType && { key: "adjustmentType", label: "Type", sortable: true },
-                    visibleColumns.coaHeadName && { key: "coaHeadName", label: "COA Head", sortable: true },
-                    visibleColumns.coa && { key: "coa", label: "COA", sortable: true },
-                    visibleColumns.amount && { key: "amount", label: "Amount", sortable: true, render: (r) => (r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-                    visibleColumns.remarks && { key: "remarks", label: "Remarks", sortable: true },
-                    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (r) => (r.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                    visibleColumns.voucherName && { key: "voucherName", label: "Voucher No", sortable: true },
+                    visibleColumns.voucherType && { key: "voucherType", label: "Voucher Type", sortable: true, render: (r) => r.voucherType },
+                    visibleColumns.voucherDate && { key: "voucherDate", label: "Voucher Date", sortable: true, render: (r) => new Date(r.voucherDate).toLocaleDateString() },
+                    visibleColumns.coaHeadName && { key: "coaHeadName", label: "Coa Head Name", sortable: true },
+                    visibleColumns.coa && { key: "coa", label: "Coa", sortable: true },
+                    visibleColumns.remarks && { key: "remarks", label: "Remark", sortable: true },
+                    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (r) => (r.debit || 0) == 0 ? "0" : (r.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) },
+                    visibleColumns.amount && { key: "amount", label: "Amount", sortable: true, render: (r) => (r.amount || 0) == 0 ? "0" : (r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) },
                 ].filter(Boolean)}
                 data={rows}
-                // inactiveData={inactiveRows}
-                showInactive={showInactive}
-                // sortConfig={sortConfig}
-                // onSort={handleSort}
-                onRowClick={(r) => openEditModal(r)}
+                
                 // Action Bar
                 search={searchText}
                 onSearch={setSearchText}
                 onCreate={() => setModalOpen(true)}
-                createLabel="New Adjustment"
+                createLabel="New Cash Adjustment"
                 permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
                 onRefresh={() => {
                     setSearchText("");
                     setPage(1);
+                    fetchData();
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
-                onToggleInactive={() => setShowInactive((s) => !s)}
 
                 page={page}
                 setPage={setPage}
@@ -436,6 +280,3 @@ const CashAdjustment = () => {
 };
 
 export default CashAdjustment;
-
-
-

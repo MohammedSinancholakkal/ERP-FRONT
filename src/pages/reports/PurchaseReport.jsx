@@ -83,26 +83,26 @@ const PurchaseReport = () => {
 
   return (
     <PageLayout>
-      <div id="report-content" className={`p-6 h-full flex flex-col gap-6 overflow-hidden print:absolute print:top-0 print:left-0 print:w-full print:h-auto print:m-0 print:p-8 print:bg-white print:overflow-visible print:z-50`}>
+      <div id="report-content" className={`p-6 h-full flex flex-col gap-6 overflow-hidden print:absolute print:top-0 print:left-0 print:w-full print:h-auto print:m-0 print:p-8 print:bg-white print:overflow-visible print:z-50 ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         
         {/* TOP FILTER BAR */}
-        <div className="bg-white p-4 rounded-lg shadow-sm flex flex-wrap items-center gap-4 text-gray-800 flex-none z-10 print:hidden">
+        <div className={`p-4 rounded-lg shadow-sm flex flex-wrap items-center gap-4 flex-none z-10 print:hidden ${theme === 'dark' ? 'bg-gray-800 text-white border border-gray-700' : 'bg-white text-gray-800'}`}>
             <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-500">From</label>
+                <label className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
                 <input 
                     type="date" 
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-600 outline-none focus:border-blue-500 w-48" 
+                    className={`border rounded px-3 py-2 text-sm outline-none focus:border-blue-500 w-48 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300 text-gray-600'}`} 
                 />
             </div>
             <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-500">To</label>
+                <label className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
                 <input 
                     type="date" 
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-600 outline-none focus:border-blue-500 w-48" 
+                    className={`border rounded px-3 py-2 text-sm outline-none focus:border-blue-500 w-48 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300 text-gray-600'}`} 
                 />
             </div>
             
@@ -165,13 +165,13 @@ const PurchaseReport = () => {
 
             {/* SCREEN HEADER */}
             <div className="flex flex-col gap-1 flex-none print:hidden">
-                <div className="flex justify-between items-center border-b pb-2">
+                <div className={`flex justify-between items-center border-b pb-2 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
                     <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Purchase Report</h2>
                 </div>
                 
                 <div className="relative flex justify-center items-center mt-2">
                     <h1 className={`text-2xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>{companyName}</h1>
-                    <div className="absolute right-0 bottom-0 text-sm text-dark font-medium pb-1">
+                    <div className={`absolute right-0 bottom-0 text-sm font-medium pb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-dark'}`}>
                         Date: {todayDate}
                     </div>
                 </div>
@@ -181,7 +181,7 @@ const PurchaseReport = () => {
             <div className="w-full overflow-x-auto print:overflow-visible">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="text-sm font-bold text-purple-800 border-b border-purple-200 bg-purple-50 sticky top-0 z-0 print:static print:bg-white print:text-black">
+                        <tr className={`text-sm font-bold border-b sticky top-0 z-0 print:static print:bg-white print:text-black ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-gray-900 text-white border-gray-700'}`}>
                             <th className="py-3 px-4 w-28 print:w-[15%] print:px-1">Order #</th>
                             <th className="py-3 px-4 w-40 print:w-[30%] print:px-1">Supplier</th>
                             <th className="py-3 px-4 w-24 print:w-[15%] print:px-1">Date</th>
@@ -190,7 +190,7 @@ const PurchaseReport = () => {
                             <th className="py-3 px-4 w-28 text-right print:w-[20%] print:px-1">Method</th>
                         </tr>
                     </thead>
-                    <tbody className="text-sm text-gray-600 print:text-black">
+                    <tbody className={`text-sm print:text-black ${theme === 'dark' ? 'text-gray-200' : 'text-gray-600'}`}>
                         {loading ? (
                             <tr><td colSpan="6" className="text-center py-6">Loading data...</td></tr>
                         ) : purchaseData.length === 0 ? (
@@ -199,17 +199,17 @@ const PurchaseReport = () => {
                             purchaseData.map((row, index) => (
                                 <React.Fragment key={index}>
                                     {/* Main Row */}
-                                    <tr className="border-b border-gray-100 hover:bg-gray-50 align-top print:border-gray-200">
-                                        <td className="py-3 px-4 font-medium text-dark print:px-1 print:text-black pt-4 whitespace-nowrap">{row.invoiceNo}</td>
-                                        <td className="py-3 px-4 font-medium text-dark print:px-1 print:text-black pt-4">{row.supplierName}</td>
-                                        <td className="py-3 px-4 font-medium text-dark print:px-1 print:text-black pt-4 whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</td>
-                                        <td className="py-3 px-4 font-medium text-right font-bold text-gray-900 print:px-1 print:text-black pt-4 whitespace-nowrap">{Number(row.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <tr className={`border-b align-top print:border-gray-200 ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                        <td className={`py-3 px-4 font-medium print:px-1 print:text-black pt-4 whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>{row.invoiceNo}</td>
+                                        <td className={`py-3 px-4 font-medium print:px-1 print:text-black pt-4 ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>{row.supplierName}</td>
+                                        <td className={`py-3 px-4 font-medium print:px-1 print:text-black pt-4 whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>{new Date(row.date).toLocaleDateString()}</td>
+                                        <td className={`py-3 px-4 font-medium text-right font-bold print:px-1 print:text-black pt-4 whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{Number(row.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         
                                         {/* Nested Details Cell (Screen Only) */}
                                         <td className="py-3 px-4 print:hidden">
                                             <div className="w-[90%]">
                                                 {/* Inner Header */}
-                                                <div className="grid grid-cols-7 gap-2 mb-1 text-xs font-bold border-b border-purple-200 pb-1 text-purple-800 bg-purple-50 p-1">
+                                                <div className={`grid grid-cols-7 gap-2 mb-1 text-xs font-bold border-b p-1 ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-gray-900 text-white border-gray-700'}`}>
                                                     <div className="col-span-2">Product</div>
                                                     <div className="text-right">Unit Price</div>
                                                     <div className="text-center">Quantity</div>
@@ -219,7 +219,7 @@ const PurchaseReport = () => {
 
                                                 {/* Inner Items */}
                                                 {getItems(row).map((item, idx) => (
-                                                    <div key={idx} className="grid grid-cols-7 gap-2 py-1 text-xs font-medium text-gray-700 border-b border-dashed border-gray-100 last:border-0 p-1">
+                                                    <div key={idx} className={`grid grid-cols-7 gap-2 py-1 text-xs font-medium border-b border-dashed last:border-0 p-1 ${theme === 'dark' ? 'text-gray-300 border-gray-700' : 'text-gray-700 border-gray-100'}`}>
                                                         <div className="col-span-2 truncate" title={item.ProductName || item.productName}>{item.ProductName || item.productName}</div>
                                                         <div className="text-right">{Number(item.UnitPrice || item.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                         <div className="text-center">{item.Quantity || item.quantity}</div>
@@ -230,7 +230,7 @@ const PurchaseReport = () => {
                                             </div>
                                         </td>
 
-                                        <td className="py-3 px-4 text-right font-medium pt-4 whitespace-nowrap text-gray-600 print:text-black">{row.paymentAccount || '-'}</td>
+                                        <td className={`py-3 px-4 text-right font-medium pt-4 whitespace-nowrap print:text-black ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{row.paymentAccount || '-'}</td>
                                     </tr>
 
                                     {/* Print Only Row - Nested Table */}

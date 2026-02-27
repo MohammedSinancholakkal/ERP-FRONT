@@ -27,18 +27,18 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   });
 
   // Options for SearchableSelect
-  const languageOptions = [
-    { id: "English", name: "English" },
-    { id: "Hindi", name: "Hindi" },
-    { id: "Tamil", name: "Tamil" }
-  ];
+  // const languageOptions = [
+  //   { id: "English", name: "English" },
+  //   { id: "Hindi", name: "Hindi" },
+  //   { id: "Tamil", name: "Tamil" }
+  // ];
 
   const themeOptions = [
     { id: "dark", name: "Dark Theme" },
-    { id: "light", name: "Light Theme" },
-    { id: "emerald", name: "Emerald Green" },
+    // { id: "light", name: "Light Theme" },
+    // { id: "emerald", name: "Emerald Green" },
     { id: "purple", name: "Purple Theme" },
-    { id: "blue", name: "Blue Theme" }
+    // { id: "blue", name: "Blue Theme" }
   ];
 
   const menuRef = useRef();
@@ -312,7 +312,7 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
             </div>
 
             {/* Language */}
-            <div className="mb-6">
+            {/* <div className="mb-6">
               <SearchableSelect 
                   label="Language"
                   options={languageOptions}
@@ -320,7 +320,7 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
                   onChange={() => {}} 
                   placeholder="Select Language"
                />
-            </div>
+            </div> */}
 
             {/* Theme */}
             <div>

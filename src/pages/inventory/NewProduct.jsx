@@ -333,7 +333,7 @@ const NewProduct = () => {
              const createdId = id || res.data?.record?.id || res.data?.id; 
              navigate(location.state.returnTo, { 
                  state: { 
-                     preserveState: location.state.preserveState,
+                     ...location.state,
                      createdProductId: createdId,
                      createdProductName: product.ProductName
                  } 
@@ -642,7 +642,7 @@ const NewProduct = () => {
                     onClick={() => {
                         if (location.state?.returnTo) {
                             navigate(location.state.returnTo, {
-                                    state: { preserveState: location.state.preserveState }
+                                    state: { ...location.state }
                             });
                         } else {
                             navigate("/app/inventory/products");
@@ -721,7 +721,7 @@ const NewProduct = () => {
 
 
         {/* MAIN FORM CONTAINER */}
-        <div className={`p-6   ${theme === 'emerald' ? 'bg-white text-gray-900' : theme === 'purple' ? 'bg-white text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+        <div className={`p-6   ${theme === 'emerald' ? 'bg-white text-gray-900' : theme === 'purple' ? 'bg-white text-dark' : ' text-white'}`}>
              
              <div className="grid grid-cols-12 gap-x-6 gap-y-4">
 
@@ -1034,7 +1034,7 @@ const NewProduct = () => {
                 {/* ROW 8: Image (File Picker) - centered or full width? Full width looks fine */}
                 <div className="col-span-12 flex items-start gap-4 mt-2">
                     <div className="w-24 pt-2 text-right">
-                        <label className="text-sm font-medium text-black">Image</label>
+                        <label className={`text-sm font-medium ${theme === 'dark' ? 'text-white' :  theme == 'purple' ? 'text-purple-800' : 'text-black'}`}>Image</label>
                     </div>
                     <div className="flex items-center gap-2">
                          <input 

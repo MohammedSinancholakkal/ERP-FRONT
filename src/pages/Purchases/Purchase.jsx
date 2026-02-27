@@ -287,7 +287,7 @@ const Purchase = () => {
     return match;
   });
 
-  const sortedList = purchasesList; // Server-side sorted now
+  const sortedList = filteredList; // Server-side sorted now
 
   const filters = [
       {

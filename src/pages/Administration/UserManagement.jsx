@@ -466,8 +466,10 @@ const handleEditRoles = async () => {
           ...i,
           userImage: i.userImage ? fullImageURL(i.userImage) : "",
         }));
-        setUsers(items);
-        setTotalRecords(items.length);
+        // Filter out userId 1
+        const filtered = items.filter(u => (u.userId ?? u.UserId) !== 1);
+        setUsers(filtered);
+        setTotalRecords(filtered.length);
         return;
       }
 
@@ -477,8 +479,10 @@ const handleEditRoles = async () => {
           ...item,
           userImage: item.userImage ? fullImageURL(item.userImage) : "",
         }));
-        setUsers(normalized);
-        setTotalRecords(res.data.total);
+        // Filter out userId 1
+        const filtered = normalized.filter(u => (u.userId ?? u.UserId) !== 1);
+        setUsers(filtered);
+        setTotalRecords(res.data.total - (normalized.length - filtered.length));
       }
     } catch (err) {
       toast.error("Error loading users");
@@ -878,8 +882,8 @@ const handleEditRoles = async () => {
               
               {/* Username */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">
-                   Username
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>
+                   Username *
                 </label>
                 <InputField
                   value={newUser.username}
@@ -890,7 +894,7 @@ const handleEditRoles = async () => {
 
               {/* Display Name */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>
                    Display Name
                 </label>
                 <InputField
@@ -902,7 +906,7 @@ const handleEditRoles = async () => {
 
               {/* Email */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">Email</label>
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>Email</label>
                 <div className="flex items-center gap-2">
                   <InputField
                     type="email"
@@ -919,7 +923,7 @@ const handleEditRoles = async () => {
 
               {/* User Image */}
               <div className="grid grid-cols-[120px_1fr] items-start gap-4">
-                <label className="text-right  text-dark font-medium pt-2">User Image</label>
+                <label className={`text-right font-medium pt-2 ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>User Image</label>
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <input
@@ -947,7 +951,7 @@ const handleEditRoles = async () => {
                   </div>
                   
                   {/* Preview Area (Placeholder or Image) */}
-                  <div className="w-full h-32 bg-white border border-gray-700 rounded flex items-center justify-center overflow-hidden">
+                  <div className={`w-full h-32 border rounded flex items-center justify-center overflow-hidden ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
                     {newUser.userImagePreview ? (
                       <img
                         src={newUser.userImagePreview}
@@ -963,8 +967,8 @@ const handleEditRoles = async () => {
 
               {/* Password */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">
-                   Password
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>
+                   Password *
                 </label>
                 <InputField
                   type="password"
@@ -975,9 +979,9 @@ const handleEditRoles = async () => {
               </div>
 
               {/* Confirm Password */}
-              <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">
-                   Confirm Password
+              <div className="grid grid-cols-[125px_1fr] items-center gap-4">
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>
+                   Confirm Password *
                 </label>
                 <InputField
                   type="password"
@@ -989,8 +993,8 @@ const handleEditRoles = async () => {
 
               {/* Source */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right text-dark font-medium">Source</label>
-                <div className="w-full bg-white border border-gray-700 rounded px-3 py-2 text-sm text-gray-400">
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>Source</label>
+                <div className={`w-full border rounded px-3 py-2 text-sm ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-gray-400' : 'bg-white border-gray-300 text-gray-400'}`}>
                   site
                 </div>
               </div>
@@ -1088,8 +1092,8 @@ const handleEditRoles = async () => {
               
               {/* Username */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right text-dark font-medium">
-                   Username
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>
+                   Username *
                 </label>
                 <InputField
                   value={editData.username}
@@ -1101,7 +1105,7 @@ const handleEditRoles = async () => {
 
               {/* Display Name */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>
                    Display Name
                 </label>
                 <InputField
@@ -1114,7 +1118,7 @@ const handleEditRoles = async () => {
 
               {/* Email */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">Email</label>
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>Email</label>
                 <div className="flex items-center gap-2">
                   <InputField
                     type="email"
@@ -1132,7 +1136,7 @@ const handleEditRoles = async () => {
 
               {/* User Image */}
               <div className="grid grid-cols-[120px_1fr] items-start gap-4">
-                <label className="text-right text-dark font-medium pt-2">User Image</label>
+                <label className={`text-right font-medium pt-2 ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>User Image</label>
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <input
@@ -1166,7 +1170,7 @@ const handleEditRoles = async () => {
                   </div>
                   
                   {/* Preview Area */}
-                  <div className="w-full h-32 bg-white border border-gray-700 rounded flex items-center justify-center overflow-hidden">
+                  <div className={`w-full h-32 border rounded flex items-center justify-center overflow-hidden ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
                     {previewImage ? (
                       <img
                         src={previewImage}
@@ -1182,8 +1186,8 @@ const handleEditRoles = async () => {
 
               {/* Source */}
               <div className="grid grid-cols-[120px_1fr] items-center gap-4">
-                <label className="text-right  text-dark font-medium">Source</label>
-                <div className="w-full bg-white border border-gray-700 rounded px-3 py-2 text-sm text-gray-400">
+                <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>Source</label>
+                <div className={`w-full border rounded px-3 py-2 text-sm ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-gray-400' : 'bg-white border-gray-300 text-gray-400'}`}>
                   {editData.source || "site"}
                 </div>
               </div>

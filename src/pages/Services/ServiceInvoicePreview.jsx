@@ -148,8 +148,8 @@ useEffect(() => {
           <div>
             <p className="text-gray-400 mb-1">From</p>
             <h3 className={`text-lg font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>{settings?.companyName || "Home Button"}</h3>
-            <p>Phone: {settings?.phone || ""}</p>
-            <p>Email: {settings?.companyEmail || ""}</p>
+            {settings?.phone && <p>Phone: {settings.phone}</p>}
+            {settings?.companyEmail && <p>Email: {settings.companyEmail}</p>}
           </div>
 
 {/* TO */}
@@ -162,25 +162,33 @@ useEffect(() => {
   </h3>
 
   {/* Address */}
-  <p className={`mt-2 mb-2 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-200'}`}>
-    {customer?.address || "Address not available"}
-  </p>
+  {(customer?.address || customer?.addressLine2 || customer?.city || customer?.state) && (
+    <p className={`mt-2 mb-2 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-200'}`}>
+        {customer?.address}{customer?.address && <br />}
+        {customer?.addressLine2 && <>{customer.addressLine2} </>}
+        {customer?.state ? `${customer.state} ` : ""}{customer?.city ? `${customer.city}` : ""}{customer?.zipCode ? ` - ${customer.zipCode}` : ""}
+    </p>
+  )}
 
   {/* Email */}
-  <p className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-300'} text-sm`}>
-    Email:{" "}
-    <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}>
-      {customer?.email || "-"}
-    </span>
-  </p>
+  {customer?.email && (
+    <p className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-300'} text-sm`}>
+      Email:{" "}
+      <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}>
+        {customer.email}
+      </span>
+    </p>
+  )}
 
   {/* Phone */}
-  <p className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-300'} text-sm`}>
-    Phone:{" "}
-    <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}>
-      {customer?.phone || "-"}
-    </span>
-  </p>
+  {customer?.phone && (
+    <p className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-600' : 'text-gray-300'} text-sm`}>
+      Phone:{" "}
+      <span className={theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}>
+        {customer.phone}
+      </span>
+    </p>
+  )}
 </div>
 
 

@@ -80,6 +80,22 @@ body {
   scrollbar-color: #6b7280 #0f1724;
   /* thumb, track */
 }
+/* DARK THEME SCROLLBARS */
+body.theme-dark ::-webkit-scrollbar-track {
+  background: #374151; /* gray-700 */
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb {
+  background: #ffffff; /* gray-500 */
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: #ffffff; /* gray-400 */
+}
+
+body.theme-dark * {
+  scrollbar-color: #ffffff #374151;
+}
 
 /* EMERALD THEME SCROLLBARS */
 body.theme-emerald ::-webkit-scrollbar-track {

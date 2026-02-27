@@ -63,33 +63,33 @@ const TodaysReport = () => {
         <ContentCard>
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-end">
-                <h2 className="text-xl font-bold text-purple-800">Today's Sales Report</h2>
-                <div className="text-sm text-gray-600 font-medium">
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Today's Sales Report</h2>
+                <div className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                     Date: {todayDate}
                 </div>
             </div>
-            <hr className="border-gray-100" />
+            <hr className={`${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`} />
             
             <div className="w-full h-[220px] overflow-y-scroll custom-scrollbar pr-2">
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 z-10">
-                        <tr className="text-sm font-bold text-purple-800 border-b border-purple-200 bg-purple-50">
+                        <tr className={`text-sm font-bold border-b ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-gray-900 text-white border-gray-700'}`}>
                             <th className="py-3 px-4 w-1/4">Invoice #</th>
                             <th className="py-3 px-4 w-1/4">Customer</th>
                             <th className="py-3 px-4 text-center w-1/4">Sale Date</th>
                             <th className="py-3 px-4 text-right w-1/4">Total Amount</th>
                         </tr>
                     </thead>
-                    <tbody className="text-sm text-dark font-medium">
+                    <tbody className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
                         {loading ? (
                              <tr><td colSpan="4" className="py-4 px-4 text-center">Loading...</td></tr>
                         ) : salesData.length > 0 ? (
                             salesData.map((row, index) => (
-                                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 align-top">
-                                    <td className="py-2 px-4 font-medium text-dark whitespace-nowrap">{row.invoiceNo}</td>
-                                    <td className="py-2 px-4 font-medium text-dark">{row.customer}</td>
-                                    <td className="py-2 px-4 font-medium text-dark text-center whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</td>
-                                    <td className="py-2 px-4 font-medium text-right font-bold text-gray-900 whitespace-nowrap">{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <tr key={index} className={`border-b align-top ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                    <td className="py-2 px-4 whitespace-nowrap">{row.invoiceNo}</td>
+                                    <td className="py-2 px-4">{row.customer}</td>
+                                    <td className="py-2 px-4 text-center whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</td>
+                                    <td className={`py-2 px-4 text-right font-bold whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 </tr>
                             ))
                         ) : (
@@ -109,33 +109,33 @@ const TodaysReport = () => {
         <ContentCard>
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-end">
-                <h2 className="text-xl font-bold text-purple-800">Today's Purchase Report</h2>
-                <div className="text-sm text-gray-600 font-medium">
+                <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Today's Purchase Report</h2>
+                <div className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                     Date: {todayDate}
                 </div>
             </div>
-            <hr className="border-gray-100" />
+            <hr className={`${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`} />
 
             <div className="w-full h-[220px] overflow-y-scroll custom-scrollbar pr-2">
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 z-10">
-                        <tr className="text-sm font-bold text-purple-800 border-b border-purple-200 bg-purple-50">
+                        <tr className={`text-sm font-bold border-b ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-gray-900 text-white border-gray-700'}`}>
                             <th className="py-3 px-4 w-1/4">BILL #</th>
                             <th className="py-3 px-4 w-1/4">Supplier</th>
                             <th className="py-3 px-4 text-center w-1/4">Purchase Date</th>
                             <th className="py-3 px-4 text-right w-1/4">Total Amount</th>
                         </tr>
                     </thead>
-                    <tbody className="text-sm text-dark font-medium">
+                    <tbody className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
                          {loading ? (
                              <tr><td colSpan="4" className="py-4 px-4 text-center">Loading...</td></tr>
                         ) : purchaseData.length > 0 ? (
                             purchaseData.map((row, index) => (
-                                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 align-top">
-                                    <td className="py-2 px-4 font-medium text-dark whitespace-nowrap">{row.billNo}</td>
-                                    <td className="py-2 px-4 font-medium text-dark">{row.supplier}</td>
-                                    <td className="py-2 px-4 font-medium text-dark text-center whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</td>
-                                    <td className="py-2 px-4 font-medium text-right font-bold text-gray-900 whitespace-nowrap">{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <tr key={index} className={`border-b align-top ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                    <td className="py-2 px-4 whitespace-nowrap">{row.billNo}</td>
+                                    <td className="py-2 px-4">{row.supplier}</td>
+                                    <td className="py-2 px-4 text-center whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</td>
+                                    <td className={`py-2 px-4 text-right font-bold whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 </tr>
                             ))
                         ) : (

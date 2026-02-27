@@ -434,7 +434,7 @@ const Attendance = () => {
       >
         <div className="p-0 space-y-4">
           <div className="mb-4">
-            <label className="text-sm opacity-80 mb-1 block">Employee *</label>
+            <label className={`text-sm opacity-80 mb-1 block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Employee *</label>
             <SearchableSelect
               value={form.employeeId}
               onChange={(val) => {
@@ -456,7 +456,7 @@ const Attendance = () => {
 
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm opacity-80">Check In Date</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Date</label>
               <input
                 type="date"
                 value={form.checkInDate}
@@ -473,7 +473,7 @@ const Attendance = () => {
             </div>
 
             <div>
-              <label className="text-sm opacity-80">Check In Time</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Time</label>
               <input
                 type="time"
                 value={form.checkInTime}
@@ -492,7 +492,7 @@ const Attendance = () => {
 
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm opacity-80">Check Out Date</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Date</label>
               <input
                 type="date"
                 value={form.checkOutDate}
@@ -509,7 +509,7 @@ const Attendance = () => {
             </div>
 
             <div>
-              <label className="text-sm opacity-80">Check Out Time</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Time</label>
               <input
                 type="time"
                 value={form.checkOutTime}
@@ -545,7 +545,7 @@ const Attendance = () => {
         <div className="p-0 space-y-4">
           {/* EMPLOYEE */}
           <div className="mb-4">
-            <label className="text-sm opacity-80 mb-1 block">Employee *</label>
+            <label className={`text-sm opacity-80 mb-1 block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Employee *</label>
             <SearchableSelect
               value={editForm.employeeId}
               onChange={(val) => {
@@ -568,7 +568,7 @@ const Attendance = () => {
 
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm opacity-80">Check In Date</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Date</label>
               <input
                 type="date"
                 value={editForm.checkInDate}
@@ -580,7 +580,7 @@ const Attendance = () => {
               />
             </div>
             <div>
-              <label className="text-sm opacity-80">Check In Time</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Time</label>
               <input
                 type="time"
                 value={editForm.checkInTime}
@@ -595,7 +595,7 @@ const Attendance = () => {
 
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm opacity-80">Check Out Date</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Date</label>
               <input
                 type="date"
                 value={editForm.checkOutDate}
@@ -607,7 +607,7 @@ const Attendance = () => {
               />
             </div>
             <div>
-              <label className="text-sm opacity-80">Check Out Time</label>
+              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Time</label>
               <input
                 type="time"
                 value={editForm.checkOutTime}

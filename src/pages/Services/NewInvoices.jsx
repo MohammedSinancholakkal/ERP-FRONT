@@ -115,6 +115,23 @@ const NewInvoices = () => {
 
   // --- HANDLE RETURN FROM NEW CUSTOMER ---
   useEffect(() => {
+    // 1. Restore Preserved State First
+    if (location.state?.preservedState) {
+        const { ...savedForm } = location.state.preservedState;
+        
+        if (savedForm.customer !== undefined) setCustomer(savedForm.customer);
+        if (savedForm.employee !== undefined) setEmployee(savedForm.employee);
+        if (savedForm.paymentAccount !== undefined) setPaymentAccount(savedForm.paymentAccount);
+        if (savedForm.date !== undefined) setDate(savedForm.date);
+        if (savedForm.globalDiscount !== undefined) setGlobalDiscount(savedForm.globalDiscount);
+        if (savedForm.shippingCost !== undefined) setShippingCost(savedForm.shippingCost);
+        if (savedForm.paidAmount !== undefined) setPaidAmount(savedForm.paidAmount);
+        if (savedForm.noTax !== undefined) setNoTax(savedForm.noTax);
+        if (savedForm.details !== undefined) setDetails(savedForm.details);
+        if (savedForm.taxTypeId !== undefined) setTaxTypeId(savedForm.taxTypeId);
+        if (savedForm.rows !== undefined) setRows(savedForm.rows);
+    }
+
     if (location.state?.newCustomerId) {
       const newId = location.state.newCustomerId;
       getCustomersApi(1, 1000).then(res => {
@@ -740,7 +757,7 @@ const handleRestoreInvoice = async () => {
           <div className="space-y-4">
              {/* Customer */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                  Customer <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -757,7 +774,16 @@ const handleRestoreInvoice = async () => {
                  <button
                     type="button"
                     className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                    onClick={() => !inactiveView && navigate(customer ? `/app/businesspartners/newcustomer/${customer}` : "/app/businesspartners/newcustomer", { state: { returnTo: location.pathname } })}
+                    onClick={() => {
+                        if (!inactiveView) {
+                            navigate(customer ? `/app/businesspartners/newcustomer/${customer}` : "/app/businesspartners/newcustomer", { 
+                                state: { 
+                                    returnTo: location.pathname,
+                                    preservedState: { customer, employee, paymentAccount, date, globalDiscount, shippingCost, paidAmount, noTax, details, taxTypeId, rows }
+                                } 
+                            });
+                        }
+                    }}
                     disabled={inactiveView}
                  >
                      {customer ? <Pencil size={16} /> : <Star size={16} />}
@@ -767,7 +793,7 @@ const handleRestoreInvoice = async () => {
 
              {/* Tax Type */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                   Tax Type <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -790,7 +816,7 @@ const handleRestoreInvoice = async () => {
 
              {/* Payment */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                   Payment <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -816,7 +842,7 @@ const handleRestoreInvoice = async () => {
           <div className="space-y-4">
              {/* Employee */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                  Employee <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -833,7 +859,16 @@ const handleRestoreInvoice = async () => {
                  <button
                     type="button"
                     className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-                    onClick={() => !inactiveView && navigate(employee ? `/app/hr/newemployee/${employee}` : "/app/hr/newemployee", { state: { returnTo: location.pathname } })}
+                    onClick={() => {
+                        if (!inactiveView) {
+                            navigate(employee ? `/app/hr/newemployee/${employee}` : "/app/hr/newemployee", { 
+                                state: { 
+                                    returnTo: location.pathname,
+                                    preservedState: { customer, employee, paymentAccount, date, globalDiscount, shippingCost, paidAmount, noTax, details, taxTypeId, rows }
+                                } 
+                            });
+                        }
+                    }}
                     disabled={inactiveView}
                  >
                      {employee ? <Pencil size={16} /> : <Star size={16} />}
@@ -843,7 +878,7 @@ const handleRestoreInvoice = async () => {
 
              {/* Date */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                  Date <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -868,7 +903,7 @@ const handleRestoreInvoice = async () => {
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Line Items</label>
             { !inactiveView && (
             <button
               onClick={openItemModal}
@@ -900,7 +935,7 @@ const handleRestoreInvoice = async () => {
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-white'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                       {!inactiveView && (
                           <>
@@ -933,7 +968,7 @@ const handleRestoreInvoice = async () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* LEFT COLUMN - DETAILS (Span 4) */}
           <div className="lg:col-span-4 flex flex-col">
-              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                 Details
               </label>
                <div className="flex-1 font-medium">
@@ -954,7 +989,7 @@ const handleRestoreInvoice = async () => {
                 {/* Grand Total */}
                 {/* Net Total (Moved to Top) */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Net Total</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Net Total</label>
                    <InputField
                       value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -966,7 +1001,7 @@ const handleRestoreInvoice = async () => {
                 {/* Total Tax */}
                 <div>
                    <div className="flex justify-between mb-1">
-                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
+                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
                           <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
                           <input
@@ -988,7 +1023,7 @@ const handleRestoreInvoice = async () => {
 
                 {/* Discount (Input) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Discount</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Discount</label>
                     <InputField
                         type="number"
                         value={globalDiscount}
@@ -1002,7 +1037,7 @@ const handleRestoreInvoice = async () => {
 
                 {/* Total Discount (ReadOnly) */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Discount</label>
                    <InputField
                       value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1013,7 +1048,7 @@ const handleRestoreInvoice = async () => {
 
                 {/* Shipping Cost */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Shipping Cost</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Shipping Cost</label>
                     <InputField
                         type="number"
                         value={shippingCost}
@@ -1041,7 +1076,7 @@ const handleRestoreInvoice = async () => {
 
                 {/* Change */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Change</label>
                    <InputField
                       value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1052,7 +1087,7 @@ const handleRestoreInvoice = async () => {
 
                 {/* Due */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Due</label>
                    <InputField
                       value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1082,7 +1117,7 @@ const handleRestoreInvoice = async () => {
                        return (
                          <>
                            <div>
-                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>CGST %</label>
                            <InputField
                               value={cgstRate}
                               readOnly
@@ -1091,7 +1126,7 @@ const handleRestoreInvoice = async () => {
                            />
                           </div>
                           <div>
-                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>SGST %</label>
                            <InputField
                               value={sgstRate}
                               readOnly
@@ -1107,7 +1142,7 @@ const handleRestoreInvoice = async () => {
                 {/* Net Total (Full Width) */}
                 {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
-                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Taxable Amount</label>
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Taxable Amount</label>
                     <InputField
                       value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1175,6 +1210,7 @@ const handleRestoreInvoice = async () => {
                     total: calculateItemTotal(qty, price, disc)
                   });
               }}
+              formatted
             />
           </div>
 
@@ -1182,7 +1218,7 @@ const handleRestoreInvoice = async () => {
           <div>
             <InputField
               type="number"
-              label="Service Charge"
+              label="Service Charge *"
               value={newItem.unitPrice}
               onChange={(e) => {
                   const price = parseFloat(e.target.value) || 0;
@@ -1224,7 +1260,7 @@ const handleRestoreInvoice = async () => {
 
           {/* Total (read-only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total</label>
             <div className={`w-full border rounded px-3 py-2 outline-none ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-gray-300'}`}>
                 {parseFloat(newItem.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>

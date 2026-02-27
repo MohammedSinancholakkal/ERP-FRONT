@@ -16,8 +16,10 @@ import {
   addContraVoucherApi, 
   updateContraVoucherApi, 
   deleteContraVoucherApi,
-  restoreContraVoucherApi 
+  restoreContraVoucherApi,
+  getBanksDropdownApi
 } from "../../services/allAPI"; 
+import SearchableSelect from "../../components/SearchableSelect";
 
 const ContraVoucher = () => {
   const { theme } = useTheme();
@@ -30,7 +32,7 @@ const ContraVoucher = () => {
     vno: true,
     vtype: true,
     date: true,
-    account: true,
+    account: true, 
     debit: true,
     credit: true,
     remark: true,
@@ -42,6 +44,7 @@ const ContraVoucher = () => {
   // DATA STATES
   // -----------------------------------
   const [dataList, setDataList] = useState([]);
+  const [bankList, setBankList] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
   
   const [searchText, setSearchText] = useState("");
@@ -69,10 +72,10 @@ const ContraVoucher = () => {
   // -----------------------------------
   const loadData = async (overrideShowInactive = null, overrideSearchText = null) => {
     try {
-      // const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
-      // const effectiveSearch = overrideSearchText === null ? searchText : overrideSearchText;
+      const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
+      const effectiveSearch = overrideSearchText === null ? searchText : overrideSearchText;
 
-      const res = await getContraVouchersApi(effectiveShowInactive, effectiveSearch);
+      const res = await getContraVouchersApi(effectiveShowInactive, effectiveSearch, sortConfig.key, sortConfig.direction);
       
       if (res && res.status === 200) {
         if (Array.isArray(res.data) && (res.data.length === 0 || typeof res.data[0] === 'object')) {
@@ -94,11 +97,25 @@ const ContraVoucher = () => {
   };
 
   useEffect(() => {
-    // const timer = setTimeout(() => {
-    //     loadData();
-    // }, 400); 
-    // return () => clearTimeout(timer);
-  }, [showInactive, searchText]);
+    const timer = setTimeout(() => {
+        loadData();
+    }, 400); 
+    return () => clearTimeout(timer);
+  }, [showInactive, searchText, sortConfig]);
+
+  useEffect(() => {
+    const fetchBanks = async () => {
+        try {
+            const res = await getBanksDropdownApi();
+            if (res.status === 200) {
+                setBankList(res.data);
+            }
+        } catch (err) {
+            console.error("Failed to load banks", err);
+        }
+    };
+    fetchBanks();
+  }, []);
 
   // -----------------------------------
   // MODAL STATES
@@ -109,22 +126,29 @@ const ContraVoucher = () => {
   const [form, setForm] = useState({
     id: null,
     date: new Date().toISOString().split("T")[0],
-    account: "",
-    debit: "",
-    credit: "",
+    creditType: "", // 'Cash at Hand' or 'Cash at Bank'
+    creditBank: "", // If 'Cash at Bank', stores bank name
+    debitType: "",  // 'Cash at Hand' or 'Cash at Bank'
+    debitBank: "",  // If 'Cash at Bank', stores bank name
+    amount: "",
     remark: "",
     isActive: true
   });
 
-  const accountOptions = ["Cash at Hand", "Cash at Bank"];
+  const accountOptions = [
+      { id: 'Cash at Hand', name: 'Cash at Hand' },
+      { id: 'Cash at Bank', name: 'Cash at Bank' }
+  ];
 
   const resetForm = () => {
     setForm({
         id: null,
         date: new Date().toISOString().split("T")[0],
-        account: "",
-        debit: "",
-        credit: "",
+        creditType: "",
+        creditBank: "",
+        debitType: "",
+        debitBank: "",
+        amount: "",
         remark: "",
         isActive: true
     });
@@ -136,37 +160,44 @@ const ContraVoucher = () => {
   };
 
   const handleRowClick = (item) => {
-      setForm({
-          id: item.id,
-          date: item.date ? item.date.split("T")[0] : "",
-          account: item.account,
-          debit: item.debit,
-          credit: item.credit,
-          remark: item.remark,
-          isActive: item.isActive
-      });
-      setEditModalOpen(true);
+      // Row click to edit is disabled for Contra Vouchers because the table now
+      // displays individual debit/credit transaction lines rather than the grouped
+      // voucher summary needed to populate the form.
+      // If edit is needed in the future, we would need to fetch the grouped
+      // voucher data by VNo first.
   };
 
   const handleSave = async (e) => {
     if(e && e.preventDefault) e.preventDefault();
-    if(!form.account || !form.date) {
-        showErrorToast("Please fill Account and Date");
+    if(!form.creditType || !form.debitType || !form.date || !form.amount) {
+        showErrorToast("Please fill all required fields");
         return;
     }
-    // ensure at least one amount
-    if(!form.debit && !form.credit) {
-        showErrorToast("Please enter Debit or Credit amount");
-        return;
+
+    if(form.creditType === 'Cash at Bank' && !form.creditBank) {
+        showErrorToast("Please select a Source Bank"); return;
+    }
+    if(form.debitType === 'Cash at Bank' && !form.debitBank) {
+        showErrorToast("Please select a Destination Bank"); return;
+    }
+    
+    const finalCreditAccount = form.creditType === 'Cash at Bank' ? form.creditBank : 'Cash at Hand';
+    const finalDebitAccount = form.debitType === 'Cash at Bank' ? form.debitBank : 'Cash at Hand';
+
+    // Prevent same account transfer
+    if(finalCreditAccount === finalDebitAccount) {
+         showErrorToast("Source and Destination accounts cannot be the same");
+         return;
     }
 
     try {
         const user = JSON.parse(localStorage.getItem("user"));
-        const payload = { ...form, userId: user?.userId || 1 };
-        
-        // Convert empty strings to 0 for backend
-        payload.debit = payload.debit || 0;
-        payload.credit = payload.credit || 0;
+        const payload = { 
+            ...form, 
+            creditAccount: finalCreditAccount,
+            debitAccount: finalDebitAccount,
+            userId: user?.userId || 1 
+        };
         
         let res;
         if(form.id) {
@@ -233,14 +264,21 @@ const ContraVoucher = () => {
   // COLUMNS CONFIG
   // -----------------------------------
   const columns = [
-    visibleColumns.id && { key: "id", label: "ID", sortable: true, render: (item) => item.id || item.Id },
-    visibleColumns.vno && { key: "vno", label: "V No", sortable: true, render: (item) => item.vno || item.VNo },
-    visibleColumns.vtype && { key: "vtype", label: "V Type", sortable: true, render: (item) => item.vtype || item.VType },
-    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (item) => new Date(item.date || item.Date).toLocaleDateString() },
-    visibleColumns.account && { key: "account", label: "Account", sortable: true, render: (item) => item.account || item.Account },
-    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (item) => (item.debit || item.Debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (item) => (item.credit || item.Credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true, render: (item) => item.remark || item.Remark },
+    visibleColumns.id && { key: "id", label: "ID", sortable: true, render: (item) => item.id },
+    visibleColumns.vno && { key: "vno", label: "V No", sortable: true, render: (item) => item.vno },
+    visibleColumns.vtype && { key: "vtype", label: "V Type", sortable: true, render: (item) => item.vtype },
+    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (item) => new Date(item.date).toLocaleDateString() },
+    visibleColumns.account && { key: "account", label: "Account", sortable: true, render: (item) => {
+        if (item.debit > 0) {
+            return `${item.account} A/c Dr`;
+        } else if (item.credit > 0) {
+            return `To ${item.account} A/c`;
+        }
+        return item.account;
+    } }, // ID or Name from Transaction
+    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (item) => (item.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (item) => (item.credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true, render: (item) => item.remark },
   ].filter(Boolean);
 
   // -----------------------------------
@@ -258,52 +296,80 @@ const ContraVoucher = () => {
              required
            />
         </div>
-        <div>
-           <label className="text-sm text-black font-medium block mb-1">Account *</label>
-           <select
-              value={form.account}
-              onChange={(e) => setForm({ ...form, account: e.target.value })}
-              disabled={!form.isActive}
-              className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
-                  theme === "emerald"
-                    ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
-                    : theme === "purple"
-                    ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
-                    : "bg-gray-800 border-gray-700 text-white"
-              } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-           >
-              <option value="">Select Account</option>
-              {accountOptions.map((opt) => (
-                 <option key={opt} value={opt}>{opt}</option>
-              ))}
-           </select>
+        
+        <div className="grid grid-cols-2 gap-4">
+            <div>
+               <SearchableSelect 
+                  label="Credit Account (Source)"
+                  placeholder="Select Source Type"
+                  options={accountOptions}
+                  value={form.creditType}
+                  onChange={(val) => {
+                      setForm({ ...form, creditType: val, creditBank: val === 'Cash at Bank' ? form.creditBank : "" });
+                  }}
+                  disabled={!form.isActive}
+                  required
+               />
+               <p className="text-xs text-gray-500 mt-1">Money goes OUT from here</p>
+
+               {form.creditType === 'Cash at Bank' && (
+                  <div className="mt-3">
+                      <SearchableSelect 
+                          label="Select Source Bank"
+                          placeholder="Select Bank"
+                          options={bankList.filter(b => b.IsInternalBank || b.IsCompanyBank).map(b => ({ id: b.BankName, name: b.BankName }))}
+                          value={form.creditBank}
+                          onChange={(val) => setForm({ ...form, creditBank: val })}
+                          disabled={!form.isActive}
+                          required
+                      />
+                  </div>
+               )}
+            </div>
+            <div>
+               <SearchableSelect 
+                  label="Debit Account (Destination)"
+                  placeholder="Select Destination Type"
+                  options={accountOptions}
+                  value={form.debitType}
+                  onChange={(val) => {
+                      setForm({ ...form, debitType: val, debitBank: val === 'Cash at Bank' ? form.debitBank : "" });
+                  }}
+                  disabled={!form.isActive}
+                  required
+               />
+               <p className="text-xs text-gray-500 mt-1">Money comes IN to here</p>
+
+               {form.debitType === 'Cash at Bank' && (
+                  <div className="mt-3">
+                      <SearchableSelect 
+                          label="Select Destination Bank"
+                          placeholder="Select Bank"
+                          options={bankList.filter(b => b.IsInternalBank || b.IsCompanyBank).map(b => ({ id: b.BankName, name: b.BankName }))}
+                          value={form.debitBank}
+                          onChange={(val) => setForm({ ...form, debitBank: val })}
+                          disabled={!form.isActive}
+                          required
+                      />
+                  </div>
+               )}
+            </div>
         </div>
         
-        <div className="flex gap-4">
-             <div className="flex-1">
-               <InputField
-                  label="Debit"
-                  type="number"
-                  value={form.debit}
-                  onChange={(e) => setForm({ ...form, debit: e.target.value })}
-                  disabled={!form.isActive}
-                  formatted
-               />
-             </div>
-             <div className="flex-1">
-               <InputField
-                  label="Credit"
-                  type="number"
-                  value={form.credit}
-                  onChange={(e) => setForm({ ...form, credit: e.target.value })}
-                  disabled={!form.isActive}
-                  formatted
-               />
-             </div>
+        <div>
+           <InputField
+              label="Amount"
+              type="number"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              disabled={!form.isActive}
+              required
+              formatted
+           />
         </div>
 
         <div>
-            <label className="text-sm text-black font-medium block mb-1">Remarks</label>
+            <label className={`text-sm font-medium block mb-1 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>Remarks *</label>
             <textarea
               value={form.remark}
               onChange={(e) => setForm({ ...form, remark: e.target.value })}
@@ -320,13 +386,6 @@ const ContraVoucher = () => {
       </div>
   );
 
-  // Pagination Logic
-  // const activeList = sortedList.filter(item => item.isActive);
-  // const inactiveList = sortedList.filter(item => !item.isActive);
-  // const targetList = showInactive ? inactiveList : activeList;
-  // const totalCount = targetList.length;
-  // const paginatedData = targetList.slice((page - 1) * limit, page * limit);
-
   return (
     <PageLayout>
         {/* ADD MODAL */}
@@ -336,25 +395,12 @@ const ContraVoucher = () => {
             onSave={handleSave}
             title="New Contra Voucher"
             permission={hasPermission(PERMISSIONS.FINANCIAL.CREATE)}
+            width="max-w-3xl"
         >
              {renderModalContent()}
         </AddModal>
         
-        {/* EDIT MODAL */}
-        <EditModal
-            isOpen={editModalOpen}
-            onClose={() => setEditModalOpen(false)}
-            onSave={handleSave}
-            onDelete={handleDelete}
-            onRestore={handleRestore}
-            isInactive={!form.isActive}
-            title={!form.isActive ? "Restore Contra Voucher" : "Edit Contra Voucher"}
-            permissionEdit={hasPermission(PERMISSIONS.FINANCIAL.EDIT)}
-            permissionDelete={hasPermission(PERMISSIONS.FINANCIAL.DELETE)}
-            saveText="Update"
-        >
-             {renderModalContent()}
-        </EditModal>
+        {/* EDIT MODAL REMOVED FOR LIST VIEW SIMPLICITY - TRANSACTION VIEW ONLY */}
 
         {/* COLUMN PICKER */}
         <ColumnPickerModal
@@ -396,7 +442,7 @@ const ContraVoucher = () => {
                         onToggleInactive={() => setShowInactive(!showInactive)}
                         showInactive={showInactive}
                         
-                        onRowClick={handleRowClick}
+                        // onRowClick={handleRowClick} // Disabled Edit
                         
                         sortConfig={sortConfig}
                         onSort={handleSort}

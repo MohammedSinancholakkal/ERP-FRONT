@@ -34,6 +34,16 @@ const SuppliersPayableReport = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
+  const [sortConfig, setSortConfig] = useState({ key: "companyName", direction: "asc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   /* Columns */
   const defaultColumns = {
     companyName: true,
@@ -51,7 +61,7 @@ const SuppliersPayableReport = () => {
   const fetchReport = async () => {
       try {
           setLoading(true);
-          const res = await getSupplierPayablesApi();
+          const res = await getSupplierPayablesApi(sortConfig.key, sortConfig.direction);
           if (res.status === 200) {
               setData(res.data);
           } else {
@@ -67,7 +77,7 @@ const SuppliersPayableReport = () => {
 
   React.useEffect(() => {
       fetchReport();
-  }, []);
+  }, [sortConfig]);
 
   // Filtered Data
   const filteredData = data.filter(d => 
@@ -108,6 +118,9 @@ const SuppliersPayableReport = () => {
                 data={paginatedData}
                 // inactiveData={inactiveData}
                 // showInactive={showInactive}
+
+                sortConfig={sortConfig}
+                onSort={handleSort}
                 
                 // Action Bar
                 search={searchText}

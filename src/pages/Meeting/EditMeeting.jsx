@@ -74,7 +74,7 @@ const Tab = ({ label, active, onClick, theme }) => (
           ? "text-emerald-600 border-b-2 border-emerald-600"
           : theme === 'purple'
           ? "text-purple-600 border-b-2 border-purple-600"
-          : "text-yellow-400 border-b-2 border-yellow-400"
+          : theme === 'dark' ? "text-white border-b-2 border-white" : "text-yellow-400 border-b-2 border-yellow-400"
         : theme === 'emerald'
           ? "text-gray-500 hover:text-emerald-700"
           : theme === 'purple'
@@ -1155,11 +1155,12 @@ const EditMeeting = () => {
     try {
         const formData = new FormData();
         formData.append("meetingId", id);
-        formData.append("title", newAgendaItem.title);
-        formData.append("description", newAgendaItem.description);
-        formData.append("itemTypeId", newAgendaItem.itemType);
-        formData.append("requestedBy", newAgendaItem.requestedBy);
-        formData.append("sequenceNo", newAgendaItem.sequenceNo);
+        formData.append("title", newAgendaItem.title || "");
+        formData.append("description", newAgendaItem.description || "");
+        formData.append("itemTypeId", newAgendaItem.itemType || "");
+        formData.append("requestedBy", newAgendaItem.requestedBy || "");
+        formData.append("sequenceNo", newAgendaItem.sequenceNo || "");
+        formData.append("userId", currentUserId);
         
         if (newAgendaItem.attachmentFile) formData.append("attachmentFile", newAgendaItem.attachmentFile);
         if (newAgendaItem.imageFile) formData.append("imageFile", newAgendaItem.imageFile);
@@ -1306,12 +1307,13 @@ const EditMeeting = () => {
     try {
         const formData = new FormData();
         formData.append("meetingId", id);
-        formData.append("description", newDecision.description);
-        formData.append("dueDate", newDecision.dueDate);
-        formData.append("assignedTo", newDecision.assignedTo);
-        formData.append("decisionNumber", newDecision.decisionNumber);
-        formData.append("relatedAgendaItem", newDecision.relatedAgendaItem);
-        formData.append("resolutionStatus", newDecision.resolutionStatus);
+        formData.append("description", newDecision.description || "");
+        formData.append("dueDate", newDecision.dueDate || "");
+        formData.append("assignedTo", newDecision.assignedTo || "");
+        formData.append("decisionNumber", newDecision.decisionNumber || "");
+        formData.append("relatedAgendaItem", newDecision.relatedAgendaItem || "");
+        formData.append("resolutionStatus", newDecision.resolutionStatus || "");
+        formData.append("userId", currentUserId);
         
         if (newDecision.imageFile) formData.append("imageFile", newDecision.imageFile);
         if (newDecision.attachmentFile) formData.append("attachmentFile", newDecision.attachmentFile);
@@ -1464,7 +1466,7 @@ const EditMeeting = () => {
                     className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
                     <ArrowLeft size={18} />
                   </button>
-                  <h2 className="text-xl font-bold text-[#6448AE]">{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
+                  <h2 className={`text-xl font-bold ${theme === 'emerald' || theme === 'purple' ? 'text-[#6448AE]' : 'text-white'}`}>{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
                 </div>
                 
                  <div className="flex items-center gap-3">
@@ -1757,7 +1759,7 @@ const EditMeeting = () => {
               <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? '' : 'border-gray-700'}`}>
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 font-medium border-b border-purple-100' : 'bg-gray-800 text-gray-400 font-medium'}>
+                    <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 font-medium border-b border-purple-100' : theme === 'dark' ? 'bg-gray-900 text-white font-bold border-b border-gray-700' : 'bg-gray-800 text-gray-400 font-medium'}>
                       <th className="p-3 text-sm font-medium">Attendee</th>
                       <th className="p-3 text-sm font-medium">Attendee Type</th>
                       <th className="p-3 text-sm font-medium">Attendance Status</th>
@@ -1767,14 +1769,14 @@ const EditMeeting = () => {
                   <tbody>
                     {meeting.attendees.map((a, i) => (
                       <tr key={i} className={`transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-t border-purple-100 font-medium' : 'border-t border-gray-800 bg-gray-800 hover:bg-gray-700/50'}`}>
-                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-yellow-300'}`}>{a.attendeeName || a.attendee}</td>
-                        <td className="p-3 text-sm text-purple-800 font-medium">{a.attendeeTypeName || a.attendeeType}</td>
-                        <td className="p-3 text-sm text-purple-800 font-medium">{a.attendanceStatusName || a.attendanceStatus}</td>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : theme === 'dark' ? 'text-white' : 'text-yellow-300'}`}>{a.attendeeName || a.attendee}</td>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-white'}`}>{a.attendeeTypeName || a.attendeeType}</td>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-white'}`}>{a.attendanceStatusName || a.attendanceStatus}</td>
                         <td className="p-3 text-right flex justify-end gap-2">
-                             <button onClick={() => editAttendee(i)} className="p-1 text-purple-800 hover:text-blue-400">
+                             <button onClick={() => editAttendee(i)} className={`p-1 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-blue-400`}>
                                  <Pencil size={16} />
                              </button>
-                             <button onClick={() => deleteAttendee(i)} className="p-1 text-purple-800 hover:text-red-400">
+                             <button onClick={() => deleteAttendee(i)} className={`p-1 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-red-400`}>
                                  <Trash2 size={16} />
                              </button>
                         </td>
@@ -1819,7 +1821,7 @@ const EditMeeting = () => {
           >
 
             <div className="flex justify-between items-center mb-6">
-                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>Agenda Items</h3>
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Agenda Items</h3>
               {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                 <button
                     onClick={() => setShowAgendaModal(true)}
@@ -1832,7 +1834,7 @@ const EditMeeting = () => {
 
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-800 text-gray-400'}>
+                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : theme === 'dark' ? 'bg-gray-900 text-white font-bold border-b border-gray-700' : 'bg-gray-800 text-gray-400'}>
                   <th className="px-4 py-3 text-sm font-medium">ID</th>
                   <th className="px-4 py-3 text-sm font-medium">Title</th>
                   <th className="px-4 py-3 text-sm font-medium">Description</th>
@@ -1845,29 +1847,29 @@ const EditMeeting = () => {
               <tbody>
                 {agendaItems.map(a => (
                     <tr key={a.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100  hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.id}</td>
+                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{a.id}</td>
                     <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.title}</td>
-                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.description}</td>
+                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{a.description}</td>
                     <td className="px-4 py-3 text-sm">
-                        <span className={`text-sm font-medium ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : theme === 'purple' ? 'text-purple-800' : 'bg-blue-900/30 text-blue-300'}`}>
+                        <span className={`text-sm font-medium ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : theme === 'purple' ? 'text-purple-800' : 'bg-blue-900/30 text-white'}`}>
                          {agendaItemTypes.find(t => String(t.id) === String(a.itemTypeId || a.itemType))?.name || "-"}
                         </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
-                    <td className="px-4 py-3 text-sm text-purple-800 font-medium">{a.sequenceNo}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{a.sequenceNo}</td>
                     <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditAgendaItem(a)}
-                            className="p-1.5 text-purple-800 hover:text-blue-400 rounded transition-colors mr-2"
+                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-blue-400 rounded transition-colors mr-2`}
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteAgendaItem(a.id)}
-                            className="p-1.5 text-purple-800 hover:text-red-400 rounded transition-colors"
+                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-red-400 rounded transition-colors`}
                             title="Delete"
                         >
                             <Trash2 size={15} />
@@ -1899,11 +1901,21 @@ const EditMeeting = () => {
             className="mt-4"
           >
             <div className="flex justify-between items-center mb-6">
-                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : 'text-white'}`}>Agenda Decisions</h3>
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Agenda Decisions</h3>
               {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
               <button 
                 onClick={() => {
-                    setNewDecision({ decisionText: "", agendaItemId: "", decisionDate: "", resolutionStatusId: "" });
+                    setNewDecision({
+                        id: null,
+                        description: "",
+                        dueDate: "",
+                        assignedTo: "",
+                        decisionNumber: "",
+                        relatedAgendaItem: "",
+                        resolutionStatus: "",
+                        imageFile: null,
+                        attachmentFile: null
+                    });
                     setShowDecisionModal(true);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded text-sm transition-colors border ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : theme === 'purple' ? 'bg-[#6448AE] text-white' : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-blue-300'}`}
@@ -1915,7 +1927,7 @@ const EditMeeting = () => {
 
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-800 text-gray-400'}>
+                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : theme === 'dark' ? 'bg-gray-900 text-white font-bold border-b border-gray-700' : 'bg-gray-800 text-gray-400'}>
                   <th className="px-4 py-3 text-sm font-medium">ID</th>
                   <th className="px-4 py-3 text-sm font-medium">Description</th>
                   <th className="px-4 py-3 text-sm font-medium">Due Date</th>
@@ -1927,32 +1939,32 @@ const EditMeeting = () => {
               <tbody>
                 {agendaDecisions.map(d => (
                    <tr key={d.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50 text-sm font-medium text-purple-800' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                     <td className="px-4 py-3 text-sm  text-purple-800">{d.id}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{d.id}</td>
                      <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{d.description}</td>
-                     <td className="px-4 py-3 text-sm text-purple-800">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
                      <td className="px-4 py-3 text-sm">
                         <span className={`text-sm font-medium ${
                             d.resolutionStatusName === 'Adopted' 
                             ? (theme === 'emerald' ? 'bg-green-50 text-green-700' : 'bg-green-900/30 text-green-300')
-                            : theme === 'purple' ? 'text-purple-800' : ' text-dark'
+                            : theme === 'purple' ? 'text-purple-800' : 'text-white'
                         }`}>
                          {resolutionStatuses.find(s => String(s.id) === String(d.resolutionStatus || d.resolutionStatusId))?.name || "-"}
                         </span>
                      </td>
-                     <td className="px-4 py-3 text-sm text-purple-800">{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
                      <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditDecision(d)}
-                            className="p-1.5 text-purple-800 hover:text-blue-400 rounded transition-colors mr-2"
+                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-blue-400 rounded transition-colors mr-2`}
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteDecision(d.id)}
-                            className="p-1.5 text-purple-800 hover:text-red-400 rounded transition-colors"
+                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-red-400 rounded transition-colors`}
                             title="Delete"
                         >
                             <Trash2 size={15} />

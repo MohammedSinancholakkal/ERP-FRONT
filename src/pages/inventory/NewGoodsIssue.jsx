@@ -514,7 +514,8 @@ const handleRestoreIssue = async () => {
   return (
     <PageLayout>
       <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
-        <ContentCard className="!h-auto !overflow-visible">
+        <ContentCard>
+          <div className="h-full overflow-y-auto pr-2">
         {/* HEADER */}
         <div className="mb-6">
            <div className="flex items-center justify-between mb-2">
@@ -611,7 +612,7 @@ const handleRestoreIssue = async () => {
             <div className="space-y-4">
                {/* Sales */}
                <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                    Sale <span className="text-dark">*</span>
                  </label>
                   <div className="flex-1 font-medium">
@@ -628,7 +629,7 @@ const handleRestoreIssue = async () => {
 
                {/* Customer */}
                <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                    Customer <span className="text-dark">*</span>
                  </label>
                   <div className="flex-1 font-medium">
@@ -645,7 +646,7 @@ const handleRestoreIssue = async () => {
 
                {/* Date */}
                <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                    Date <span className="text-dark">*</span>
                  </label>
                   <div className="flex-1 font-medium">
@@ -664,7 +665,7 @@ const handleRestoreIssue = async () => {
             <div className="space-y-4">
                {/* Sales Person */}
                <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                    Sales Person <span className="text-dark">*</span>
                  </label>
                   <div className="flex-1 font-medium">
@@ -681,7 +682,7 @@ const handleRestoreIssue = async () => {
 
                {/* Reference */}
                <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                    Reference
                  </label>
                   <div className="flex-1 font-medium">
@@ -699,7 +700,7 @@ const handleRestoreIssue = async () => {
         {/* LINE ITEMS */}
         <div className="mb-8">
           <div className="flex gap-2 mb-2 font-medium">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Line Items</label>
             <button
               onClick={openItemModal}
               disabled={isReadonly}
@@ -709,20 +710,20 @@ const handleRestoreIssue = async () => {
             </button>
           </div>
 
-          <div className={`border rounded overflow-x-auto ${theme === 'emerald' ? 'bg-white border-gray-200' : theme === 'purple' ? 'bg-white border-purple-100' : 'bg-gray-800 border-gray-700'}`}>
-            <table className="w-full text-sm">
-              <thead className={theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-700'}>
+          <div className={`border rounded overflow-x-auto ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+            <table className="w-full text-sm text-left">
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
                 <tr>
-                  <th className="p-3">Product</th>
+                  <th className="p-3">Product Name</th>
                   <th className="p-3">Description</th>
                   <th className="p-3">Warehouse</th>
-                  <th className="p-3">Qty</th>
+                  <th className="p-3">Quantity</th>
                   <th className="p-3 w-16"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={`divide-y ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-100' : 'divide-gray-700'}`}>
                 {rows.map((r, i) => (
-                  <tr key={i} className={`border-t text-center ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50 text-gray-700' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50 text-gray-700' : 'border-gray-700 hover:bg-gray-700/50 text-gray-300'} ${isReadonly ? 'opacity-80' : ''}`}>
+                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-200 hover:bg-gray-750'} ${isReadonly ? 'opacity-80' : ''}`}>
                     <td className="p-3">{r.productName}</td>
                     <td className="p-3">{r.description}</td>
                     <td className="p-3">{r.warehouseName}</td>
@@ -741,6 +742,11 @@ const handleRestoreIssue = async () => {
                 ))}
               </tbody>
             </table>
+            {rows.length === 0 && (
+              <div className="p-8 text-center text-gray-500">
+                No items added. Click "+ Add" to start.
+              </div>
+            )}
           </div>
         </div>
 
@@ -856,6 +862,7 @@ const handleRestoreIssue = async () => {
           </div>
         </div>
       </AddModal>
+          </div>
       </ContentCard>
       </div>
     </PageLayout>

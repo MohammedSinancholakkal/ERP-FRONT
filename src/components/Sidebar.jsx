@@ -179,7 +179,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   ];
 
   const adminLinks = [
-    { label: "Language", key: PERMISSIONS.LANGUAGES.VIEW },
+    // { label: "Language", key: PERMISSIONS.LANGUAGES.VIEW },
     //commented for later dont remove
     // { label: "Translations", key: PERMISSIONS.LANGUAGES.VIEW },
     { label: "Roles", key: PERMISSIONS.ROLE.VIEW },

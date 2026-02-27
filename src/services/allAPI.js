@@ -321,6 +321,7 @@ export const addBankApi = (data) => {
   formData.append("Branch", data.Branch);
   formData.append("userId", data.userId);
   formData.append("isCompanyBank", data.isCompanyBank);
+  formData.append("isInternalBank", data.isInternalBank);
 
   // MUST MATCH multer: uploadSignature.single("SignaturePicture")
   if (data.SignaturePicture instanceof File) {
@@ -344,6 +345,7 @@ export const updateBankApi = (id, data) => {
   formData.append("Branch", data.Branch);
   formData.append("userId", data.userId);
   formData.append("isCompanyBank", data.isCompanyBank);
+  formData.append("isInternalBank", data.isInternalBank);
 
   // If file uploaded → send File
   if (data.SignaturePicture instanceof File) {
@@ -605,6 +607,10 @@ export const addOpeningBalanceApi = async (reqBody) => {
     return await commonAPI("POST", `${serverURL}/chart-of-accounts/opening-balance`, reqBody);
 };
 
+export const getExpenseTransactionsApi = async () => {
+    return await commonAPI("GET", `${serverURL}/expense-transactions/expenses-by-account`, "");
+};
+
 export const addCOAHeadApi = async (reqBody) => {
     return await commonAPI("POST", `${serverURL}/chart-of-accounts`, reqBody);
 };
@@ -625,8 +631,8 @@ export const restoreCOAHeadApi = async (id, reqBody) => {
 // ============================================
 // DEBIT VOUCHERS
 // ============================================
-export const getDebitVouchersApi = async (showInactive = false) => {
-    return await commonAPI("GET", `${serverURL}/debit-vouchers${showInactive ? '?showInactive=true' : ''}`, "");
+export const getDebitVouchersApi = async (showInactive = false, sortBy = null, order = null) => {
+    return await commonAPI("GET", `${serverURL}/debit-vouchers?showInactive=${showInactive}&sortBy=${sortBy || ""}&order=${order || ""}`, "");
 };
 
 export const addDebitVoucherApi = async (reqBody) => {
@@ -649,8 +655,8 @@ export const restoreDebitVoucherApi = async (id, reqBody) => {
 // ============================================
 // CREDIT VOUCHERS
 // ============================================
-export const getCreditVouchersApi = async (showInactive = false, search = "") => {
-    return await commonAPI("GET", `${serverURL}/credit-vouchers?showInactive=${showInactive}&search=${search}`, "");
+export const getCreditVouchersApi = async (showInactive = false, search = "", sortBy = null, order = null) => {
+    return await commonAPI("GET", `${serverURL}/credit-vouchers?showInactive=${showInactive}&search=${search}&sortBy=${sortBy || ""}&order=${order || ""}`, "");
 };
 
 export const addCreditVoucherApi = async (reqBody) => {
@@ -672,8 +678,8 @@ export const restoreCreditVoucherApi = async (id, reqBody) => {
 // ============================================
 // CONTRA VOUCHERS
 // ============================================
-export const getContraVouchersApi = async (showInactive = false, search = "") => {
-    return await commonAPI("GET", `${serverURL}/contra-vouchers?showInactive=${showInactive}&search=${search}`, "");
+export const getContraVouchersApi = async (showInactive = false, search = "", sortBy = null, order = null) => {
+    return await commonAPI("GET", `${serverURL}/contra-vouchers?showInactive=${showInactive}&search=${search}&sortBy=${sortBy || ""}&order=${order || ""}`, "");
 };
 
 export const addContraVoucherApi = async (reqBody) => {
@@ -695,8 +701,8 @@ export const restoreContraVoucherApi = async (id, reqBody) => {
 // ============================================
 // JOURNAL VOUCHERS
 // ============================================
-export const getJournalVouchersApi = async (showInactive = false, search = "") => {
-    return await commonAPI("GET", `${serverURL}/journal-vouchers?showInactive=${showInactive}&search=${search}`, "");
+export const getJournalVouchersApi = async (showInactive = false, search = "", sortBy = null, order = null) => {
+    return await commonAPI("GET", `${serverURL}/journal-vouchers?showInactive=${showInactive}&search=${search}&sortBy=${sortBy || ""}&order=${order || ""}`, "");
 };
 
 export const addJournalVoucherApi = async (reqBody) => {
@@ -713,6 +719,40 @@ export const deleteJournalVoucherApi = async (id, reqBody) => {
 
 export const restoreJournalVoucherApi = async (id, reqBody) => {
     return await commonAPI("PUT", `${serverURL}/journal-vouchers/restore/${id}`, reqBody);
+};
+
+// ============================================
+// CASH ADJUSTMENTS
+// ============================================
+export const getCashAdjustmentsApi = async (page = 1, limit = 25, showInactive = false, search = "", sortBy = null, order = null) => {
+    return await commonAPI("GET", `${serverURL}/cash-adjustments?page=${page}&limit=${limit}&showInactive=${showInactive}&search=${search}&sortBy=${sortBy || ""}&order=${order || ""}`, "");
+};
+
+export const addCashAdjustmentApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/cash-adjustments`, reqBody);
+};
+
+export const updateCashAdjustmentApi = async (id, reqBody) => {
+    return await commonAPI("PUT", `${serverURL}/cash-adjustments/${id}`, reqBody);
+};
+
+export const deleteCashAdjustmentApi = async (id, reqBody) => {
+    return await commonAPI("DELETE", `${serverURL}/cash-adjustments/${id}`, reqBody);
+};
+
+// ============================================
+// DAY CLOSING
+// ============================================
+export const getDayClosingStatusApi = async () => {
+    return await commonAPI("GET", `${serverURL}/day-closing/status`, "");
+};
+
+export const saveDayClosingApi = async (reqBody) => {
+    return await commonAPI("POST", `${serverURL}/day-closing/close`, reqBody);
+};
+
+export const getDailyClosingReportApi = async (page = 1, limit = 25) => {
+    return await commonAPI("GET", `${serverURL}/day-closing?page=${page}&limit=${limit}`, "");
 };
 
 
@@ -1199,8 +1239,8 @@ export const restoreStockApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/stocks/restore/${id}`, data, "");
 
 // STOCK REPORT SUMMARY
-export const getStockReportApi = () =>
-  commonAPI("GET", `${serverURL}/stocks/report`, "", "");
+export const getStockReportApi = (sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/stocks/report?sortBy=${sortBy || ""}&order=${order || ""}`, "", "");
 
 
 
@@ -1498,8 +1538,9 @@ export const restoreSupplierApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/suppliers/restore/${id}`, data);
 
 // PAYABLE REPORT
-export const getSupplierPayablesApi = () =>
-  commonAPI("GET", `${serverURL}/suppliers/payable-report`);
+// PAYABLE REPORT
+export const getSupplierPayablesApi = (sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/suppliers/payable-report?sortBy=${sortBy || ""}&order=${order || ""}`);
 
 
 
@@ -1537,8 +1578,8 @@ export const restoreCustomerApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/customers/restore/${id}`, data);
 
 // RECEIVABLE REPORT
-export const getCustomerReceivablesApi = () =>
-  commonAPI("GET", `${serverURL}/customers/receivable-report`);
+export const getCustomerReceivablesApi = (sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/customers/receivable-report?sortBy=${sortBy || ""}&order=${order || ""}`);
 
 
 

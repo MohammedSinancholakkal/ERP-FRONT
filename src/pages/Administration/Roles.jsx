@@ -295,7 +295,7 @@ const Roles = () => {
       const normalized = normalizeRows(rawRecords);
 
       // Filter out SuperAdmin (ID 1)
-      const visibleRoles = normalized.filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+      const visibleRoles = normalized.filter(r => r.id !== 1);
       
       setRoles(visibleRoles);
       setTotalRecords(res.data.total); // Note: Total might be off by 1 in pagination but acceptable for now
@@ -327,8 +327,8 @@ const Roles = () => {
     const res = await searchRoleApi(text);
     if (res?.status === 200) {
        const normalized = normalizeRows(res.data || []);
-       // Filter out SuperAdmin
-       const visibleRoles = normalized.filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+      // Filter out SuperAdmin
+      const visibleRoles = normalized.filter(r => r.id !== 1);
       setRoles(visibleRoles);
     }
   };
@@ -344,7 +344,7 @@ const Roles = () => {
         if (res?.status === 200) {
           const rawRecords = res.data.records || [];
           const normalized = normalizeRows(rawRecords);
-          const visibleRoles = normalized.filter(r => r.id !== 1 && r.name?.toLowerCase() !== 'superadmin');
+          const visibleRoles = normalized.filter(r => r.id !== 1);
           setRoles(visibleRoles);
           setTotalRecords(res.data.total);
           // showSuccessToast("Refreshed");

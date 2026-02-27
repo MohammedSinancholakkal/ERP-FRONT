@@ -169,38 +169,38 @@ const Employees = () => {
 // NORMALIZED FILTER LISTS
 // ============================
 
-const filterDesignations = designations.map(d => ({
-  id: d.id || d.designationId,
-  name: d.designationName || d.designation
-}));
+const filterDesignations = designations.map(d => {
+  const name = d.designationName || d.designation;
+  return { id: name, name };
+});
 
-const filterDepartments = departments.map(d => ({
-  id: d.id || d.departmentId,
-  name: d.departmentName || d.department
-}));
+const filterDepartments = departments.map(d => {
+  const name = d.departmentName || d.department;
+  return { id: name, name };
+});
 
-const filterCountries = countries.map(c => ({
-  id: c.id,
-  name: c.name || c.countryName
-}));
+const filterCountries = countries.map(c => {
+  const name = c.name || c.countryName;
+  return { id: name, name };
+});
 
 const filterStates = states.map(s => ({
-  id: s.id,
+  id: s.name,
   name: s.name
 }));
 
 const filterCities = cities.map(c => ({
-  id: c.id,
+  id: c.name,
   name: c.name
 }));
 
 const filterRegions = regions.map(r => ({
-  id: r.regionId,
+  id: r.regionName,
   name: r.regionName
 }));
 
 const filterTerritories = territories.map(t => ({
-  id: t.id,
+  id: t.territoryDescription,
   name: t.territoryDescription
 }));
 

@@ -1195,7 +1195,7 @@ const NewPurchaseOrder = () => {
           <div className="space-y-4">
              {/* Supplier */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                  Supplier <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -1211,10 +1211,11 @@ const NewPurchaseOrder = () => {
                      type="button"
                      className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                      onClick={() => {
+                        const preserveState = { supplier, invoiceNo, vehicleNo, date, taxTypeId, rows, globalDiscount, shippingCost, paidAmount, noTax, details };
                         if (supplier) {
-                            navigate(`/app/businesspartners/newsupplier/${supplier}`, { state: { returnTo: location.pathname } });
+                            navigate(`/app/businesspartners/newsupplier/${supplier}`, { state: { returnTo: location.pathname, preserveState } });
                         } else {
-                            navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname } });
+                            navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname, preserveState } });
                         }
                      }}
                   >
@@ -1226,7 +1227,7 @@ const NewPurchaseOrder = () => {
 
              {/* Date */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Date</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Date</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1245,7 +1246,7 @@ const NewPurchaseOrder = () => {
 
              {/* Tax Type */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                   Tax Type <span className="text-dark">*</span>
                </label>
                <div className="flex-1 flex items-center gap-2">
@@ -1271,7 +1272,7 @@ const NewPurchaseOrder = () => {
           <div className="space-y-4">
              {/* PO Number (Was Invoice No) */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>PO Number</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>PO Number</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1279,7 +1280,7 @@ const NewPurchaseOrder = () => {
                          onChange={(e) => setInvoiceNo(e.target.value)}
                          placeholder="Auto-generated"
                          readOnly={true}
-                         className="bg-gray-100 text-gray-500 cursor-not-allowed"
+                         className="text-gray-500 cursor-not-allowed"
                        />
                    </div>
                    {/* Spacer to align inputs */}
@@ -1291,7 +1292,7 @@ const NewPurchaseOrder = () => {
 
              {/* Vehicle No */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Vehicle No</label>
+               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Vehicle No</label>
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
@@ -1313,11 +1314,11 @@ const NewPurchaseOrder = () => {
         {/* LINE ITEMS SECTION */}
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Line Items</label>
+            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Line Items</label>
             {!inactiveView && (
             <button
               onClick={openItemModal}
-              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}
+              className={`flex items-center gap-2 px-4 py-2 border rounded ${theme === 'emerald' ? 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border-gray-600 text-blue-300'}`}
             >
               <Plus size={16} /> Add
             </button>
@@ -1347,7 +1348,7 @@ const NewPurchaseOrder = () => {
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.unitPrice}</td>
                     <td className="p-3">{row.discount}</td>
-                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-gray-300'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`p-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900 font-semibold' : 'text-white'}`}>{parseFloat(row.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 text-center flex items-center justify-center gap-2">
                       {!inactiveView && (
                        <>
@@ -1380,7 +1381,7 @@ const NewPurchaseOrder = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* LEFT COLUMN - DETAILS (Span 4) */}
           <div className="lg:col-span-4 flex flex-col">
-              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+              <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
                 Details
               </label>
                <div className="flex-1 font-medium">
@@ -1401,7 +1402,7 @@ const NewPurchaseOrder = () => {
                 {/* Grand Total */}
                 {/* Net Total (Moved to Top) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Taxable Amount</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Taxable Amount</label>
                    <InputField
                       value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1413,7 +1414,7 @@ const NewPurchaseOrder = () => {
                 {/* Total Tax */}
                 <div>
                    <div className="flex justify-between mb-1">
-                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Tax</label>
+                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
                           <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
                           <input
@@ -1435,7 +1436,7 @@ const NewPurchaseOrder = () => {
 
                 {/* Discount (Input) */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Discount</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Discount</label>
                     <InputField
                         type="number"
                         value={globalDiscount}
@@ -1448,7 +1449,7 @@ const NewPurchaseOrder = () => {
 
                 {/* Total Discount (ReadOnly) */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Discount</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Discount</label>
                    <InputField
                       value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1459,7 +1460,7 @@ const NewPurchaseOrder = () => {
 
                 {/* Shipping Cost */}
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Shipping Cost</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Shipping Cost</label>
                     <InputField
                         type="number"
                         value={shippingCost}
@@ -1486,7 +1487,7 @@ const NewPurchaseOrder = () => {
 
                 {/* Change */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Change</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Change</label>
                    <InputField
                       value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1497,7 +1498,7 @@ const NewPurchaseOrder = () => {
 
                 {/* Due */}
                 <div>
-                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Due</label>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Due</label>
                    <InputField
                       value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1527,7 +1528,7 @@ const NewPurchaseOrder = () => {
                        return (
                          <>
                            <div>
-                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>CGST %</label>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>CGST %</label>
                            <InputField
                               value={cgstRate}
                               readOnly
@@ -1536,7 +1537,7 @@ const NewPurchaseOrder = () => {
                            />
                           </div>
                           <div>
-                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>SGST %</label>
+                           <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>SGST %</label>
                            <InputField
                               value={sgstRate}
                               readOnly
@@ -1552,7 +1553,7 @@ const NewPurchaseOrder = () => {
                 {/* Net Total (Full Width) */}
                 {/* Taxable Amount (Formerly Grand Total, Moved to Bottom) */}
                 <div className="md:col-span-2 mt-2">
-                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>Grand Total</label>
+                  <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Grand Total</label>
                     <InputField
                       value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
@@ -1582,7 +1583,7 @@ const NewPurchaseOrder = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Brand *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Brand *</label>
             <div className="flex items-center gap-2">
                  <SearchableSelect
                    options={brandsList.map(b => ({ id: b.id, name: b.name }))}
@@ -1618,7 +1619,7 @@ const NewPurchaseOrder = () => {
 
           {/* Product */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Product *</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Product *</label>
             <div className="flex items-center gap-2">
                 <SearchableSelect
                   options={productsList
@@ -1643,7 +1644,8 @@ const NewPurchaseOrder = () => {
                   onClick={() => {
                       if (newItem.productId) {
                            // Navigate to Edit Product
-                           navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preserveState: true } });
+                           const ps = { supplier, invoiceNo, vehicleNo, date, taxTypeId, rows, globalDiscount, shippingCost, paidAmount, noTax, details, newItem, isItemModalOpen: true };
+                         navigate(`/app/inventory/newproduct/${newItem.productId}`, { state: { returnTo: location.pathname, preserveState: ps, showItemModal: true, newItemData: newItem } });
                       } else if (newItem.brandId) {
                            setNewProductData(prev => ({ ...prev, brandId: newItem.brandId }));
                            setIsProductModalOpen(true);
@@ -1890,7 +1892,7 @@ const NewPurchaseOrder = () => {
                 />
 
                 <div>
-                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Product Image</label>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Product Image</label>
                    <input
                        type="file"
                        accept="image/*"

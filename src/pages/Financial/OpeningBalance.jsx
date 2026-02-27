@@ -7,7 +7,7 @@ import InputField from "../../components/InputField";
 import SearchableSelect from "../../components/SearchableSelect";
 import { showSuccessToast, showErrorToast } from "../../utils/notificationUtils"; 
 import { Save } from "lucide-react";
-import { getCOAHeadsApi, addOpeningBalanceApi } from "../../services/allAPI";
+import { getCOAHeadsApi, addOpeningBalanceApi, getExpenseTransactionsApi } from "../../services/allAPI";
 
 const OpeningBalance = () => {
   const { theme } = useTheme();
@@ -24,6 +24,7 @@ const OpeningBalance = () => {
   });
 
   const [accountHeadOptions, setAccountHeadOptions] = useState([]);
+  const [purchaseExpenses, setPurchaseExpenses] = useState(null);
 
   // Fetch Accounts
   useEffect(() => {
@@ -33,20 +34,27 @@ const OpeningBalance = () => {
             console.log(res);
             
             if (res.status === 200 && Array.isArray(res.data)) {
-                // Filter leaf nodes or transaction-enabled nodes
-                // AND Restrict to Assets (A), Liabilities (L), Equity (EQ)
-                const parentCodes = new Set(res.data.map(a => String(a.parentHead)));
-                
-                const allowedTypes = ['A', 'L', 'EQ'];
+                // EXPLICIT BLACKLIST of parent names to exclude (User Request)
+                const excludedNames = [
+                    "assets", "equity", "income", "expense", "liability", 
+                    "liabilities", "current assets", "cash & cash equivalent", 
+                    "duties & taxes", "duties & tax", "account receivable", 
+                    "accounts receivable", "non current assets", 
+                    "current liabilities", "account payable", "accounts payable"
+                ];
 
+                // Filter to show all children and grandchildren except the excluded parent names
                 const options = res.data
                     .filter(a => {
-                        const isLeaf = !parentCodes.has(String(a.headCode || a.HeadCode));
-                        const type = a.headType || a.HeadType;
-                        const isBank = !!(a.bankId || a.BankId);
+                        const headName = (a.headName || a.HeadName || "").trim();
                         
-                        // Must be Transaction/Leaf AND must be allowed type OR it is a Bank Account
-                        return isBank || ((a.isTransaction || a.IsTransaction || isLeaf) && allowedTypes.includes(type));
+                        // Exclude parent names from the blacklist (case insensitive)
+                        if (excludedNames.includes(headName.toLowerCase())) {
+                            return false;
+                        }
+                        
+                        // Include everything else - all children and grandchildren
+                        return true;
                     })
                     .map(a => ({
                         id: a.id || a.Id,
@@ -60,6 +68,21 @@ const OpeningBalance = () => {
         }
     };
     fetchAccounts();
+  }, []);
+
+  // Fetch Purchase Expenses
+  useEffect(() => {
+    const fetchPurchaseExpenses = async () => {
+        try {
+            const res = await getExpenseTransactionsApi();
+            if (res.status === 200 && res.data && res.data.length > 0) {
+                setPurchaseExpenses(res.data[0]); // Get first record (Product Purchase account)
+            }
+        } catch (error) {
+            console.error("Failed to fetch purchase expenses", error);
+        }
+    };
+    fetchPurchaseExpenses();
   }, []);
 
   const balanceTypeOptions = [
@@ -84,11 +107,11 @@ const OpeningBalance = () => {
       try {
           const payload = {
             vdate: form.vdate,
-            accountHead: form.accountHead, // This is the ID from SearchableSelect
+            accountHead: form.accountHead, 
             balanceType: form.balanceType,
             amount: form.amount,
             remark: form.remark,
-            userId: 1 // Replace with real auth user id
+            userId: 1 
           };
 
           const res = await addOpeningBalanceApi(payload);
@@ -147,9 +170,24 @@ const OpeningBalance = () => {
 
                     {/* Form */}
                     <div className="max-w-4xl space-y-4">
+                        {/* Purchase Expenses Display */}
+                        {purchaseExpenses && (
+                            <div className={`p-4 rounded-lg border-2 ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-300' : theme === 'purple' ? 'bg-purple-50 border-purple-300' : 'bg-gray-800 border-gray-600'}`}>
+                                <div className={`text-sm font-semibold ${theme === 'purple' ? 'text-purple-900' : theme === 'emerald' ? 'text-emerald-900' : 'text-gray-300'}`}>
+                                    📦 Product Purchase Expenses
+                                </div>
+                                <div className={`mt-2 text-lg font-bold ${theme === 'purple' ? 'text-purple-700' : theme === 'emerald' ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                                    Total Paid: ₹{parseFloat(purchaseExpenses.totalExpense || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                                <div className={`text-xs mt-1 ${theme === 'purple' ? 'text-gray-600' : theme === 'emerald' ? 'text-gray-600' : 'text-gray-400'}`}>
+                                    Transactions: {purchaseExpenses.transactionCount || 0}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Date */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <label className="w-32 text-sm font-medium text-gray-700 shrink-0">
+                            <label className={`w-32 text-sm font-medium shrink-0 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-gray-700'}`}>
                                 <span className="text-red-500">*</span> V Date
                             </label>
                             <div className="flex-1">
@@ -165,7 +203,7 @@ const OpeningBalance = () => {
 
                         {/* Account Head */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <label className="w-32 text-sm font-medium text-gray-700 shrink-0">
+                            <label className={`w-32 text-sm font-medium shrink-0 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-gray-700'}`}>
                                 <span className="text-red-500">*</span> Account Head
                             </label>
                             <div className="flex-1">
@@ -181,7 +219,7 @@ const OpeningBalance = () => {
 
                         {/* Balance Type */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <label className="w-32 text-sm font-medium text-gray-700 shrink-0">
+                            <label className={`w-32 text-sm font-medium shrink-0 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-gray-700'}`}>
                                 <span className="text-red-500">*</span> Balance Type
                             </label>
                             <div className="flex-1">
@@ -197,7 +235,7 @@ const OpeningBalance = () => {
 
                         {/* Amount */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <label className="w-32 text-sm font-medium text-gray-700 shrink-0">
+                            <label className={`w-32 text-sm font-medium shrink-0 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-gray-700'}`}>
                                 <span className="text-red-500">*</span> Amount
                             </label>
                             <div className="flex-1">
@@ -214,7 +252,7 @@ const OpeningBalance = () => {
 
                         {/* Remark */}
                         <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
-                            <label className="w-32 text-sm font-medium text-gray-700 shrink-0 pt-2">
+                            <label className={`w-32 text-sm font-medium shrink-0 pt-2 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-gray-700'}`}>
                                 <span className="text-red-500">*</span> Remark
                             </label>
                             <div className="flex-1">

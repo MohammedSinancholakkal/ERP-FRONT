@@ -25,8 +25,9 @@ const LatestOrders = ({ orders = [] }) => {
   const isLight = theme === 'purple' || theme === 'emerald';
 
   return (
-    <DashboardCard title="Latest Orders" color="bg-cyan-400">
-      <div className="max-h-64 overflow-auto">
+    <DashboardCard title="Latest Orders" color="bg-cyan-400" bodyClass="p-6 h-70">
+      <div className="h-full flex flex-col">
+        <div className="flex-1 overflow-y-auto pr-2">
       <table className={`w-full text-sm ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
         <thead>
           <tr className={`border-b text-left ${isLight ? 'border-gray-200' : 'border-gray-500'}`}>
@@ -55,9 +56,10 @@ const LatestOrders = ({ orders = [] }) => {
           )}
         </tbody>
       </table>
+        </div>
       </div>
 
-      <div className="flex justify-between items-center mt-4">
+      <div className="flex justify-between items-center mt-5 flex-shrink-0">
         <button 
           onClick={() => navigate("/app/sales/newsale")} // Assuming newsale route
           className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm shadow-sm"
@@ -81,8 +83,9 @@ const RecentlyAddedProducts = ({ products = [] }) => {
   const isLight = theme === 'purple' || theme === 'emerald';
 
   return (
-    <DashboardCard title="Recently Added Products" color="bg-purple-400">
-      <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
+    <DashboardCard title="Recently Added Products" color="bg-purple-400" bodyClass="p-6 h-62">
+      <div className="h-full flex flex-col">
+        <div className="flex-1 space-y-4 overflow-y-auto pr-2">
         {products.length > 0 ? (
           products.map((p, i) => (
             <div
@@ -111,11 +114,12 @@ const RecentlyAddedProducts = ({ products = [] }) => {
             No recently added products
           </div>
         )}
+        </div>
       </div>
 
       <button 
         onClick={() => navigate("/app/inventory/products")}
-        className={`w-full text-center mt-4 text-sm cursor-pointer ${isLight ? 'text-purple-600 hover:text-purple-700' : 'text-yellow-400 hover:text-yellow-300'}`}
+        className={`w-full text-center mt-2 text-sm cursor-pointer flex-shrink-0 ${isLight ? 'text-purple-600 hover:text-purple-700' : 'text-yellow-400 hover:text-yellow-300'}`}
       >
         View All Products
       </button>

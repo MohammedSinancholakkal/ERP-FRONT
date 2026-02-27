@@ -20,6 +20,16 @@ const CustomerReceivableReport = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
+  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   /* Columns */
   const defaultColumns = {
     name: true,
@@ -38,7 +48,7 @@ const CustomerReceivableReport = () => {
   const fetchReport = async () => {
       try {
           setLoading(true);
-          const res = await getCustomerReceivablesApi();
+          const res = await getCustomerReceivablesApi(sortConfig.key, sortConfig.direction);
           if (res.status === 200) {
               setData(res.data.map(d => ({
                 ...d,
@@ -59,7 +69,7 @@ const CustomerReceivableReport = () => {
 
   React.useEffect(() => {
       fetchReport();
-  }, []);
+  }, [sortConfig]);
 
   // Filtered Data
   const filteredData = data.filter(d => 
@@ -101,8 +111,9 @@ const CustomerReceivableReport = () => {
                 data={paginatedData}
                 // inactiveData={inactiveData}
                 // showInactive={showInactive}
-                // sortConfig={sortConfig}
-                // onSort={handleSort}
+                
+                sortConfig={sortConfig}
+                onSort={handleSort}
                 
                 // Action Bar
                 search={searchText}

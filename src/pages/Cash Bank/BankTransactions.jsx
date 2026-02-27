@@ -16,6 +16,19 @@ import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import InputField from "../../components/InputField";
 import SearchableSelect from "../../components/SearchableSelect";
+import { 
+  getCOAHeadsApi, 
+  addDebitVoucherApi, 
+  addCreditVoucherApi, 
+  addContraVoucherApi,
+  getDebitVouchersApi,
+  getCreditVouchersApi,
+  getContraVouchersApi,
+  updateDebitVoucherApi,
+  updateCreditVoucherApi,
+  updateContraVoucherApi
+} from "../../services/allAPI";
+import FilterBar from "../../components/FilterBar";
 
 const BankTransactions = () => {
   const { theme } = useTheme();
@@ -61,113 +74,143 @@ const BankTransactions = () => {
     },
   ];
 
-  const [rows, setRows] = useState(sampleData);
-  const [inactiveRows] = useState([]); // placeholder
-  const [showInactive, setShowInactive] = useState(false);
-
+  const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");
+  const [coaList, setCoaList] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+    fetchCOA();
+  }, [searchText]);
+
+  const fetchCOA = async () => {
+    try {
+      const res = await getCOAHeadsApi();
+      if (res.status === 200) setCoaList(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchData = async () => {
+    try {
+
+      const [dvs, cvs, contras] = await Promise.all([
+        getDebitVouchersApi(false, searchText),
+        getCreditVouchersApi(false, searchText),
+        getContraVouchersApi(false, searchText)
+      ]);
+
+      const allRows = [
+        ...(dvs.data || []).map(r => ({ ...r, origin: 'DV' })),
+        ...(cvs.data || []).map(r => ({ ...r, origin: 'CV' })),
+        ...(contras.data || []).map(r => ({ ...r, origin: 'Contra' }))
+      ];
+
+      // Map to table fields
+      const mapped = allRows.map(r => {
+        // Find matching COA for code
+        const matchedCOA = coaList.find(c => c.headName === (r.account || r.Account || r.CreditAccountHead));
+        
+        return {
+          id: r.id || r.Id,
+          wdId: r.vno || r.VNo,
+          voucherType: "Bank Transaction",
+          date: r.date || r.Date || r.VDate,
+          coaHeadName: r.account || r.Account || r.CreditAccountHead,
+          coa: matchedCOA?.headCode || r.COA || "",
+          description: r.remark || r.Remark || r.Narration,
+          debit: r.debit || r.Debit || 0,
+          credit: r.credit || r.Credit || 0,
+        };
+      });
+
+      // Sort by date desc
+      mapped.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setRows(mapped);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load transactions");
+    }
+  };
 
   // ------------------------- Pagination -------------------------
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
   const totalRecords = rows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
-
-  const start = totalRecords === 0 ? 0 : (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalRecords);
 
   // ------------------------- Add Modal -------------------------
   const [modalOpen, setModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
   const today = new Date().toISOString().split("T")[0];
 
-const [newTx, setNewTx] = useState({
-  date: today,
-  accountType: "Debit",
-  wdId: "",
-  bank: "",
-  bankSearch: "",
-  bankDropdown: false,
-  amount: "",
-  description: "",
-});
+  const userData = JSON.parse(localStorage.getItem("user"));
+  const userId = userData?.userId || userData?.id || userData?.Id;
 
-const [editData, setEditData] = useState({
-  id: null,
-  date: today,
-  accountType: "Debit",
-  wdId: "",
-  bank: "",
-  amount: "0",
-  description: "",
-  isInactive: false,
-});
+  const [form, setForm] = useState({
+    date: today,
+    accountType: "Credit (-)", // Match Image 1
+    wdId: "",
+    bankAccount: "",
+    amount: "0.00",
+    description: "",
+  });
 
+  const [dateFilter, setDateFilter] = useState({ from: "", to: "" });
+  const [coaFilter, setCoaFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
-
-
-  const handleAdd = () => {
-    if (newTx.wdId && rows.some(r => r.wdId === newTx.wdId)) {
-        return toast.error("Transaction ID (WD ID) already exists");
-    }
-    const newEntry = {
-      id: rows.length + 1,
-      wdId: newTx.wdId,
-      voucherType: newTx.accountType === "Debit" ? "Withdraw" : "Deposit",
-      date: newTx.date,
-      coaHeadName: newTx.bank,
-      coa: "0000",
-      description: newTx.description,
-      debit: newTx.accountType === "Debit" ? Number(newTx.amount) : 0,
-      credit: newTx.accountType === "Credit" ? Number(newTx.amount) : 0,
-    };
-
-    setRows([...rows, newEntry]);
-    setModalOpen(false);
-
-    setNewTx({
-      date: today,
-      accountType: "Debit",
-      wdId: "",
-      bank: "",
-      amount: "",
-      description: "",
-    });
-  };
-
-  const handleUpdate = () => {
-    // Basic validation
-    if (!editData.date || !editData.bank || !editData.amount) {
-        return toast.error("Please fill required fields");
+  const handleSave = async () => {
+    if (!form.date || !form.bankAccount || !form.amount) {
+      return toast.error("Please fill required fields");
     }
 
-    setRows(rows.map(r => r.id === editData.id ? {
-      ...r,
-      date: editData.date,
-      coaHeadName: editData.bank,
-      description: editData.description,
-      debit: editData.accountType === "Debit" ? Number(editData.amount) : 0,
-      credit: editData.accountType === "Credit" ? Number(editData.amount) : 0,
-      wdId: editData.wdId, // Assuming WD ID is editable or display only
-    } : r));
+    try {
+      setIsSaving(true);
+      let res;
+      // Map Account Type back to API calls
+      // Credit (-) -> Withdrawal (Bank is Credited)
+      // Debit (+) -> Deposit (Bank is Debited)
+      if (form.accountType === "Credit (-)") {
+        res = await addDebitVoucherApi({
+          date: form.date,
+          creditAccountHead: form.bankAccount,
+          account: "Cash In Hand",
+          amount: parseFloat(form.amount),
+          remark: form.description,
+          userId
+        });
+      } else {
+        res = await addCreditVoucherApi({
+          date: form.date,
+          debitAccountHead: form.bankAccount,
+          account: "Cash In Hand",
+          amount: parseFloat(form.amount),
+          remark: form.description,
+          userId
+        });
+      }
 
-    setEditModalOpen(false);
-    toast.success("Transaction updated");
-  };
-
-  const openEditModal = (row) => {
-    setEditData({
-      id: row.id,
-      date: row.date,
-      accountType: row.debit > 0 ? "Debit" : "Credit",
-      wdId: row.wdId,
-      bank: row.coaHeadName,
-      amount: row.debit > 0 ? row.debit : row.credit,
-      description: row.description,
-      isInactive: false,
-    });
-    setEditModalOpen(true);
+      if (res && (res.status === 200 || res.status === 201)) {
+        toast.success(`Transaction recorded successfully`);
+        setModalOpen(false);
+        setForm({
+          date: today,
+          accountType: "Credit (-)",
+          wdId: "",
+          bankAccount: "",
+          amount: "0.00",
+          description: "",
+        });
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error saving transaction");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ------------------------- Render -------------------------
@@ -178,135 +221,70 @@ const [editData, setEditData] = useState({
       <AddModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSave={handleAdd}
+        onSave={handleSave}
+        isSaving={isSaving}
         title="New Bank Transaction"
         width="750px"
         permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
       >
-        <div className="p-0 space-y-4">
-          {/* Date */}
-          <div>
-            <label className="text-sm">Date</label>
-            <input
-              type="date"
-              value={newTx.date}
-              onChange={(e) => setNewTx({ ...newTx, date: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-            />
-          </div>
+        <div className="p-0 grid grid-cols-1 gap-4">
+          <InputField
+            label="Date"
+            type="date"
+            value={form.date}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
+            required
+          />
 
-          {/* Account Type */}
-          <div>
-            <label className="text-sm">Account Type</label>
-            <select
-              value={newTx.accountType}
-              onChange={(e) =>
-                setNewTx({ ...newTx, accountType: e.target.value })
-              }
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-            >
-              <option value="Debit">Debit (-)</option>
-              <option value="Credit">Credit (+)</option>
-            </select>
-          </div>
+          <SearchableSelect
+            label="Account Type"
+            options={[
+              { id: "Credit (-)", name: "Credit (-)" },
+              { id: "Debit (+)", name: "Debit (+)" }
+            ]}
+            value={form.accountType}
+            onChange={(val) => setForm({ ...form, accountType: val })}
+            required
+          />
 
-          {/* WD ID */}
-          <div>
-            <label className="text-sm">Withdraw / Deposit ID</label>
-            <input
-              value={newTx.wdId}
-              onChange={(e) => setNewTx({ ...newTx, wdId: e.target.value })}
-              placeholder="WD-001"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-            />
-          </div>
+          <InputField
+            label="Withdraw / Deposite ID"
+            value={form.wdId}
+            onChange={(e) => setForm({ ...form, wdId: e.target.value })}
+            required
+          />
 
-          {/* Bank */}
-          {/* Bank Searchable Dropdown */}
-          <div className="relative">
-            <label className="text-sm">Bank</label>
+          <SearchableSelect 
+            label="Bank"
+            options={coaList
+              .filter(h => h.headType === 'A' && (h.parentHeadName === 'Cash At Bank' || h.headName === 'Cash In Hand'))
+              .map(h => ({
+                id: h.headName,
+                name: `${h.headCode} - ${h.headName}`
+              }))}
+            value={form.bankAccount}
+            onChange={(val) => setForm({ ...form, bankAccount: val })}
+            placeholder="Select Bank"
+            required
+          />
 
-            {/* INPUT FIELD */}
-            <input
-              value={newTx.bankSearch || newTx.bank}
-              onChange={(e) =>
-                setNewTx({
-                  ...newTx,
-                  bankSearch: e.target.value,
-                  bankDropdown: true,
-                })
-              }
-              onClick={() =>
-                setNewTx((p) => ({ ...p, bankDropdown: !p.bankDropdown }))
-              }
-              placeholder="Search or select bank..."
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 cursor-pointer"
-            />
+          <InputField
+            label="Amount"
+            type="number"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            placeholder="0.00"
+            required
+            formatted
+          />
 
-            {/* DROPDOWN LIST */}
-            {newTx.bankDropdown && (
-              <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow max-h-[150px] overflow-auto">
-                {["Meezan Bank", "HBL", "UBL", "Bank Al Habib", "Alfalah"]
-                  .filter((b) =>
-                    b.toLowerCase().includes(newTx.bankSearch.toLowerCase())
-                  )
-                  .map((b) => (
-                    <div
-                      key={b}
-                      onClick={() =>
-                        setNewTx({
-                          ...newTx,
-                          bank: b,
-                          bankSearch: "",
-                          bankDropdown: false,
-                        })
-                      }
-                      className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm"
-                    >
-                      {b}
-                    </div>
-                  ))}
-
-                {/* No results */}
-                {["Meezan Bank", "HBL", "UBL", "Bank Al Habib", "Alfalah"].filter(
-                  (b) =>
-                    b.toLowerCase().includes(newTx.bankSearch.toLowerCase())
-                ).length === 0 && (
-                  <div className="px-3 py-2 text-gray-400 text-sm">
-                    No results found
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className="text-sm">Amount</label>
-            <InputField
-              label="Amount"
-              value={newTx.amount}
-              onChange={(e) =>
-                setNewTx({ ...newTx, amount: e.target.value })
-              }
-              type="number"
-              placeholder="0"
-              formatted
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-sm">Description</label>
-            <textarea
-              value={newTx.description}
-              onChange={(e) =>
-                setNewTx({ ...newTx, description: e.target.value })
-              }
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              rows={2}
-            />
-          </div>
+          <InputField
+            label="Description"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            textarea
+            rows={3}
+          />
         </div>
       </AddModal>
 
@@ -321,99 +299,6 @@ const [editData, setEditData] = useState({
       />
 
       {/* ---------------------- MAIN ---------------------- */}
-      <EditModal
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSave={handleUpdate}
-        title="Edit Bank Transaction"
-        width="750px"
-        permissionEdit={hasPermission(PERMISSIONS.CASH_BANK.EDIT)}
-        permissionDelete={false}
-        saveText="Update"
-        isInactive={editData.isInactive}
-      >
-        <div className="p-0 space-y-4">
-             {/* Date */}
-          <div>
-            <label className="text-sm">Date</label>
-            <input
-              type="date"
-              value={editData.date}
-              onChange={(e) => setEditData({ ...editData, date: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            />
-          </div>
-
-          {/* Account Type */}
-          <div>
-            <label className="text-sm">Account Type</label>
-            <select
-              value={editData.accountType}
-              onChange={(e) =>
-                setEditData({ ...editData, accountType: e.target.value })
-              }
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            >
-              <option value="Debit">Debit (-)</option>
-              <option value="Credit">Credit (+)</option>
-            </select>
-          </div>
-
-           {/* WD ID */}
-           <div>
-            <label className="text-sm">Withdraw / Deposit ID</label>
-            <input
-              value={editData.wdId}
-              onChange={(e) => setEditData({ ...editData, wdId: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            />
-          </div>
-
-          {/* Bank (Simple input for simplified logic) */}
-           <div>
-            <label className="text-sm">Bank</label>
-             <input
-              value={editData.bank}
-              onChange={(e) => setEditData({ ...editData, bank: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-               disabled={editData.isInactive}
-            />
-           </div>
-
-           {/* Amount */}
-          <div>
-            <label className="text-sm">Amount</label>
-            <InputField
-              label="Amount"
-              value={editData.amount}
-              onChange={(e) =>
-                setEditData({ ...editData, amount: e.target.value })
-              }
-              type="number"
-              disabled={editData.isInactive}
-              formatted
-            />
-          </div>
-
-           {/* Description */}
-          <div>
-            <label className="text-sm">Description</label>
-            <textarea
-              value={editData.description}
-              onChange={(e) =>
-                setEditData({ ...editData, description: e.target.value })
-              }
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-              rows={2}
-               disabled={editData.isInactive}
-            />
-          </div>
-
-        </div>
-      </EditModal>
 
       <ColumnPickerModal
         isOpen={columnModalOpen}
@@ -434,22 +319,17 @@ const [editData, setEditData] = useState({
             <MasterTable
                 columns={[
                     visibleColumns.id && { key: "id", label: "ID", sortable: true },
-                    visibleColumns.wdId && { key: "wdId", label: "W/D ID", sortable: true },
+                    visibleColumns.wdId && { key: "wdId", label: "Withdraw / Deposite ID", sortable: true },
                     visibleColumns.voucherType && { key: "voucherType", label: "Voucher Type", sortable: true },
-                    visibleColumns.date && { key: "date", label: "Date", sortable: true },
-                    visibleColumns.coaHeadName && { key: "coaHeadName", label: "COA Head", sortable: true },
+                    visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (r) => r.date ? new Date(r.date).toLocaleDateString() : "" },
+                    visibleColumns.coaHeadName && { key: "coaHeadName", label: "Coa Head Name", sortable: true },
                     visibleColumns.coa && { key: "coa", label: "COA", sortable: true },
                     visibleColumns.description && { key: "description", label: "Description", sortable: true },
-                    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (r) => (r.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-                    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (r) => (r.credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (r) => (r.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) },
+                    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (r) => (r.credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) },
                 ].filter(Boolean)}
                 data={rows}
-                // inactiveData={inactiveRows}
-                showInactive={showInactive}
-                // sortConfig={sortConfig}
-                // onSort={handleSort}
-                onRowClick={(r) => openEditModal(r)}
-                // Action Bar
+                onRowClick={null}
                 search={searchText}
                 onSearch={setSearchText}
                 onCreate={() => setModalOpen(true)}
@@ -458,17 +338,34 @@ const [editData, setEditData] = useState({
                 onRefresh={() => {
                     setSearchText("");
                     setPage(1);
-                    toast.success("Refreshed");
+                    fetchData();
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
-                onToggleInactive={() => setShowInactive((s) => !s)}
 
                 page={page}
                 setPage={setPage}
                 limit={limit}
                 setLimit={setLimit}
                 total={totalRecords}
-            />
+            >
+              <FilterBar 
+                filters={[
+                  { label: "Voucher Type", value: typeFilter, onChange: setTypeFilter, options: [
+                    { id: "Payment", name: "Payment" },
+                    { id: "Receipt", name: "Receipt" }
+                  ], placeholder: "Search..." },
+                  { label: "Date", type: "date", value: dateFilter.from, onChange: (v) => setDateFilter({...dateFilter, from: v}) },
+                  { label: "-", type: "date", value: dateFilter.to, onChange: (v) => setDateFilter({...dateFilter, to: v}) },
+                  { label: "COA", value: coaFilter, onChange: setCoaFilter, options: coaList.map(c => ({ id: c.headName, name: c.headName })), placeholder: "Search..." }
+                ]}
+                onClear={() => {
+                  setTypeFilter("");
+                  setDateFilter({ from: "", to: "" });
+                  setCoaFilter("");
+                }}
+                className="mb-2"
+              />
+            </MasterTable>
           </div>
           </ContentCard>
       </div>

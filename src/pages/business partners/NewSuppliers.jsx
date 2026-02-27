@@ -151,29 +151,28 @@ const NewSupplier = () => {
 
   // Handle return from NewEmployee with new ID
   useEffect(() => {
-    if (location.state?.newEmployeeId && location.state?.field) {
-        const { newEmployeeId, field, preservedState } = location.state;
-        
-        // Restore preserved form data if available
-        if (preservedState) {
-             setForm(prev => ({ ...prev, ...preservedState }));
-             
-             // Restore Cascading Lists if IDs exist
-             if (preservedState.countryId) {
-                 loadStatesForCountry(preservedState.countryId, { 
-                     preserve: true, 
-                     presetStateId: preservedState.stateId,
-                     presetCityId: preservedState.cityId 
-                 });
-             }
-             if (preservedState.stateId) {
-                 loadCitiesForState(preservedState.stateId, {
-                     preserve: true,
-                     presetCityId: preservedState.cityId
-                 });
-             }
-        }
+    if (location.state?.preservedState) {
+         setForm(prev => ({ ...prev, ...location.state.preservedState }));
+         
+         // Restore Cascading Lists if IDs exist
+         if (location.state.preservedState.countryId) {
+             loadStatesForCountry(location.state.preservedState.countryId, { 
+                 preserve: true, 
+                 presetStateId: location.state.preservedState.stateId,
+                 presetCityId: location.state.preservedState.cityId 
+             });
+         }
+         if (location.state.preservedState.stateId) {
+             loadCitiesForState(location.state.preservedState.stateId, {
+                 preserve: true,
+                 presetCityId: location.state.preservedState.cityId
+             });
+         }
+    }
 
+    if (location.state?.newEmployeeId && location.state?.field) {
+        const { newEmployeeId, field } = location.state;
+        
         // Reload employees to ensure the new one is in the list
         getEmployeesApi(1, 5000).then(res => {
              const arr = parseArrayFromResponse(res).map((e) => ({
@@ -186,6 +185,11 @@ const NewSupplier = () => {
                 update("orderBookerId", newEmployeeId);
             }
         });
+    }
+
+    if (location.state?.preservedState || (location.state?.newEmployeeId && location.state?.field)) {
+        // Clear state so refreshing the page doesn't run this again with old data
+        window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
@@ -902,7 +906,7 @@ const NewSupplier = () => {
           toast.success("Supplier updated");
           invalidateDashboard();
           if (location.state?.returnTo) {
-             navigate(location.state.returnTo, { state: { newSupplierId: id } }); 
+             navigate(location.state.returnTo, { state: { ...location.state, newSupplierId: id } }); 
           } else {
              navigate("/app/businesspartners/suppliers");
           }
@@ -917,7 +921,7 @@ const NewSupplier = () => {
           invalidateDashboard();
           const createdId = res.data.record?.id || res.data?.id; 
           if (location.state?.returnTo) {
-             navigate(location.state.returnTo, { state: { newSupplierId: createdId } });
+             navigate(location.state.returnTo, { state: { ...location.state, newSupplierId: createdId } });
           } else {
              navigate("/app/businesspartners/suppliers");
           }
@@ -925,10 +929,7 @@ const NewSupplier = () => {
         }
       }
 
-      // fallback (no APIs available)
-      console.log("Supplier payload:", payload);
-      toast.success(isEditMode ? "Supplier (pretend) updated" : "Supplier (pretend) created");
-      navigate("/app/businesspartners/suppliers");
+      // fallback removed: do nothing if API fails
     } catch (err) {
       console.error("submit supplier error", err);
       showErrorToast("Save failed");
@@ -1011,9 +1012,9 @@ const handleRestore = async () => {
                  <button 
                    onClick={() => {
                        if (location.state?.from) {
-                           navigate(location.state.from);
+                           navigate(location.state.from, { state: { ...location.state } });
                        } else if (location.state?.returnTo) {
-                           navigate(location.state.returnTo);
+                           navigate(location.state.returnTo, { state: { ...location.state } });
                        } else {
                            navigate("/app/businesspartners/suppliers");
                        }

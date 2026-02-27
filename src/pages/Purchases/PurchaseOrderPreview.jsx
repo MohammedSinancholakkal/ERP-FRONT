@@ -122,34 +122,39 @@ const PurchaseOrderPreview = () => {
           <div>
             <p className={`mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>From</p>
             <h3 className={`text-xl font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{settings?.companyName || "Home Button"}</h3>
-            <p>Phone: {settings?.phone || ""}</p>
-            <p>Email: {settings?.companyEmail || ""}</p>
-            {supplier?.gstin && <p>GSTIN: {supplier.gstin}</p>}
+            {settings?.phone && <p>Phone: {settings.phone}</p>}
+            {settings?.companyEmail && <p>Email: {settings.companyEmail}</p>}
+            {settings?.gstin && <p>GSTIN: {settings.gstin}</p>}
           </div>
           <div>
             <p className={`mb-2 font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>To</p>
             <h3 className={`text-xl font-bold mb-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
               {supplier?.companyName || "Supplier Name Not Available"}
             </h3>
-            <p className={`mb-4 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>
-              {supplier?.address || "Address not available"}
-              {supplier?.address && <br />}
-              {supplier?.addressLine2 && <>{supplier.addressLine2} </>}
-              {supplier?.state ? `"${supplier.state}" ` : ""}{supplier?.city ? `"${supplier.city}"` : ""}{supplier?.zipCode ? ` - ${supplier.zipCode}` : ""}
-            </p>
+            {(supplier?.address || supplier?.addressLine2 || supplier?.city || supplier?.state) && (
+              <p className={`mb-4 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>
+                  {supplier?.address}{supplier?.address && <br />}
+                  {supplier?.addressLine2 && <>{supplier.addressLine2} </>}
+                  {supplier?.state ? `${supplier.state} ` : ""}{supplier?.city ? `${supplier.city}` : ""}{supplier?.zipCode ? ` - ${supplier.zipCode}` : ""}
+              </p>
+            )}
             
-            <p className="mb-1">
-              Email:{" "}
-              <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
-                {supplier?.email || "-"}
-              </span>
-            </p>
-            <p className="mb-3">
-              Phone:{" "}
-              <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
-                {supplier?.phone || "-"}
-              </span>
-            </p>
+            {supplier?.email && (
+              <p className="mb-1">
+                Email:{" "}
+                <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
+                  {supplier.email}
+                </span>
+              </p>
+            )}
+            {supplier?.phone && (
+              <p className="mb-3">
+                Phone:{" "}
+                <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>
+                  {supplier.phone}
+                </span>
+              </p>
+            )}
 
             <p className={`mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>PO #{
   (purchase.POSequence || purchase.poSequence) 
@@ -175,11 +180,11 @@ const PurchaseOrderPreview = () => {
             <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-300'}`}>
               {details.map((item, index) => (
                 <tr key={index} className={`${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 hover:bg-gray-100' : 'bg-gray-800 hover:bg-gray-700/50'} transition-colors`}>
-                  <td className="py-3 px-2">{item.productName}</td>
-                  <td className="py-3 px-2 text-right">{parseFloat(item.UnitPrice).toFixed(2)}</td>
-                  <td className="py-3 px-2 text-center">{item.Quantity}</td>
-                  <td className="py-3 px-2 text-center">{parseFloat(item.Discount).toFixed(2)}</td>
-                  <td className="py-3 px-2 text-right">{parseFloat(item.Total).toFixed(2)}</td>
+                  <td className="py-3 px-2">{item.productName || item.ProductName || item.itemName || item.ItemName || item.description || item.Description}</td>
+                  <td className="py-3 px-2 text-right">{(Number(item.UnitPrice || item.unitPrice) || 0).toFixed(2)}</td>
+                  <td className="py-3 px-2 text-center">{item.Quantity ?? item.quantity ?? item.Qty ?? "-"}</td>
+                  <td className="py-3 px-2 text-center">{(Number(item.Discount || item.discount) || 0).toFixed(2)}</td>
+                  <td className="py-3 px-2 text-right">{(Number(item.Total || item.total) || 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

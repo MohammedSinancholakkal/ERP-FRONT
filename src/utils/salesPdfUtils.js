@@ -206,8 +206,7 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
 
        // Main Header Box (Company Info)
        const boxTopY = y + 8; // Was checkY + 2. Standardizing to y + 8 like Purchase PDF.
-       const boxH = 30;
-       drawBox(margin, boxTopY, contentWidth, boxH);
+       // We will draw the dynamically measured box at the end.
        
        // Logo
        const logoPath = settings?.logoPath; 
@@ -242,20 +241,37 @@ export const generateSalesInvoicePDF = async (saleId, settings, title = "Tax Inv
        doc.setFontSize(8);
        doc.setFont("helvetica", "normal");
        const address = settings?.address || "Address Line 1, City, State - Zip";
-       // split text relative to the remaining width (pageWidth - margin - blockX)
        const remainingWidth = pageWidth - margin - blockX - 2;
        const addressLines = doc.splitTextToSize(address, remainingWidth);
        doc.text(addressLines, blockX, boxTopY + 14);
        
-       // Contact - Split rows
-       // 1. Email
-       doc.text(`Email: ${settings?.companyEmail || ""}`, blockX, boxTopY + 19);
-       // 2. Phone
-       doc.text(`Phone: ${settings?.phone || ""}`, blockX, boxTopY + 23);
-       // 3. GSTIN
-       doc.text(`GSTIN: ${settings?.gstin || ""}`, blockX, boxTopY + 27);
+       // Calculate dynamic Y position after address
+       let currentY = boxTopY + 14 + (addressLines.length * 3.5);
 
-       return boxTopY + boxH;
+       // Contact Info - Conditionally rendered
+       const cEmail = settings?.companyEmail || "";
+       if (cEmail) {
+           doc.text(`Email: ${cEmail}`, blockX, currentY);
+           currentY += 4;
+       }
+
+       const cPhone = settings?.phone || "";
+       if (cPhone) {
+           doc.text(`Phone: ${cPhone}`, blockX, currentY);
+           currentY += 4;
+       }
+
+       const cGSTIN = settings?.gstin || "";
+       if (cGSTIN) {
+           doc.text(`GSTIN: ${cGSTIN}`, blockX, currentY);
+           currentY += 4;
+       }
+       
+       // Ensure Header box engulfs the dynamically pushed details
+       const dynamicBoxH = Math.max(30, currentY - boxTopY + 4);
+       drawBox(margin, boxTopY, contentWidth, dynamicBoxH);
+
+       return boxTopY + dynamicBoxH;
     };
 
     // Customer & Transport Section

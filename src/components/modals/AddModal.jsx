@@ -3,7 +3,7 @@ import BaseModal from './BaseModal';
 import { Save } from 'lucide-react';
 import { useTheme } from "../../context/ThemeContext";
 
-const AddModal = ({ isOpen, onClose, onSave, title = "New Item", children, saveText = "Save", zIndex }) => {
+const AddModal = ({ isOpen, onClose, onSave, title, children, saveText = "Save", zIndex }) => {
   const { theme } = useTheme();
   const modalRef = React.useRef(null);
 

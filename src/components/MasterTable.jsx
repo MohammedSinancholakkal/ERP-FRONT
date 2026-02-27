@@ -60,10 +60,10 @@ const MasterTable = ({
             ? `line-through bg-[#9CA3AF] text-white hover:bg-[#A0AEC0]`
             : `${
                 theme === "emerald"
-                  ? `${index % 2 === 0 ? "bg-gradient-to-r from-emerald-100 to-white" : "bg-gradient-to-r from-emerald-50 to-white"} hover:from-emerald-200 hover:to-white text-gray-900 border-emerald-300`
+                  ? `bg-gradient-to-r from-emerald-50 to-white hover:from-emerald-200 hover:to-white text-gray-900 border-emerald-300`
                   : theme === "purple"
                   ? "bg-white text-gray-900 border border-gray-200 shadow-sm hover:shadow-md transition-shadow hover:bg-gray-50 my-1"
-                  : `${index % 2 === 0 ? "bg-gray-900" : "bg-gray-800"} hover:bg-gray-700 text-white`
+                  : `bg-gray-900 hover:bg-gray-800 text-white border-b border-white`
               }`
         }
       `}

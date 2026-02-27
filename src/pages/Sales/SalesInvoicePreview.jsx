@@ -122,21 +122,22 @@ const SalesInvoicePreview = () => {
           <div>
             <p className={`mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>From</p>
             <h3 className={`text-lg font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{settings?.companyName || "Home Button"}</h3>
-            <p>Phone: {settings?.phone || ""}</p>
-            <p>Email: {settings?.companyEmail || ""}</p>
-            <p>GSTIN: {settings?.gstin || ""}</p>
+            {settings?.phone && <p>Phone: {settings.phone}</p>}
+            {settings?.companyEmail && <p>Email: {settings.companyEmail}</p>}
+            {settings?.gstin && <p>GSTIN: {settings.gstin}</p>}
           </div>
 
           {/* TO */}
           <div>
             <p className={`mb-2 font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>To</p>
             <h3 className={`text-lg font-bold mb-3 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer?.name || "Customer Name Not Available"}</h3>
-            <p className={`mt-2 mb-2 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>
-                {customer?.address || "Address not available"}
-                {customer?.address && <br />}
-                {customer?.addressLine2 && <>{customer.addressLine2} </>}
-                {customer?.state ? `"${customer.state}" ` : ""}{customer?.city ? `"${customer.city}"` : ""}{customer?.zipCode ? ` - ${customer.zipCode}` : ""}
-            </p>
+            {(customer?.address || customer?.addressLine2 || customer?.city || customer?.state) && (
+              <p className={`mt-2 mb-2 whitespace-pre-wrap ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-gray-200'}`}>
+                  {customer?.address}{customer?.address && <br />}
+                  {customer?.addressLine2 && <>{customer.addressLine2} </>}
+                  {customer?.state ? `${customer.state} ` : ""}{customer?.city ? `${customer.city}` : ""}{customer?.zipCode ? ` - ${customer.zipCode}` : ""}
+              </p>
+            )}
             
             {customer?.email && (
                 <p className="text-sm">Email: <span className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{customer.email}</span></p>
@@ -176,11 +177,11 @@ const SalesInvoicePreview = () => {
                 <tr><td colSpan={5} className="py-6 text-center text-gray-400">No items</td></tr>
               ) : details.map((it, idx) => (
                 <tr key={idx} className={`${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 hover:bg-gray-100 text-gray-800' : 'bg-gray-900 hover:bg-gray-700 text-white'}`}>
-                  <td className="px-2 py-3">{it.productName || it.ProductName || it.description || it.Description}</td>
-                  <td className="px-2 py-3 text-right">{(Number(it.UnitPrice) || 0).toFixed(2)}</td>
-                  <td className="px-2 py-3 text-center">{it.Quantity ?? it.Qty ?? "-"}</td>
-                  <td className="px-2 py-3 text-center">{(it.Discount ?? 0).toFixed(2)}</td>
-                  <td className="px-2 py-3 text-right">{(Number(it.Total) || 0).toFixed(2)}</td>
+                  <td className="px-2 py-3">{it.productName || it.ProductName || it.itemName || it.ItemName || it.description || it.Description}</td>
+                  <td className="px-2 py-3 text-right">{(Number(it.UnitPrice || it.unitPrice) || 0).toFixed(2)}</td>
+                  <td className="px-2 py-3 text-center">{it.Quantity ?? it.quantity ?? it.Qty ?? "-"}</td>
+                  <td className="px-2 py-3 text-center">{(Number(it.Discount || it.discount) || 0).toFixed(2)}</td>
+                  <td className="px-2 py-3 text-right">{(Number(it.Total || it.total) || 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -204,23 +205,23 @@ const SalesInvoicePreview = () => {
             {(Number(sale.IGSTRate) > 0) ? (
                <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                  <span>IGST ({sale.IGSTRate}%):</span>
-                 <span>{(Number(sale.Vat) || 0).toFixed(2)}</span>
+                 <span>{(Number(sale.TotalTax) || 0).toFixed(2)}</span>
                </div>
             ) : (Number(sale.CGSTRate) > 0 || Number(sale.SGSTRate) > 0) ? (
                <>
                  <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                    <span>CGST ({sale.CGSTRate}%):</span>
-                   <span>{((Number(sale.Vat) || 0) / 2).toFixed(2)}</span>
+                   <span>{((Number(sale.TotalTax) || 0) / 2).toFixed(2)}</span>
                  </div>
                  <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                    <span>SGST ({sale.SGSTRate}%):</span>
-                   <span>{((Number(sale.Vat) || 0) / 2).toFixed(2)}</span>
+                   <span>{((Number(sale.TotalTax) || 0) / 2).toFixed(2)}</span>
                  </div>
                </>
             ) : (
                <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
                  <span>Tax:</span>
-                 <span>{(Number(sale.Vat) || 0).toFixed(2)}</span>
+                 <span>{(Number(sale.TotalTax) || 0).toFixed(2)}</span>
                </div>
             )}
             <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}><span>Shipping:</span><span>{(Number(sale.ShippingCost) || 0).toFixed(2)}</span></div>

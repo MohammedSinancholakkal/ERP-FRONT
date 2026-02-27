@@ -318,7 +318,7 @@ if (response?.status === 200) {
       <div className={`h-[90vh] flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-50' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200' : 'bg-gray-900'}`}>
         <div className="flex flex-col items-center gap-3">
           <div className={`w-10 h-10 border-4 rounded-full animate-spin ${theme === 'emerald' ? 'border-emerald-500 border-t-transparent' : theme === 'purple' ? 'border-[#6448AE] border-t-transparent' : 'border-blue-500 border-t-transparent'}`}></div>
-          <span className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-[#6448AE] font-medium' : 'text-gray-300'}`}>Loading settings...</span>
+          <span className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-[#6448AE] font-medium' : 'text-white'}`}>Loading settings...</span>
         </div>
       </div>
     );
@@ -353,7 +353,7 @@ if (response?.status === 200) {
           <div className="max-w-[1500px]">
             {/* COMPANY NAME */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Company Name *</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Company Name *</label>
               <input
                 className={`w-full border rounded px-3 py-2 ${
                   errors.companyName ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
@@ -370,7 +370,7 @@ if (response?.status === 200) {
 
             {/* EMAIL */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Company Email</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Company Email</label>
               <input
                 className={`w-full border rounded px-3 py-2 ${
                   errors.companyEmail ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
@@ -387,7 +387,7 @@ if (response?.status === 200) {
 
             {/* ADDRESS */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Address</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Address</label>
               <input
                 className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                 value={address}
@@ -397,7 +397,7 @@ if (response?.status === 200) {
 
             {/* PHONE */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Phone</label>
+              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Phone</label>
               <input
                 className={`w-full border rounded px-3 py-2 ${
                   errors.phone ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
@@ -411,7 +411,7 @@ if (response?.status === 200) {
             </div>
 
             {/* CURRENCY SECTION */}
-            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Currency</label>
+            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Currency</label>
             <div className="flex items-center gap-2">
               <select
                 className={`flex-1 border rounded px-3 py-2 ${
@@ -462,7 +462,7 @@ if (response?.status === 200) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               {/* Tax % */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Tax Percentage *</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Tax Percentage *</label>
                 <input
                   className={`w-full border rounded px-3 py-2 ${
                     errors.taxPercentage ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
@@ -479,7 +479,7 @@ if (response?.status === 200) {
 
               {/* GSTIN */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>GSTIN</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>GSTIN</label>
                 <input
                   className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                   value={gstin}
@@ -489,7 +489,7 @@ if (response?.status === 200) {
 
              {/* PAN No */}
              <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>PAN No</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>PAN No</label>
                 <input
                   className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
                   value={pan}
@@ -499,7 +499,7 @@ if (response?.status === 200) {
 
               {/* Tax TYPE */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Tax Type *</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Tax Type *</label>
                 <select
                   className={`w-full border rounded px-3 py-2 ${
                     errors.taxType ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
@@ -521,7 +521,7 @@ if (response?.status === 200) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               {/* Logo */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Logo</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Logo</label>
                 <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!logo ? (
                     <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
@@ -553,7 +553,7 @@ if (response?.status === 200) {
 
               {/* Invoice Logo */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Invoice Logo</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Invoice Logo</label>
                 <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!invoiceLogo ? (
                     <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
@@ -591,7 +591,7 @@ if (response?.status === 200) {
 
               {/* Favicon */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Favicon</label>
+                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Favicon</label>
                 <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!favicon ? (
                     <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
@@ -623,7 +623,7 @@ if (response?.status === 200) {
             </div>
 
             {/* CURRENCY POSITION */}
-            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Currency Position *</label>
+            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Currency Position *</label>
             <select
               className={`w-full border rounded px-3 py-2 mb-1 ${
                 errors.currencyPosition ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
@@ -642,7 +642,7 @@ if (response?.status === 200) {
             )}
 
             {/* FOOTER TEXT */}
-            <label className={`block mb-1 mt-4 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Footer Text</label>
+            <label className={`block mb-1 mt-4 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Footer Text</label>
             <textarea
               rows={4}
               className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}

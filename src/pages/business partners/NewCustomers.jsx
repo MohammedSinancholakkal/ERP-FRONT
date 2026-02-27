@@ -151,13 +151,27 @@ const NewCustomer = () => {
   }, []);
 
   useEffect(() => {
-    if (location.state?.newEmployeeId && location.state?.field) {
-        const { newEmployeeId, field, preservedState } = location.state;
+    if (location.state?.preservedState) {
+        setForm(prev => ({ ...prev, ...location.state.preservedState }));
         
-        if (preservedState) {
-            setForm(prev => ({ ...prev, ...preservedState }));
+        // Restore Cascading Lists if IDs exist
+        if (location.state.preservedState.countryId) {
+            loadStatesForCountry(location.state.preservedState.countryId, { 
+                preserve: true, 
+                presetStateId: location.state.preservedState.stateId,
+                presetCityId: location.state.preservedState.cityId 
+            });
         }
+        if (location.state.preservedState.stateId) {
+            loadCitiesForState(location.state.preservedState.stateId, {
+                preserve: true,
+                presetCityId: location.state.preservedState.cityId
+            });
+        }
+    }
 
+    if (location.state?.newEmployeeId && location.state?.field) {
+        const { newEmployeeId, field } = location.state;
         getEmployeesApi(1, 5000).then(res => {
              const arr = parseArrayFromResponse(res).map((e) => ({
                 id: e.Id ?? e.id,
@@ -169,6 +183,11 @@ const NewCustomer = () => {
                 update("orderBookerId", newEmployeeId);
             }
         });
+    }
+
+    if (location.state?.preservedState || (location.state?.newEmployeeId && location.state?.field)) {
+        // Clear the state so refreshing the page doesn't run this again with old data
+        window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 

@@ -64,26 +64,26 @@ const ProductWiseSalesReport = () => {
 
   return (
     <PageLayout>
-      <div id="report-content" className={`p-6 h-full flex flex-col gap-6 overflow-hidden print:absolute print:top-0 print:left-0 print:w-full print:h-auto print:m-0 print:p-8 print:bg-white print:overflow-visible print:z-50`}>
+      <div id="report-content" className={`p-6 h-full flex flex-col gap-6 overflow-hidden print:absolute print:top-0 print:left-0 print:w-full print:h-auto print:m-0 print:p-8 print:bg-white print:overflow-visible print:z-50 ${theme === 'emerald' ? 'bg-gradient-to-br from-emerald-100 to-white text-gray-900' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         
         {/* TOP FILTER BAR */}
-        <div className="bg-white p-4 rounded-lg shadow-sm flex flex-wrap items-center gap-4 text-gray-800 flex-none z-10 print:hidden">
+        <div className={`p-4 rounded-lg shadow-sm flex flex-wrap items-center gap-4 flex-none z-10 print:hidden ${theme === 'dark' ? 'bg-gray-800 text-white border border-gray-700' : 'bg-white text-gray-800'}`}>
             <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-500">From</label>
+                <label className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
                 <input 
                     type="date" 
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-600 outline-none focus:border-blue-500 w-48" 
+                    className={`border rounded px-3 py-2 text-sm outline-none focus:border-blue-500 w-48 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300 text-gray-600'}`} 
                 />
             </div>
             <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-500">To</label>
+                <label className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
                 <input 
                     type="date" 
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-600 outline-none focus:border-blue-500 w-48" 
+                    className={`border rounded px-3 py-2 text-sm outline-none focus:border-blue-500 w-48 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300 text-gray-600'}`} 
                 />
             </div>
             
@@ -141,13 +141,13 @@ const ProductWiseSalesReport = () => {
 
             {/* SCREEN HEADER */}
             <div className="flex flex-col gap-1 flex-none print:hidden">
-                <div className="flex justify-between items-center border-b pb-2">
+                <div className={`flex justify-between items-center border-b pb-2 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
                     <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Product Wise Sales Report</h2>
                 </div>
                 
                 <div className="relative flex justify-center items-center mt-2">
                     <h1 className={`text-2xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>{companyName}</h1>
-                    <div className="absolute right-0 bottom-0 text-sm text-black font-medium pb-1">
+                    <div className={`absolute right-0 bottom-0 text-sm font-medium pb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
                         Date: {todayDate}
                     </div>
                 </div>
@@ -157,7 +157,7 @@ const ProductWiseSalesReport = () => {
             <div className="w-full overflow-x-auto print:overflow-visible">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="text-sm font-bold text-purple-800 border-b border-purple-200 bg-purple-50 sticky top-0 z-0 print:static print:bg-white print:text-black">
+                        <tr className={`text-sm font-bold border-b sticky top-0 z-0 print:static print:bg-white print:text-black ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-gray-900 text-white border-gray-700'}`}>
                             <th className="py-3 px-4 w-32 print:w-[15%] print:px-1">Sales Date</th>
                             <th className="py-3 px-4 print:px-1">Product</th>
                             <th className="py-3 px-4 w-32 print:w-[15%] print:px-1">Invoice No</th>
@@ -168,22 +168,22 @@ const ProductWiseSalesReport = () => {
                             <th className="py-3 px-4 text-left w-28 print:w-[10%] print:px-1">Total</th>
                         </tr>
                     </thead>
-                    <tbody className="text-sm text-gray-600 print:text-black">
+                    <tbody className={`text-sm print:text-black ${theme === 'dark' ? 'text-gray-200' : 'text-gray-600'}`}>
                         {loading ? (
                             <tr><td colSpan="8" className="text-center py-6">Loading data...</td></tr>
                         ) : salesData.length === 0 ? (
                             <tr><td colSpan="8" className="text-center py-6">No records found.</td></tr>
                         ) : (
                             salesData.map((row, index) => (
-                                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 align-top print:border-gray-200">
-                                    <td className="py-3 px-4 font-medium pt-3 whitespace-nowrap">{new Date(row.date).toLocaleDateString()}</td>
-                                    <td className="py-3 px-4 font-medium pt-3">{row.productName}</td>
-                                    <td className="py-3 px-4 font-medium pt-3 whitespace-nowrap">{row.invoiceNo || row.vno}</td>
-                                    <td className="py-3 px-4 font-medium pt-3">{row.customerName}</td>
-                                    <td className="py-3 px-4 font-medium text-left pt-3 whitespace-nowrap">{Number(row.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    <td className="py-3 px-4 font-bold text-center pt-3 whitespace-nowrap">{row.quantity}</td>
-                                    <td className="py-3 px-4 text-center pt-3 whitespace-nowrap">{Number(row.discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    <td className="py-3 px-4 font-bold text-gray-900 text-left pt-3 whitespace-nowrap print:text-black">{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <tr key={index} className={`border-b align-top print:border-gray-200 ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                    <td className={`py-3 px-4 font-medium pt-3 whitespace-nowrap ${theme === 'dark' ? 'text-white' : ''}`}>{new Date(row.date).toLocaleDateString()}</td>
+                                    <td className={`py-3 px-4 font-medium pt-3 ${theme === 'dark' ? 'text-white' : ''}`}>{row.productName}</td>
+                                    <td className={`py-3 px-4 font-medium pt-3 whitespace-nowrap ${theme === 'dark' ? 'text-white' : ''}`}>{row.invoiceNo || row.vno}</td>
+                                    <td className={`py-3 px-4 font-medium pt-3 ${theme === 'dark' ? 'text-white' : ''}`}>{row.customerName}</td>
+                                    <td className={`py-3 px-4 font-medium text-left pt-3 whitespace-nowrap ${theme === 'dark' ? 'text-white' : ''}`}>{Number(row.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <td className={`py-3 px-4 font-bold text-center pt-3 whitespace-nowrap ${theme === 'dark' ? 'text-white' : ''}`}>{row.quantity}</td>
+                                    <td className={`py-3 px-4 text-center pt-3 whitespace-nowrap ${theme === 'dark' ? 'text-white' : ''}`}>{Number(row.discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                    <td className={`py-3 px-4 font-bold text-left pt-3 whitespace-nowrap print:text-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 </tr>
                             ))
                         )}

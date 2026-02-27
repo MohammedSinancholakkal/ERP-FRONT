@@ -19,7 +19,7 @@ const InputField = ({
   if (props.textarea) {
     return (
       <div className={`w-full ${className}`}>
-        {label && <label className="block text-sm mb-1 text-black font-medium">{label} {required && "*"}</label>}
+        {label && <label className={`block text-sm mb-1 font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>{label} {required && "*"}</label>}
         <textarea
           value={value}
           onChange={onChange}
@@ -31,7 +31,7 @@ const InputField = ({
               ? "bg-emerald-50 border-emerald-600 text-emerald-900 placeholder-emerald-400 focus:border-emerald-400"
               : theme === "purple"
               ? "bg-white border-gray-300 text-purple-900 placeholder-gray-400 placeholder:text-xs focus:border-gray-500"
-              : "bg-gray-900 border-gray-700 text-white placeholder-gray-500 focus:border-gray-500"
+              : theme === "dark" ? "bg-gray-900 border-gray-700 text-white placeholder-gray-500 focus:border-gray-500" : "bg-white border-gray-300 text-black placeholder-gray-400 focus:border-gray-500"
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
           {...props}
         />
@@ -79,7 +79,7 @@ const InputField = ({
 
   return (
     <div className={`w-full ${className}`}>
-      {label && <label className="block text-sm mb-1 text-black font-medium">{label} {required && "*"}</label>}
+      {label && <label className={`block text-sm mb-1 font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>{label} {required && "*"}</label>}
       <input
         type={inputType}
         value={displayValue}
@@ -95,7 +95,7 @@ const InputField = ({
               ? "bg-emerald-50 border-emerald-600 text-emerald-900 placeholder-emerald-400 focus:border-emerald-400"
               : theme === "purple"
               ? "bg-white border-gray-300 text-purple-900 placeholder-gray-400 placeholder:text-xs focus:border-gray-500"
-              : "bg-gray-900 border-gray-700 text-white placeholder-gray-500 focus:border-gray-500"
+              : theme === "dark" ? "bg-gray-900 border-gray-700 text-white placeholder-gray-500 focus:border-gray-500" : "bg-white border-gray-300 text-black placeholder-gray-400 focus:border-gray-500"
         } ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${props.inputClassName || ""}`}
         {...props}
       />

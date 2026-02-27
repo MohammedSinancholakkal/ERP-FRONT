@@ -7,6 +7,8 @@ import PageLayout from "../../layout/PageLayout";
 import ContentCard from "../../components/ContentCard";
 import InputField from "../../components/InputField";
 import { useTheme } from "../../context/ThemeContext";
+import { getDayClosingStatusApi, saveDayClosingApi } from "../../services/allAPI";
+import { showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
 
 const DayClosing = () => {
   const { theme } = useTheme();
@@ -24,11 +26,51 @@ const DayClosing = () => {
   const [receive, setReceive] = useState(0);
   const [payment, setPayment] = useState(0);
   const [balance, setBalance] = useState(0);
+  const [isClosed, setIsClosed] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Compute balance dynamically
+  // Fetch today's closing status
   useEffect(() => {
-    setBalance(Number(lastDayClosing) + Number(receive) - Number(payment));
-  }, [lastDayClosing, receive, payment]);
+    fetchClosingStatus();
+  }, []);
+
+  const fetchClosingStatus = async () => {
+    try {
+      setLoading(true);
+      const res = await getDayClosingStatusApi();
+      if (res.status === 200) {
+        setLastDayClosing(res.data.lastDayClosing);
+        setReceive(res.data.receive);
+        setPayment(res.data.payment);
+        setBalance(res.data.balance);
+        setIsClosed(res.data.isClosed);
+      }
+    } catch (err) {
+      console.error(err);
+      showErrorToast("Failed to fetch day closing status");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloseDay = async () => {
+    try {
+      const payload = {
+        lastDayClosing,
+        receive,
+        payment,
+        balance
+      };
+      const res = await saveDayClosingApi(payload);
+      if (res.status === 201 || res.status === 200) {
+        showSuccessToast("Day successfully closed!");
+        setIsClosed(true);
+      }
+    } catch (err) {
+      console.error(err);
+      showErrorToast(err.response?.data?.message || "Failed to close the day");
+    }
+  };
 
   // Format today's date
   const today = new Date().toLocaleDateString("en-GB", {
@@ -58,7 +100,17 @@ const DayClosing = () => {
 
           {/* BUTTON (left aligned, below labels) */}
          <button
-            className={`border px-4 py-2 rounded text-sm font-medium ${theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'}`}>Close Day</button>
+            onClick={handleCloseDay}
+            disabled={isClosed || loading}
+            className={`border px-4 py-2 rounded text-sm font-medium ${
+                isClosed || loading
+                ? 'bg-gray-400 text-gray-700 border-gray-400 cursor-not-allowed'
+                : theme === 'emerald' ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-sm' 
+                : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white border-[#6448AE]' 
+                : 'bg-gray-800 border-gray-600 text-blue-300 hover:bg-gray-700'
+            }`}>
+                {isClosed ? 'Day Closed' : 'Close Day'}
+        </button>
         </div>
 
         {/* INPUT FIELDS */}

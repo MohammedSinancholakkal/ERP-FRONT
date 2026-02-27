@@ -16,8 +16,10 @@ import {
   addCreditVoucherApi, 
   updateCreditVoucherApi, 
   deleteCreditVoucherApi,
-  restoreCreditVoucherApi 
+  restoreCreditVoucherApi,
+  getCOAHeadsApi 
 } from "../../services/allAPI"; 
+import SearchableSelect from "../../components/SearchableSelect"; 
 
 const CreditVoucher = () => {
   const { theme } = useTheme();
@@ -28,12 +30,13 @@ const CreditVoucher = () => {
   const defaultColumns = {
     id: true,
     vno: true,
-    vtype: true,
     date: true,
-    debitAccountHead: true,
+    creditAccountHead: true,
     account: true,
-    remark: true,
     amount: true,
+    remark: true,
+    debit: true,
+    credit: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
@@ -43,6 +46,7 @@ const CreditVoucher = () => {
   // -----------------------------------
   const [dataList, setDataList] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
+  const [coaList, setCoaList] = useState([]); // Store COA heads
   
   const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(1);
@@ -72,7 +76,7 @@ const CreditVoucher = () => {
       const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
       const effectiveSearch = overrideSearchText === null ? searchText : overrideSearchText;
       
-      const res = await getCreditVouchersApi(effectiveShowInactive, effectiveSearch);
+      const res = await getCreditVouchersApi(effectiveShowInactive, effectiveSearch, sortConfig.key, sortConfig.direction);
       
       if (res && res.status === 200) {
         if (Array.isArray(res.data) && (res.data.length === 0 || typeof res.data[0] === 'object')) {
@@ -99,7 +103,22 @@ const CreditVoucher = () => {
         loadData();
     }, 400); // 400ms debounce
     return () => clearTimeout(timer);
-  }, [showInactive, searchText]);
+  }, [showInactive, searchText, sortConfig]);
+
+  // Fetch COA Heads
+  useEffect(() => {
+    const fetchCoa = async () => {
+        try {
+            const res = await getCOAHeadsApi();
+            if (res.status === 200) {
+                setCoaList(res.data);
+            }
+        } catch (err) {
+            console.error("Failed to load COA", err);
+        }
+    };
+    fetchCoa();
+  }, []);
 
   // -----------------------------------
   // MODAL STATES
@@ -110,20 +129,49 @@ const CreditVoucher = () => {
   const [form, setForm] = useState({
     id: null,
     date: new Date().toISOString().split("T")[0],
-    debitAccountHead: "",
+    creditAccountHead: "",
     account: "",
     amount: "",
     remark: "",
     isActive: true
   });
 
-  const accountOptions = ["Cash at Hand", "Cash at Bank"];
+  // -----------------------------------
+  // FILTERED COA LIST FOR CREDIT VOUCHER
+  // -----------------------------------
+  const filteredCoaList = React.useMemo(() => {
+    if (!coaList || coaList.length === 0) return [];
+
+    // 1. Find the parent codes we want to allow for the Account field
+    const allowedRoots = coaList.filter(coa => {
+        const name = (coa.headName || '').toLowerCase();
+        const type = (coa.headType || '').toLowerCase();
+
+        return (
+            name.includes('current asset') ||                       // Current Assets
+            type === 'i' || type === 'inc' || name === 'income'     // Income
+        );
+    }).map(coa => coa.headCode);
+
+    // 2. Filter the entire list to only show items that START WITH any allowed root code
+    return coaList.filter(coa => {
+        return allowedRoots.some(rootCode => strStartsWith(coa.headCode, rootCode));
+    });
+  }, [coaList]);
+
+  // Helper string startsWith
+  function strStartsWith(str, prefix) {
+      if (!str || !prefix) return false;
+      return String(str).startsWith(String(prefix));
+  }
+
+
 
   const resetForm = () => {
     setForm({
         id: null,
         date: new Date().toISOString().split("T")[0],
-        debitAccountHead: "",
+        creditAccountHead: "",
         account: "",
         amount: "",
         remark: "",
@@ -140,8 +188,8 @@ const CreditVoucher = () => {
       setForm({
           id: item.id,
           date: item.date ? item.date.split("T")[0] : "",
-          // Note: Backend might return 'DebitAccountHead' or 'debitAccountHead', check schema
-          debitAccountHead: item.debitAccountHead, 
+          // Note: Backend still sends 'debitAccountHead' as per SQL column name, we alias it
+          creditAccountHead: item.debitAccountHead, 
           account: item.account,
           amount: item.amount,
           remark: item.remark,
@@ -152,14 +200,19 @@ const CreditVoucher = () => {
 
   const handleSave = async (e) => {
     if(e && e.preventDefault) e.preventDefault();
-    if(!form.debitAccountHead || !form.account || !form.amount || !form.date) {
+    if(!form.creditAccountHead || !form.account || !form.amount || !form.date) {
         showErrorToast("Please fill all required fields");
         return;
     }
 
     try {
         const user = JSON.parse(localStorage.getItem("user"));
-        const payload = { ...form, userId: user?.userId || 1 };
+        // Backend actively expects 'debitAccountHead' to insert into the old table column name
+        const payload = { 
+            ...form, 
+            debitAccountHead: form.creditAccountHead,
+            userId: user?.userId || 1 
+        };
         
         let res;
         if(form.id) {
@@ -230,10 +283,12 @@ const CreditVoucher = () => {
     visibleColumns.vno && { key: "vno", label: "V No", sortable: true, render: (item) => item.vno || item.VNo },
     visibleColumns.vtype && { key: "vtype", label: "V Type", sortable: true, render: (item) => item.vtype || item.VType },
     visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (item) => new Date(item.date || item.Date).toLocaleDateString() },
-    visibleColumns.debitAccountHead && { key: "debitAccountHead", label: "Debit A/C Head", sortable: true, render: (item) => item.debitAccountHead || item.DebitAccountHead },
-    visibleColumns.account && { key: "account", label: "Account", sortable: true, render: (item) => item.account || item.Account },
-    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true, render: (item) => item.remark || item.Remark },
-    visibleColumns.amount && { key: "amount", label: "Amount", sortable: true, render: (item) => (item.amount || item.Amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    visibleColumns.creditAccountHead && { key: "creditAccountHead", label: "Credit A/C Head", sortable: true, render: (item) => item.debitAccountHead },
+    visibleColumns.account && { key: "account", label: "Account Head", sortable: true, render: (item) => item.account },
+    visibleColumns.amount && { key: "amount", label: "Total Amount", sortable: true, render: (item) => (item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    visibleColumns.remark && { key: "remark", label: "Remark", sortable: true, render: (item) => item.remark },
+    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (item) => (item.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (item) => (item.credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
   ].filter(Boolean);
 
   // -----------------------------------
@@ -252,44 +307,33 @@ const CreditVoucher = () => {
            />
         </div>
         <div>
-           <label className="text-sm text-black font-medium block mb-1">Debit Account Head *</label>
-           <select
-              value={form.debitAccountHead}
-              onChange={(e) => setForm({ ...form, debitAccountHead: e.target.value })}
+           <SearchableSelect 
+              label="Credit Account Head"
+              required
+              options={[
+                  { id: 'Cash at Hand', name: 'Cash at Hand' },
+                  { id: 'Cash at Bank', name: 'Cash at Bank' }
+              ]}
+              value={form.creditAccountHead}
+              onChange={(val) => setForm({ ...form, creditAccountHead: val })}
               disabled={!form.isActive}
-              className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
-                  theme === "emerald"
-                    ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
-                    : theme === "purple"
-                    ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
-                    : "bg-gray-800 border-gray-700 text-white"
-              } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-           >
-              <option value="">Select Account</option>
-              {accountOptions.map((opt) => (
-                 <option key={opt} value={opt}>{opt}</option>
-              ))}
-           </select>
+              placeholder="Select Payment Target"
+           />
         </div>
         <div>
-           <label className="text-sm text-black font-medium block mb-1">Account *</label>
-           <select
-             value={form.account}
-             onChange={(e) => setForm({ ...form, account: e.target.value })}
-             disabled={!form.isActive}
-             className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
-                  theme === "emerald"
-                    ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
-                    : theme === "purple"
-                    ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
-                    : "bg-gray-800 border-gray-700 text-white"
-             } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-           >
-             <option value="">Select Account</option>
-             {accountOptions.map((a) => (
-               <option key={a} value={a}>{a}</option>
-             ))}
-           </select>
+           {/* Swapped to dynamic SearchableSelect using filteredCoaList for Account */}
+           <SearchableSelect 
+               label="Account"
+               required
+               options={filteredCoaList.map(h => ({
+                   id: h.headName, // Backend expects Name
+                   name: `${h.headCode} - ${h.headName}`
+               }))}
+               value={form.account}
+               onChange={(val) => setForm({ ...form, account: val })}
+               disabled={!form.isActive}
+               placeholder="Select Income/Asset Account"
+            />
         </div>
         <div>
            <InputField
@@ -303,7 +347,7 @@ const CreditVoucher = () => {
            />
         </div>
         <div>
-            <label className="text-sm text-black font-medium block mb-1">Remarks</label>
+            <label className={`text-sm font-medium block mb-1 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>Remarks *</label>
             <textarea
               value={form.remark}
               onChange={(e) => setForm({ ...form, remark: e.target.value })}

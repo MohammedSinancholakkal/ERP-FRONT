@@ -16,8 +16,10 @@ import {
   addJournalVoucherApi, 
   updateJournalVoucherApi, 
   deleteJournalVoucherApi,
-  restoreJournalVoucherApi 
+  restoreJournalVoucherApi,
+  getCOAHeadsApi
 } from "../../services/allAPI"; 
+import SearchableSelect from "../../components/SearchableSelect"; 
 
 const JournalVoucher = () => {
   const { theme } = useTheme();
@@ -30,9 +32,9 @@ const JournalVoucher = () => {
     vno: true,
     vtype: true,
     date: true,
-    account: true,
-    debit: true,
-    credit: true,
+    debitAccount: true,
+    creditAccount: true,
+    amount: true,
     remark: true,
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
@@ -43,6 +45,7 @@ const JournalVoucher = () => {
   // -----------------------------------
   const [dataList, setDataList] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
+  const [coaList, setCoaList] = useState([]);
   
   const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(1);
@@ -72,7 +75,7 @@ const JournalVoucher = () => {
       const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
       const effectiveSearch = overrideSearchText === null ? searchText : overrideSearchText;
 
-      const res = await getJournalVouchersApi(effectiveShowInactive, effectiveSearch);
+      const res = await getJournalVouchersApi(effectiveShowInactive, effectiveSearch, sortConfig.key, sortConfig.direction);
       
       if (res && res.status === 200) {
         if (Array.isArray(res.data) && (res.data.length === 0 || typeof res.data[0] === 'object')) {
@@ -98,7 +101,21 @@ const JournalVoucher = () => {
         loadData();
     }, 400); 
     return () => clearTimeout(timer);
-  }, [showInactive, searchText]);
+  }, [showInactive, searchText, sortConfig]);
+
+  useEffect(() => {
+    const fetchCoa = async () => {
+        try {
+            const res = await getCOAHeadsApi();
+            if (res.status === 200) {
+                setCoaList(res.data);
+            }
+        } catch (err) {
+            console.error("Failed to load COA", err);
+        }
+    };
+    fetchCoa();
+  }, []);
 
   // -----------------------------------
   // MODAL STATES
@@ -109,22 +126,71 @@ const JournalVoucher = () => {
   const [form, setForm] = useState({
     id: null,
     date: new Date().toISOString().split("T")[0],
-    account: "",
-    debit: "",
-    credit: "",
+    debitAccount: "",
+    creditAccount: "",
+    amount: "",
     remark: "",
     isActive: true
   });
 
-  const accountOptions = ["Cash at Hand", "Cash at Bank"];
+  const filteredExpensesList = React.useMemo(() => {
+    if (!coaList || coaList.length === 0) return [];
+    
+    // Find IDs or HeadCodes of main Expense accounts
+    const expenseRoots = coaList.filter(coa => {
+        const name = (coa.headName || '').toLowerCase();
+        const type = (coa.headType || '').toLowerCase();
+        return (name === 'expense' || type === 'e' || type === 'exp');
+    });
+
+    const rootCodes = expenseRoots.map(c => String(c.headCode));
+    const rootNames = expenseRoots.map(c => (c.headName || '').toLowerCase());
+
+    return coaList.filter(coa => {
+        // Is it a root itself?
+        const isRoot = rootCodes.includes(String(coa.headCode));
+        // Is its parent one of the roots? (Checking parentHead which might be the code, or parentHeadName)
+        const isChild = rootCodes.includes(String(coa.parentHead)) || 
+                        rootNames.includes((coa.parentHeadName || '').toLowerCase()) ||
+                        rootNames.includes((coa.pHeadName || '').toLowerCase());
+        
+        return isRoot || isChild;
+    });
+  }, [coaList]);
+
+  const filteredPayableList = React.useMemo(() => {
+    if (!coaList || coaList.length === 0) return [];
+    
+    // Find the roots for "Account Payable" or "Accounts Payable" or "Vendors"
+    const payableRoots = coaList.filter(coa => {
+        const name = (coa.headName || '').toLowerCase();
+        return name.includes('payable') || name.includes('vendor') || name.includes('current liabilit');
+    });
+
+    const rootCodes = payableRoots.map(c => String(c.headCode));
+    const rootNames = payableRoots.map(c => (c.headName || '').toLowerCase());
+
+    return coaList.filter(coa => {
+        // Only include actual vendor/payable accounts which are the CHILDREN of these roots.
+        // If the user wants to see the children of "Accounts Payable" specifically:
+        const isChild = rootCodes.includes(String(coa.parentHead)) || 
+                        rootNames.includes((coa.parentHeadName || '').toLowerCase()) ||
+                        rootNames.includes((coa.pHeadName || '').toLowerCase());
+        
+        // Let's also enforce that we only return items that ACTUALLY have a parent matching our list, 
+        // to strictly show children as the user requested. If we must show roots too in case they have no children, we can add `isRoot`.
+        // Let's return ONLY children as per user request: "i wnat to show the childs of Accounts Payable"
+        return isChild;
+    });
+  }, [coaList]);
 
   const resetForm = () => {
     setForm({
         id: null,
         date: new Date().toISOString().split("T")[0],
-        account: "",
-        debit: "",
-        credit: "",
+        debitAccount: "",
+        creditAccount: "",
+        amount: "",
         remark: "",
         isActive: true
     });
@@ -139,9 +205,9 @@ const JournalVoucher = () => {
       setForm({
           id: item.id,
           date: item.date ? item.date.split("T")[0] : "",
-          account: item.account,
-          debit: item.debit,
-          credit: item.credit,
+          debitAccount: item.debitAccount,
+          creditAccount: item.creditAccount,
+          amount: item.amount,
           remark: item.remark,
           isActive: item.isActive
       });
@@ -150,12 +216,8 @@ const JournalVoucher = () => {
 
   const handleSave = async (e) => {
     if(e && e.preventDefault) e.preventDefault();
-    if(!form.account || !form.date) {
-        showErrorToast("Please fill Account and Date");
-        return;
-    }
-    if(!form.debit && !form.credit) {
-        showErrorToast("Please enter Debit or Credit amount");
+    if(!form.debitAccount || !form.creditAccount || !form.amount || !form.date) {
+        showErrorToast("Please fill all required fields");
         return;
     }
 
@@ -163,9 +225,7 @@ const JournalVoucher = () => {
         const user = JSON.parse(localStorage.getItem("user"));
         const payload = { ...form, userId: user?.userId || 1 };
         
-        // Convert empty strings to 0 for backend
-        payload.debit = payload.debit || 0;
-        payload.credit = payload.credit || 0;
+        payload.amount = payload.amount || 0;
         
         let res;
         if(form.id) {
@@ -236,10 +296,9 @@ const JournalVoucher = () => {
     visibleColumns.vno && { key: "vno", label: "V No", sortable: true, render: (item) => item.vno || item.VNo },
     visibleColumns.vtype && { key: "vtype", label: "V Type", sortable: true, render: (item) => item.vtype || item.VType },
     visibleColumns.date && { key: "date", label: "Date", sortable: true, render: (item) => new Date(item.date || item.Date).toLocaleDateString() },
-    visibleColumns.account && { key: "account", label: "Account", sortable: true, render: (item) => item.account || item.Account },
-    // Handle potential null/undefined better
-    visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (item) => (Number(item.debit || item.Debit) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
-    visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (item) => (Number(item.credit || item.Credit) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+    visibleColumns.debitAccount && { key: "debitAccount", label: "Debit Account", sortable: true, render: (item) => item.debitAccount || item.DebitAccount },
+    visibleColumns.creditAccount && { key: "creditAccount", label: "Credit Account", sortable: true, render: (item) => item.creditAccount || item.CreditAccount },
+    visibleColumns.amount && { key: "amount", label: "Amount", sortable: true, render: (item) => (Number(item.amount || item.Amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     visibleColumns.remark && { key: "remark", label: "Remark", sortable: true, render: (item) => item.remark || item.Remark },
   ].filter(Boolean);
 
@@ -258,52 +317,51 @@ const JournalVoucher = () => {
              required
            />
         </div>
-        <div>
-           <label className="text-sm text-black font-medium block mb-1">Account *</label>
-           <select
-              value={form.account}
-              onChange={(e) => setForm({ ...form, account: e.target.value })}
-              disabled={!form.isActive}
-              className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
-                  theme === "emerald"
-                    ? "bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400"
-                    : theme === "purple"
-                    ? "bg-white border-gray-300 text-purple-900 focus:border-gray-500"
-                    : "bg-gray-800 border-gray-700 text-white"
-              } ${!form.isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-           >
-              <option value="">Select Account</option>
-              {accountOptions.map((opt) => (
-                 <option key={opt} value={opt}>{opt}</option>
-              ))}
-           </select>
+        <div className="flex gap-4">
+             <div className="flex-1 z-20">
+               <SearchableSelect 
+                   label="Debit Account (Expenses)"
+                   required
+                   options={filteredExpensesList.map(h => ({
+                       id: h.headName,
+                       name: `${h.headCode} - ${h.headName}`
+                   }))}
+                   value={form.debitAccount}
+                   onChange={(val) => setForm({ ...form, debitAccount: val })}
+                   disabled={!form.isActive}
+                   placeholder="Select Debit Account"
+                />
+             </div>
+             <div className="flex-1 z-10">
+               <SearchableSelect 
+                   label="Credit Account (Accounts Payable)"
+                   required
+                   options={filteredPayableList.map(h => ({
+                       id: h.headName,
+                       name: `${h.headCode} - ${h.headName}`
+                   }))}
+                   value={form.creditAccount}
+                   onChange={(val) => setForm({ ...form, creditAccount: val })}
+                   disabled={!form.isActive}
+                   placeholder="Select Credit Account"
+                />
+             </div>
         </div>
         
-        <div className="flex gap-4">
-             <div className="flex-1">
-               <InputField
-                  label="Debit"
-                  type="number"
-                  value={form.debit}
-                  onChange={(e) => setForm({ ...form, debit: e.target.value })}
-                  disabled={!form.isActive}
-                  formatted
-               />
-             </div>
-             <div className="flex-1">
-               <InputField
-                  label="Credit"
-                  type="number"
-                  value={form.credit}
-                  onChange={(e) => setForm({ ...form, credit: e.target.value })}
-                  disabled={!form.isActive}
-                  formatted
-               />
-             </div>
+        <div>
+           <InputField
+              label="Amount"
+              type="number"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              disabled={!form.isActive}
+              formatted
+              required
+           />
         </div>
 
         <div>
-            <label className="text-sm text-black font-medium block mb-1">Remarks</label>
+            <label className={`text-sm font-medium block mb-1 ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>Remarks *</label>
             <textarea
               value={form.remark}
               onChange={(e) => setForm({ ...form, remark: e.target.value })}

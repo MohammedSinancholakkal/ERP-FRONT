@@ -12,7 +12,7 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('appTheme', theme);
     // Remove all previous theme classes
-    document.body.classList.remove('theme-dark', 'theme-light', 'theme-emerald', 'theme-blue');
+    document.body.classList.remove('theme-dark', 'theme-light', 'theme-emerald', 'theme-blue', 'theme-purple');
     // Add current theme class
     document.body.classList.add(`theme-${theme}`);
   }, [theme]);

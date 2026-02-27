@@ -159,9 +159,20 @@ const NewMeeting = () => {
             setAttendeeForm(savedAttendeeForm);
             setEditIndex(savedEditIndex);
         }
-        // Clear state to prevent reapplying
+    } 
+    
+    // Fallback if no preserved state but we still got an employee ID
+    else if (location.state?.newEmployeeId && location.state?.field) {
+        setForm(prev => ({...prev, [location.state.field]: String(location.state.newEmployeeId)}));
+        loadEmployees();
+    }
+    
+    // Clear state if we processed any returns
+    if (location.state?.preservedState || (location.state?.newEmployeeId && location.state?.field)) {
         window.history.replaceState({}, document.title);
-    } else if (isEdit) {
+    } 
+    
+    if (isEdit && !location.state?.preservedState) {
       setForm(f => ({ ...f }));
     }
   }, [isEdit, location.state]);
@@ -1014,7 +1025,7 @@ const NewMeeting = () => {
       onClick={onClick}
       className={`pb-2 text-sm font-medium ${active
         ? "text-emerald-500 border-b-2 border-emerald-500"
-        : "text-gray-400 hover:text-gray-600"
+        : theme === 'dark' ? "text-gray-400 hover:text-white" : "text-gray-400 hover:text-gray-600"
         }`}
     >
       {label}
@@ -1036,7 +1047,7 @@ const NewMeeting = () => {
                  
                     <ArrowLeft size={24} />
                  </button>
-                 <h2 className="text-xl font-bold text-[#6448AE]">{isEdit ? "Edit Meeting" : "New Meeting"}</h2>
+                 <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-[#6448AE]'}`}>{isEdit ? "Edit Meeting" : "New Meeting"}</h2>
               </div>
     
               <div className="flex items-center gap-3">
@@ -1057,7 +1068,7 @@ const NewMeeting = () => {
                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                      : theme === 'purple'
                      ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white'
-                     : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-blue-300'
+                     : 'bg-gray-700 border border-gray-600 hover:bg-gray-600 text-white'
                   } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   {loading ? (
@@ -1098,10 +1109,10 @@ const NewMeeting = () => {
 
                 {/* Location */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className="block text-sm font-medium mb-1 text-black font-medium font-medium">Location <span className="text-dark">*</span></label>
                     <div className="flex items-center gap-2">
                           <div className="flex-1 font-medium">
                             <SearchableSelect 
+                                label="Location *"
                                 options={locations}
                                 value={form.location}
                                 onChange={(val) => updateField("location", val)}
@@ -1109,7 +1120,7 @@ const NewMeeting = () => {
                                 className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
                             />
                         </div>
-                         <button onClick={() => handleCreateNew("Location")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                         <button onClick={() => handleCreateNew("Location")} className={`p-2  mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                             <Star size={16} />
                         </button>
                     </div>
@@ -1147,7 +1158,7 @@ const NewMeeting = () => {
 
                 {/* Meeting Type */}
                 <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Meeting Type *</label>
+                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Meeting Type *</label>
                     <div className="flex items-center gap-2">
                          <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -1166,7 +1177,7 @@ const NewMeeting = () => {
 
                  {/* Department */}
                  <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Department <span className="text-dark">*</span></label>
+                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Department <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span></label>
                     <div className="flex items-center gap-2">
                          <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -1185,7 +1196,7 @@ const NewMeeting = () => {
 
                 {/* Organized By */}
                 <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Organized By <span className="text-dark">*</span></label>
+                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Organized By <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span></label>
                     <div className="flex items-center gap-2">
                          <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -1204,7 +1215,7 @@ const NewMeeting = () => {
 
                 {/* Reporter */}
                 <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : ''}`}>Reporter <span className="text-dark">*</span></label>
+                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Reporter <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span></label>
                     <div className="flex items-center gap-2">
                           <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -1225,7 +1236,7 @@ const NewMeeting = () => {
             {/* ATTENDEES SECTION */}
             <div className="mt-8">
                  <div className="flex items-center justify-between mb-4">
-                     <h3 className="text-lg font-semibold">Attendees</h3>
+                     <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : ''}`}>Attendees</h3>
                      <button
                         onClick={() => setShowAttendeeModal(true)}
                         className={`flex items-center gap-2 px-4 py-1.5 rounded text-sm transition-colors border ${
@@ -1233,7 +1244,7 @@ const NewMeeting = () => {
                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' 
                             : theme === 'purple'
                             ?  ' bg-[#6448AE] hover:bg-[#6E55B6] text-white'
-                            : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-blue-300'
+                            : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-white'
                         }`}
                      >
                         <Plus size={16} />
@@ -1245,7 +1256,7 @@ const NewMeeting = () => {
                  <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? 'border-gray-200' : theme === 'purple' ? 'border-purple-200' : 'border-gray-700'}`}>
                     <table className="w-full text-left border-collapse">
                        <thead>
-                          <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900' : 'bg-gray-800 text-gray-400'}>
+                          <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900' : 'bg-gray-900 text-gray-200'}>
                              <th className="p-3 text-sm font-medium">Name</th>
                              <th className="p-3 text-sm font-medium">Type</th>
                              <th className="p-3 text-sm font-medium">Status</th>
@@ -1255,8 +1266,8 @@ const NewMeeting = () => {
                        <tbody>
                           {form.attendees.map((row, index) => (
                              <tr key={index} className={`border-t ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                                <td className="p-3 text-sm text-purple-800 font-medium ">{row.attendee}</td>
-                                <td className="p-3 text-sm text-purple-800 font-medium ">{row.attendeeType}</td>
+                                <td className={`p-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{row.attendee}</td>
+                                <td className={`p-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{row.attendeeType}</td>
                                 <td className="p-3 text-sm">
                                    <span className={`rounded text-sm ${
                                        row.attendanceStatus === 'Present' 
@@ -1267,10 +1278,10 @@ const NewMeeting = () => {
                                    </span>
                                 </td>
                                 <td className="p-3 text-right flex justify-end gap-2">
-                                     <button onClick={() => editAttendee(index)} className="p-1 text-purple-800 hover:text-blue-400">
+                                     <button onClick={() => editAttendee(index)} className={`p-1 hover:text-blue-400 ${theme === 'dark' ? 'text-blue-300' : 'text-purple-800'}`}>
                                          <Pencil size={16} />
                                      </button>
-                                     <button onClick={() => deleteAttendee(index)} className="p-1 text-purple-800 hover:text-red-400">
+                                     <button onClick={() => deleteAttendee(index)} className={`p-1 hover:text-red-400 ${theme === 'dark' ? 'text-red-300' : 'text-purple-800'}`}>
                                          <Trash2 size={16} />
                                      </button>
                                 </td>
@@ -1315,7 +1326,7 @@ const NewMeeting = () => {
             <div className="p-0 space-y-4">
             {/* ATTENDEE DROPDOWN */}
             <div>
-              <label className="block text-sm font-medium mb-1">Attendee *</label>
+              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Attendee *</label>
               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={employees.map(e => ({ id: e.id, name: e.name }))}
@@ -1338,7 +1349,7 @@ const NewMeeting = () => {
 
             {/* TYPE DROPDOWN */}
              <div>
-              <label className="block text-sm font-medium mb-1">Attendee Type *</label>
+              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Attendee Type *</label>
               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
@@ -1361,7 +1372,7 @@ const NewMeeting = () => {
 
             {/* STATUS DROPDOWN */}
              <div>
-              <label className="block text-sm font-medium mb-1">Attendance Status *</label>
+              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Attendance Status *</label>
               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
@@ -1457,7 +1468,7 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Reporter *</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-white'}`}>Reporter *</label>
                 <div className="flex gap-2">
                    <div className="flex-1">
                     <SearchableSelect
@@ -1472,7 +1483,7 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Description</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-white'}`}>Description</label>
                 <textarea
                   value={newDepartment.description}
                   onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
@@ -1482,7 +1493,7 @@ const NewMeeting = () => {
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-gray-300'}`}>Parent Department</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-white'}`}>Parent Department</label>
                 <SearchableSelect
                   options={departments.map(d => ({ id: d.id, name: d.name }))}
                   value={newDepartment.parentDepartmentId}
@@ -1516,7 +1527,7 @@ const NewMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className="block text-sm font-medium mb-1">Country</label>
+                     <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Country</label>
                     <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
@@ -1540,7 +1551,7 @@ const NewMeeting = () => {
 
               <div>
                 <div className="space-y-1">
-                    <label className="block text-sm font-medium mb-1">State</label>
+                     <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>State</label>
                     <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
@@ -1564,7 +1575,7 @@ const NewMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className="block text-sm font-medium mb-1">City</label>
+                     <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>City</label>
                     <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
@@ -1647,7 +1658,7 @@ const NewMeeting = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Country *</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newState.countryId}
@@ -1677,7 +1688,7 @@ const NewMeeting = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Country *</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newCity.countryId}
@@ -1687,7 +1698,7 @@ const NewMeeting = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">State *</label>
+                <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>State *</label>
                 <SearchableSelect
                   options={modalStates.map(s => ({ id: s.id, name: s.name }))}
                   value={newCity.stateId}

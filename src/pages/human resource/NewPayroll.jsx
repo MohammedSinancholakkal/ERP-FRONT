@@ -494,7 +494,7 @@ const NewPayroll = () => {
 
           <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm">
-              <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-700 text-white'}`}>
+              <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                 <tr>
                   <th className="p-3">Employee</th>
                   <th className="p-3">Bank Account</th>

@@ -56,6 +56,7 @@ updateCityApi,
 updateRegionApi,
 updateDepartmentApi,
 updateDesignationApi,
+addBankApi,
 
 } from "../../services/allAPI";
 import { serverURL } from "../../services/serverURL";
@@ -68,64 +69,7 @@ import AddModal from "../../components/modals/AddModal";
 import ContentCard from "../../components/ContentCard";
 import InputField from "../../components/InputField";
 
-// 1. Update EmpSearchableSelect Star and Asterisk
-const EmpSearchableSelect = ({
-  label,
-  value,
-  options,
-  onChange,
-  required = false,
-  onAdd,
-  onEdit, // Accepted onEdit
-  placeholder = "Select...",
-  disabled = false,
-  ...props
-}) => {
-  const { theme } = useTheme();
-  return (
-    <div className="w-full">
-      <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
-        {label} 
-        {required && <span className="text-dark"> *</span>}
-      </label>
-      <div className="flex gap-2 items-start">
-        <div className="flex-grow">
-          <SearchableSelect
-            options={options}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            disabled={disabled}
-            className={`${theme === 'emerald' ? 'bg-white text-emerald-900' : theme === 'purple' ? 'bg-white text-purple-800' : 'bg-gray-800'} font-medium`}
-            {...props}
-          />
-        </div>
-        
-        {(onAdd || onEdit) ? (
-          <button
-            type="button"
-            onClick={() => {
-                // If value exists and onEdit is present, use onEdit.
-                // Otherwise use onAdd if present.
-                if (value && onEdit) {
-                    onEdit();
-                } else if (onAdd) {
-                    onAdd();
-                }
-            }}
-            disabled={disabled}
-            className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
-            title={value && onEdit ? "Edit" : "Add"}
-          >
-            {value && onEdit ? <Pencil size={16}/> : <Star size={16}/>}
-          </button>
-        ) : (
-           <div className="flex-shrink-0 w-[38px] h-[38px]"></div>
-        )}
-      </div>
-    </div>
-  );
-};
+
 
 
 
@@ -315,6 +259,14 @@ const loadEmployeeForEdit = async () => {
   });
   
   const [lookupName, setLookupName] = useState("");
+  const [lookupBankForm, setLookupBankForm] = useState({ 
+      ACNumber: "", 
+      ACName: "", 
+      Branch: "",
+      SignaturePicture: null,
+      isCompanyBank: false
+  });
+  const [lookupBankPreview, setLookupBankPreview] = useState("");
 
   const lookupSetters = {
       setCountries, setStates, setCities, setRegions, setTerritories,
@@ -326,8 +278,26 @@ const loadEmployeeForEdit = async () => {
     if (showLookupCreateModal) {
         if (lookupCreateContext.mode === 'edit' && lookupCreateContext.item) {
             setLookupName(lookupCreateContext.item.name || lookupCreateContext.item.Name || lookupCreateContext.item.description || lookupCreateContext.item.Description || "");
+            if (lookupCreateContext.key === 'bank') {
+                setLookupBankForm({
+                    ACNumber: lookupCreateContext.item.acNumber || lookupCreateContext.item.ACNumber || "",
+                    ACName: lookupCreateContext.item.acName || lookupCreateContext.item.ACName || "",
+                    Branch: lookupCreateContext.item.branch || lookupCreateContext.item.Branch || "",
+                    SignaturePicture: null,
+                    isCompanyBank: !!(lookupCreateContext.item.IsCompanyBank ?? lookupCreateContext.item.isCompanyBank)
+                });
+                if (lookupCreateContext.item.signature || lookupCreateContext.item.SignaturePicture) {
+                    const sigPath = lookupCreateContext.item.signature || lookupCreateContext.item.SignaturePicture;
+                    const baseUrl = serverURL.replace(/\/api\/?$/, "");
+                    setLookupBankPreview(sigPath.startsWith("http") || sigPath.startsWith("data:") ? sigPath : `${baseUrl}/${sigPath.startsWith("/") ? sigPath.substring(1) : sigPath.includes("uploads") ? sigPath : "uploads/" + sigPath}`);
+                } else {
+                    setLookupBankPreview("");
+                }
+            }
         } else {
             setLookupName("");
+            setLookupBankForm({ ACNumber: "", ACName: "", Branch: "", SignaturePicture: null, isCompanyBank: false });
+            setLookupBankPreview("");
         }
     }
   }, [showLookupCreateModal, lookupCreateContext]);
@@ -439,13 +409,33 @@ const loadEmployeeForEdit = async () => {
            const res = await addDesignationApi({ designation: lookupName.trim(), userId });
            created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else if (key === 'bank') {
-           // Bank handling if needed
+           if (!lookupBankForm.ACNumber?.trim()) return showErrorToast("Account Number required");
+           const acNumLen = lookupBankForm.ACNumber.trim().length;
+           if (acNumLen < 10 || acNumLen > 18) return showErrorToast("Account Number must be between 10 and 18 digits");
+           if (!/^\d+$/.test(lookupBankForm.ACNumber.trim())) return showErrorToast("Account Number allows only digits");
+
+           // Create a new bank with full fields
+           const res = await addBankApi({
+             BankName: lookupName.trim(),
+             ACName: lookupBankForm.ACName || "",
+             ACNumber: lookupBankForm.ACNumber.trim(),
+             Branch: lookupBankForm.Branch || "",
+             SignaturePicture: lookupBankForm.SignaturePicture,
+             userId,
+             isCompanyBank: lookupBankForm.isCompanyBank || false
+           });
+           created = (res?.status === 200 || res?.status === 201) ? (res.data?.record || res.data) : null;
         } else {
            created = { id: `t_${Date.now()}`, name: lookupName.trim() };
         }
       }
 
       if (!created && mode === 'add' && !wasDuplicate) return; // Add failed
+
+      if (!created) {
+        showErrorToast('Failed to create or update. Please try again.');
+        return;
+      }
       if (!created && mode === 'edit') created = { ...item, name: lookupName.trim() }; // Fallback edit
 
       // Normalize created record for dropdowns
@@ -858,9 +848,9 @@ const submitEmployee = async () => {
       if (location.state?.returnTo) {
         navigate(location.state.returnTo, { 
           state: { 
+            ...location.state,
             newEmployeeId: res.data?.record?.id || res.data?.id || res.data?.Id,
-            field: location.state.field,
-            preservedState: location.state.preservedState // Pass back state
+            field: location.state.field
           } 
         });
       } else {
@@ -973,10 +963,10 @@ const handleRestore = async () => {
                 onClick={() => {
                   if (location.state?.returnTo) {
                       navigate(location.state.returnTo, {
-                          state: { preservedState: location.state.preservedState }
+                          state: { ...location.state }
                       });
                   } else if (location.state?.from) {
-                      navigate(location.state.from);
+                      navigate(location.state.from, { state: { ...location.state } });
                   } else {
                       navigate("/app/hr/employees");
                   }
@@ -1065,53 +1055,65 @@ const handleRestore = async () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-w-full font-medium">
                     
                     {/* Row 1: Names */}
-                    <div>
-                      <InputField
-                        label="First Name"
-                        value={form.firstName}
-                        onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))}
-                        placeholder="John"
-                        required
-                        disabled={isRestoreMode}
-                        className="font-medium"
-                      />
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="First Name"
+                          value={form.firstName}
+                          onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))}
+                          placeholder="John"
+                          required
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
-                    <div>
-                      <InputField
-                        label="Last Name"
-                        value={form.lastName}
-                        onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))}
-                        required={false}
-                        disabled={isRestoreMode}
-                        className="font-medium"
-                      />
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="Last Name"
+                          value={form.lastName}
+                          onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))}
+                          required={false}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
 
                     {/* Row 2: Contact */}
-                    <div>
-                      <InputField
-                        label="Phone"
-                        value={form.phone}
-                        onChange={(e) => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                        required={true}
-                        disabled={isRestoreMode}
-                        className="font-medium"
-                      />
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="Phone"
+                          value={form.phone}
+                          onChange={(e) => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                          required={true}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
-                    <div>
-                      <InputField
-                        label="Email"
-                        value={form.email}
-                        onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
-                        required={true}
-                        disabled={isRestoreMode}
-                        className="font-medium"
-                      />
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="Email"
+                          value={form.email}
+                          onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
+                          required={true}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
 
                     {/* Row 3: Role Info */}
                     <div className="z-[50]">
-                      <EmpSearchableSelect
+                      <SearchableSelect
                         label="Designation"
                         options={designations.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.designation ?? x.DesignationName }))}
                         value={form.designationId}
@@ -1130,7 +1132,7 @@ const handleRestore = async () => {
                       />
                     </div>
                     <div className="z-[50]">
-                      <EmpSearchableSelect
+                      <SearchableSelect
                         label="Department"
                         options={departments.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.department ?? x.DepartmentName }))}
                         value={form.departmentId}
@@ -1151,17 +1153,19 @@ const handleRestore = async () => {
 
                     {/* Row 4: Compensation */}
                     <div>
-                      <EmpSearchableSelect
+                      <SearchableSelect
                          label="Rate Type"
                          options={[{id: 'hourly', name: 'Hourly'}, {id: 'salary', name: 'Salary'}]}
                          value={form.rateType}
                          onChange={(val) => setForm(p => ({ ...p, rateType: val }))}
                          placeholder="Select Rate Type"
                          disabled={isRestoreMode}
+                         showSpacer
                       />
                     </div>
-                    <div>
-                      <InputField
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
                         label="Hour Rate / Salary"
                         value={form.hourlyRate}
                         onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))}
@@ -1169,12 +1173,14 @@ const handleRestore = async () => {
                         className="font-medium"
                         formatted
                       />
+                     </div>
+                     <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
 
                     {/* Row 5: Details & Picture */}
                     {/* Details: Blood Group & Zip Code */ }
                     <div>
-                      <EmpSearchableSelect
+                      <SearchableSelect
                          label="Blood Group"
                          options={BLOOD_GROUPS.map(b => ({ id: b, name: b }))}
                          value={form.bloodGroup}
@@ -1182,17 +1188,21 @@ const handleRestore = async () => {
                          placeholder="Select Blood Group"
                          dropdownHeight="max-h-36"
                          disabled={isRestoreMode}
+                         showSpacer
                       />
                     </div>
                     
-                    <div>
-                      <InputField
-                        label="Zip Code"
-                        value={form.zipCode}
-                        onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))}
-                        disabled={isRestoreMode}
-                        className="font-medium"
-                      />
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="Zip Code"
+                          value={form.zipCode}
+                          onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
 
                     {/* DIVIDER */}
@@ -1200,7 +1210,7 @@ const handleRestore = async () => {
 
                     {/* LOCATION SECTION */}
                     <div className="z-[40]">
-                      <EmpSearchableSelect
+                      <SearchableSelect
                         label="Country"
                         options={countries.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
                         value={form.countryId}
@@ -1225,7 +1235,7 @@ const handleRestore = async () => {
                       />
                     </div>
                     <div className="z-[40]">
-                      <EmpSearchableSelect
+                      <SearchableSelect
                         label="State"
                         options={states.filter(s => (form.countryId ? String(s.countryId) === String(form.countryId) : true)).map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
                         value={form.stateId}
@@ -1251,7 +1261,7 @@ const handleRestore = async () => {
                     </div>
 
                     <div className="z-[30]">
-                      <EmpSearchableSelect
+                      <SearchableSelect
                         label="City"
                         options={cities.filter(c => (form.stateId ? String(c.stateId) === String(form.stateId) : true)).map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
                         value={form.cityId}
@@ -1270,7 +1280,7 @@ const handleRestore = async () => {
                       />
                     </div>
                    <div className="z-[30]">
-  <EmpSearchableSelect
+  <SearchableSelect
     label="Region"
     options={regions.map(x => ({
       id: x.regionId ?? x.id,
@@ -1317,7 +1327,7 @@ const handleRestore = async () => {
 
 
                     <div className="z-[20]">
-                       <EmpSearchableSelect
+                       <SearchableSelect
                           label="Territory"
                           options={territories.map(x => ({ id: x.territoryId ?? x.id, name: x.territoryDescription ?? x.name }))}
                           value={form.territoryId}
@@ -1338,12 +1348,13 @@ const handleRestore = async () => {
 
 
                     <div className="z-[20]">
-                      <EmpSearchableSelect
+                      <SearchableSelect
                           label="User Mapping (Optional)"
                           options={users.map(x => ({ id: x.userId ?? x.id, name: x.username ?? x.email ?? x.name }))}
                           value={form.userId}
                           onChange={(val) => setForm({ ...form, userId: val })}
                           disabled={isRestoreMode}
+                          showSpacer
                         />
                     </div>
                     
@@ -1413,7 +1424,7 @@ const handleRestore = async () => {
 
                     {/* Payroll Bank */}
                     <div>
-                      <EmpSearchableSelect
+                      <SearchableSelect
                         label="Payroll Bank"
                         options={banks.map(x => ({ id: x.Id ?? x.id, name: x.BankName ?? x.name }))}
                         value={form.payrollBankId}
@@ -1469,8 +1480,8 @@ const handleRestore = async () => {
                     {/* 50% WIDTH TABLE */}
                     <div className=" border border-gray-700 rounded p-2 overflow-x-auto w-1/2">
                       <table className="w-full text-center text-sm">
-                        <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-gray-700' : 'bg-gray-900 text-white'}`}>
-                          <tr className="text-purple-800">
+                        <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+                          <tr className={`${theme === 'emerald' || theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
                             <th className="py-2 pr-4">Income</th>
                             <th className="py-2 w-24">Amount</th>
                             <th className="py-2">Description</th>
@@ -1539,7 +1550,7 @@ const handleRestore = async () => {
                     <div className=" border border-gray-700 rounded p-2 overflow-x-auto w-1/2">
                       <table className="w-full text-center text-sm">
                         <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
-                          <tr className="text-purple-800">
+                          <tr className={`${theme === 'emerald' || theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
                             <th className="py-2 pr-4">Deduction</th>
                             <th className="py-2 w-24">Amount</th>
                             <th className="py-2">Description</th>
@@ -1667,15 +1678,98 @@ const handleRestore = async () => {
         onClose={() => setShowLookupCreateModal(false)}
         onSave={handleLookupSave}
         title={`${lookupCreateContext.mode === "edit" ? "Edit" : "Create"} ${lookupCreateContext.key}`}
-        width="500px"
+        width={lookupCreateContext.key === 'bank' ? "600px" : "500px"}
       >
-        <div className="space-y-3">
-            <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Name <span className="text-dark">*</span></label>
-            <input 
-              value={lookupName} 
-              onChange={(e) => setLookupName(e.target.value)} 
-              className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
-            />
+        <div className={lookupCreateContext.key === 'bank' ? "grid grid-cols-2 gap-4" : "space-y-3"}>
+            {lookupCreateContext.key !== 'bank' && (
+                <>
+                    <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Name <span className="text-dark">*</span></label>
+                    <input 
+                      value={lookupName} 
+                      onChange={(e) => setLookupName(e.target.value)} 
+                      className={`w-full border rounded px-2 py-1.5 text-sm ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-600 text-gray-200'}`} 
+                    />
+                </>
+            )}
+            
+            {lookupCreateContext.key === 'bank' && (
+              <>
+                <div>
+                   <InputField label="Bank Name" value={lookupName} onChange={(e) => setLookupName(e.target.value)} required />
+                </div>
+                <div>
+                   <InputField label="A/C Number" value={lookupBankForm.ACNumber} onChange={(e) => setLookupBankForm({...lookupBankForm, ACNumber: e.target.value.replace(/\D/g, "").slice(0, 18)})} required />
+                </div>
+                <div>
+                   <InputField label="A/C Name" value={lookupBankForm.ACName} onChange={(e) => setLookupBankForm({...lookupBankForm, ACName: e.target.value})} />
+                </div>
+                <div>
+                   <InputField label="Branch" value={lookupBankForm.Branch} onChange={(e) => setLookupBankForm({...lookupBankForm, Branch: e.target.value})} />
+                </div>
+                
+                <div className="col-span-2">
+                    <label className="text-sm font-medium text-dark">Signature</label>
+                    <div className="mt-2 w-full">
+                         <div className="w-full border-2 border-dashed border-gray-700 rounded-lg flex flex-col items-center justify-center relative overflow-hidden h-[160px] bg-white">
+                              {lookupBankPreview ? (
+                                  <>
+                                      <img 
+                                          src={lookupBankPreview} 
+                                          alt="Prev" 
+                                          className="absolute inset-0 w-full h-full object-contain p-2" 
+                                      />
+                                      <div className="absolute top-2 right-2 flex gap-1">
+                                          <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
+                                              <Pencil size={14} />
+                                              <input type="file" hidden onChange={(e) => {
+                                                  if(e.target.files[0]) {
+                                                      setLookupBankForm(p => ({...p, SignaturePicture: e.target.files[0]}));
+                                                      setLookupBankPreview(URL.createObjectURL(e.target.files[0]));
+                                                  }
+                                              }} accept="image/*" />
+                                          </label>
+                                          <button 
+                                              onClick={() => {
+                                                  setLookupBankForm(p => ({...p, SignaturePicture: null}));
+                                                  setLookupBankPreview("");
+                                              }}
+                                              className="p-1.5 bg-red-900/80 rounded hover:bg-red-800 text-white"
+                                          >
+                                              <Trash2 size={14} />
+                                          </button>
+                                      </div>
+                                  </>
+                              ) : (
+                                  <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-400 hover:text-gray-500 transition-colors p-4 w-full h-full justify-center">
+                                       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                      <span className="text-xs">Click to Upload Signature</span>
+                                      <input type="file" hidden onChange={(e) => {
+                                          if(e.target.files[0]) {
+                                              setLookupBankForm(p => ({...p, SignaturePicture: e.target.files[0]}));
+                                              setLookupBankPreview(URL.createObjectURL(e.target.files[0]));
+                                          }
+                                      }} accept="image/*" />
+                                  </label>
+                              )}
+                         </div>
+                    </div>
+               </div>
+               <div className="col-span-2 mt-2">
+                   {((JSON.parse(localStorage.getItem("user")) || {}).userId === 1 || form.userId === 1) && (
+                       <label className={`flex items-center gap-2 cursor-pointer w-fit ${(banks.find(r => r.isCompanyBank)?.id) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                           <input 
+                              type="checkbox" 
+                              checked={lookupBankForm.isCompanyBank} 
+                              onChange={e => setLookupBankForm({...lookupBankForm, isCompanyBank: e.target.checked})} 
+                              className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                              disabled={!!banks.find(r => r.isCompanyBank)?.id}
+                           />
+                           <span className="text-sm font-medium text-dark">Apply as Company Bank Account</span>
+                       </label>
+                   )}
+               </div>
+              </>
+            )}
         </div>
       </AddModal>
     </PageLayout>

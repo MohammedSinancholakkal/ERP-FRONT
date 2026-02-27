@@ -47,6 +47,16 @@ const StockReport = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
+  const [sortConfig, setSortConfig] = useState({ key: "productName", direction: "asc" });
+  
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+    
   /* Columns */
   const defaultColumns = {
     productName: true,
@@ -68,7 +78,7 @@ const StockReport = () => {
   const fetchReport = async () => {
     try {
         setLoading(true);
-        const res = await getStockReportApi();
+        const res = await getStockReportApi(sortConfig.key, sortConfig.direction);
         if (res.status === 200) {
             setData(res.data.records || []);
         } else {
@@ -84,7 +94,7 @@ const StockReport = () => {
 
   React.useEffect(() => {
     fetchReport();
-  }, []);
+  }, [sortConfig]);
 
 
   // DERIVE CATEGORIES FOR FILTER
@@ -141,6 +151,9 @@ const StockReport = () => {
                 ].filter(Boolean)}
                 data={paginatedData}
                 // activeData and inactiveData removed - using single active list
+                
+                sortConfig={sortConfig}
+                onSort={handleSort}
                 
                 // Action Bar
                 search={searchText}

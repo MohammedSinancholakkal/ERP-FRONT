@@ -2,7 +2,7 @@ import { Minus, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 
-const DashboardCard = ({ title, color, children }) => {
+const DashboardCard = ({ title, color, children, bodyClass = "p-6 h-56" }) => {
   const { theme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -40,7 +40,7 @@ const DashboardCard = ({ title, color, children }) => {
       </div>
 
       {/* Body */}
-      {!collapsed && <div className="p-6 h-56">{children}</div>}
+      {!collapsed && <div className={bodyClass}>{children}</div>}
     </div>
   );
 };
