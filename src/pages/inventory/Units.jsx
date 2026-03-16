@@ -218,6 +218,14 @@ const Units = () => {
 
   // RESTORE UNIT
   const handleRestoreUnit = async () => {
+    // --- DUPLICATE CHECKS START ---
+    const exists = units.some((u) => u.name.toLowerCase() === editUnit.name.toLowerCase());
+    if (exists) {
+      showErrorToast("Cannot restore: Active unit with this name already exists.");
+      return;
+    }
+    // --- DUPLICATE CHECKS END ---
+
     const result = await showRestoreConfirm();
 
     if (!result.isConfirmed) return;
@@ -229,12 +237,14 @@ const Units = () => {
         setEditModalOpen(false);
         loadUnits();
         loadInactive();
+      } else if (res?.status === 409) {
+        showErrorToast(res.data.message || "Cannot restore. Item already exists.");
       } else {
         showErrorToast("Restore failed");
       }
     } catch(err) {
       console.error("Restore failed", err);
-      showErrorToast("Restore failed");
+      showErrorToast(err?.response?.data?.message || "Restore failed");
     }
   };
 
@@ -367,10 +377,13 @@ const Units = () => {
                 permissionCreate={hasPermission(PERMISSIONS.INVENTORY.UNITS.CREATE)}
                 onRefresh={() => {
                     setSearchText("");
-                    setSortConfig({ key: "id", direction: "asc" });
+                    
+                    const newDirection = "desc";
+                    setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                    setLimit(25);
                     setPage(1);
                     setShowInactive(false);
-                    loadUnits(1, limit, { key: "id", direction: "asc" });
+                    loadUnits(1, 25, { ...sortConfig, direction: newDirection });
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={toggleInactive}
@@ -384,10 +397,13 @@ const Units = () => {
               total={totalRecords}
               onRefresh={() => {
                 setSearchText("");
-                setSortConfig({ key: "id", direction: "asc" });
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
                 setShowInactive(false);
-                loadUnits(1, limit, { key: "id", direction: "asc" });
+                loadUnits(1, 25, { ...sortConfig, direction: newDirection });
               }}
             />
           </div>

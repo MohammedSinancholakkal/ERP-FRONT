@@ -129,12 +129,14 @@ const Designations = () => {
 
   const handleRefresh = async () => {
     setSearchText("");
-    setSortConfig({ key: null, direction: 'asc' });
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
     setShowInactive(false);
     
     try {
-        const res = await getDesignationsApi(1, limit, null, 'asc');
+        const res = await getDesignationsApi(1, 25, newSort.key, newSort.direction);
         if (res?.status === 200) {
           setDesignations(res.data.records);
           setTotalRecords(res.data.total);
@@ -257,6 +259,14 @@ const Designations = () => {
 
     if (!result.isConfirmed) return;
 
+    // --- Duplicate Check Start ---
+    const existing = designations.find(d => d.designation.toLowerCase() === editDesignation.designation.toLowerCase());
+    if (existing) {
+        showErrorToast("Restore failed: An active designation with this name already exists.");
+        return;
+    }
+    // --- Duplicate Check End ---
+
     try {
       const res = await restoreDesignationApi(editDesignation.id, { userId: currentUserId });
 
@@ -265,12 +275,18 @@ const Designations = () => {
         setEditModalOpen(false);
         loadDesignations();
         loadInactive();
+      } else if (res.status === 409) {
+        showErrorToast(res.data?.message || "Restore failed: Duplicate active designation exists.");
       } else {
         showErrorToast("Failed to restore designation");
       }
     } catch(err) {
         console.error("Restore failed", err);
-        showErrorToast("An error occurred while restoring.");
+        if (err.response && err.response.status === 409) {
+            showErrorToast(err.response.data?.message || "Restore failed: Duplicate active designation exists.");
+        } else {
+            showErrorToast("An error occurred while restoring.");
+        }
     }
   };
 

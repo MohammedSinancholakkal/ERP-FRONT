@@ -209,16 +209,20 @@ const Customers = () => {
     if (!result.isConfirmed) return;
 
     try {      
-      await restoreCustomerApi(customer.id, { userId: 1 }); 
-      
-      showSuccessToast("Customer has been restored successfully.");
-      setInactiveRows(prev => prev.filter(r => r.id !== customer.id));
-      invalidateDashboard();
-      loadCustomers(); 
-      // Also reload lookups if needed, but usually not critical for list
+      const res = await restoreCustomerApi(customer.id, { userId: 1 }); 
+      if (res?.status === 200) {
+        showSuccessToast("Customer has been restored successfully.");
+        setInactiveRows(prev => prev.filter(r => r.id !== customer.id));
+        invalidateDashboard();
+        loadCustomers(); 
+      } else if (res?.status === 409) {
+        showErrorToast(res?.data?.message || 'Cannot restore. Item already exists');
+      } else {
+        showErrorToast(res?.data?.message || 'Failed to restore customer');
+      }
     } catch (err) {
       console.error("restore customer error", err);
-      showErrorToast("Could not restore customer. Please try again.");
+      showErrorToast(err?.response?.data?.message || "Could not restore customer. Please try again.");
     }
   };
 
@@ -592,10 +596,10 @@ const Customers = () => {
           onRefresh={() => {
               setSearchText("");
               setPage(1);
-              setSortConfig({ key: "id", direction: "asc" });
+              
               setShowInactive(false);
               handleResetFilters();
-              loadCustomers({ key: "id", direction: "asc" });
+              loadCustomers(sortConfig);
           }}
           onColumnSelector={() => {
               setTempVisibleColumns(visibleColumns);
@@ -617,10 +621,10 @@ const Customers = () => {
             onRefresh={() => {
               setSearchText("");
               setPage(1);
-              setSortConfig({ key: "id", direction: "asc" });
+              
               setShowInactive(false);
               handleResetFilters();
-              loadCustomers({ key: "id", direction: "asc" });
+              loadCustomers(sortConfig);
             }}
           />
           </div>

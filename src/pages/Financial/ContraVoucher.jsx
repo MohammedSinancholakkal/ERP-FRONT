@@ -58,24 +58,19 @@ const ContraVoucher = () => {
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
         direction = 'desc';
     }
+    setPage(1);
     setSortConfig({ key, direction });
   };
-
-  const sortedList = [...dataList].sort((a, b) => { 
-      if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-  });
 
   // -----------------------------------
   // HANDLERS
   // -----------------------------------
-  const loadData = async (overrideShowInactive = null, overrideSearchText = null) => {
+  const loadData = async (overrideShowInactive = null, overrideSearchText = null, newSort = sortConfig) => {
     try {
       const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
       const effectiveSearch = overrideSearchText === null ? searchText : overrideSearchText;
 
-      const res = await getContraVouchersApi(effectiveShowInactive, effectiveSearch, sortConfig.key, sortConfig.direction);
+      const res = await getContraVouchersApi(effectiveShowInactive, effectiveSearch, newSort.key, newSort.direction);
       
       if (res && res.status === 200) {
         if (Array.isArray(res.data) && (res.data.length === 0 || typeof res.data[0] === 'object')) {
@@ -420,8 +415,8 @@ const ContraVoucher = () => {
             
                     <MasterTable
                         columns={columns}
-                        data={sortedList.filter((item) => item.isActive)}
-                        inactiveData={sortedList.filter((item) => !item.isActive)}
+                        data={dataList.filter((item) => item.isActive)}
+                        inactiveData={dataList.filter((item) => !item.isActive)}
                         
                         search={searchText}
                         onSearch={(val) => {
@@ -436,7 +431,10 @@ const ContraVoucher = () => {
                         onRefresh={async () => {
                             setSearchText("");
                             setPage(1);
-                            await loadData(null, "");
+                            setLimit(25);
+                            const newSort = { key: "id", direction: "desc" };
+                            setSortConfig(newSort);
+                            await loadData(false, "", newSort);
                         }}
                         onColumnSelector={() => setColumnModalOpen(true)}
                         onToggleInactive={() => setShowInactive(!showInactive)}

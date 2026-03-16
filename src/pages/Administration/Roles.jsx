@@ -335,12 +335,14 @@ const Roles = () => {
 
   const handleRefresh = async () => {
     setSearchText("");
-    setSortConfig({ key: null, direction: 'asc' });
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
     setShowInactive(false);
     
     try {
-        const res = await getRolesApi(1, limit, null, 'asc');
+        const res = await getRolesApi(1, 25, newSort.key, newSort.direction);
         if (res?.status === 200) {
           const rawRecords = res.data.records || [];
           const normalized = normalizeRows(rawRecords);
@@ -485,6 +487,14 @@ const Roles = () => {
 
     if (!result.isConfirmed) return;
 
+    // --- Duplicate Check Start ---
+    const existing = roles.find(r => (r.name || "").toLowerCase() === (editRole.roleName || "").toLowerCase());
+    if (existing) {
+        showErrorToast("Restore failed: An active role with this name already exists.");
+        return;
+    }
+    // --- Duplicate Check End ---
+
     try {
       const res = await restoreRoleApi(editRole.id, {
         userId: user?.userId || 1,
@@ -495,12 +505,18 @@ const Roles = () => {
         setEditModalOpen(false);
         loadRoles();
         loadInactive();
+      } else if (res?.status === 409) {
+        showErrorToast(res.data?.message || "Restore failed: Duplicate active role exists.");
       } else {
         throw new Error("Restore failed");
       }
     } catch (error) {
       console.error("Restore role error:", error);
-      showErrorToast("Failed to restore role. Please try again.");
+      if (error.response && error.response.status === 409) {
+          showErrorToast(error.response.data?.message || "Restore failed: Duplicate active role exists.");
+      } else {
+          showErrorToast("Failed to restore role. Please try again.");
+      }
     }
   };
 

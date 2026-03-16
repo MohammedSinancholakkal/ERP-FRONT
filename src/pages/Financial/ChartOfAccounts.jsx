@@ -237,7 +237,7 @@ const ChartOfAccounts = () => {
                                 expandedNodes[row.headCode] ? <Minus size={10} strokeWidth={3} /> : <Plus size={10} strokeWidth={3} />
                             )}
                         </div>
-                        <span className={`truncate ${!row.isTransaction ? 'font-semibold' : ''}`}>{row.headName}</span>
+                        <span className={`truncate ${row.isTransaction ? 'font-normal text-gray-900' : 'font-semibold text-gray-900'}`}>{row.headName}</span>
                     </div>
                 );
             }

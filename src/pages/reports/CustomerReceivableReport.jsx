@@ -124,9 +124,12 @@ const CustomerReceivableReport = () => {
                 // createLabel="New Receive"
                 
                 onRefresh={() => {
-                    fetchReport();
-                    setSearchText("");
+                    const newSort = { key: "name", direction: "desc" };
+                    setSortConfig(newSort);
+                    setLimit(25);
                     setPage(1);
+                    setSearchText("");
+                    fetchReport();
                 }}
                 onColumnSelector={() => setColumnModal(true)}
                 // onToggleInactive={() => setShowInactive((s) => !s)}

@@ -9,7 +9,7 @@ const Layout = () => {
   // Auto-close sidebar on mobile/small screens
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 1024) {
         setSidebarOpen(false);
       }
     };

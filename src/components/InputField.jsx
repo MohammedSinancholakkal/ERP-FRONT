@@ -19,7 +19,7 @@ const InputField = ({
   if (props.textarea) {
     return (
       <div className={`w-full ${className}`}>
-        {label && <label className={`block text-sm mb-1 font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>{label} {required && "*"}</label>}
+        {label && <label className={`block text-sm mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>{label} {required && "*"}</label>}
         <textarea
           value={value}
           onChange={onChange}
@@ -79,7 +79,7 @@ const InputField = ({
 
   return (
     <div className={`w-full ${className}`}>
-      {label && <label className={`block text-sm mb-1 font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>{label} {required && "*"}</label>}
+      {label && <label className={`block text-sm mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>{label} {required && "*"}</label>}
       <input
         type={inputType}
         value={displayValue}

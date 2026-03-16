@@ -63,10 +63,11 @@ const Expenses = () => {
 
 
   const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
     }
+    setPage(1);
     setSortConfig({ key, direction });
   };
 
@@ -208,24 +209,13 @@ const Expenses = () => {
   // ==========================
   // DATA LOAD & HANDLING
   // ==========================
-  const loadData = async (overrideShowInactive = null) => {
+  const loadExpenses = async (overrideShowInactive = null) => {
     try {
         const effectiveShowInactive = overrideShowInactive === null ? showInactive : overrideShowInactive;
         
-        // In Expenses, we typically have server-side pagination because of volume.
-        // DebitVoucher example provided uses getDebitVouchersApi(showInactive) which returns ALL.
-        // Assuming Expenses should also follow this pattern if we want "same" behavior, 
-        // OR we adapt the pattern to server-side.
-        // Given the request "apply the complete feature", and DebitVoucher loads all, 
-        // I will attempt to align with that pattern if possible, or adapt the "Single List" approach.
-        
-        // HOWEVER, Expenses usually has pagination params (page, limit). 
-        // If we want exact match to DebitVoucher, we might lose server pagination if DebitVoucher is client-side.
-        // Let's stick to Server Pagination but structure props identically where possible.
-        
         setSearchText(""); 
         // Fetch Active
-        const res = await getExpensesApi(page, limit);
+        const res = await getExpensesApi(page, limit, sortConfig.key, sortConfig.direction);
         // Fetch Inactive (if needed or separate?)
         // DebitVoucher does: getDebitVouchersApi(effectiveShowInactive).
         
@@ -258,8 +248,8 @@ const Expenses = () => {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [page, limit, showInactive]);
+    loadExpenses();
+  }, [page, limit, showInactive, sortConfig]);
 
 
   // ==========================
@@ -281,51 +271,6 @@ const Expenses = () => {
     }
   };
 
-  // --- FILTERED & SORTED LIST (Client-side for loaded records) ---
-  const filteredRows = React.useMemo(() => {
-    let list = expenses; // Start with active expenses loaded
-
-    if (filterExpenseType) {
-        list = list.filter(e => e.expenseTypeId === filterExpenseType || (expenseTypes.find(t => (t.typeId ?? t.id) === e.expenseTypeId)?.typeName === filterExpenseType));
-    }
-    if (filterPaymentAccount) {
-        list = list.filter(e => e.paymentAccount === filterPaymentAccount);
-    }
-    
-    return list;
-  }, [expenses, filterExpenseType, filterPaymentAccount, expenseTypes]);
-
-  const sortedList = React.useMemo(() => {
-    let sortableItems = [...filteredRows];
-    if (sortConfig.key !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        if (sortConfig.key === 'expenseType') {
-            aValue = expenseTypes.find((t) => (t.typeId ?? t.id) === a.expenseTypeId)?.typeName || "";
-            bValue = expenseTypes.find((t) => (t.typeId ?? t.id) === b.expenseTypeId)?.typeName || "";
-        }
-
-        if (['id', 'amount'].includes(sortConfig.key)) {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else {
-             aValue = String(aValue || "").toLowerCase();
-             bValue = String(bValue || "").toLowerCase();
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [filteredRows, sortConfig, expenseTypes]);
 
   // --- FILTER BAR CONFIG ---
    const filters = [
@@ -349,6 +294,9 @@ const Expenses = () => {
     setSearchText("");
     setFilterExpenseType("");
     setFilterPaymentAccount("");
+    // Preserve sortConfig or reset? Usually clear filters resets everything. 
+    // But user wants sort preserved on REFRESH. Clear filters is a specific action. 
+    // Let's keep existing logic but fix the function name.
     setSortConfig({ key: null, direction: 'asc' });
     loadExpenses();
   };
@@ -465,6 +413,22 @@ const Expenses = () => {
   // RESTORE
   // ==========================
   const handleRestore = async () => {
+    // --- DUPLICATE CHECKS START ---
+    const exists = expenses.some((e) => {
+      return (
+        String(e.expenseTypeId) === String(editExpense.expenseTypeId) &&
+        e.date?.split("T")[0] === editExpense.date &&
+        Number(e.amount) === Number(editExpense.amount) &&
+        e.paymentAccount === editExpense.paymentAccount
+      );
+    });
+
+    if (exists) {
+      toast.error("Cannot restore: Active expense with the same Type, Date, Amount, and Account already exists.");
+      return;
+    }
+    // --- DUPLICATE CHECKS END ---
+
     const result = await Swal.fire({
       title: "Are you sure?",
       text: "This record will be restored!",
@@ -489,10 +453,14 @@ const Expenses = () => {
         setEditModalOpen(false);
         loadExpenses();
         loadInactive();
+      } else if (res?.status === 409) {
+        toast.error(res?.response?.data?.message || res.data?.message || "Cannot restore. Item already exists.");
+      } else {
+        toast.error("Restore failed");
       }
     } catch (err) {
       console.error("Restore failed", err);
-      toast.error("Restore failed");
+      toast.error(err?.response?.data?.message || "Restore failed");
     }
   };
 
@@ -729,7 +697,7 @@ const Expenses = () => {
                 visibleColumns.paymentAccount && { key: "paymentAccount", label: "Payment Account", sortable: true },
                 visibleColumns.amount && { key: "amount", label: "Amount", sortable: true, render: (r) => (r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
               ].filter(Boolean)}
-              data={sortedList}
+              data={expenses}
               inactiveData={inactiveExpenses}
               showInactive={showInactive}
               sortConfig={sortConfig}
@@ -743,8 +711,12 @@ const Expenses = () => {
               permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
               onRefresh={() => {
                 setSearchText("");
-                if (page === 1) loadExpenses();
-                else setPage(1);
+                setFilterExpenseType("");
+                setFilterPaymentAccount("");
+                setSortConfig({ key: "id", direction: "desc" });
+                setPage(1);
+                setLimit(25);
+                loadExpenses();
               }}
               onColumnSelector={() => {
                   setTempVisibleColumns(visibleColumns);

@@ -209,11 +209,33 @@ const PurchaseOrder = () => {
     setSearchText("");
     setFilterSupplier("");
     setFilterDate("");
-    setSortConfig({ key: null, direction: 'asc' });
+    
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
     setShowInactive(false);
-    await fetchPurchaseOrders();
-    toast.success("Refreshed");
+
+    setIsLoading(true);
+    try {
+      const res = await getPurchaseOrdersApi(1, 25, newSort.key, newSort.direction);
+      if (res.status === 200) {
+        let rows = res.data.records || [];
+        rows = rows.map((r) => ({
+          ...r,
+          invoiceNo: r.vno,
+          supplierName: r.supplierName || suppliers.find((s) => String(s.id) === String(r.supplierId) || String(s.id) === String(r.SupplierId))?.name || "-"
+        }));
+        setPurchasesList(rows);
+        setTotalRecords(res.data.totalRecords || rows.length || 0);
+        setTotalPages(res.data.totalPages || 1);
+      }
+    } catch (error) {
+      console.error("Error refreshing purchase orders", error);
+      toast.error("Failed to refresh purchase orders");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExportExcel = () => {

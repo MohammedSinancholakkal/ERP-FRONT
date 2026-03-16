@@ -293,11 +293,15 @@ const States = () => {
           refreshInactiveStates();
           loadInactive();
         } else {
-          showErrorToast("Restore failed");
+          if (res?.status === 409) {
+            showErrorToast(res?.data?.message || "Cannot restore. State already exists");
+          } else {
+            showErrorToast(res?.data?.message || "Restore failed");
+          }
         }
       } catch (err) {
           console.error(err);
-          showErrorToast("Server error");
+          showErrorToast(err?.response?.data?.message || "Server error");
       }
     }
 
@@ -414,17 +418,24 @@ const States = () => {
             createLabel="New State"
             permissionCreate={hasPermission(PERMISSIONS.STATES.CREATE)}
             onRefresh={() => {
+              const willUpdate = 
+                  page !== 1 || 
+                  limit !== 25 || 
+                  sortConfig.key !== "id" || 
+                  sortConfig.direction !== "desc";
+
               setSearchText("");
               searchRef.current += 1;
-              refreshStates(); // Invalidate cache
-              refreshInactiveStates();
-              setSortConfig({ key: "id", direction: "asc" });
+              setSortConfig({ key: "id", direction: "desc" });
+              setLimit(25);
               setShowInactive(false);
+              setPage(1);
+
+              refreshStates(); 
+              refreshInactiveStates();
               
-              if (page === 1) {
+              if (!willUpdate) {
                   loadStates();
-              } else {
-                  setPage(1);
               }
             }}
             onColumnSelector={() => setColumnModal(true)}
@@ -441,11 +452,22 @@ const States = () => {
             setLimit={setLimit}
             total={totalRecords}
             onRefresh={() => {
+              const willUpdate = 
+                  page !== 1 || 
+                  limit !== 25;
+
               setSearchText("");
-              setPage(1);
-              setSortConfig({ key: "id", direction: "asc" });
+              searchRef.current += 1;
+              setLimit(25);
               setShowInactive(false);
-              loadStates();
+              setPage(1);
+
+              refreshStates();
+              refreshInactiveStates();
+
+              if (!willUpdate) {
+                  loadStates();
+              }
             }}
           />
           </div>

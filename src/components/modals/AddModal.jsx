@@ -40,10 +40,11 @@ const AddModal = ({ isOpen, onClose, onSave, title, children, saveText = "Save",
     } catch (error) {
       console.error(error);
     } finally {
-      // Small delay to ensure smooth UI transition
-      setTimeout(() => {
+      if (isMounted.current) {
+        setTimeout(() => {
           setLoading(false);
-      }, 300);
+        }, 300);
+      }
     }
   };
 

@@ -195,6 +195,7 @@ const NewAccounts = () => {
                 parentHeadName: parent.headName,
                 headLevel: parent.headLevel + 1,
                 headType: parent.headType,
+                isTransaction: true // Default to true for children
             }));
             if(!isEditMode) {
                 generateNextCode(parent, accounts);
@@ -218,9 +219,16 @@ const NewAccounts = () => {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        let finalValue = type === 'checkbox' ? checked : value;
+        
+        // Auto-capitalize Head Name
+        if (name === 'headName' && typeof finalValue === 'string') {
+            finalValue = finalValue.charAt(0).toUpperCase() + finalValue.slice(1);
+        }
+
         setFormData(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: finalValue
         }));
     };
 

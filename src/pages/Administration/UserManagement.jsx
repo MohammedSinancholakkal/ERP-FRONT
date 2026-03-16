@@ -541,20 +541,23 @@ const handleEditRoles = async () => {
 
   const handleRefresh = async () => {
     setSearchText("");
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
-    setSortConfig({ key: null, direction: 'asc' });
     setShowInactive(false);
     
     // Explicit fetch to reset view immediately
     try {
-        const res = await getUsersApi(1, limit, null, 'asc');
+        const res = await getUsersApi(1, 25, newSort.key, newSort.direction);
         if (res?.status === 200) {
             const normalized = (res.data.records || []).map((item) => ({
               ...item,
               userImage: item.userImage ? fullImageURL(item.userImage) : "",
             }));
-            setUsers(normalized);
-            setTotalRecords(res.data.total);
+            const filtered = normalized.filter(u => (u.userId ?? u.UserId) !== 1);
+            setUsers(filtered);
+            setTotalRecords(res.data.total - (normalized.length - filtered.length));
             // showSuccessToast("Refreshed");
         }
     } catch (err) {
@@ -787,10 +790,39 @@ const handleEditRoles = async () => {
     if (!editData.userId) {
        return toast.error("Invalid User ID");
     }
-
     const result = await showRestoreConfirm("this user");
 
     if (!result.isConfirmed) return;
+
+    // --- Duplicate Check Start ---
+    try {
+        if (editData.username.trim()) {
+           const searchRes = await searchUserApi(editData.username.trim());
+           const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+           const existing = rows.find(u => 
+               u.username?.toLowerCase() === editData.username.trim().toLowerCase() && 
+               (u.userId || u.UserId) !== editData.userId
+           );
+           if (existing) {
+             return showErrorToast("Restore failed: Username already exists.");
+           }
+        }
+        
+        if (editData.email?.trim()) {
+           const searchRes = await searchUserApi(editData.email.trim());
+           const rows = Array.isArray(searchRes.data) ? searchRes.data : (searchRes.data?.records || []);
+           const existing = rows.find(u => 
+               u.email?.toLowerCase() === editData.email.trim().toLowerCase() && 
+               (u.userId || u.UserId) !== editData.userId
+           );
+           if (existing) {
+             return showErrorToast("Restore failed: Email already exists.");
+           }
+        }
+    } catch (err) {
+        console.error("Duplicate Check Error:", err);
+    }
+    // --- Duplicate Check End ---
 
     try {
       const res = await restoreUserApi(editData.userId, {
@@ -801,12 +833,18 @@ const handleEditRoles = async () => {
         setEditModalOpen(false);
         loadUsers();
         loadInactiveUsers();
+      } else if (res?.status === 409) {
+        showErrorToast(res.data?.message || "Restore failed: Duplicate active user exists.");
       } else {
         throw new Error("Restore failed");
       }
     } catch (error) {
       console.error("Restore user error:", error);
-      showErrorToast("Failed to restore user. Please try again.");
+      if (error.response && error.response.status === 409) {
+          showErrorToast(error.response.data?.message || "Restore failed: Duplicate active user exists.");
+      } else {
+          showErrorToast("Failed to restore user. Please try again.");
+      }
     }
   };
 

@@ -250,10 +250,57 @@ const Invoices = () => {
     setFilterCustomer("");
     setFilterEmployee("");
     setFilterDate("");
-    setSortConfig({ key: null, direction: 'asc' });
+    
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
-    setShowInactive(false); // Reset inactive
-    await fetchAllData();
+    setShowInactive(false);
+    
+    setIsLoading(true);
+    try {
+      const [cRes, eRes, iRes] = await Promise.all([
+        getCustomersApi(1, 1000),
+        getEmployeesApi(1, 1000),
+        getServiceInvoicesApi(1, 25, newSort.key, newSort.direction)
+      ]);
+
+      let cList = [];
+      let eList = [];
+
+      if (cRes.status === 200) {
+        cList = (cRes.data.records || []).map((c) => ({
+          id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
+          name: c.name ?? c.Name ?? c.companyName ?? c.CompanyName ?? `${c.firstName ?? c.FirstName ?? ""} ${c.lastName ?? c.LastName ?? ""}`.trim()
+        }));
+        setCustomers(cList);
+      }
+
+      if (eRes.status === 200) {
+        eList = (eRes.data.records || []).map((e) => ({
+          id: e.id ?? e.Id ?? e.employeeId ?? e.EmployeeId ?? null,
+          name: e.fullName ?? e.fullname ?? e.name ?? e.Name ?? `${e.firstName ?? e.FirstName ?? ""} ${e.lastName ?? e.LastName ?? ""}`.trim()
+        }));
+        setEmployees(eList);
+      }
+
+      if (iRes.status === 200) {
+        const activeInvoices = iRes.data.records || [];
+        setTotalRecords(iRes.data.totalRecords || 0);
+        setTotalPages(iRes.data.totalPages || 1);
+        const normalized = activeInvoices.map(inv => ({
+          ...inv,
+          customerName: inv.customerName || cList.find((c) => String(c.id) === String(inv.customerId) || String(c.id) === String(inv.CustomerId))?.name || "-",
+          employeeName: inv.employeeName || eList.find((e) => String(e.id) === String(inv.employeeId) || String(e.id) === String(inv.EmployeeId))?.name || "-"
+        }));
+        setInvoicesList(normalized);
+      }
+    } catch (e) {
+      console.error("Error refreshing data", e);
+      toast.error("Failed to refresh data");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const calculateTaxAmount = (record, type) => {
@@ -286,6 +333,7 @@ const Invoices = () => {
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setPage(1);
     setSortConfig({ key, direction });
   };
 

@@ -1047,7 +1047,7 @@ const NewMeeting = () => {
                  
                     <ArrowLeft size={24} />
                  </button>
-                 <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-[#6448AE]'}`}>{isEdit ? "Edit Meeting" : "New Meeting"}</h2>
+                  <h2 className={`text-xl font-bold transition-colors ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{isEdit ? "Edit Meeting" : "New Meeting"}</h2>
               </div>
     
               <div className="flex items-center gap-3">
@@ -1094,13 +1094,12 @@ const NewMeeting = () => {
                 {/* Meeting Name */}
                 <div className="col-span-12 md:col-span-6">
                    <div className="flex gap-2 font-medium">
-                        <div className="flex-1 font-medium">
+                        <div className="flex-1">
                            <InputField
-                              label="Meeting Name"
-                              value={form.meetingName}
-                              onChange={(e) => updateField("meetingName", e.target.value)}
-                              placeholder="e.g. Sales Strategy Q4"
-                              required
+                               label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Meeting Name *</span>}
+                               value={form.meetingName}
+                               onChange={(e) => updateField("meetingName", e.target.value)}
+                               placeholder="e.g. Sales Strategy Q4"
                            />
                        </div>
                        <div className="w-[34px]"></div>
@@ -1109,15 +1108,15 @@ const NewMeeting = () => {
 
                 {/* Location */}
                 <div className="col-span-12 md:col-span-6">
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
                           <div className="flex-1 font-medium">
                             <SearchableSelect 
-                                label="Location *"
+                                label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Location *</span>}
                                 options={locations}
                                 value={form.location}
                                 onChange={(val) => updateField("location", val)}
                                 placeholder="-- Select Location --"
-                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
+                                className={theme === 'emerald' ? 'bg-white border-emerald-200' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800 border-gray-700'}
                             />
                         </div>
                          <button onClick={() => handleCreateNew("Location")} className={`p-2  mt-6 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
@@ -1127,15 +1126,14 @@ const NewMeeting = () => {
                 </div>
 
                 {/* Date & Time */}
-                <div className="col-span-12 md:col-span-6">
+                 <div className="col-span-12 md:col-span-6">
                    <div className="flex gap-2 font-medium">
-                        <div className="flex-1 font-medium">
+                        <div className="flex-1">
                            <InputField
-                              label="Start Date"
+                              label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Start Date *</span>}
                               type="datetime-local"
                               value={form.startDate}
                               onChange={(e) => updateField("startDate", e.target.value)}
-                              required
                            />
                        </div>
                        <div className="w-[34px]"></div>
@@ -1143,13 +1141,12 @@ const NewMeeting = () => {
                 </div>
                 <div className="col-span-12 md:col-span-6">
                    <div className="flex gap-2 font-medium">
-                        <div className="flex-1 font-medium">
+                        <div className="flex-1">
                            <InputField
-                              label="End Date"
+                              label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>End Date *</span>}
                               type="datetime-local"
                               value={form.endDate}
                               onChange={(e) => updateField("endDate", e.target.value)}
-                              required
                            />
                        </div>
                        <div className="w-[34px]"></div>
@@ -1157,8 +1154,8 @@ const NewMeeting = () => {
                 </div>
 
                 {/* Meeting Type */}
-                <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Meeting Type *</label>
+                 <div className="col-span-12 md:col-span-6">
+                    <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Meeting Type *</label>
                     <div className="flex items-center gap-2">
                          <div className="flex-1 font-medium">
                             <SearchableSelect 
@@ -1166,7 +1163,7 @@ const NewMeeting = () => {
                                 value={form.meetingType}
                                 onChange={(val) => updateField("meetingType", val)}
                                 placeholder="-- Select Type --"
-                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
+                                className={theme === 'emerald' ? 'bg-white border-emerald-200' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800 border-gray-700'}
                             />
                         </div>
                         <button onClick={() => handleCreateNew("Meeting Type")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
@@ -1175,68 +1172,68 @@ const NewMeeting = () => {
                     </div>
                 </div>
 
-                 {/* Department */}
-                 <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Department <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span></label>
-                    <div className="flex items-center gap-2">
-                         <div className="flex-1 font-medium">
-                            <SearchableSelect 
-                                options={departments}
-                                value={form.department}
-                                onChange={(val) => updateField("department", val)}
-                                placeholder="-- Select Department --"
-                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
-                            />
-                        </div>
-                        <button onClick={() => handleCreateNew("Department")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
-                            <Star size={16} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Organized By */}
-                <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Organized By <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span></label>
-                    <div className="flex items-center gap-2">
-                         <div className="flex-1 font-medium">
-                            <SearchableSelect 
-                                options={employees}
-                                value={form.organizedBy}
-                                onChange={(val) => updateField("organizedBy", val)}
-                                placeholder="-- Select Organizer --"
-                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
-                            />
-                        </div>
-                        <button onClick={() => handleCreateNew("Organizer")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
-                             <Star size={16} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Reporter */}
-                <div className="col-span-12 md:col-span-6">
-                    <label className={`block text-sm font-medium mb-1 ${theme === 'purple' ? 'text-dark' : theme === 'dark' ? 'text-white' : ''}`}>Reporter <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span></label>
-                    <div className="flex items-center gap-2">
+                  {/* Department */}
+                  <div className="col-span-12 md:col-span-6">
+                     <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Department *</label>
+                     <div className="flex items-center gap-2">
                           <div className="flex-1 font-medium">
-                            <SearchableSelect 
-                                options={employees}
-                                value={form.reporter}
-                                onChange={(val) => updateField("reporter", val)}
-                                placeholder="-- Select Reporter --"
-                                className={theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}
-                            />
-                        </div>
-                        <button onClick={() => handleCreateNew("Reporter")} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
-                            <Star size={16} />
-                        </button>
-                    </div>
-                </div>
+                             <SearchableSelect 
+                                 options={departments}
+                                 value={form.department}
+                                 onChange={(val) => updateField("department", val)}
+                                 placeholder="-- Select Department --"
+                                 className={theme === 'emerald' ? 'bg-white border-emerald-200' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800 border-gray-700'}
+                             />
+                         </div>
+                         <button onClick={() => handleCreateNew("Department")} className={`p-2 border rounded flex items-center justify-center transition-colors ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                             <Star size={16} />
+                         </button>
+                     </div>
+                 </div>
+ 
+                 {/* Organized By */}
+                 <div className="col-span-12 md:col-span-6">
+                     <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Organized By *</label>
+                     <div className="flex items-center gap-2">
+                          <div className="flex-1 font-medium">
+                             <SearchableSelect 
+                                 options={employees}
+                                 value={form.organizedBy}
+                                 onChange={(val) => updateField("organizedBy", val)}
+                                 placeholder="-- Select Organizer --"
+                                 className={theme === 'emerald' ? 'bg-white border-emerald-200' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800 border-gray-700'}
+                             />
+                         </div>
+                         <button onClick={() => handleCreateNew("Organizer")} className={`p-2 border rounded flex items-center justify-center transition-colors ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                              <Star size={16} />
+                         </button>
+                     </div>
+                 </div>
+ 
+                 {/* Reporter */}
+                 <div className="col-span-12 md:col-span-6">
+                     <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Reporter *</label>
+                     <div className="flex items-center gap-2">
+                           <div className="flex-1 font-medium">
+                             <SearchableSelect 
+                                 options={employees}
+                                 value={form.reporter}
+                                 onChange={(val) => updateField("reporter", val)}
+                                 placeholder="-- Select Reporter --"
+                                 className={theme === 'emerald' ? 'bg-white border-emerald-200' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800 border-gray-700'}
+                             />
+                         </div>
+                         <button onClick={() => handleCreateNew("Reporter")} className={`p-2 border rounded flex items-center justify-center transition-colors ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                             <Star size={16} />
+                         </button>
+                     </div>
+                 </div>
             </div>
 
             {/* ATTENDEES SECTION */}
-            <div className="mt-8">
-                 <div className="flex items-center justify-between mb-4">
-                     <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : ''}`}>Attendees</h3>
+             <div className="mt-8">
+                  <div className="flex items-center justify-between mb-4">
+                      <h3 className={`text-lg font-semibold transition-colors ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Attendees</h3>
                      <button
                         onClick={() => setShowAttendeeModal(true)}
                         className={`flex items-center gap-2 px-4 py-1.5 rounded text-sm transition-colors border ${
@@ -1253,38 +1250,36 @@ const NewMeeting = () => {
                  </div>
                
 
-                 <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? 'border-gray-200' : theme === 'purple' ? 'border-purple-200' : 'border-gray-700'}`}>
-                    <table className="w-full text-left border-collapse">
-                       <thead>
-                          <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900' : 'bg-gray-900 text-gray-200'}>
-                             <th className="p-3 text-sm font-medium">Name</th>
-                             <th className="p-3 text-sm font-medium">Type</th>
-                             <th className="p-3 text-sm font-medium">Status</th>
-                             <th className="p-3 text-sm font-medium text-right">Actions</th>
-                          </tr>
-                       </thead>
+                  <div className={`overflow-x-auto rounded-lg border transition-colors ${theme === 'emerald' ? 'border-emerald-200' : theme === 'purple' ? 'border-purple-200' : 'border-gray-700'}`}>
+                     <table className="w-full text-left border-collapse">
+                        <thead>
+                           <tr className={`transition-colors ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-900 text-gray-200'}`}>
+                              <th className="p-3 text-sm font-medium">Name</th>
+                              <th className="p-3 text-sm font-medium">Type</th>
+                              <th className="p-3 text-sm font-medium">Status</th>
+                              <th className="p-3 text-sm font-medium text-right">Actions</th>
+                           </tr>
+                        </thead>
                        <tbody>
-                          {form.attendees.map((row, index) => (
-                             <tr key={index} className={`border-t ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                                <td className={`p-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{row.attendee}</td>
-                                <td className={`p-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{row.attendeeType}</td>
-                                <td className="p-3 text-sm">
-                                   <span className={`rounded text-sm ${
-                                       row.attendanceStatus === 'Present' 
-                                         ? (theme === 'emerald' ? 'text-purple-800 font-medium' : 'text-purple-800 font-medium')
-                                         : (theme === 'purple' ? 'text-purple-800 font-medium' : 'text-purple-800 font-medium')
-                                   }`}>
-                                      {row.attendanceStatus}
-                                   </span>
-                                </td>
-                                <td className="p-3 text-right flex justify-end gap-2">
-                                     <button onClick={() => editAttendee(index)} className={`p-1 hover:text-blue-400 ${theme === 'dark' ? 'text-blue-300' : 'text-purple-800'}`}>
-                                         <Pencil size={16} />
-                                     </button>
-                                     <button onClick={() => deleteAttendee(index)} className={`p-1 hover:text-red-400 ${theme === 'dark' ? 'text-red-300' : 'text-purple-800'}`}>
-                                         <Trash2 size={16} />
-                                     </button>
-                                </td>
+                           {form.attendees.map((row, index) => (
+                              <tr key={index} className={`border-t transition-colors ${theme === 'emerald' ? 'border-emerald-100 hover:bg-emerald-50/50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50/50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
+                                 <td className={`p-3 text-sm font-medium transition-colors ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{row.attendee}</td>
+                                 <td className={`p-3 text-sm transition-colors ${theme === 'emerald' ? 'text-gray-600' : theme === 'purple' ? 'text-purple-800/80' : 'text-gray-400'}`}>{row.attendeeType}</td>
+                                 <td className="p-3 text-sm">
+                                    <span className={`rounded text-sm font-medium transition-colors ${
+                                        theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'
+                                    }`}>
+                                       {row.attendanceStatus}
+                                    </span>
+                                 </td>
+                                 <td className="p-3 text-right flex justify-end gap-2">
+                                      <button onClick={() => editAttendee(index)} className={`p-1 transition-colors ${theme === 'emerald' ? 'text-emerald-600 hover:text-emerald-800' : theme === 'purple' ? 'text-purple-600 hover:text-purple-800' : 'text-blue-400 hover:text-blue-300'}`}>
+                                          <Pencil size={16} />
+                                      </button>
+                                      <button onClick={() => deleteAttendee(index)} className={`p-1 transition-colors ${theme === 'emerald' ? 'text-red-600 hover:text-red-700' : theme === 'purple' ? 'text-red-600 hover:text-red-700' : 'text-red-400 hover:text-red-300'}`}>
+                                          <Trash2 size={16} />
+                                      </button>
+                                 </td>
                              </tr>
                           ))}
                           {form.attendees.length === 0 && (
@@ -1300,16 +1295,16 @@ const NewMeeting = () => {
             </div>
 
             {/* EXTERNAL RECIPIENTS */}
-            <div className="mt-8 border-t pt-6">
-                 <InputField
-                    label="External Recipients (Email)"
-                    textarea
-                    rows={2}
-                    placeholder="Enter emails separated by commas (e.g. client@example.com, vendor@test.com)"
-                    value={externalRecipients}
-                    onChange={(e) => setExternalRecipients(e.target.value)}
-                 />
-            </div>
+             <div className="mt-8 border-t pt-6">
+                  <InputField
+                     label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>External Recipients (Email)</span>}
+                     textarea
+                     rows={2}
+                     placeholder="Enter emails separated by commas (e.g. client@example.com, vendor@test.com)"
+                     value={externalRecipients}
+                     onChange={(e) => setExternalRecipients(e.target.value)}
+                  />
+             </div>
 
         </div>
        </div>
@@ -1324,9 +1319,9 @@ const NewMeeting = () => {
           width="700px"
         >
             <div className="p-0 space-y-4">
-            {/* ATTENDEE DROPDOWN */}
-            <div>
-              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Attendee *</label>
+             {/* ATTENDEE DROPDOWN */}
+             <div>
+               <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Attendee *</label>
               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={employees.map(e => ({ id: e.id, name: e.name }))}
@@ -1347,9 +1342,9 @@ const NewMeeting = () => {
               </div>
             </div>
 
-            {/* TYPE DROPDOWN */}
-             <div>
-              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Attendee Type *</label>
+             {/* TYPE DROPDOWN */}
+              <div>
+               <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Attendee Type *</label>
               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
@@ -1370,9 +1365,9 @@ const NewMeeting = () => {
               </div>
             </div>
 
-            {/* STATUS DROPDOWN */}
-             <div>
-              <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Attendance Status *</label>
+             {/* STATUS DROPDOWN */}
+              <div>
+               <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Attendance Status *</label>
               <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
@@ -1406,14 +1401,14 @@ const NewMeeting = () => {
         onSave={handleSaveMeetingType}
         width="700px"
       >
-        <div>
-           <InputField
-            label="Type Name"
-            placeholder="Enter Meeting Type Name"
-            value={newMeetingType}
-            onChange={(e) => setNewMeetingType(e.target.value)}
-          />
-        </div>
+         <div>
+            <InputField
+             label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Type Name *</span>}
+             placeholder="Enter Meeting Type Name"
+             value={newMeetingType}
+             onChange={(e) => setNewMeetingType(e.target.value)}
+           />
+         </div>
       </AddModal>
 
       <AddModal
@@ -1423,14 +1418,14 @@ const NewMeeting = () => {
         onSave={handleSaveAttendeeType}
         width="700px"
       >
-        <div>
-           <InputField
-            label="Type Name"
-            placeholder="Enter Attendee Type Name"
-            value={newAttendeeType}
-            onChange={(e) => setNewAttendeeType(e.target.value)}
-          />
-        </div>
+         <div>
+            <InputField
+             label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Type Name *</span>}
+             placeholder="Enter Attendee Type Name"
+             value={newAttendeeType}
+             onChange={(e) => setNewAttendeeType(e.target.value)}
+           />
+         </div>
       </AddModal>
 
       <AddModal
@@ -1440,14 +1435,14 @@ const NewMeeting = () => {
         onSave={handleSaveAttendanceStatus}
         width="700px"
       >
-        <div>
-           <InputField
-            label="Status Name"
-            placeholder="Enter Attendance Status Name"
-            value={newAttendanceStatus}
-            onChange={(e) => setNewAttendanceStatus(e.target.value)}
-          />
-        </div>
+         <div>
+            <InputField
+             label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Status Name *</span>}
+             placeholder="Enter Attendance Status Name"
+             value={newAttendanceStatus}
+             onChange={(e) => setNewAttendanceStatus(e.target.value)}
+           />
+         </div>
       </AddModal>
 
       {/* DEPARTMENT MODAL */}
@@ -1459,13 +1454,13 @@ const NewMeeting = () => {
           width="700px"
       >
             <div className="space-y-4">
-              <div>
-                <InputField
-                   label="Department Name *"
-                   value={newDepartment.department}
-                   onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
-                />
-              </div>
+               <div>
+                 <InputField
+                    label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Department Name *</span>}
+                    value={newDepartment.department}
+                    onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
+                 />
+               </div>
 
               <div>
                 <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-white'}`}>Reporter *</label>
@@ -1492,17 +1487,17 @@ const NewMeeting = () => {
                 />
               </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark' : 'text-white'}`}>Parent Department</label>
-                <SearchableSelect
-                  options={departments.map(d => ({ id: d.id, name: d.name }))}
-                  value={newDepartment.parentDepartmentId}
-                  onChange={(val) => setNewDepartment({ ...newDepartment, parentDepartmentId: val })}
-                  placeholder="--select--"
-                  className={`w-full ${theme === 'emerald' ? 'bg-white' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800'}`}
-                  direction="up"
-                />
-              </div>
+               <div>
+                 <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Parent Department</label>
+                 <SearchableSelect
+                   options={departments.map(d => ({ id: d.id, name: d.name }))}
+                   value={newDepartment.parentDepartmentId}
+                   onChange={(val) => setNewDepartment({ ...newDepartment, parentDepartmentId: val })}
+                   placeholder="--select--"
+                   className={`w-full ${theme === 'emerald' ? 'bg-white border-emerald-200' : theme === 'purple' ? 'bg-white border-purple-300 text-purple-900' : 'bg-gray-800 border-gray-700'}`}
+                   direction="up"
+                 />
+               </div>
             </div>
       </AddModal>
 
@@ -1517,17 +1512,17 @@ const NewMeeting = () => {
         width="700px"
       >
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <InputField
-                  label="Location Name *"
-                  value={newLocation.name}
-                  onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
-                />
-              </div>
+               <div className="col-span-2">
+                 <InputField
+                   label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Location Name *</span>}
+                   value={newLocation.name}
+                   onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
+                 />
+               </div>
 
-              <div>
-                 <div className="space-y-1">
-                     <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>Country</label>
+               <div>
+                  <div className="space-y-1">
+                      <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Country</label>
                     <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
@@ -1549,9 +1544,9 @@ const NewMeeting = () => {
                 </div>
               </div>
 
-              <div>
-                <div className="space-y-1">
-                     <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>State</label>
+               <div>
+                 <div className="space-y-1">
+                      <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>State</label>
                     <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
@@ -1573,9 +1568,9 @@ const NewMeeting = () => {
                 </div>
               </div>
 
-              <div>
-                 <div className="space-y-1">
-                     <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>City</label>
+               <div>
+                  <div className="space-y-1">
+                      <label className={`block text-sm font-medium mb-1 transition-colors ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>City</label>
                     <div className="flex gap-2 font-medium">
                         <SearchableSelect
                           options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}

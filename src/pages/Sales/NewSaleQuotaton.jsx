@@ -1096,10 +1096,10 @@ const handleRestoreQuotation = async () => {
   /* ================= UI ================= */
   return (
     <PageLayout>
-      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+      <div className={`p-6 ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
 
-        <ContentCard>
-        <div className="h-full overflow-y-auto pr-2">
+        <ContentCard className="!h-auto">
+        <div className="">
         {/* HEADER & ACTIONS */}
         <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -1220,10 +1220,10 @@ const handleRestoreQuotation = async () => {
               </div>
             </div>
 
-            {/* Tax Type */}
+            {/* Tax Rate */}
             <div className="flex items-center">
               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                 Tax Type <span className="text-dark">*</span> 
+                 Tax Rate <span className="text-dark">*</span> 
               </label>
               <div className="flex-1 flex items-center gap-2">
                   <SearchableSelect
@@ -1431,15 +1431,15 @@ const handleRestoreQuotation = async () => {
 
                 {/* Total Tax */}
                 <div>
-                   <div className="flex justify-between mb-1">
-                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
+                   <div className="flex items-center gap-2 mb-1">
+                      <label className={`flex-1 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-purple-700 font-semibold' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
                             onChange={(e) => setNoTax(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
+                            className={`w-4 h-4 rounded transition-colors ${theme === 'emerald' ? 'border-emerald-300 bg-white accent-emerald-600' : theme === 'purple' ? 'border-purple-300 bg-white accent-purple-600' : 'border-gray-600 bg-gray-800 accent-blue-500'} disabled:opacity-50`}
                             disabled={inactiveView}
                           />
                       </div>

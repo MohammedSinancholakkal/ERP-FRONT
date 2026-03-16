@@ -119,7 +119,7 @@ const Products = () => {
   const currentUserId = user?.userId || 1;
 
   // sort/search/filters
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -475,6 +475,20 @@ const Products = () => {
   };
 
   const handleRestoreProduct = async () => {
+    // --- DUPLICATE CHECKS START ---
+    const exists = products.some((p) => {
+      const matchName = editProduct.ProductName && p.ProductName && p.ProductName.toLowerCase() === editProduct.ProductName.toLowerCase();
+      const matchBarcode = editProduct.productCode && p.Barcode && p.Barcode.toLowerCase() === editProduct.productCode.toLowerCase();
+      const matchSN = editProduct.SN && p.SN && p.SN.toLowerCase() === editProduct.SN.toLowerCase();
+      return matchName || matchBarcode || matchSN;
+    });
+
+    if (exists) {
+      showErrorToast("Cannot restore: Active product with this Name, Barcode, or SN already exists.");
+      return;
+    }
+    // --- DUPLICATE CHECKS END ---
+
     const result = await showRestoreConfirm();
 
     if (!result.isConfirmed) return;
@@ -486,10 +500,14 @@ const Products = () => {
         setEditModalOpen(false); // Close if open
         loadProducts();
         if(showInactive) loadInactive();
+      } else if (res.status === 409) {
+        showErrorToast(res.data?.message || "Cannot restore. Item already exists.");
+      } else {
+        showErrorToast("Restore failed");
       }
     } catch (err) {
       console.error("RESTORE ERR", err);
-      showErrorToast("Server error");
+      showErrorToast(err?.response?.data?.message || "Restore failed");
     }
   };
 
@@ -856,11 +874,13 @@ const Products = () => {
     setFilterCategory("");
     setFilterUnit("");
     setFilterBrand("");
-    setSortConfig({ key: "id", direction: 'asc' });
+    
     setPage(1);
-    loadProducts(1, limit, { key: "id", direction: 'asc' });
+    loadProducts(1, limit, sortConfig);
   };
 
+
+  
   /* --------------------
      Render
      -------------------- */
@@ -989,11 +1009,13 @@ const Products = () => {
                 setFilterCategory("");
                 setFilterUnit("");
                 setFilterBrand("");
-                setSortConfig({ key: "id", direction: 'asc' });
+                
+                const newDirection = "desc"; // Always reset to desc as per requirement "make it to default desc"
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
                 setShowInactive(false);
-                loadProducts(1, limit, { key: "id", direction: 'asc' });
-                // No toast here, MasterTable/Pagination handles it
+                loadProducts(1, 25, { ...sortConfig, direction: newDirection });
               }}
               onColumnSelector={() => setColumnModalOpen(true)}
               onToggleInactive={async () => {
@@ -1020,10 +1042,13 @@ const Products = () => {
                 setFilterCategory("");
                 setFilterUnit("");
                 setFilterBrand("");
-                setSortConfig({ key: "id", direction: 'asc' });
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
                 setShowInactive(false);
-                loadProducts(1, limit, { key: "id", direction: 'asc' });
+                loadProducts(1, 25, { ...sortConfig, direction: newDirection });
               }}
             />
         </div>

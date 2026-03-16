@@ -95,7 +95,7 @@ const DailyClosingReport = () => {
                 onRefresh={() => {
                     setSearchText("");
                     setPage(1);
-                    toast.success("Refreshed");
+                    // toast.success("Refreshed");
                 }}
                 onColumnSelector={() => setColumnModal(true)}
                 

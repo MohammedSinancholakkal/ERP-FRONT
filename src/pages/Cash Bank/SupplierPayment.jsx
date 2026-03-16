@@ -53,6 +53,18 @@ const SupplierPayment = () => {
   const [payablesMap, setPayablesMap] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // ------------------ SORTING ------------------
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
+    }
+    setPage(1); // Reset to page 1 on sort
+    setSortConfig({ key, direction });
+  };
+
   // ------------------ SEARCH ------------------
   const [searchText, setSearchText] = useState("");
 
@@ -82,11 +94,11 @@ const SupplierPayment = () => {
   useEffect(() => {
     fetchData();
     fetchPayables();
-  }, [searchText]); 
+  }, [searchText, sortConfig]); 
 
   const fetchData = async () => {
     try {
-        const res = await getDebitVouchersApi(false, searchText); // Fetch Debit Vouchers (Payments)
+        const res = await getDebitVouchersApi(false, searchText, sortConfig.key, sortConfig.direction); // Pass sort params
         if(res.status === 200) {
              // Map backend fields to MasterTable expected fields
              const mapped = res.data.map(r => ({
@@ -248,22 +260,7 @@ const SupplierPayment = () => {
   };
 
 
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-        direction = 'desc';
-    }
-    setPage(1); // Reset to page 1 on sort
-    setSortConfig({ key, direction });
-  };
-
-  const sortedRows = [...rows].sort((a, b) => {
-    if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
 
   return (
     <>
@@ -414,7 +411,7 @@ const SupplierPayment = () => {
                     visibleColumns.debit && { key: "debit", label: "Debit", sortable: true, render: (r) => (r.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                     visibleColumns.credit && { key: "credit", label: "Credit", sortable: true, render: (r) => (r.credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
                 ].filter(Boolean)}
-                data={sortedRows}
+                data={rows}
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 search={searchText}
@@ -424,7 +421,9 @@ const SupplierPayment = () => {
                 permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
                 onRefresh={() => {
                     setSearchText("");
+                    setSortConfig({ key: "id", direction: "desc" });
                     setPage(1);
+                    setLimit(25);
                     fetchData();
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}

@@ -23,6 +23,17 @@ import { PERMISSIONS } from "../../constants/permissions";
 const Settings = () => {
   const { theme } = useTheme();
 
+  const labelClass = `block mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : theme === 'dark' ? 'text-white' : 'text-gray-700'}`;
+  const inputClass = (hasError) => `w-full border rounded px-3 py-2 outline-none transition-all ${
+    hasError 
+      ? "border-red-500 bg-red-50/10" 
+      : theme === 'emerald' 
+        ? "border-emerald-200 bg-emerald-50/30 text-emerald-900 focus:border-emerald-500 focus:bg-white" 
+        : theme === 'purple' 
+          ? "border-purple-200 bg-purple-50/30 text-purple-900 focus:border-[#6448AE] focus:bg-white" 
+          : "border-gray-700 bg-gray-900 text-gray-100 focus:border-blue-500 focus:bg-gray-800"
+  }`;
+
   if (!hasPermission(PERMISSIONS.SETTINGS)) {
       return (
         <div className="flex items-center justify-center h-full text-white">
@@ -353,11 +364,9 @@ if (response?.status === 200) {
           <div className="max-w-[1500px]">
             {/* COMPANY NAME */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Company Name *</label>
+              <label className={labelClass}>Company Name *</label>
               <input
-                className={`w-full border rounded px-3 py-2 ${
-                  errors.companyName ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
-                }`}
+                className={inputClass(errors.companyName)}
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
               />
@@ -370,11 +379,9 @@ if (response?.status === 200) {
 
             {/* EMAIL */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Company Email</label>
+              <label className={labelClass}>Company Email</label>
               <input
-                className={`w-full border rounded px-3 py-2 ${
-                  errors.companyEmail ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
-                }`}
+                className={inputClass(errors.companyEmail)}
                 value={companyEmail}
                 onChange={(e) => setCompanyEmail(e.target.value)}
               />
@@ -387,9 +394,9 @@ if (response?.status === 200) {
 
             {/* ADDRESS */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Address</label>
+              <label className={labelClass}>Address</label>
               <input
-                className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
+                className={inputClass()}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
@@ -397,11 +404,9 @@ if (response?.status === 200) {
 
             {/* PHONE */}
             <div className="mb-3">
-              <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Phone</label>
+              <label className={labelClass}>Phone</label>
               <input
-                className={`w-full border rounded px-3 py-2 ${
-                  errors.phone ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
-                }`}
+                className={inputClass(errors.phone)}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               />
@@ -411,12 +416,10 @@ if (response?.status === 200) {
             </div>
 
             {/* CURRENCY SECTION */}
-            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Currency</label>
+            <label className={labelClass}>Currency</label>
             <div className="flex items-center gap-2">
               <select
-                className={`flex-1 border rounded px-3 py-2 ${
-                  errors.currency ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
-                }`}
+                className={inputClass(errors.currency)}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
               >
@@ -462,11 +465,9 @@ if (response?.status === 200) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               {/* Tax % */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Tax Percentage *</label>
+                <label className={labelClass}>Tax Percentage *</label>
                 <input
-                  className={`w-full border rounded px-3 py-2 ${
-                    errors.taxPercentage ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
-                  }`}
+                  className={inputClass(errors.taxPercentage)}
                   value={taxPercentage}
                   onChange={(e) => setTaxPercentage(e.target.value)}
                 />
@@ -479,9 +480,9 @@ if (response?.status === 200) {
 
               {/* GSTIN */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>GSTIN</label>
+                <label className={labelClass}>GSTIN</label>
                 <input
-                  className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
+                  className={inputClass()}
                   value={gstin}
                   onChange={(e) => setGstin(e.target.value)}
                 />
@@ -489,9 +490,9 @@ if (response?.status === 200) {
 
              {/* PAN No */}
              <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>PAN No</label>
+                <label className={labelClass}>PAN No</label>
                 <input
-                  className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
+                  className={inputClass()}
                   value={pan}
                   onChange={(e) => setPan(e.target.value)}
                 />
@@ -499,11 +500,9 @@ if (response?.status === 200) {
 
               {/* Tax TYPE */}
               <div>
-                <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Tax Type *</label>
+                <label className={labelClass}>Tax Rate *</label>
                 <select
-                  className={`w-full border rounded px-3 py-2 ${
-                    errors.taxType ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
-                  }`}
+                  className={inputClass(errors.taxType)}
                   value={taxType}
                   onChange={(e) => setTaxType(e.target.value)}
                 >
@@ -623,11 +622,9 @@ if (response?.status === 200) {
             </div>
 
             {/* CURRENCY POSITION */}
-            <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Currency Position *</label>
+            <label className={labelClass}>Currency Position *</label>
             <select
-              className={`w-full border rounded px-3 py-2 mb-1 ${
-                errors.currencyPosition ? "border-red-500" : (theme === 'emerald' || theme === 'purple' ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-900 text-white")
-              }`}
+              className={inputClass(errors.currencyPosition)}
               value={currencyPosition}
               onChange={(e) => setCurrencyPosition(e.target.value)}
             >
@@ -642,10 +639,10 @@ if (response?.status === 200) {
             )}
 
             {/* FOOTER TEXT */}
-            <label className={`block mb-1 mt-4 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Footer Text</label>
+            <label className={`${labelClass} mt-4`}>Footer Text</label>
             <textarea
               rows={4}
-              className={`w-full border rounded px-3 py-2 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
+              className={inputClass()}
               value={footerText}
               onChange={(e) => setFooterText(e.target.value)}
             />

@@ -66,7 +66,7 @@ const openEdit = (row, isInactive = false) => {
   const [searchText, setSearchText] = useState("");
   
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -176,8 +176,8 @@ const readOnly = isRestoreMode;
     setFilterCustomer("");
     setFilterInvoice("");
     setFilterEmployee("");
-    setSortConfig({ key: "id", direction: 'asc' });
-    fetchGoodsIssues(1, limit, { key: "id", direction: 'asc' });
+    
+    fetchGoodsIssues(1, limit, sortConfig);
   };
 
   /* ------------------------------ Fetchers ------------------------------ */
@@ -405,10 +405,13 @@ const handleRestoreIssue = async (id) => {
                     setFilterCustomer("");
                     setFilterInvoice("");
                     setFilterEmployee("");
-                    setSortConfig({ key: "id", direction: 'asc' });
+                    
+                    const newDirection = "desc";
+                    setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                    setLimit(25);
                     setPage(1);
                     setShowInactive(false);
-                    fetchGoodsIssues(1, limit, { key: "id", direction: 'asc' });
+                    fetchGoodsIssues(1, 25, { ...sortConfig, direction: newDirection });
                  }}
                 onColumnSelector={() => {
                    setTempVisibleColumns(visibleColumns);
@@ -430,7 +433,17 @@ const handleRestoreIssue = async (id) => {
                setLimit={setLimit}
                total={serverTotal}
                onRefresh={() => {
-                   fetchGoodsIssues();
+                   setSearchText("");
+                   setFilterCustomer("");
+                   setFilterInvoice("");
+                   setFilterEmployee("");
+                   
+                   const newDirection = "desc";
+                   setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                   setLimit(25);
+                   setPage(1);
+                   setShowInactive(false);
+                   fetchGoodsIssues(1, 25, { ...sortConfig, direction: newDirection });
                }}
              />
            </div>

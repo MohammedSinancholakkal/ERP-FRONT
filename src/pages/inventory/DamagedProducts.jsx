@@ -98,7 +98,7 @@ const DamagedProducts = () => {
   const [filterCategory, setFilterCategory] = useState("");
   
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -530,8 +530,8 @@ const DamagedProducts = () => {
   const handleClearFilters = () => {
     setSearchText("");
     setFilterCategory("");
-    setSortConfig({ key: "id", direction: 'asc' });
-    loadDamaged(1, limit, { key: "id", direction: 'asc' });
+    
+    loadDamaged(1, limit, sortConfig);
   };
 
   /* =========================================================
@@ -895,9 +895,14 @@ const DamagedProducts = () => {
                 
                 onRefresh={() => {
                     setSearchText("");
+                    setFilterCategory("");
+                    
+                    const newDirection = "desc";
+                    setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                    setLimit(25);
                     setPage(1);
-                    setShowInactive(false); // Reset inactive
-                    loadDamaged(1, limit);
+                    setShowInactive(false);
+                    loadDamaged(1, 25, { ...sortConfig, direction: newDirection });
                 }}
                 
                 onColumnSelector={() => setColumnModalOpen(true)}
@@ -924,8 +929,14 @@ const DamagedProducts = () => {
             total={total}
             onRefresh={() => {
                setSearchText("");
+               setFilterCategory("");
+               
+               const newDirection = "desc";
+               setSortConfig(prev => ({ ...prev, direction: newDirection }));
+               setLimit(25);
                setPage(1);
-               loadDamaged(1, limit);
+               setShowInactive(false);
+               loadDamaged(1, 25, { ...sortConfig, direction: newDirection });
             }}
           />
         </div>

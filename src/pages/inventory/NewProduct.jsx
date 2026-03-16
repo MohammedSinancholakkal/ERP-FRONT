@@ -1072,8 +1072,8 @@ const NewProduct = () => {
 
                          {/* Mini Preview */}
                          {product.Image && (
-                             <div className="h-20 w-20 rounded overflow-hidden border border-gray-600 bg-gray-900">
-                                 <img src={product.Image} alt="preview" className="h-full w-full object-cover" />
+                             <div className="h-32 w-48 rounded overflow-hidden border border-gray-300 bg-gray-50 flex items-center justify-center">
+                                 <img src={product.Image} alt="preview" className="max-h-full max-w-full object-contain" />
                              </div>
                          )}
                     </div>

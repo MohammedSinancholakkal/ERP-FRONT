@@ -129,9 +129,12 @@ const SuppliersPayableReport = () => {
                 // createLabel="New Report"
                 
                 onRefresh={() => {
-                    fetchReport();
-                    setSearchText("");
+                    const newSort = { key: "companyName", direction: "desc" };
+                    setSortConfig(newSort);
+                    setLimit(25);
                     setPage(1);
+                    setSearchText("");
+                    fetchReport();
                 }}
                 onColumnSelector={() => setColumnModal(true)}
                 // onToggleInactive={() => setShowInactive((s) => !s)}

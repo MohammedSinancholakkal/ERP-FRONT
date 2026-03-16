@@ -75,7 +75,7 @@ const GoodsReceipt = () => {
   const [filterEmployee, setFilterEmployee] = useState("");
   
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -225,9 +225,9 @@ const GoodsReceipt = () => {
     setFilterSupplier("");
     setFilterPurchaseBill("");
     setFilterEmployee("");
-    setSortConfig({ key: "id", direction: 'asc' });
-    if(showAll) fetchAll({ key: "id", direction: 'asc' });
-    else fetchActive(1, limit, { key: "id", direction: 'asc' });
+    
+    if(showAll) fetchAll(sortConfig);
+    else fetchActive(1, limit, sortConfig);
   };
 
   // -------------------- server interactions --------------------
@@ -716,13 +716,14 @@ const GoodsReceipt = () => {
                     setFilterSupplier("");
                     setFilterPurchaseBill("");
                     setFilterEmployee("");
-                    if(showAll) fetchAll();
-                    else {
-                        setSortConfig({ key: "id", direction: 'asc' });
-                        setPage(1);
-                        setShowInactive(false);
-                        fetchActive(1, limit, { key: "id", direction: 'asc' });
-                    }
+                    
+                    const newDirection = "desc";
+                    setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                    setLimit(25);
+                    setPage(1);
+                    setShowInactive(false);
+                    setShowAll(false);
+                    fetchActive(1, 25, { ...sortConfig, direction: newDirection });
                 }}
                 onColumnSelector={() => {
                     setTempVisibleColumns(visibleColumns);
@@ -745,8 +746,18 @@ const GoodsReceipt = () => {
                setLimit={setLimit}
                total={totalRecords}
                onRefresh={() => {
-                   if(showAll) fetchAll()
-                   else fetchActive()
+                   setSearchText("");
+                   setFilterSupplier("");
+                   setFilterPurchaseBill("");
+                   setFilterEmployee("");
+                   
+                   const newDirection = "desc";
+                   setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                   setLimit(25);
+                   setPage(1);
+                   setShowInactive(false);
+                   setShowAll(false);
+                   fetchActive(1, 25, { ...sortConfig, direction: newDirection });
                }}
              />
            </div>

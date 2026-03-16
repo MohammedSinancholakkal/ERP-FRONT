@@ -463,24 +463,17 @@ const handleRestore = async (id) => {
     setFilterTerritory("");
     setSearchText("");
 
-    // 2. Reset Pagination & Sorting & Inactive state
+    // 2. Reset Pagination, Sort, Limit & Inactive state
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
-    setSortConfig({ key: null, direction: 'asc' });
     setShowInactive(false);
 
-    // 3. Clear raw data state to force re-computation/fetch if needed
-    // However, fetchAllData inside handleRefresh is safer if we just call it directly
-    // But fetchAllData depends on state that might not have updated yet due to closure.
-    // So we invoke API directly similar to other pages or rely on effect if we triggered state change?
-    // The safest way in this complex component is to call existing fetchAllData BUT
-    // we need to make sure we don't use stale state inside it if it uses them.
-    // fetchAllData uses sortConfig from state... so we might have a race condition if we just call it.
-    // BUT, we setSortConfig above. React state updates are batched.
-    
     try {
         setLoading(true);
-        // Explicitly pass default sort params to API to ensure we don't rely on pending state update
-        const empRes = await getEmployeesApi(1, 5000, null, 'asc');
+        // Explicitly pass new sort params to API
+        const empRes = await getEmployeesApi(1, 5000, newSort.key, newSort.direction);
         
         let raw = [];
         if (empRes?.data?.records) {
@@ -491,10 +484,9 @@ const handleRestore = async (id) => {
             raw = empRes;
         }
         setRawEmployees(raw);
-        // showSuccessToast("Refreshed");
     } catch (err) {
         console.error("Refresh failed", err);
-        // toast.error("Refresh failed");
+        toast.error("Refresh failed");
     } finally {
         setLoading(false);
     }

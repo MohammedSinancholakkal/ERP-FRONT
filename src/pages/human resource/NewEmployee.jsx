@@ -13,7 +13,7 @@ import {
   ArrowLeft,
   ArchiveRestore,
 } from "lucide-react";
-import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
+import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast, showLoadingToast, dismissToast } from "../../utils/notificationUtils";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import {
@@ -903,22 +903,95 @@ const handleRestore = async () => {
 
   if (!result.isConfirmed) return;
 
+  // --- Duplicate Check Start ---
+  try {
+      if (form.phone.trim()) {
+        const phoneRes = await searchEmployeeApi(form.phone.trim());
+        if (phoneRes?.status === 200) {
+            const rows = Array.isArray(phoneRes.data) ? phoneRes.data : [];
+            const existing = rows.find(e => 
+                e.Phone === form.phone.trim() && 
+                String(e.Id) !== String(id)
+            );
+            if (existing) {
+                showErrorToast("Restore failed: Active employee with this phone number already exists.");
+                return;
+            }
+        }
+      }
+
+      if (form.firstName.trim()) {
+        const nameRes = await searchEmployeeApi(form.firstName.trim());
+        if (nameRes?.status === 200) {
+            const rows = Array.isArray(nameRes.data) ? nameRes.data : [];
+            const existing = rows.find(e => 
+                e.FirstName.toLowerCase() === form.firstName.trim().toLowerCase() &&
+                e.LastName.toLowerCase() === form.lastName.trim().toLowerCase() &&
+                String(e.Id) !== String(id)
+            );
+            if (existing) {
+                showErrorToast("Restore failed: Active employee with this Name already exists.");
+                return;
+            }
+        }
+      }
+
+      if (form.payrollBankAccount.trim()) {
+        const accRes = await searchEmployeeApi(form.payrollBankAccount.trim());
+        if (accRes?.status === 200) {
+            const rows = Array.isArray(accRes.data) ? accRes.data : [];
+            const existing = rows.find(e => 
+                e.BankAccountForPayroll === form.payrollBankAccount.trim() &&
+                String(e.Id) !== String(id)
+            );
+            if (existing) {
+                showErrorToast("Restore failed: Active employee with this Account number already exists.");
+                return;
+            }
+        }
+      }
+
+      if (form.email.trim()) {
+        const emailRes = await searchEmployeeApi(form.email.trim());
+        if (emailRes?.status === 200) {
+            const rows = Array.isArray(emailRes.data) ? emailRes.data : [];
+            const existing = rows.find(e => 
+                e.Email?.toLowerCase() === form.email.trim().toLowerCase() &&
+                String(e.Id) !== String(id)
+            );
+            if (existing) {
+                showErrorToast("Restore failed: Active employee with this Email already exists.");
+                return;
+            }
+        }
+      }
+  } catch(err) {
+      console.error("Duplicate Check Error:", err);
+  }
+  // --- Duplicate Check End ---
+
   const toastId = showLoadingToast("Restoring employee...");
   setLoading(true);
 
   try {
     const res = await restoreEmployeeApi(id, {});
     dismissToast(toastId);
-    if(res?.status === 200) {
+    if(res?.status === 200 || res?.status === 201) {
         showSuccessToast("Employee restored successfully.");
         navigate("/app/hr/employees");
+    } else if (res?.status === 409) {
+        showErrorToast(res.data?.message || "Restore failed: Duplicate active employee exists.");
     } else {
         showErrorToast("Failed to restore employee");
     }
   } catch (err) {
     dismissToast(toastId);
     console.error("restore employee error", err);
-    showErrorToast("Failed to restore employee");
+    if (err.response && err.response.status === 409) {
+        showErrorToast(err.response.data?.message || "Restore failed: Duplicate active employee exists.");
+    } else {
+        showErrorToast("Failed to restore employee");
+    }
   }
   finally {
     setLoading(false);
@@ -1409,20 +1482,21 @@ const handleRestore = async () => {
               ) : (
                 /* PAYROLL tab */
                 <div>
-                  <div className="grid grid-cols-3 gap-3 items-end mb-3 ms-3 me-3 font-medium">
-                    <div>
-                      <InputField
-                        label="Basic Salary"
-                        value={form.salary}
-                        onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))}
-                        required
-                        disabled={isRestoreMode}
-                        className="font-medium"
-                        formatted
-                      />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6 px-3">
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="Basic Salary"
+                          value={form.salary}
+                          onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))}
+                          required
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
-
-                    {/* Payroll Bank */}
                     <div>
                       <SearchableSelect
                         label="Payroll Bank"
@@ -1442,23 +1516,25 @@ const handleRestore = async () => {
                         }}
                       />
                     </div>
-
-                    <div>
-                      <InputField
-                        label="Bank Account"
-                        value={form.payrollBankAccount}
-                        onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value.replace(/\D/g, "").slice(0, 18) }))}
-                        required
-                        disabled={isRestoreMode}
-                        className="font-medium"
-                      />
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="Bank Account"
+                          value={form.payrollBankAccount}
+                          onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value.replace(/\D/g, "").slice(0, 18) }))}
+                          required
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
                     </div>
                   </div>
 
                   {/* INCOMES card */}
                   <div className="mb-3">
                     <div className="flex items-center gap-5 mb-2">
-                      <h3 className="text-sm font-medium">Incomes</h3>
+                      <h3 className={`text-sm font-medium transition-colors ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-200'}`}>Incomes</h3>
                       <button
                         onClick={() => {
                           setEditingIncomeId(null);
@@ -1478,30 +1554,30 @@ const handleRestore = async () => {
                     </div>
 
                     {/* 50% WIDTH TABLE */}
-                    <div className=" border border-gray-700 rounded p-2 overflow-x-auto w-1/2">
+                    <div className={`border rounded p-2 overflow-x-auto w-full lg:w-3/4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
                       <table className="w-full text-center text-sm">
-                        <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
-                          <tr className={`${theme === 'emerald' || theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
-                            <th className="py-2 pr-4">Income</th>
-                            <th className="py-2 w-24">Amount</th>
-                            <th className="py-2">Description</th>
-                            <th className="py-2 w-28">Actions</th>
+                        <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+                          <tr className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
+                            <th className="py-2 pr-4 font-semibold text-left">Income</th>
+                            <th className="py-2 w-24 font-semibold text-right">Amount</th>
+                            <th className="py-2 font-semibold text-left">Description</th>
+                            <th className="py-2 w-28 font-semibold text-right">Actions</th>
                           </tr>
                         </thead>
 
                         <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                           {incomes.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className={`py-6 text-center ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-white-500'}`}>
+                              <td colSpan={4} className={`py-6 text-center transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>
                                 No incomes added
                               </td>
                             </tr>
                           ) : (
                             incomes.map((r) => (
                               <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'}`}>
-                                <td className="py-2 pr-4">{r.typeName}</td>
-                                <td className="py-2 w-24">{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="py-2">{r.description || "-"}</td>
+                                <td className={`py-2 pr-4 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.typeName}</td>
+                                <td className={`py-2 w-24 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className={`py-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.description || "-"}</td>
                                 <td className="py-2">
                                   <button
                                     className="p-1 mr-2"
@@ -1535,9 +1611,9 @@ const handleRestore = async () => {
                   </div>
 
                   {/* DEDUCTIONS card */}
-                  <div>
+                  <div className="mb-3">
                     <div className="flex items-center gap-5 mb-2">
-                       <h3 className="text-sm font-medium">Deductions</h3>
+                       <h3 className={`text-sm font-medium transition-colors ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-200'}`}>Deductions</h3>
                        <button onClick={() => { setEditingDeductionId(null); setDeductionForm({ typeId: null, amount: "", description: "" }); setShowDeductionModal(true); }}   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors shadow-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
                   theme === 'emerald'
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -1547,30 +1623,35 @@ const handleRestore = async () => {
               }`}><Plus size={12} /> Add</button>
                     </div>
 
-                    <div className=" border border-gray-700 rounded p-2 overflow-x-auto w-1/2">
+                    <div className={`border rounded p-2 overflow-x-auto w-full lg:w-3/4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
                       <table className="w-full text-center text-sm">
-                        <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
-                          <tr className={`${theme === 'emerald' || theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
-                            <th className="py-2 pr-4">Deduction</th>
-                            <th className="py-2 w-24">Amount</th>
-                            <th className="py-2">Description</th>
-                            <th className="py-2 w-28">Actions</th>
+                        <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+                          <tr className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
+                            <th className="py-2 pr-4 font-semibold text-left">Deduction</th>
+                            <th className="py-2 w-24 font-semibold text-right">Amount</th>
+                            <th className="py-2 font-semibold text-left">Description</th>
+                            <th className="py-2 w-28 font-semibold text-right">Actions</th>
                           </tr>
                         </thead>
                         <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                           {deductions.length === 0 ? (
-                            <tr><td colSpan={4} className={`py-6 text-center ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-white-500'}`}>No deductions added</td></tr>
-                          ) : deductions.map(r => (
-                            <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-900'}`}>
-                              <td className="py-2 pr-4">{r.typeName}</td>
-                              <td className="py-2 w-24">{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                              <td className="py-2">{r.description || "-"}</td>
-                              <td className="py-2">
+                            <tr>
+                              <td colSpan={4} className={`py-6 text-center transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                No deductions added
+                              </td>
+                            </tr>
+                          ) : (
+                            deductions.map((r) => (
+                              <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'}`}>
+                                <td className={`py-2 pr-4 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.typeName}</td>
+                                <td className={`py-2 w-24 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className={`py-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.description || "-"}</td>
+                                <td className="py-2">
                                 <button className="p-1 mr-2" onClick={() => { setEditingDeductionId(r.id); setDeductionForm({ typeId: r.typeId, amount: r.amount, description: r.description }); setShowDeductionModal(true); }}><Pencil size={14} /></button>
                                 <button className="p-1 text-red-400" onClick={() => setDeductions(prev => prev.filter(x => x.id !== r.id))}><Trash2 size={14} /></button>
                               </td>
                             </tr>
-                          ))}
+                          )))}
                         </tbody>
                       </table>
                     </div>

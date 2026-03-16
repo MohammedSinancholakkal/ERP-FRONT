@@ -80,7 +80,7 @@ const Brands = () => {
   };
 
   // SORT CONFIG
-  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -240,6 +240,14 @@ const Brands = () => {
 
   // RESTORE BRAND
   const handleRestoreBrand = async () => {
+    // --- DUPLICATE CHECKS START ---
+    const exists = brands.some((b) => b.name.toLowerCase() === editBrand.name.toLowerCase());
+    if (exists) {
+      showErrorToast("Cannot restore: Active brand with this name already exists.");
+      return;
+    }
+    // --- DUPLICATE CHECKS END ---
+
     const result = await showRestoreConfirm();
   
       if (!result.isConfirmed) return;
@@ -251,12 +259,14 @@ const Brands = () => {
           setEditModalOpen(false);
           loadBrands();
           loadInactive();
+        } else if (res?.status === 409) {
+          showErrorToast(res.data.message || "Cannot restore. Item already exists.");
         } else {
           showErrorToast("Restore failed");
         }
       } catch(err) {
         console.error("Restore failed", err);
-        showErrorToast("Restore failed");
+        showErrorToast(err?.response?.data?.message || "Restore failed");
       }
   };
 
@@ -399,10 +409,13 @@ const Brands = () => {
               permissionCreate={hasPermission(PERMISSIONS.INVENTORY.BRANDS.CREATE)}
               onRefresh={() => {
                 setSearchText("");
-                setSortConfig({ key: "id", direction: "asc" });
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
                 setShowInactive(false);
-                loadBrands(1, limit, { key: "id", direction: "asc" });
+                loadBrands(1, 25, { ...sortConfig, direction: newDirection });
               }}
               onColumnSelector={() => setColumnModalOpen(true)}
               onToggleInactive={async () => {
@@ -421,10 +434,13 @@ const Brands = () => {
               total={totalRecords}
               onRefresh={() => {
                 setSearchText("");
-                setSortConfig({ key: "id", direction: "asc" });
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
                 setShowInactive(false);
-                loadBrands(1, limit, { key: "id", direction: "asc" });
+                loadBrands(1, 25, { ...sortConfig, direction: newDirection });
               }}
             />
 

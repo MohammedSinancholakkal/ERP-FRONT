@@ -141,12 +141,14 @@ const Currencies = () => {
 
   const handleRefresh = async () => {
     setSearchText("");
-    setSortConfig({ key: null, direction: 'asc' });
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
     setShowInactive(false);
     
     try {
-        const res = await getCurrenciesApi(1, limit, null, 'asc');
+        const res = await getCurrenciesApi(1, 25, newSort.key, newSort.direction);
         if (res?.status === 200) {
           setCurrencies(res.data.records);
           setTotalRecords(res.data.total);
@@ -289,11 +291,21 @@ const Currencies = () => {
   };
 
   // RESTORE
-  // RESTORE
   const handleRestoreCurrency = async () => {
     const result = await showRestoreConfirm("this currency");
 
     if (!result.isConfirmed) return;
+
+    // --- Duplicate Check Start ---
+    const existing = currencies.find(c => 
+        c.currencyName.toLowerCase() === editCurrency.currencyName.toLowerCase() ||
+        c.currencySymbol.toLowerCase() === editCurrency.currencySymbol.toLowerCase()
+    );
+    if (existing) {
+        showErrorToast("Restore failed: An active currency with this Name or Symbol already exists.");
+        return;
+    }
+    // --- Duplicate Check End ---
 
     try {
       const res = await restoreCurrencyApi(editCurrency.id, {
@@ -305,11 +317,18 @@ const Currencies = () => {
         setEditModalOpen(false);
         loadCurrencies();
         loadInactive();
+      } else if (res?.status === 409) {
+        showErrorToast(res.data?.message || "Restore failed: Duplicate active currency exists.");
       } else {
         throw new Error("Restore failed");
       }
-    } catch {
-      showErrorToast("Failed to restore currency.");
+    } catch (error) {
+      console.error("Restore currency error:", error);
+      if (error.response && error.response.status === 409) {
+          showErrorToast(error.response.data?.message || "Restore failed: Duplicate active currency exists.");
+      } else {
+          showErrorToast("Failed to restore currency.");
+      }
     }
   };
 
@@ -473,7 +492,6 @@ const Currencies = () => {
                 total={totalRecords}
                 onRefresh={() => {
                     setSearchText("");
-                    setSortConfig({ key: null, direction: 'asc' });
                     setPage(1);
                     setShowInactive(false);
                     loadCurrencies();

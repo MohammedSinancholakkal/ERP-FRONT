@@ -182,6 +182,9 @@ const NewCustomer = () => {
             if (field === 'orderBooker') {
                 update("orderBookerId", newEmployeeId);
             }
+            if (field === 'salesMan') {
+                update("salesManId", newEmployeeId);
+            }
         });
     }
 
@@ -217,12 +220,18 @@ const NewCustomer = () => {
       setEmployees(parseArrayFromResponse(emp).map((e) => ({ id: e.Id ?? e.id, name: `${e.FirstName || e.firstName || ''} ${e.LastName || e.lastName || ''}` })));
 
       const reg = await getRegionsApi(1, 5000);
-      const regArr = parseArrayFromResponse(reg);
-      setRegions(regArr);
+      setRegions(parseArrayFromResponse(reg).map(r => ({
+          ...r,
+          id: r.Id ?? r.id ?? r.regionId ?? r.RegionId,
+          name: r.regionName ?? r.RegionName ?? r.name ?? ""
+      })));
 
       const cg = await getCustomerGroupsApi(1, 5000);
-      const cgArr = parseArrayFromResponse(cg);
-      setCustomerGroups(cgArr);
+      setCustomerGroups(parseArrayFromResponse(cg).map(g => ({
+          ...g,
+          id: g.Id ?? g.id ?? g.customerGroupId ?? g.CustomerGroupId,
+          name: g.GroupName ?? g.groupName ?? g.name ?? ""
+      })));
     } catch (err) {
       console.error("lookup load error", err);
       toast.error("Failed to load lookups");
@@ -281,13 +290,18 @@ const NewCustomer = () => {
           contactName: s.ContactName || s.contactName || "",
           contactTitle: s.ContactTitle || s.contactTitle || "",
           customerGroupId:
-  s.customerGroupId ??
-  s.CustomerGroupId ??
-  null,
+            ((s.customerGroupId ?? s.CustomerGroupId ?? s.customerGroupID ?? s.CustomerGroupID ?? s.customerGroup ?? s.CustomerGroup)?.id ??
+             (s.customerGroupId ?? s.CustomerGroupId ?? s.customerGroupID ?? s.CustomerGroupID ?? s.customerGroup ?? s.CustomerGroup)?.Id ??
+             (s.customerGroupId ?? s.CustomerGroupId ?? s.customerGroupID ?? s.CustomerGroupID ?? s.customerGroup ?? s.CustomerGroup)) ||
+            null,
           address: s.Address || s.address || "",
           addressLine1: s.AddressLine1 || s.addressLine1 || s.Address || s.address || "",
           addressLine2: s.AddressLine2 || s.addressLine2 || "",
-          regionId: s.RegionId ?? s.regionId ?? null,
+          regionId:
+            ((s.regionId ?? s.RegionId ?? s.region ?? s.Region)?.id ??
+             (s.regionId ?? s.RegionId ?? s.region ?? s.Region)?.Id ??
+             (s.regionId ?? s.RegionId ?? s.region ?? s.Region)) ||
+            null,
           postalCode: s.PostalCode || s.postalCode || "",
           phone: s.Phone || s.phone || "",
           website: s.Website || s.website || "",
@@ -297,16 +311,14 @@ const NewCustomer = () => {
           previousCredit: s.PreviousCreditBalance ?? s.PreviousCredit ?? s.previousCreditBalance ?? s.previousCredit ?? "",
 
           orderBookerId:
-            s.orderBooker ??
-            s.OrderBooker ??
-            s.OrderBookerId ?? 
-            s.orderBookerId ??
+            ((s.OrderBookerId ?? s.orderBookerId ?? s.OrderBooker ?? s.orderBooker)?.id ??
+             (s.OrderBookerId ?? s.orderBookerId ?? s.OrderBooker ?? s.orderBooker)?.Id ??
+             (s.OrderBookerId ?? s.orderBookerId ?? s.OrderBooker ?? s.orderBooker)) ||
             null,
           salesManId:
-            s.salesMan ??
-            s.SalesMan ??
-            s.salesManId ??
-            s.SalesManId ??
+            ((s.salesManId ?? s.SalesManId ?? s.salesMan ?? s.SalesMan)?.id ??
+             (s.salesManId ?? s.SalesManId ?? s.salesMan ?? s.SalesMan)?.Id ??
+             (s.salesManId ?? s.SalesManId ?? s.salesMan ?? s.SalesMan)) ||
             null,
           pan: s.PAN ?? s.pan ?? "",
           gstin: s.GSTIN ?? s.gstin ?? s.GSTTIN ?? "",
@@ -601,7 +613,7 @@ const NewCustomer = () => {
       }
 
       try {
-           const res = await addRegionApi({ name: newRegionName.trim() });
+           const res = await addRegionApi({ regionName: newRegionName.trim(), userId: 1 });
            let created = res.data?.record || res.data;
            
            if (!created || (!created.id && !created.Id)) {
@@ -696,7 +708,11 @@ const NewCustomer = () => {
              toast.success("Region updated");
              setEditRegionModalOpen(false);
              const resR = await getRegionsApi(1, 5000);
-             setRegions(parseArrayFromResponse(resR));
+             setRegions(parseArrayFromResponse(resR).map(r => ({
+                 ...r,
+                 id: r.Id ?? r.id ?? r.regionId ?? r.RegionId,
+                 name: r.regionName ?? r.RegionName ?? r.name ?? ""
+             })));
         } else toast.error("Update failed");
     } catch(err) { console.error(err); toast.error("Server error"); }
   };
@@ -709,7 +725,11 @@ const NewCustomer = () => {
              toast.success("Group updated");
              setEditCustomerGroupModalOpen(false);
              const resG = await getCustomerGroupsApi(1, 5000);
-             setCustomerGroups(parseArrayFromResponse(resG));
+             setCustomerGroups(parseArrayFromResponse(resG).map(g => ({
+                 ...g,
+                 id: g.Id ?? g.id ?? g.customerGroupId ?? g.CustomerGroupId,
+                 name: g.GroupName ?? g.groupName ?? g.name ?? ""
+             })));
         } else toast.error("Update failed");
     } catch(err) { console.error(err); toast.error("Server error"); }
   };
@@ -1266,10 +1286,7 @@ const handleRestore = async () => {
                   <div className="flex-1 font-medium">
                    <SearchableSelect
                       label="Region"
-                      options={regions.map((r) => ({
-                          id: r.regionId ?? r.Id ?? r.id,
-                          name: r.regionName ?? r.RegionName ?? r.name ?? ""
-                      }))}
+                      options={regions}
                       value={form.regionId}
                       onChange={(val) => update("regionId", val)}
                       placeholder="--select region--"
@@ -1449,10 +1466,7 @@ const handleRestore = async () => {
                   <div className="flex-1 font-medium">
                    <SearchableSelect
                       label="Customer Group"
-                      options={customerGroups.map((g) => ({
-                          id: g.Id ?? g.id,
-                          name: g.GroupName ?? g.groupName ?? g.name ?? ""
-                      }))}
+                      options={customerGroups}
                       value={form.customerGroupId}
                       onChange={(val) => update("customerGroupId", val)}
                       placeholder="--select group--"

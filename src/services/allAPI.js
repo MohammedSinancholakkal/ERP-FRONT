@@ -1542,6 +1542,10 @@ export const restoreSupplierApi = (id, data) =>
 export const getSupplierPayablesApi = (sortBy = null, order = null) =>
   commonAPI("GET", `${serverURL}/suppliers/payable-report?sortBy=${sortBy || ""}&order=${order || ""}`);
 
+// PAYABLE DETAILED REPORT
+export const getSupplierPayablesDetailedApi = (sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/suppliers/payable-details-report?sortBy=${sortBy || ""}&order=${order || ""}`);
+
 
 
 // ======================= Customers APIs =======================
@@ -1581,6 +1585,22 @@ export const restoreCustomerApi = (id, data) =>
 export const getCustomerReceivablesApi = (sortBy = null, order = null) =>
   commonAPI("GET", `${serverURL}/customers/receivable-report?sortBy=${sortBy || ""}&order=${order || ""}`);
 
+// RECEIVABLE DETAILED REPORT
+export const getCustomerReceivablesDetailedApi = (sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/customers/receivable-details-report?sortBy=${sortBy || ""}&order=${order || ""}`);
+
+// CASH IN HAND REPORT
+export const getCashInHandReportApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/banks/cash-in-hand-report?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
+
+// CASH AT BANK REPORT
+export const getCashAtBankReportApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/banks/cash-at-bank-report?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
+
+// TAX REPORT
+export const getTaxReportApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/tax-report?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
+
 
 
 
@@ -1589,8 +1609,8 @@ export const getCustomerReceivablesApi = (sortBy = null, order = null) =>
 // ======================= Meetings APIs =======================
 
 // LIST (paginated)
-export const getMeetingsApi = (page, limit) =>
-  commonAPI("GET", `${serverURL}/meetings?page=${page}&limit=${limit}`);
+export const getMeetingsApi = (page, limit, sortBy = null, order = null) =>
+  commonAPI("GET", `${serverURL}/meetings?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 
 // GET BY ID (Not created server-side, but keeping structure for future use)
 export const getMeetingByIdApi = (id) =>

@@ -1139,10 +1139,10 @@ const NewPurchase = () => {
 
   return (
     <PageLayout>
-      <div className={`p-6 h-full ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
+      <div className={`p-6 ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         
-        <ContentCard className="!h-auto max-h-full">
-        <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+        <ContentCard className="!h-auto">
+        <div className="">
         {/* HEADER & ACTIONS */}
         <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -1230,14 +1230,23 @@ const NewPurchase = () => {
                     className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                      onClick={() => {
                         const preserveState = { supplier, paymentAccount, invoiceNo, purchaseOrderNo, vehicleNo, date, taxTypeId, rows, globalDiscount, shippingCost, paidAmount, noTax, details };
+                        navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname, preserveState } });
+                     }}
+                   >
+                      <Star size={16} />
+                   </div>
+                  )}
+                  {hasPermission(PERMISSIONS.SUPPLIERS.CREATE) && !inactiveView && !!id && (
+                   <div 
+                    className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                     onClick={() => {
+                        const preserveState = { supplier, paymentAccount, invoiceNo, purchaseOrderNo, vehicleNo, date, taxTypeId, rows, globalDiscount, shippingCost, paidAmount, noTax, details };
                         if (supplier) {
                             navigate(`/app/businesspartners/newsupplier/${supplier}`, { state: { returnTo: location.pathname, preserveState } });
-                        } else {
-                            navigate("/app/businesspartners/newsupplier", { state: { returnTo: location.pathname, preserveState } });
                         }
                      }}
                    >
-                      {supplier ? <Pencil size={16} /> : <Star size={16} />}
+                      <Pencil size={16} />
                    </div>
                   )}
                </div>
@@ -1261,16 +1270,19 @@ const NewPurchase = () => {
                        <option value="Cash at Bank">Cash at Bank</option>
                      </select>
                     </div>
-                 {!inactiveView && (
+                 {!inactiveView && !id && (
                     <div className="p-2 border border-transparent rounded invisible"><Star size={16} /></div>
+                 )}
+                 {!inactiveView && !!id && (
+                    <div className="p-2 border border-transparent rounded invisible"><Pencil size={16} /></div>
                  )}
                 </div>
              </div>
 
-             {/* Tax Type */}
+             {/* Tax Rate */}
              <div className="flex items-center">
                <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                  Tax Type
+                  Tax Rate
                </label>
                <div className="flex-1 flex items-center gap-2">
                    <div className="flex-1 font-medium">
@@ -1285,6 +1297,9 @@ const NewPurchase = () => {
                   </div>
                   {!inactiveView && !id && (
                     <div className="p-2 border border-transparent rounded invisible"><Star size={16} /></div>
+                  )}
+                  {!inactiveView && !!id && (
+                    <div className="p-2 border border-transparent rounded invisible"><Pencil size={16} /></div>
                   )}
                </div>
              </div>
@@ -1301,8 +1316,11 @@ const NewPurchase = () => {
                          disabled={inactiveView || !!id}
                        />
                    </div>
-                   {!inactiveView && (
+                   {!inactiveView && !id && (
                     <div className="p-2 border border-transparent rounded invisible"><Star size={16} /></div>
+                   )}
+                   {!inactiveView && !!id && (
+                    <div className="p-2 border border-transparent rounded invisible"><Pencil size={16} /></div>
                    )}
                </div>
              </div>
@@ -1321,8 +1339,11 @@ const NewPurchase = () => {
                          disabled={inactiveView || !!id}
                        />
                    </div>
-                   {!inactiveView && (
+                   {!inactiveView && !id && (
                     <div className="p-2 border border-transparent rounded invisible"><Star size={16} /></div>
+                   )}
+                   {!inactiveView && !!id && (
+                    <div className="p-2 border border-transparent rounded invisible"><Pencil size={16} /></div>
                    )}
                </div>
              </div>
@@ -1338,8 +1359,11 @@ const NewPurchase = () => {
                          disabled={inactiveView || !!id}
                        />
                    </div>
-                   {!inactiveView && (
+                   {!inactiveView && !id && (
                     <div className="p-2 border border-transparent rounded invisible"><Star size={16} /></div>
+                   )}
+                   {!inactiveView && !!id && (
+                    <div className="p-2 border border-transparent rounded invisible"><Pencil size={16} /></div>
                    )}
                </div>
              </div>
@@ -1356,8 +1380,11 @@ const NewPurchase = () => {
                          disabled={inactiveView || !!id}
                        />
                    </div>
-                   {!inactiveView && (
+                   {!inactiveView && !id && (
                     <div className="p-2 border border-transparent rounded invisible"><Star size={16} /></div>
+                   )}
+                   {!inactiveView && !!id && (
+                    <div className="p-2 border border-transparent rounded invisible"><Pencil size={16} /></div>
                    )}
                </div>
              </div>
@@ -1464,15 +1491,15 @@ const NewPurchase = () => {
 
                 {/* Total Tax */}
                 <div>
-                   <div className="flex justify-between mb-1">
-                      <label className={`block text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
+                   <div className="flex items-center gap-2 mb-1">
+                      <label className={`flex-1 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-purple-700 font-semibold' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
                             onChange={(e) => setNoTax(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-600 bg-gray-800 disabled:opacity-50"
+                            className={`w-4 h-4 rounded transition-colors ${theme === 'emerald' ? 'border-emerald-300 bg-white accent-emerald-600' : theme === 'purple' ? 'border-purple-300 bg-white accent-purple-600' : 'border-gray-600 bg-gray-800 accent-blue-500'} disabled:opacity-50`}
                             disabled={inactiveView}
                           />
                       </div>

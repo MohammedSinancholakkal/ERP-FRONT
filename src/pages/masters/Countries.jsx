@@ -242,11 +242,15 @@ const Countries = () => {
           refreshInactiveCountries();
           loadInactive();
         } else {
-          showErrorToast("Restore failed");
+          if (res?.status === 409) {
+            showErrorToast(res?.data?.message || "Cannot restore. Country already exists");
+          } else {
+            showErrorToast(res?.data?.message || "Restore failed");
+          }
         }
       } catch (err) {
           console.error(err);
-          showErrorToast("Server error");
+          showErrorToast(err?.response?.data?.message || "Server error");
       }
     }
 
@@ -287,15 +291,24 @@ const Countries = () => {
             createLabel="New Country"
             permissionCreate={hasPermission(PERMISSIONS.COUNTRIES.CREATE)}
             onRefresh={() => {
+              const willUpdate = 
+                page !== 1 || 
+                limit !== 25 || 
+                sortConfig.key !== "id" || 
+                sortConfig.direction !== "desc";
+
               setSearchText("");
-              searchRef.current += 1; // Cancel any pending searches
+              searchRef.current += 1;
+              setSortConfig({ key: "id", direction: "desc" });
+              setLimit(25);
+              setShowInactive(false);
+              setPage(1);
+
               refreshCountries();
               refreshInactiveCountries();
-              setShowInactive(false); // Reset inactive toggle
-              if (page === 1) {
+
+              if (!willUpdate) {
                   loadCountries(false, "");
-              } else {
-                  setPage(1);
               }
             }}
             onColumnSelector={() => setColumnModal(true)}
@@ -312,9 +325,21 @@ const Countries = () => {
             setLimit={setLimit}
             total={totalRecords}
             onRefresh={() => {
+              const willUpdate = 
+                page !== 1 || 
+                limit !== 25;
+
               setSearchText("");
+              setLimit(25);
+              setShowInactive(false);
               setPage(1);
-              loadCountries();
+
+              refreshCountries();
+              refreshInactiveCountries();
+
+              if (!willUpdate) {
+                  loadCountries();
+              }
             }}
           />
           </div>

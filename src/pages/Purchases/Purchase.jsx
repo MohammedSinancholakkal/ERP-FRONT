@@ -227,19 +227,33 @@ const Purchase = () => {
     setSearchText("");
     setFilterSupplier("");
     setFilterDate("");
-    setSortConfig({ key: null, direction: 'asc' });
+    
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
+    setShowInactive(false);
     
-    // Reset inactive view if active
-    if (showInactive) {
-      setShowInactive(false);
-      // When switching back to active, we just fetch purchases which defaults to active
-      await fetchPurchases(); 
-    } else {
-      // Just refresh current list
-      await fetchPurchases();
+    setIsLoading(true);
+    try {
+      const res = await getPurchasesApi(1, 25, newSort.key, newSort.direction);
+      if (res.status === 200) {
+        let rows = res.data.records || [];
+        rows = rows.map((r) => ({
+          ...r,
+          details: r.details ?? r.Details,
+          supplierName: r.supplierName || suppliers.find((s) => String(s.id) === String(r.supplierId) || String(s.id) === String(r.SupplierId))?.name || "-"
+        }));
+        setPurchasesList(rows);
+        setTotalRecords(res.data.totalRecords || rows.length || 0);
+        setTotalPages(res.data.totalPages || 1);
+      }
+    } catch (error) {
+      console.error("Error refreshing purchases", error);
+      toast.error("Failed to refresh purchases");
+    } finally {
+      setIsLoading(false);
     }
-    
   };
 
   const handleExportExcel = () => {

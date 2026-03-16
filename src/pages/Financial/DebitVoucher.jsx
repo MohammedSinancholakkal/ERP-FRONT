@@ -55,16 +55,11 @@ const DebitVoucher = () => {
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
         direction = 'desc';
     }
+    setPage(1);
     setSortConfig({ key, direction });
   };
 
-  const sortedList = [...dataList].sort((a, b) => { 
-      if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-  });
-
-  const filteredList = sortedList.filter(item => {
+  const filteredList = dataList.filter(item => {
      if(!searchText) return true;
      const lowerSearch = searchText.toLowerCase();
      return (
@@ -79,9 +74,9 @@ const DebitVoucher = () => {
   // -----------------------------------
   // HANDLERS
   // -----------------------------------
-  const loadData = async () => {
+  const loadData = async (newSort = sortConfig) => {
     try {
-      const res = await getDebitVouchersApi(false, sortConfig.key, sortConfig.direction);
+      const res = await getDebitVouchersApi(false, newSort.key, newSort.direction);
       if (res && res.status === 200) {
         // Validate that data is an array and NOT a string (which happens if server returns HTML)
         if (Array.isArray(res.data) && (res.data.length === 0 || typeof res.data[0] === 'object')) {
@@ -106,6 +101,7 @@ const DebitVoucher = () => {
   React.useEffect(() => {
     loadData();
   }, [sortConfig]);
+
 
   // Fetch COA Heads
   React.useEffect(() => {
@@ -212,7 +208,7 @@ const DebitVoucher = () => {
         if(res && (res.status === 200 || res.status === 201)){
             showSuccessToast("Created Successfully");
             setModalOpen(false);
-            loadData();
+            await loadData();
         } else {
             showErrorToast("Operation Failed");
         }
@@ -355,9 +351,13 @@ const DebitVoucher = () => {
                         createLabel="New Voucher"
                         permissionCreate={hasPermission(PERMISSIONS.FINANCIAL.CREATE)}
                         
-                        onRefresh={() => {
+                        onRefresh={async () => {
                             setSearchText("");
-                            loadData();
+                            setPage(1);
+                            setLimit(25);
+                            const newSort = { key: "id", direction: "desc" };
+                            setSortConfig(newSort);
+                            await loadData(newSort);
                         }}
                         onColumnSelector={() => setColumnModalOpen(true)}
                         // onToggleInactive={() => setShowInactive(!showInactive)}

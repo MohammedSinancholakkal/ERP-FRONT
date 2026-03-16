@@ -78,7 +78,7 @@ const end = Math.min(page * limit, totalRecords);
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
   // SORT CONFIG
-  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -262,6 +262,14 @@ const handleDelete = async () => {
   // RESTORE
   // =============================
 const handleRestore = async () => {
+    // --- DUPLICATE CHECKS START ---
+    const exists = categories.some((c) => c.name.toLowerCase() === editCategory.name.toLowerCase());
+    if (exists) {
+      showErrorToast("Cannot restore: Active category with this name already exists.");
+      return;
+    }
+    // --- DUPLICATE CHECKS END ---
+
   const result = await showRestoreConfirm();
 
   if (!result.isConfirmed) return;
@@ -277,11 +285,15 @@ const handleRestore = async () => {
       setEditModalOpen(false);
       loadCategories();
       loadInactive();
+    } else if (res.status === 409) {
+      showErrorToast(res.data.message || "Cannot restore. Item already exists.");
+    } else {
+      showErrorToast("Restore failed");
     }
   } catch (error) {
     console.error("Restore category failed:", error);
 
-    showErrorToast("Failed to restore category. Please try again.");
+    showErrorToast(error?.response?.data?.message || "Failed to restore category. Please try again.");
   }
 };
 
@@ -445,10 +457,13 @@ const handleRestore = async () => {
             permissionCreate={hasPermission(PERMISSIONS.INVENTORY.CATEGORIES.CREATE)}
             onRefresh={() => {
                 setSearchText("");
-                setSortConfig({ key: "id", direction: "asc" });
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
                 setShowInactive(false);
-                loadCategories(1, limit, { key: "id", direction: "asc" });
+                loadCategories(1, 25, { ...sortConfig, direction: newDirection });
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
             onToggleInactive={async () => {
@@ -467,10 +482,13 @@ const handleRestore = async () => {
             total={totalRecords}
               onRefresh={() => {
                 setSearchText("");
-                setSortConfig({ key: "id", direction: "asc" });
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
                 setShowInactive(false);
-                loadCategories(1, limit, { key: "id", direction: "asc" });
+                loadCategories(1, 25, { ...sortConfig, direction: newDirection });
               }}
           />
           </div>       

@@ -239,9 +239,14 @@ const TaxPercentage = () => {
              loadInactive();
              loadData();
            }
+         else if (res?.status === 409) {
+            showErrorToast(res?.data?.message || 'Cannot restore. Item already exists');
+          } else {
+            showErrorToast(res?.data?.message || 'Restore failed');
+          }
         } catch (error) {
-            console.error(error);
-            showErrorToast("Restore Failed");
+          console.error(error);
+          showErrorToast(error?.response?.data?.message || "Server error");
         }
     }
   };
@@ -327,26 +332,32 @@ const TaxPercentage = () => {
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 onRowClick={(e, isInactive) => openEditModal(e, isInactive)}
-                
                 search={searchText}
                 onSearch={handleSearch}
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Tax Percentage"
-                
                 onRefresh={() => {
+                   const willUpdate = 
+                       page !== 1 || 
+                       limit !== 25 || 
+                       sortConfig.key !== "id" || 
+                       sortConfig.direction !== "desc";
+
                    setSearchText("");
-                   setPage(1);
-                   setSortConfig({ key: "id", direction: 'asc' });
+                   setSortConfig({ key: "id", direction: "desc" });
+                   setLimit(25);
                    setShowInactive(false);
-                   loadData();
+                   setPage(1);
+
+                   if (!willUpdate) {
+                       loadData();
+                   }
                 }}
-                
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={async () => {
                     if (!showInactive) await loadInactive();
                     setShowInactive(!showInactive);
                 }}
-                
                 page={page}
                 setPage={setPage}
                 limit={limit}

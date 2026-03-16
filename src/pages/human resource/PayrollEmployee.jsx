@@ -388,7 +388,7 @@ const handleBack = () => {
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={handleBack} className="hover:text-gray-500">
+            <button onClick={handleBack} className={`${theme === 'emerald' ? 'hover:bg-emerald-200 text-emerald-800' : theme === 'purple' ? 'bg-purple-50 hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700 text-gray-300'} p-2 rounded-full transition-colors`}>
               <ArrowLeft size={24} />
             </button>
             <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-purple-800' : theme === 'emerald' ? 'text-emerald-800' : 'text-white'}`}>Employee Payroll</h2>
@@ -406,9 +406,8 @@ const handleBack = () => {
         <hr className="mb-4 border-gray-300" />
 
         {/* EMPLOYEE INFO */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-8">
             {/* Left Column */}
-            <div className="space-y-4">
                <SearchableSelect
                     label={<>Employee <span className="text-dark">*</span></>}
                     options={employees}
@@ -427,45 +426,58 @@ const handleBack = () => {
                         }
                     }}
                     placeholder={employeesLoading ? "Loading..." : "Select Employee"}
+                    showSpacer
                 />
                 
-                 <InputField 
-                    label="Bank Account" 
-                    value={bankAccount} 
-                    onChange={(e) => setBankAccount(e.target.value)} 
-                    required 
-                 />
-            </div>
+                 <div className="flex gap-2 w-full">
+                    <div className="flex-grow min-w-0">
+                        <InputField 
+                            label="Bank Account" 
+                            value={bankAccount} 
+                            onChange={(e) => setBankAccount(e.target.value)} 
+                            required 
+                        />
+                    </div>
+                    <div className="flex-shrink-0 w-[38px]"></div>
+                 </div>
             
             {/* Right Column */}
-            <div className="space-y-4">
-                 <InputField
-                    label={<>Bank Name <span className="text-dark">*</span></>}
-                    value={bankName}
-                    readOnly
-                    placeholder={employee ? "Auto-filled from Employee Profile" : "Select Employee first..."}
-                 />
-            </div>
+                 <div className="flex gap-2 w-full">
+                    <div className="flex-grow min-w-0">
+                        <InputField
+                            label={<>Bank Name <span className="text-dark">*</span></>}
+                            value={bankName}
+                            readOnly
+                            placeholder={employee ? "Auto-filled from Employee Profile" : "Select Employee first..."}
+                        />
+                    </div>
+                    <div className="flex-shrink-0 w-[38px]"></div>
+                 </div>
         </div>
 
 
         {/* PAYROLL COMPONENTS */}
         <Section title="Payroll Components">
-          <div className="mb-6">
-            <InputField
-              label={<>Basic Salary <span className="text-dark"></span></>}
-              type="text"
-              value={basicSalary}
-              onChange={setBasicSalary}
-              required
-              formatted
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6">
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField
+                  label={<>Basic Salary <span className="text-dark"></span></>}
+                  type="text"
+                  value={basicSalary}
+                  onChange={setBasicSalary}
+                  required
+                  formatted
+                />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
           </div>
 
           {/* INCOMES */}
           <div className="mb-6">
             <div className="flex items-center gap-4 mb-2">
-              <h3 className="text-lg">Incomes</h3>
+              <h3 className={`text-lg font-medium transition-colors ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-200'}`}>Incomes</h3>
               <button
                 onClick={() => {
                   setEditingIncomeId(null);
@@ -477,30 +489,30 @@ const handleBack = () => {
               </button>
             </div>
 
-            <div className={`border rounded p-2 w-full lg:w-1/2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
+            <div className={`border rounded p-2 w-full lg:w-3/4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
               <table className="w-full text-sm">
-                <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+                <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                   <tr>
-                    <th className="p-2 text-left">Income</th>
-                    <th className="p-2 text-right">Amount</th>
-                    <th className="p-2 text-left">Short Note</th>
-                    <th className="p-2 text-right">Actions</th>
+                    <th className="p-2 text-left font-semibold">Income</th>
+                    <th className="p-2 text-right font-semibold">Amount</th>
+                    <th className="p-2 text-left font-semibold">Short Note</th>
+                    <th className="p-2 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                   {incomes.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-4 text-center text-gray-400">
+                      <td colSpan={4} className={`py-4 text-center transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>
                         No incomes added
                       </td>
                     </tr>
                   ) : (
                     incomes.map((r) => (
                       <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
-                        <td className="p-2">{r.type?.name ?? r.typeName}</td>
-                        <td className="p-2 text-right">{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="p-2">{r.note || "-"}</td>
-                        <td className="p-2 text-right">
+                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.type?.name ?? r.typeName}</td>
+                        <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.note || "-"}</td>
+                        <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
                           <button
                             className="p-1 mr-2"
                             onClick={() => {
@@ -530,7 +542,7 @@ const handleBack = () => {
           {/* DEDUCTIONS */}
           <div className="mb-6">
             <div className="flex items-center gap-4 mb-2">
-              <h3 className="text-lg">Deductions</h3>
+              <h3 className={`text-lg font-medium transition-colors ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-200'}`}>Deductions</h3>
               <button
                 onClick={() => {
                   setEditingDeductionId(null);
@@ -542,31 +554,31 @@ const handleBack = () => {
               </button>
             </div>
 
-            <div className={`border rounded p-2 overflow-x-auto w-full lg:w-1/2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
+            <div className={`border rounded p-2 overflow-x-auto w-full lg:w-3/4 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-900/20'}`}>
               <table className="w-full text-center text-sm">
-                <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
-                  <tr className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
-                    <th className="py-2 pr-4">Deduction</th>
-                    <th className="py-2 w-24">Amount</th>
-                    <th className="py-2">Short Note</th>
-                    <th className="py-2 w-28">Actions</th>
+                <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+                  <tr className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>
+                    <th className="py-2 pr-4 font-semibold text-left">Deduction</th>
+                    <th className="py-2 w-24 font-semibold text-right">Amount</th>
+                    <th className="py-2 font-semibold text-left">Short Note</th>
+                    <th className="py-2 w-28 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
                   {deductions.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-gray-400">
+                      <td colSpan={4} className={`py-6 text-center transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-500' : 'text-gray-400'}`}>
                         No deductions added
                       </td>
                     </tr>
                   ) : (
                     deductions.map((r) => (
                       <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
-                        <td className="py-2 pr-4">{r.type?.name ?? r.typeName}</td>
-                        <td className="py-2 w-24 text-right">{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="py-2">{r.note || "-"}</td>
-                        <td className="py-2 text-right">
+                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.type?.name ?? r.typeName}</td>
+                        <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.note || "-"}</td>
+                        <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
                           <button
                             className="p-1 mr-2"
                             onClick={() => {
@@ -596,27 +608,27 @@ const handleBack = () => {
         </Section>
 
         {/* SUMMARY */}
-        <Section title="Summary">
+        <Section title={<span className={theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-200'}>Summary</span>}>
           <div className="space-y-4 max-w-2xl">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
+                 <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
                   <div className="flex-1 font-medium">
-                     <input value={Number(summaryTotalIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
-                 </div>
+                     <input value={Number(summaryTotalIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
+                  </div>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
+                 <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
                   <div className="flex-1 font-medium">
-                     <input value={Number(totalDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
-                 </div>
+                     <input value={Number(totalDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
+                  </div>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-bold' : 'text-gray-300'}`}>Take Home Pay</label>
+                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-purple-700 font-bold' : 'text-gray-300'}`}>Take Home Pay</label>
                   <div className="flex-1 font-medium">
-                     <input value={Number(takeHomePay).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right font-bold text-lg ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
-                 </div>
+                     <input value={Number(takeHomePay).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right font-bold text-lg ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-purple-700 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
+                  </div>
               </div>
           </div>
         </Section>

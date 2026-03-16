@@ -22,6 +22,7 @@ const EditModal = ({
 
   React.useEffect(() => {
     if (isOpen) {
+      setLoading(false);
       const timer = setTimeout(() => {
         const firstInput = modalRef.current?.querySelector('input, textarea, select');
         if (firstInput) {
@@ -51,7 +52,11 @@ const EditModal = ({
     } catch (error) {
       console.error(error);
     } finally {
-      if (isMounted.current) setLoading(false);
+      if (isMounted.current) {
+        setTimeout(() => {
+          setLoading(false);
+        }, 300);
+      }
     }
   };
 

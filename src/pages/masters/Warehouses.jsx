@@ -446,12 +446,14 @@ const Warehouses = () => {
             setEditModalOpen(false);
             loadRows();
             loadInactive();
+          } else if (res?.status === 409) {
+            showErrorToast(res?.data?.message || 'Cannot restore. Item already exists');
           } else {
-            showErrorToast("Restore failed");
+            showErrorToast(res?.data?.message || 'Restore failed');
           }
         } catch (err) {
-            console.error(err);
-            showErrorToast("Server error");
+          console.error(err);
+          showErrorToast(err?.response?.data?.message || "Server error");
         }
     }
   };
@@ -697,14 +699,28 @@ const Warehouses = () => {
             createLabel="New Warehouse"
             permissionCreate={hasPermission(PERMISSIONS.WAREHOUSES.CREATE)}
             onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25 || 
+                    sortConfig.key !== "id" || 
+                    sortConfig.direction !== "desc" ||
+                    filters.countryId !== "" ||
+                    filters.stateId !== "" ||
+                    filters.cityId !== "";
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setSortConfig({ key: "id", direction: "desc" });
+                setLimit(25);
                 setShowInactive(false);
                 setFilters({ countryId: "", stateId: "", cityId: "" });
+                setPage(1);
+                
                 refreshCtx();
                 refreshInactiveCtx();
-                loadRows();
+                
+                if (!willUpdate) {
+                    loadRows();
+                }
             }}
             onColumnSelector={() => setColumnModal(true)}
             onToggleInactive={async () => {
@@ -725,14 +741,22 @@ const Warehouses = () => {
             setLimit={setLimit}
             total={totalRecords}
             onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25;
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setLimit(25);
                 setShowInactive(false);
                 setFilters({ countryId: "", stateId: "", cityId: "" });
+                setPage(1);
+
                 refreshCtx();
                 refreshInactiveCtx();
-                loadRows();
+                
+                if (!willUpdate) {
+                    loadRows();
+                }
             }}
             />
           </div>

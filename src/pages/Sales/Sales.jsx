@@ -199,10 +199,50 @@ const Sales = () => {
     setFilterCustomer("");
     setFilterDate("");
     setFilterPayment("");
-    setSortConfig({ key: "id", direction: 'desc' });
+    
+    const newDirection = "desc";
+    setSortConfig(prev => ({ ...prev, direction: newDirection }));
+    setLimit(25);
     setPage(1);
-    setShowInactive(false); // Reset inactive
-    await fetchAllData();
+    setShowInactive(false);
+    // Passing updated values directly to avoid waiting for state update
+    setIsLoading(true);
+    try {
+      const [customersRes, salesRes] = await Promise.all([
+        getCustomersApi(1, 1000),
+        getSalesApi(1, 25, sortConfig.key, newDirection)
+      ]);
+      // Process Customers
+      let customersMap = [];
+      if (customersRes.status === 200) {
+        const records = Array.isArray(customersRes?.data?.records) ? customersRes.data.records : [];
+        customersMap = records.map(c => ({
+          id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
+          name: c.companyName ?? c.CompanyName ?? c.name ?? c.Name ?? ""
+        }));
+        setCustomers(customersMap);
+      }
+      // Process Sales
+      if (salesRes.status === 200) {
+        const rows = Array.isArray(salesRes.data.records) ? salesRes.data.records : [];
+        const normalized = rows.map(r => {
+          const norm = normalizeSale(r);
+          if (!norm.customerName && norm.customerId && customersMap.length > 0) {
+            const customer = customersMap.find(c => String(c.id) === String(norm.customerId));
+            if (customer) norm.customerName = customer.name;
+          }
+          return norm;
+        });
+        setSalesList(normalized);
+        setTotalRecords(salesRes.data.totalRecords || normalized.length || 0);
+        setTotalPages(salesRes.data.totalPages || 1);
+      }
+    } catch (error) {
+      console.error("Error refreshing data", error);
+      toast.error("Failed to refresh data");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExportExcel = () => {

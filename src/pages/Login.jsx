@@ -80,18 +80,18 @@ const Login = () => {
     <div className="flex h-screen w-full overflow-hidden bg-white">
       {/* LEFT SIDE - BRANDING */}
       <div 
-        className="hidden lg:flex flex-col justify-center lg:w-[50%] xl:w-[55%] text-white p-12 xl:p-20 relative z-10"
+        className="hidden lg:flex flex-col justify-center lg:w-[55%] xl:w-[50%] text-white p-8 lg:p-10 xl:p-20 relative z-10"
         style={{
            backgroundColor: "#6448AE",
-           clipPath: "ellipse(80% 100% at 0% 50%)" 
+           clipPath: "ellipse(85% 100% at 0% 50%)" 
         }}
       >
-        <div className="max-w-2xl">
-            <h1 className="text-3xl lg:text-5xl xl:text-5xl font-extrabold mb-6 tracking-tight drop-shadow-sm">HomeButton ERP</h1>
-            <p className="text-lg lg:text-xl font-medium mb-6 text-purple-200 tracking-wide">
+        <div className="max-w-full lg:max-w-md xl:max-w-2xl">
+            <h1 className="text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-6 tracking-tight drop-shadow-sm">HomeButton ERP</h1>
+            <p className="text-lg lg:text-lg xl:text-xl font-medium mb-6 text-purple-200 tracking-wide">
               Comprehensive Enterprise Resource Planning
             </p>
-            <p className="text-sm lg:text-lg text-purple-100 opacity-90 leading-snug font-light max-w-md">
+            <p className="text-sm lg:text-base xl:text-lg text-purple-100 opacity-90 leading-snug font-light max-w-sm xl:max-w-md">
               Streamline operations, manage inventory, track financials, and optimize business performance.
             </p>
         </div>

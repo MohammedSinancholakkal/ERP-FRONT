@@ -160,9 +160,13 @@ const StockReport = () => {
                 onSearch={setSearchText}
                 
                 onRefresh={() => {
-                    fetchReport();
-                    setSearchText("");
+                    const newSort = { key: "productName", direction: "desc" };
+                    setSortConfig(newSort);
+                    setLimit(25);
                     setPage(1);
+                    setSearchText("");
+                    setFilterCategory("");
+                    fetchReport();
                 }}
                 onColumnSelector={() => setColumnModal(true)}
                 // onToggleInactive removed for reports usually

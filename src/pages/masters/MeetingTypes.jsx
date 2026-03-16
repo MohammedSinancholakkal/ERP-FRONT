@@ -306,10 +306,15 @@ const MeetingTypes = () => {
           loadRows();
           loadInactive();
         }
-      } catch (err) {
-        console.error(err);
-        showErrorToast("Restore failed");
-      }
+       else if (res?.status === 409) {
+            showErrorToast(res?.data?.message || 'Cannot restore. Item already exists');
+          } else {
+            showErrorToast(res?.data?.message || 'Restore failed');
+          }
+        } catch (err) {
+          console.error(err);
+          showErrorToast(err?.response?.data?.message || "Server error");
+        }
     }
   };
 
@@ -344,13 +349,24 @@ const MeetingTypes = () => {
             createLabel="New Type"
             permissionCreate={hasPermission(PERMISSIONS.MEETING_TYPES.CREATE)}
             onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25 || 
+                    sortConfig.key !== "id" || 
+                    sortConfig.direction !== "desc";
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setSortConfig({ key: "id", direction: "desc" });
+                setLimit(25);
                 setShowInactive(false);
+                setPage(1);
+
                 refreshCtx();
                 refreshInactiveCtx();
-                loadRows();
+
+                if (!willUpdate) {
+                    loadRows();
+                }
             }}
             onColumnSelector={() => setColumnModalOpen(true)}
             onToggleInactive={async () => {
@@ -365,25 +381,32 @@ const MeetingTypes = () => {
           setLimit={setLimit}
           total={totalRecords}
           onRefresh={() => {
+            const willUpdate = 
+              page !== 1 || 
+              limit !== 25;
+
             setSearchText("");
-            setPage(1);
-            setSortConfig({ key: "id", direction: "asc" });
+            setLimit(25);
             setShowInactive(false);
+            setPage(1);
+
             refreshCtx();
             refreshInactiveCtx();
-            loadRows();
+
+            if (!willUpdate) {
+                loadRows();
+            }
           }}
         />
         </div>
       </ContentCard>
     </div>
-
        {/* ADD MODAL */}
        <AddModal
-         isOpen={modalOpen}
-         onClose={() => setModalOpen(false)}
-         onSave={handleAdd}
-         title="New Meeting Type"
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onSave={handleAdd}
+          title="New Meeting Type"
        >
           <div>
             <InputField

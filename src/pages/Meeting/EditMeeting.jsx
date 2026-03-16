@@ -1466,7 +1466,7 @@ const EditMeeting = () => {
                     className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
                     <ArrowLeft size={18} />
                   </button>
-                  <h2 className={`text-xl font-bold ${theme === 'emerald' || theme === 'purple' ? 'text-[#6448AE]' : 'text-white'}`}>{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
+                  <h2 className={`text-xl font-bold ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{isInactive ? "Restore Meeting" : "Edit Meeting"}</h2>
                 </div>
                 
                  <div className="flex items-center gap-3">
@@ -1512,7 +1512,7 @@ const EditMeeting = () => {
                    )}
                 </div>
             </div>
-            <hr className="border-gray-300" />
+            <hr className={theme === 'emerald' ? 'border-emerald-100' : theme === 'purple' ? 'border-purple-100' : 'border-gray-800'} />
         </div>
 
         {/* TABS */}
@@ -1557,14 +1557,14 @@ const EditMeeting = () => {
 
 
             {/* FORM GRID */}
-            <div className={`grid grid-cols-12 gap-x-6 gap-y-6 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>
+            <div className={`grid grid-cols-12 gap-x-6 gap-y-6`}>
 
               {/* Meeting Name */}
               <div className="col-span-12 md:col-span-6">
                  <div className="flex gap-2 font-medium">
                      <div className="flex-1 font-medium">
                         <InputField
-                           label="Meeting Name *"
+                           label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Meeting Name *</span>}
                            value={meeting.meetingName}
                            onChange={(e) => updateField("meetingName", e.target.value)}
                            disabled={isInactive}
@@ -1578,7 +1578,7 @@ const EditMeeting = () => {
 
               {/* Location */}
               <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Location * </label>
+                   <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Location * </label>
                     <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                           <SearchableSelect
@@ -1607,7 +1607,7 @@ const EditMeeting = () => {
                  <div className="flex gap-2 font-medium">
                      <div className="flex-1 font-medium">
                         <InputField
-                            label="Start Date "
+                            label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Start Date </span>}
                             type="datetime-local"
                             value={meeting.startDate}
                             onChange={(e) => updateField("startDate", e.target.value)}
@@ -1624,7 +1624,7 @@ const EditMeeting = () => {
                      <div className="flex gap-2 font-medium">
                          <div className="flex-1 font-medium">
                             <InputField
-                                label="End Date"
+                                label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>End Date </span>}
                                 type="datetime-local"
                                 value={meeting.endDate}
                                 onChange={(e) => updateField("endDate", e.target.value)}
@@ -1638,7 +1638,7 @@ const EditMeeting = () => {
 
                 {/* Meeting Type */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Meeting Type *</label>
+                   <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Meeting Type *</label>
                     <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                           <SearchableSelect
@@ -1664,7 +1664,7 @@ const EditMeeting = () => {
 
               {/* Department */}
               <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Department *</label>
+                   <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Department *</label>
                     <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                         <SearchableSelect
@@ -1690,7 +1690,7 @@ const EditMeeting = () => {
 
                 {/* Organized By */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Organized By *</label>
+                   <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Organized By *</label>
                     <div className="flex items-center gap-2">
                         <div className="flex-1 font-medium">
                           <SearchableSelect
@@ -1716,7 +1716,7 @@ const EditMeeting = () => {
 
                 {/* Reporter */}
                 <div className="col-span-12 md:col-span-6">
-                   <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Reporter *</label>
+                   <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Reporter *</label>
                     <div className="flex items-center gap-2">
                        <div className="flex-1 font-medium">
                           <SearchableSelect
@@ -1745,7 +1745,7 @@ const EditMeeting = () => {
             {/* ATTENDEES */}
             <div className="mt-8">
               <div className="flex justify-between items-center mb-4">
-                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-gray-800' : theme === 'purple' ? 'text-dark font-medium' : 'text-gray-800'}`}>Attendees</h3>
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Attendees</h3>
                 {!isInactive && hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                   <button
                     onClick={() => setShowAttendeeModal(true)}
@@ -1759,7 +1759,7 @@ const EditMeeting = () => {
               <div className={`overflow-x-auto rounded-lg border ${theme === 'emerald' ? '' : 'border-gray-700'}`}>
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 font-medium border-b border-purple-100' : theme === 'dark' ? 'bg-gray-900 text-white font-bold border-b border-gray-700' : 'bg-gray-800 text-gray-400 font-medium'}>
+                    <tr className={theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-900 text-gray-200'}>
                       <th className="p-3 text-sm font-medium">Attendee</th>
                       <th className="p-3 text-sm font-medium">Attendee Type</th>
                       <th className="p-3 text-sm font-medium">Attendance Status</th>
@@ -1769,14 +1769,14 @@ const EditMeeting = () => {
                   <tbody>
                     {meeting.attendees.map((a, i) => (
                       <tr key={i} className={`transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-t border-purple-100 font-medium' : 'border-t border-gray-800 bg-gray-800 hover:bg-gray-700/50'}`}>
-                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : theme === 'dark' ? 'text-white' : 'text-yellow-300'}`}>{a.attendeeName || a.attendee}</td>
-                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-white'}`}>{a.attendeeTypeName || a.attendeeType}</td>
-                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-white'}`}>{a.attendanceStatusName || a.attendanceStatus}</td>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.attendeeName || a.attendee}</td>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-gray-600' : theme === 'purple' ? 'text-purple-800/80' : 'text-gray-400'}`}>{a.attendeeTypeName || a.attendeeType}</td>
+                        <td className={`p-3 text-sm ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-700' : 'text-gray-300'}`}>{a.attendanceStatusName || a.attendanceStatus}</td>
                         <td className="p-3 text-right flex justify-end gap-2">
-                             <button onClick={() => editAttendee(i)} className={`p-1 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-blue-400`}>
+                             <button onClick={() => editAttendee(i)} className={`p-1 ${theme === 'emerald' ? 'text-emerald-600 hover:text-emerald-800' : theme === 'purple' ? 'text-purple-600 hover:text-purple-800' : 'text-blue-400 hover:text-blue-300'}`}>
                                  <Pencil size={16} />
                              </button>
-                             <button onClick={() => deleteAttendee(i)} className={`p-1 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-red-400`}>
+                             <button onClick={() => deleteAttendee(i)} className={`p-1 ${theme === 'emerald' ? 'text-red-600 hover:text-red-700' : theme === 'purple' ? 'text-red-600 hover:text-red-700' : 'text-red-400 hover:text-red-300'}`}>
                                  <Trash2 size={16} />
                              </button>
                         </td>
@@ -1797,7 +1797,7 @@ const EditMeeting = () => {
                {/* EXTERNAL RECIPIENTS */}
               <div className="mt-8 border-t pt-6">
                    <InputField
-                      label="External Recipients (Email)"
+                      label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>External Recipients (Email)</span>}
                       textarea
                       rows={2}
                       placeholder="Enter emails separated by commas (e.g. client@example.com, vendor@test.com)"
@@ -1821,7 +1821,7 @@ const EditMeeting = () => {
           >
 
             <div className="flex justify-between items-center mb-6">
-                <h3 className={`text-lg font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Agenda Items</h3>
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Agenda Items</h3>
               {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                 <button
                     onClick={() => setShowAgendaModal(true)}
@@ -1834,7 +1834,7 @@ const EditMeeting = () => {
 
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : theme === 'dark' ? 'bg-gray-900 text-white font-bold border-b border-gray-700' : 'bg-gray-800 text-gray-400'}>
+                <tr className={theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-900 text-gray-200'}>
                   <th className="px-4 py-3 text-sm font-medium">ID</th>
                   <th className="px-4 py-3 text-sm font-medium">Title</th>
                   <th className="px-4 py-3 text-sm font-medium">Description</th>
@@ -1847,29 +1847,29 @@ const EditMeeting = () => {
               <tbody>
                 {agendaItems.map(a => (
                     <tr key={a.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100  hover:bg-purple-50' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{a.id}</td>
-                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.title}</td>
-                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{a.description}</td>
+                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.id}</td>
+                    <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{a.title}</td>
+                    <td className={`px-4 py-3 text-sm ${theme === 'emerald' ? 'text-gray-600' : theme === 'purple' ? 'text-purple-800/80' : 'text-gray-400'}`}>{a.description}</td>
                     <td className="px-4 py-3 text-sm">
                         <span className={`text-sm font-medium ${theme === 'emerald' ? 'bg-blue-50 text-blue-700' : theme === 'purple' ? 'text-purple-800' : 'bg-blue-900/30 text-white'}`}>
                          {agendaItemTypes.find(t => String(t.id) === String(a.itemTypeId || a.itemType))?.name || "-"}
                         </span>
                     </td>
-                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
-                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{a.sequenceNo}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-700' : 'text-gray-300'}`}>{employees.find(e => String(e.id) === String(a.requestedById || a.requestedBy))?.name || "-"}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-700' : 'text-gray-300'}`}>{a.sequenceNo}</td>
                     <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditAgendaItem(a)}
-                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-blue-400 rounded transition-colors mr-2`}
+                            className={`p-1.5 ${theme === 'emerald' ? 'text-emerald-600 hover:text-emerald-800' : theme === 'purple' ? 'text-purple-600 hover:text-purple-800' : 'text-blue-400 hover:text-blue-300'} rounded transition-colors mr-2`}
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteAgendaItem(a.id)}
-                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-red-400 rounded transition-colors`}
+                            className={`p-1.5 ${theme === 'emerald' ? 'text-red-600 hover:text-red-700' : theme === 'purple' ? 'text-red-600 hover:text-red-700' : 'text-red-400 hover:text-red-300'} rounded transition-colors`}
                             title="Delete"
                         >
                             <Trash2 size={15} />
@@ -1901,7 +1901,7 @@ const EditMeeting = () => {
             className="mt-4"
           >
             <div className="flex justify-between items-center mb-6">
-                <h3 className={`text-lg font-semibold ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Agenda Decisions</h3>
+                <h3 className={`text-lg font-semibold ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>Agenda Decisions</h3>
               {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
               <button 
                 onClick={() => {
@@ -1927,7 +1927,7 @@ const EditMeeting = () => {
 
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className={theme === 'emerald' ? 'bg-emerald-50/50 text-gray-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : theme === 'dark' ? 'bg-gray-900 text-white font-bold border-b border-gray-700' : 'bg-gray-800 text-gray-400'}>
+                <tr className={theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-900 border-b border-purple-100' : 'bg-gray-900 text-gray-200'}>
                   <th className="px-4 py-3 text-sm font-medium">ID</th>
                   <th className="px-4 py-3 text-sm font-medium">Description</th>
                   <th className="px-4 py-3 text-sm font-medium">Due Date</th>
@@ -1939,9 +1939,9 @@ const EditMeeting = () => {
               <tbody>
                 {agendaDecisions.map(d => (
                    <tr key={d.id} className={`border-t transition-colors ${theme === 'emerald' ? 'border-gray-100 hover:bg-gray-50' : theme === 'purple' ? 'border-purple-100 hover:bg-purple-50 text-sm font-medium text-purple-800' : 'border-gray-800 hover:bg-gray-700/50'}`}>
-                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{d.id}</td>
-                     <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-gray-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{d.description}</td>
-                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
+                     <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{d.id}</td>
+                     <td className={`px-4 py-3 text-sm font-medium ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-purple-900' : 'text-white'}`}>{d.description}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'emerald' ? 'text-gray-600' : theme === 'purple' ? 'text-purple-800/80' : 'text-gray-400'}`}>{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : "-"}</td>
                      <td className="px-4 py-3 text-sm">
                         <span className={`text-sm font-medium ${
                             d.resolutionStatusName === 'Adopted' 
@@ -1951,20 +1951,20 @@ const EditMeeting = () => {
                          {resolutionStatuses.find(s => String(s.id) === String(d.resolutionStatus || d.resolutionStatusId))?.name || "-"}
                         </span>
                      </td>
-                     <td className={`px-4 py-3 text-sm ${theme === 'dark' ? 'text-white' : 'text-purple-800'}`}>{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
+                     <td className={`px-4 py-3 text-sm ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-700' : 'text-gray-300'}`}>{employees.find(e => String(e.id) === String(d.assignedTo || d.assignedToId))?.name || "-"}</td>
                      <td className="px-4 py-3 flex items-center gap-2">
                         {hasPermission(PERMISSIONS.MEETINGS.EDIT) && (
                         <>
                         <button 
                             onClick={() => handleEditDecision(d)}
-                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-blue-400 rounded transition-colors mr-2`}
+                            className={`p-1.5 ${theme === 'emerald' ? 'text-emerald-600 hover:text-emerald-800' : theme === 'purple' ? 'text-purple-600 hover:text-purple-800' : 'text-blue-400 hover:text-blue-300'} rounded transition-colors mr-2`}
                             title="Edit"
                         >
                             <Pencil size={15} />
                         </button>
                         <button 
                             onClick={() => handleDeleteDecision(d.id)}
-                            className={`p-1.5 ${theme === 'dark' ? 'text-white' : 'text-purple-800'} hover:text-red-400 rounded transition-colors`}
+                            className={`p-1.5 ${theme === 'emerald' ? 'text-red-600 hover:text-red-700' : theme === 'purple' ? 'text-red-600 hover:text-red-700' : 'text-red-400 hover:text-red-300'} rounded transition-colors`}
                             title="Delete"
                         >
                             <Trash2 size={15} />
@@ -2003,7 +2003,7 @@ const EditMeeting = () => {
                             <div className="space-y-4">
                                 <div className="space-y-1">
                                     <InputField
-                                         label="Title"
+                                         label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Title</span>}
                                          value={newAgendaItem.title}
                                          onChange={e => setNewAgendaItem({...newAgendaItem, title: e.target.value})}
                                          placeholder="Enter title"
@@ -2013,7 +2013,7 @@ const EditMeeting = () => {
 
                                 <div>
                                     <InputField
-                                        label="Description"
+                                         label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Description</span>}
                                         textarea
                                         rows={4}
                                         placeholder="Enter description..."
@@ -2024,7 +2024,7 @@ const EditMeeting = () => {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Item Type *</label>
+                                         <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Item Type *</label>
                                          <div className="flex items-center gap-2">
                                             <div className="flex-1 font-medium">
                                                 <SearchableSelect 
@@ -2048,7 +2048,7 @@ const EditMeeting = () => {
                                     </div>
 
                                     <div>
-                                         <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Requested By</label>
+                                          <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Requested By</label>
                                          <div className="flex items-center gap-2">
                                             <div className="flex-1 font-medium">
                                                 <SearchableSelect 
@@ -2075,7 +2075,7 @@ const EditMeeting = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                      <div>
                                         <InputField
-                                            label="Sequence No"
+                                            label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Sequence No</span>}
                                             type="number"
                                             value={newAgendaItem.sequenceNo}
                                             onChange={e => setNewAgendaItem({...newAgendaItem, sequenceNo: e.target.value})}
@@ -2084,7 +2084,7 @@ const EditMeeting = () => {
                                     
                                     {/* Attachment Input */}
                                      <div>
-                                        <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Attachment</label>
+                                          <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Attachment</label>
                                         <div className="flex items-center gap-2">
                                              <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded cursor-pointer transition-colors text-sm ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50' : theme === 'purple' ? 'bg-[#6448AE] text-white border-none hover:opacity-90' : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}`}>
                                                 📎 {newAgendaItem.attachmentFile || newAgendaItem.attachments ? "Change File" : "Select File"}
@@ -2109,7 +2109,7 @@ const EditMeeting = () => {
                             
                             {/* Image Preview Section (Relocated to Bottom) */}
                             <div className="space-y-1">
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Image</label>
+                                  <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Image</label>
                                 
                                 <div className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden h-[200px] w-full ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : theme === 'purple' ? 'border-gray-700 bg-white' : 'border-gray-700 bg-gray-800/50'}`}>
                                     {newAgendaItem.imageFile ? (
@@ -2190,7 +2190,7 @@ const EditMeeting = () => {
             >
                 <div className="space-y-4">
                     <InputField
-                         label="Name"
+                         label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Name</span>}
                          value={newAgendaType.name}
                          onChange={e => setNewAgendaType({...newAgendaType, name: e.target.value})}
                          required
@@ -2211,8 +2211,8 @@ const EditMeeting = () => {
                         <div className="space-y-4">
 
                             <div>
-                                <InputField
-                                    label="Description *"
+                                 <InputField
+                                     label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Description *</span>}
                                     textarea
                                     rows={4}
                                     value={newDecision.description}
@@ -2220,15 +2220,15 @@ const EditMeeting = () => {
                                 />
                             </div>
 
-                            <InputField
-                                label="Due Date *"
+                             <InputField
+                                 label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Due Date *</span>}
                                 type="date"
                                 value={newDecision.dueDate}
                                 onChange={e => setNewDecision({...newDecision, dueDate: e.target.value})}
                             />
 
                             <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Assigned To</label>
+                                 <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Assigned To</label>
                                 <SearchableSelect
                                     options={employees.map(e => ({ id: e.id, name: e.name }))}
                                     value={newDecision.assignedTo}
@@ -2238,14 +2238,14 @@ const EditMeeting = () => {
                                 />
                             </div>
 
-                            <InputField
-                                label="Decision Number"
+                             <InputField
+                                 label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Decision Number</span>}
                                 value={newDecision.decisionNumber}
                                 onChange={e => setNewDecision({...newDecision, decisionNumber: e.target.value})}
                             />
 
                             <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Related Agenda Item</label>
+                                 <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Related Agenda Item</label>
                                 <SearchableSelect
                                     options={agendaItems.map(item => ({ 
                                         id: item.id, 
@@ -2259,7 +2259,7 @@ const EditMeeting = () => {
                             </div>
 
                             <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Resolution Status</label>
+                                 <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Resolution Status</label>
                                  <div className="flex items-center gap-2">
                                      <div className="flex-1 font-medium">
                                         <SearchableSelect
@@ -2284,7 +2284,7 @@ const EditMeeting = () => {
                             
                             {/* Images Input */}
                             <div className="space-y-1">
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' || theme === 'purple' ? 'text-black font-medium' : 'text-gray-300'}`}>Images</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Images</label>
                                 <div className="flex flex-col gap-2">
                                      <div className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center relative overflow-hidden min-h-[160px] ${theme === 'emerald' ? 'border-gray-300 bg-gray-50' : theme === 'purple' ? 'border-gray-500 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
                                         {newDecision.imageFile ? (
@@ -2352,7 +2352,7 @@ const EditMeeting = () => {
 
                              {/* Attachments Input */}
                              <div>
-                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Attachments</label>
+                                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Attachments</label>
                                 <div className="flex items-center gap-2">
                                      <label className={`flex items-center gap-2 px-4 py-2 border rounded cursor-pointer transition ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' : theme === 'purple' ? 'bg-[#6448AE] hover:bg-[#6E55B6] text-white border-transparent' : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'}`}>
                                         <Pencil size={14} /> {newDecision.attachmentFile || newDecision.attachments ? "Change File" : "Select File"}
@@ -2394,7 +2394,7 @@ const EditMeeting = () => {
             >
                 <div className="space-y-4">
                     <InputField
-                        label="Name"
+                        label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Name</span>}
                         value={newResolutionStatus.name}
                         onChange={e => setNewResolutionStatus({...newResolutionStatus, name: e.target.value})}
                         required
@@ -2419,7 +2419,7 @@ const EditMeeting = () => {
              <div className="space-y-4">
                <div>
                   <InputField
-                    label="Meeting Type Name"
+                    label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Meeting Type Name</span>}
                     value={newMeetingType.name}
                     onChange={(e) => setNewMeetingType({ ...newMeetingType, name: e.target.value })}
                     placeholder="Enter Meeting Type Name"
@@ -2440,7 +2440,7 @@ const EditMeeting = () => {
             <div className="space-y-4">
               <div>
                 <InputField
-                  label="Department Name *"
+                  label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Department Name *</span>}
                   type="text"
                   value={newDepartment.department}
                   onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
@@ -2451,10 +2451,10 @@ const EditMeeting = () => {
   <label
     className={`text-sm mb-1 block ${
       theme === 'emerald'
-        ? 'text-gray-700'
+        ? 'text-emerald-700 font-medium'
         : theme === 'purple'
-        ? 'text-dark font-medium'
-        : 'text-gray-300'
+        ? 'text-[#6448AE] font-medium'
+        : 'text-gray-300 font-medium'
     }`}
   >
     Description
@@ -2473,7 +2473,7 @@ const EditMeeting = () => {
 
 
               <div>
-                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Parent Department</label>
+                <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' :  theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Parent Department</label>
                 <SearchableSelect
                   options={departments.map(d => ({ id: d.id, name: d.name }))}
                   value={newDepartment.parentDepartmentId}
@@ -2498,7 +2498,7 @@ const EditMeeting = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <InputField
-                  label="Location Name *"
+                  label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Location Name *</span>}
                   type="text"
                   value={newLocation.name}
                   onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
@@ -2507,7 +2507,7 @@ const EditMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>Country *</label>
+                    <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' :  theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Country *</label>
                       <div className="flex gap-2 font-medium">
                          <SearchableSelect
                            options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
@@ -2531,7 +2531,7 @@ const EditMeeting = () => {
 
               <div>
                 <div className="space-y-1">
-                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>State</label>
+                    <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' :  theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>State</label>
                       <div className="flex gap-2 font-medium">
                          <SearchableSelect
                            options={locationModalStates.map(s => ({ id: s.id, name: s.name }))}
@@ -2555,7 +2555,7 @@ const EditMeeting = () => {
 
               <div>
                  <div className="space-y-1">
-                    <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' :  theme === 'purple' ? 'text-dark font-medium' : 'text-gray-300'}`}>City</label>
+                    <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' :  theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>City</label>
                       <div className="flex gap-2 font-medium">
                          <SearchableSelect
                            options={locationModalCities.map(c => ({ id: c.id, name: c.name }))}
@@ -2579,7 +2579,7 @@ const EditMeeting = () => {
 
               <div>
                 <InputField
-                  label="Address"
+                  label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Address</span>}
                   type="text"
                   value={newLocation.address}
                   onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
@@ -2588,7 +2588,7 @@ const EditMeeting = () => {
 
               <div>
                 <InputField
-                  label="Latitude"
+                  label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Latitude</span>}
                   type="text"
                   value={newLocation.latitude}
                   onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
@@ -2597,7 +2597,7 @@ const EditMeeting = () => {
 
               <div>
                 <InputField
-                  label="Longitude"
+                  label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Longitude</span>}
                   type="text"
                   value={newLocation.longitude}
                   onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
@@ -2623,7 +2623,7 @@ const EditMeeting = () => {
             <div className="space-y-4">
             {/* EMPLOYEE DROPDOWN */}
              <div>
-              <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendee *</label>
+               <label className={`block text-sm mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Attendee *</label>
               <SearchableSelect
                 options={employees.map(e => ({ id: e.id, name: e.name }))}
                 value={attendeeForm.attendee}
@@ -2635,7 +2635,7 @@ const EditMeeting = () => {
 
             {/* TYPE DROPDOWN */}
              <div>
-              <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendee Type *</label>
+               <label className={`block text-sm mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Attendee Type *</label>
                <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendeeTypes.map(t => ({ id: t.id, name: t.name }))}
@@ -2658,7 +2658,7 @@ const EditMeeting = () => {
 
             {/* STATUS DROPDOWN */}
              <div>
-              <label className={`block text-sm font-medium-medium mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-black' : 'text-gray-300'}`}>Attendance Status *</label>
+               <label className={`block text-sm mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Attendance Status *</label>
                <div className="flex gap-2 font-medium">
                   <SearchableSelect
                     options={attendanceStatuses.map(s => ({ id: s.id, name: s.name }))}
@@ -2692,7 +2692,7 @@ const EditMeeting = () => {
       >
         <div>
            <InputField
-            label="Type Name"
+            label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Type Name</span>}
             placeholder="Enter Attendee Type Name"
             value={newAttendeeType.name}
             onChange={(e) => setNewAttendeeType({ ...newAttendeeType, name: e.target.value })}
@@ -2709,7 +2709,7 @@ const EditMeeting = () => {
       >
         <div>
            <InputField
-            label="Status Name"
+            label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Status Name</span>}
             placeholder="Enter Attendance Status Name"
             value={newAttendanceStatus.name}
             onChange={(e) => setNewAttendanceStatus({ ...newAttendanceStatus, name: e.target.value })}
@@ -2728,7 +2728,7 @@ const EditMeeting = () => {
               <div className="space-y-4">
                 <div>
                    <InputField
-                     label="Country Name"
+                     label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Country Name</span>}
                      value={newCountry.name}
                      onChange={(e) => setNewCountry({ ...newCountry, name: e.target.value })}
                      placeholder="Enter Country Name"
@@ -2749,14 +2749,14 @@ const EditMeeting = () => {
             <div className="space-y-4">
               <div>
                 <InputField
-                  label="State Name *"
+                  label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>State Name *</span>}
                   type="text"
                   value={newState.name}
                   onChange={(e) => setNewState({ ...newState, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className={`text-sm mb-1 block text-dark font-medium ${theme === 'emerald' ? 'text-gray-700' : theme === 'purple' ? '' : 'text-gray-300'}`}>Country *</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newState.countryId}
@@ -2781,14 +2781,14 @@ const EditMeeting = () => {
             <div className="space-y-4">
               <div>
                 <InputField
-                  label="City Name *"
+                  label={<span className={`font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>City Name *</span>}
                   type="text"
                   value={newCity.name}
                   onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>Country *</label>
+                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>Country *</label>
                 <SearchableSelect
                   options={modalCountries.map(c => ({ id: c.id, name: c.name }))}
                   value={newCity.countryId}
@@ -2798,7 +2798,7 @@ const EditMeeting = () => {
                 />
               </div>
               <div>
-                <label className={`text-sm mb-1 block ${theme === 'emerald' ? 'text-gray-700' : 'text-gray-300'}`}>State *</label>
+                <label className={`text-sm mb-1 block font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}`}>State *</label>
                 <SearchableSelect
                   options={modalStates.map(s => ({ id: s.id, name: s.name }))}
                   value={newCity.stateId}

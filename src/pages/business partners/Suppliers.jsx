@@ -340,6 +340,52 @@ const Suppliers = () => {
     }
   };
 
+  const handleRestore = async (supplier) => {
+    // --- DUPLICATE CHECKS START ---
+    const checkDuplicate = (field, label) => {
+      const val = supplier[field];
+      if (!val) return false;
+      const exists = allSuppliers.some(
+        (s) => (s[field] || "").toLowerCase() === val.toLowerCase()
+      );
+      if (exists) {
+        toast.error(`Cannot restore: Active supplier with this ${label} already exists.`);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkDuplicate("companyName", "Name")) return;
+    if (checkDuplicate("phone", "Phone")) return;
+    if (checkDuplicate("email", "Email")) return;
+    if (checkDuplicate("pan", "PAN")) return;
+    if (checkDuplicate("gstin", "GSTIN")) return;
+    // --- DUPLICATE CHECKS END ---
+
+    // Note: showRestoreConfirm is not imported in Suppliers.jsx.
+    // Adding native confirm or importing from notificationUtils.
+    // Given other master pages use sweetalert/confirm, we will try standard confirm or assume toast handles errors nicely.
+    // Using simple window.confirm as fallback if showRestoreConfirm is missing, but let's try assuming standard toast usage.
+    const confirmed = window.confirm(`Restore ${supplier.companyName}?`);
+    if (!confirmed) return;
+
+    try {      
+      const res = await restoreSupplierApi(supplier.id, { userId: 1 }); 
+      if (res?.status === 200) {
+        toast.success("Supplier has been restored successfully.");
+        setInactiveRows(prev => prev.filter(r => r.id !== supplier.id));
+        loadSuppliers(); 
+      } else if (res?.status === 409) {
+        toast.error(res?.data?.message || 'Cannot restore. Item already exists');
+      } else {
+        toast.error(res?.data?.message || 'Failed to restore supplier');
+      }
+    } catch (err) {
+      console.error("restore supplier error", err);
+      toast.error(err?.response?.data?.message || "Could not restore supplier. Please try again.");
+    }
+  };
+
   const toggleInactive = async () => {
     const newVal = !showInactive;
     setShowInactive(newVal);
@@ -514,12 +560,16 @@ const Suppliers = () => {
           sortConfig={sortConfig}
           onSort={handleSort}
           onRowClick={(item, isInactive) => {
-               navigate(
-                  item.id
-                    ? `/app/businesspartners/newsupplier/${item.id}`
-                    : "/app/businesspartners/newsupplier",
-                  { state: { supplier: item, isInactive } }
-                );
+               if (isInactive) {
+                 handleRestore(item);
+               } else {
+                 navigate(
+                    item.id
+                      ? `/app/businesspartners/newsupplier/${item.id}`
+                      : "/app/businesspartners/newsupplier",
+                    { state: { supplier: item, isInactive: false } }
+                  );
+               }
           }}
           // Action Props
           search={searchText}
@@ -530,10 +580,10 @@ const Suppliers = () => {
           onRefresh={() => {
               setSearchText("");
               setPage(1);
-              setSortConfig({ key: "id", direction: "asc" });
+              
               setShowInactive(false);
               handleResetFilters();
-              loadSuppliers({ key: "id", direction: "asc" });
+              loadSuppliers(sortConfig);
           }}
           onColumnSelector={() => {
               setTempVisibleColumns(visibleColumns);
@@ -555,10 +605,10 @@ const Suppliers = () => {
           onRefresh={() => {
             setSearchText("");
             setPage(1);
-            setSortConfig({ key: "id", direction: "asc" });
+            
             setShowInactive(false);
             handleResetFilters();
-            loadSuppliers({ key: "id", direction: "asc" });
+            loadSuppliers(sortConfig);
           }}
         />
         </div>

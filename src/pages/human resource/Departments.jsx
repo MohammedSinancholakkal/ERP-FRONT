@@ -142,12 +142,14 @@ const Departments = () => {
 
   const handleRefresh = async () => {
     setSearchText("");
-    setSortConfig({ key: null, direction: 'asc' });
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
     setShowInactive(false);
     
-    // Call API directly with default values to avoid stale state closure issues
-    const res = await getDepartmentsApi(1, limit, null, 'asc');
+    // Call API directly with new values
+    const res = await getDepartmentsApi(1, 25, newSort.key, newSort.direction);
     if (res.status === 200) {
       setDepartments(res.data.records);
       setTotalRecords(res.data.total);
@@ -264,6 +266,14 @@ const Departments = () => {
 
     if (!result.isConfirmed) return;
 
+    // --- Duplicate Check Start ---
+    const existing = departments.find(d => d.department.toLowerCase() === editDepartment.department.toLowerCase());
+    if (existing) {
+        showErrorToast("Restore failed: An active department with this name already exists.");
+        return;
+    }
+    // --- Duplicate Check End ---
+
     try {
       const res = await restoreDepartmentApi(editDepartment.id, { userId: currentUserId });
 
@@ -272,12 +282,18 @@ const Departments = () => {
         setEditModalOpen(false);
         loadDepartments();
         loadInactive();
+      } else if (res.status === 409) {
+        showErrorToast(res.data?.message || "Restore failed: Duplicate active department exists.");
       } else {
         showErrorToast("Failed to restore department");
       }
     } catch(err) {
         console.error("Restore failed", err);
-        showErrorToast("An error occurred while restoring.");
+        if (err.response && err.response.status === 409) {
+            showErrorToast(err.response.data?.message || "Restore failed: Duplicate active department exists.");
+        } else {
+            showErrorToast("An error occurred while restoring.");
+        }
     }
   };
 

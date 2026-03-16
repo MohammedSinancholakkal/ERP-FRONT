@@ -106,7 +106,7 @@ const UpdateStocks = () => {
   const currentUserId = user?.userId || 1;
 
   // --- SORTING STATE ---
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "desc" });
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -185,8 +185,8 @@ const UpdateStocks = () => {
     setSearchText("");
     setFilterProduct("");
     setFilterWarehouse("");
-    setSortConfig({ key: "id", direction: 'asc' });
-    loadRows(1, limit, { key: "id", direction: 'asc' });
+    
+    loadRows(1, limit, sortConfig);
   };
 
   // ========================= LOADERS =========================
@@ -801,10 +801,13 @@ const UpdateStocks = () => {
                 setSearchText("");
                 setFilterProduct("");
                 setFilterWarehouse("");
-                setSortConfig({ key: "id", direction: 'asc' });
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
                 setPage(1);
-                loadRows(1, limit, { key: "id", direction: 'asc' });
-                if (showInactive) loadInactiveRows();
+                setShowInactive(false);
+                loadRows(1, 25, { ...sortConfig, direction: newDirection });
               }}
               onColumnSelector={openColumnPicker}
               onToggleInactive={async () => {
@@ -824,7 +827,18 @@ const UpdateStocks = () => {
               limit={limit}
               setLimit={setLimit}
               total={totalRecords}
-              onRefresh={() => loadRows()}
+              onRefresh={() => {
+                setSearchText("");
+                setFilterProduct("");
+                setFilterWarehouse("");
+                
+                const newDirection = "desc";
+                setSortConfig(prev => ({ ...prev, direction: newDirection }));
+                setLimit(25);
+                setPage(1);
+                setShowInactive(false);
+                loadRows(1, 25, { ...sortConfig, direction: newDirection });
+              }}
             />
           </div>
           </ContentCard>

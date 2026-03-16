@@ -62,6 +62,10 @@ import Purchase from "./pages/Purchases/Purchase"
 import Invoices from "./pages/Services/Invoices";
 import Meetings from "./pages/Meeting/Meetings";
 import SuppliersPayableReport from "./pages/reports/SuppliersPayableReport";
+import SupplierPayableDetailedReport from "./pages/reports/SupplierPayableDetailedReport";
+import CustomerReceivableDetailedReport from "./pages/reports/CustomerReceivableDetailedReport";
+import CashInHandReport from "./pages/reports/CashInHandReport";
+import CashAtBankReport from './pages/reports/CashAtBankReport';
 import CustomerReceivableReport from "./pages/reports/CustomerReceivableReport";
 import StockReport from "./pages/reports/StockReport";
 import DailyClosingReport from "./pages/reports/DailyClosingReport";
@@ -70,6 +74,7 @@ import TodaysReport from "./pages/reports/TodaysReport";
 import SalesReport from "./pages/reports/SalesReport";
 import ProductWiseSalesReport from "./pages/reports/ProductWiseSalesReport";
 import PurchaseReport from "./pages/reports/PurchaseReport";
+import TaxReport from "./pages/reports/TaxReport";
 import Settings from "./pages/Administration/Settings";
 import Translations from "./pages/Administration/Translations";
 import NewSuppliers from "./pages/business partners/NewSuppliers";
@@ -304,6 +309,10 @@ function App() {
           {/* reports */}
 
           <Route path="reports/supplierpayablereport" element={<SuppliersPayableReport />} />
+          <Route path="reports/supplierpayabledetailed" element={<SupplierPayableDetailedReport />} />
+          <Route path="reports/customerreceivabledetailed" element={<CustomerReceivableDetailedReport />} />
+          <Route path="reports/cashinhandreport" element={<CashInHandReport />} />
+          <Route path="reports/cashatbankreport" element={<CashAtBankReport />} />
           <Route path="reports/customerreceivablereport" element={<CustomerReceivableReport />} />
           <Route path="reports/stockreport" element={<StockReport />} />
           <Route path="reports/dailyclosingreport" element={<DailyClosingReport />} />
@@ -312,6 +321,7 @@ function App() {
           <Route path="reports/salereport" element={<SalesReport />} />
           <Route path="reports/productwisesalereport" element={<ProductWiseSalesReport />} />
           <Route path="reports/purchasereport" element={<PurchaseReport />} />
+          <Route path="reports/taxreport" element={<TaxReport />} />
 
           </Route>
         </Routes>

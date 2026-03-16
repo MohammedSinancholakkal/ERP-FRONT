@@ -250,6 +250,8 @@ const Cities = () => {
                name: capitalize(created.name || created.Name),
                countryId: created.CountryId || created.countryId,
                stateId: created.StateId || created.stateId,
+               countryName: created.countryName || created.CountryName || getCountryName(created.countryId || created.CountryId),
+               stateName: created.stateName || created.StateName || getStateName(created.stateId || created.StateId),
            };
            setCities(prev => [normalized, ...prev]);
            setTotalRecords(prev => prev + 1);
@@ -372,11 +374,15 @@ const Cities = () => {
           refreshInactiveCities();
           await loadInactiveCities();
         } else {
-          showErrorToast("Restore failed");
+          if (res?.status === 409) {
+            showErrorToast(res?.data?.message || "Cannot restore. City already exists");
+          } else {
+            showErrorToast(res?.data?.message || "Restore failed");
+          }
         }
       } catch (err) {
         console.error("RESTORE CITY ERROR:", err);
-        showErrorToast("Server error");
+        showErrorToast(err?.response?.data?.message || "Server error");
       }
     } 
   };
@@ -622,13 +628,13 @@ const Cities = () => {
       key: "countryName", 
       label: "Country", 
       sortable: true,
-      render: (c) => c.countryName ?? getCountryName(c.countryId)
+      render: (c) => c.countryName || getCountryName(c.countryId)
     },
     visibleColumns.state && { 
       key: "stateName", 
       label: "State", 
       sortable: true,
-      render: (c) => c.stateName ?? getStateName(c.stateId)
+      render: (c) => c.stateName || getStateName(c.stateId)
     },
   ].filter(Boolean);
 
@@ -656,13 +662,24 @@ const Cities = () => {
               createLabel="New City"
               permissionCreate={hasPermission(PERMISSIONS.CITIES.CREATE)}
               onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25 || 
+                    sortConfig.key !== "id" || 
+                    sortConfig.direction !== "desc";
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setSortConfig({ key: "id", direction: "desc" });
+                setLimit(25);
                 setShowInactive(false);
+                setPage(1);
+
                 refreshCities();
                 refreshInactiveCities();
-                loadCities();
+
+                if (!willUpdate) {
+                    loadCities();
+                }
               }}
               onColumnSelector={() => setColumnModal(true)}
               onToggleInactive={async () => {
@@ -679,11 +696,21 @@ const Cities = () => {
               setLimit={setLimit}
               total={totalRecords}
               onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25;
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setLimit(25);
                 setShowInactive(false);
-                loadCities();
+                setPage(1);
+
+                refreshCities();
+                refreshInactiveCities();
+
+                if (!willUpdate) {
+                    loadCities();
+                }
               }}
             />
         </div>

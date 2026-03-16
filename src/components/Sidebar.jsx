@@ -81,8 +81,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Banks", key: PERMISSIONS.BANKS.VIEW },
     { label: "Expense Types", key: PERMISSIONS.EXPENSE_TYPES.VIEW },
     { label: "Services", key: PERMISSIONS.SERVICES_MASTER.VIEW },
-    { label: "Territories", key: PERMISSIONS.TERRITORIES.VIEW },
     { label: "Regions", key: PERMISSIONS.REGIONS.VIEW },
+    { label: "Territories", key: PERMISSIONS.TERRITORIES.VIEW },
     { label: "Shippers", key: PERMISSIONS.SHIPPERS.VIEW },
     { label: "Warehouses", key: PERMISSIONS.WAREHOUSES.VIEW },
     { label: "Customer Groups", key: PERMISSIONS.CUSTOMER_GROUPS.VIEW },
@@ -174,8 +174,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Sale Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Product Wise Sale Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Purchase Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Cash In Hand Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Cash At Bank Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Customer Receivable Report", key: PERMISSIONS.REPORTS.VIEW },
-    { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW }
+    { label: "Customer Receivable Detailed", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Supplier Payable Detailed", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Tax Report", key: PERMISSIONS.REPORTS.VIEW }
   ];
 
   const adminLinks = [
@@ -327,16 +332,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       {/* MOBILE OVERLAY BACKDROP */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 w-full h-full z-[99] bg-black/50 md:hidden"
+          className="fixed inset-0 w-full h-full z-[99] bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <aside
         className={`${theme === 'emerald' ? 'bg-gradient-to-b from-emerald-800 to-emerald-600' : theme === 'purple' ? 'bg-gray-100 text-gray-900 border-gray-300' : 'bg-gradient-to-b from-gray-900 to-gray-800 text-white'} h-screen flex flex-col transition-all duration-300 z-[100]  
-        md:static md:flex 
-        ${sidebarOpen ? "md:w-64" : "md:w-16"} 
-        ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden md:flex"}`}
+        lg:static lg:flex 
+        ${sidebarOpen ? "lg:w-64" : "lg:w-16"} 
+        ${sidebarOpen ? "w-64 fixed inset-y-0 left-0" : "hidden lg:flex"}`}
       >
 
       

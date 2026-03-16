@@ -1,6 +1,6 @@
 import SortableHeader from "./SortableHeader";
 import { useTheme } from "../context/ThemeContext";
-import { Search, Plus, RefreshCw, List, ArchiveRestore } from "lucide-react";
+import { Search, Plus, RefreshCw, List, ArchiveRestore, Filter } from "lucide-react";
 import { useState } from "react"; // ADDED
 import toast from "react-hot-toast"; // ADDED
 import Pagination from "./Pagination";
@@ -31,6 +31,7 @@ const MasterTable = ({
 }) => {
   const { theme } = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const handleRefresh = async () => {
     if (onRefresh) {
@@ -196,11 +197,31 @@ const MasterTable = ({
           </button>
         )}
 
+        {/* Filter Toggle - Only show if filters (children) are provided */}
+        {children && (
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-1.5 rounded-md border flex items-center gap-1 transition-all lg:hidden ${
+              showFilters 
+                ? (theme === 'emerald' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : theme === 'purple' ? 'bg-purple-100 border-[#6448AE] text-[#6448AE]' : 'bg-gray-600 border-gray-400 text-white')
+                : (theme === 'emerald' ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700' : theme === 'purple' ? 'bg-[#6448AE] border-[#6448AE] hover:bg-[#6E55B6] text-white' : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600')
+            }`}
+            title={showFilters ? "Hide Filters" : "Show Filters"}
+          >
+            <Filter size={16} />
+            <span className="text-xs font-medium">Filters</span>
+          </button>
+        )}
+
         {/* Custom Actions */}
         {customActions}
       </div>
 
-      {children}
+      {children && (
+        <div className={`${showFilters ? 'block' : 'hidden'} lg:block animate-fadeIn`}>
+          {children}
+        </div>
+      )}
 
       <div className="w-full overflow-auto flex-1 rounded-lg scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
         <table 

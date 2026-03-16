@@ -79,27 +79,25 @@ const BankTransactions = () => {
   const [coaList, setCoaList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-    fetchCOA();
-  }, [searchText]);
+  // ------------------ SORTING ------------------
+  const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });
 
-  const fetchCOA = async () => {
-    try {
-      const res = await getCOAHeadsApi();
-      if (res.status === 200) setCoaList(res.data);
-    } catch (err) {
-      console.error(err);
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+        direction = 'desc';
     }
+    setPage(1);
+    setSortConfig({ key, direction });
   };
 
   const fetchData = async () => {
     try {
-
+      // Pass sort params to APIs if they support it
       const [dvs, cvs, contras] = await Promise.all([
-        getDebitVouchersApi(false, searchText),
-        getCreditVouchersApi(false, searchText),
-        getContraVouchersApi(false, searchText)
+        getDebitVouchersApi(false, searchText, sortConfig.key, sortConfig.direction),
+        getCreditVouchersApi(false, searchText, sortConfig.key, sortConfig.direction),
+        getContraVouchersApi(false, searchText, sortConfig.key, sortConfig.direction)
       ]);
 
       const allRows = [
@@ -126,8 +124,15 @@ const BankTransactions = () => {
         };
       });
 
-      // Sort by date desc
-      mapped.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Unified Sort (Fallback/Final client-side sort to ensure consistency among mixed sources)
+      mapped.sort((a, b) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+
       setRows(mapped);
     } catch (err) {
       console.error(err);
@@ -140,6 +145,31 @@ const BankTransactions = () => {
   const [limit, setLimit] = useState(25);
 
   const totalRecords = rows.length;
+
+  useEffect(() => {
+    fetchData();
+    fetchCOA();
+  }, [searchText, sortConfig]); // Added sortConfig dependency
+
+  const fetchCOA = async () => {
+    try {
+      const res = await getCOAHeadsApi();
+      if (res.status === 200) setCoaList(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const onRefresh = () => {
+    setSearchText("");
+    setSortConfig({ key: "date", direction: "desc" });
+    setPage(1);
+    setLimit(25);
+    setTypeFilter("");
+    setDateFilter({ from: "", to: "" });
+    setCoaFilter("");
+    fetchData();
+  };
 
   // ------------------------- Add Modal -------------------------
   const [modalOpen, setModalOpen] = useState(false);
@@ -240,7 +270,7 @@ const BankTransactions = () => {
             label="Account Type"
             options={[
               { id: "Credit (-)", name: "Credit (-)" },
-              { id: "Debit (+)", name: "Debit (+)" }
+              { id: "Debit (+) ", name: "Debit (+)" }
             ]}
             value={form.accountType}
             onChange={(val) => setForm({ ...form, accountType: val })}
@@ -330,16 +360,14 @@ const BankTransactions = () => {
                 ].filter(Boolean)}
                 data={rows}
                 onRowClick={null}
+                sortConfig={sortConfig}
+                onSort={handleSort}
                 search={searchText}
                 onSearch={setSearchText}
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Transaction"
                 permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
-                onRefresh={() => {
-                    setSearchText("");
-                    setPage(1);
-                    fetchData();
-                }}
+                onRefresh={onRefresh}
                 onColumnSelector={() => setColumnModalOpen(true)}
 
                 page={page}

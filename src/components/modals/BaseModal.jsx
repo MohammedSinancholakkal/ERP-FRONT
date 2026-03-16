@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 
 import { useTheme } from "../../context/ThemeContext";
 
-const BaseModal = ({ isOpen, onClose, title, children, footer, zIndex = 1000 }) => {
+const BaseModal = ({ isOpen, onClose, title, children, footer, zIndex = 1000, bodyClassName = "" }) => {
   const { theme } = useTheme();
   if (!isOpen) return null;
 
@@ -22,7 +22,7 @@ const BaseModal = ({ isOpen, onClose, title, children, footer, zIndex = 1000 }) 
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto">
+        <div className={`p-6 ${bodyClassName || 'overflow-y-auto'}`}>
           {children}
         </div>
 

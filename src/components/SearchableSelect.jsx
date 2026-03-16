@@ -141,13 +141,13 @@ const SearchableSelect = ({
         <div className="flex gap-2 items-start">
           <div className="relative flex-grow min-w-0" ref={wrapperRef}>
             <div
-              className={`w-full h-9 border-2 rounded px-3 py-1.5 flex justify-between items-center cursor-pointer transition-colors ${theme === 'emerald' ? `bg-emerald-50 border-emerald-600 hover:border-emerald-500 ${isOpen ? 'border-emerald-400' : ''}` : theme === 'purple' ? `bg-white border-gray-300 hover:border-gray-400 ${isOpen ? 'border-gray-500' : ''}` : 'bg-gray-800 border-gray-600 hover:border-gray-500'} ${
+              className={`w-full h-8 sm:h-9 border-2 rounded px-3 py-1 flex sm:py-1.5 justify-between items-center cursor-pointer transition-colors ${theme === 'emerald' ? `bg-emerald-50 border-emerald-600 hover:border-emerald-500 ${isOpen ? 'border-emerald-400' : ''}` : theme === 'purple' ? `bg-white border-gray-300 hover:border-gray-400 ${isOpen ? 'border-gray-500' : ''}` : 'bg-gray-800 border-gray-600 hover:border-gray-500'} ${
                 disabled ? "opacity-50 cursor-not-allowed" : ""
               }`}
               onClick={toggleOpen}
               tabIndex={0}
             >
-              <span className={`truncate flex-1 text-sm ${selectedOption ? (theme === 'emerald' ? "text-emerald-900" : theme === 'purple' ? "text-purple-900" : theme === 'dark' ? "text-white" : "text-black") : (theme === 'purple' ? "text-gray-400 text-xs" : "text-gray-400")}`}>
+              <span className={`truncate flex-1 text-xs sm:text-sm ${selectedOption ? (theme === 'emerald' ? "text-emerald-900" : theme === 'purple' ? "text-purple-900" : theme === 'dark' ? "text-white" : "text-black") : (theme === 'purple' ? "text-gray-400" : "text-gray-400")}`}>
                 {selectedOption ? selectedOption.name : placeholder}
               </span>
               <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ const SearchableSelect = ({
                    }
                }}
                disabled={disabled}
-               className={`shrink-0 p-2 border-2 rounded flex items-center justify-center h-9 w-9 transition-colors ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
+               className={`shrink-0 p-2 border-2 rounded flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 transition-colors ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400 hover:bg-gray-700'}`}
                title={value && onEdit ? "Edit" : "Add"}
             >
               {value && onEdit ? <Pencil size={16}/> : <Star size={16}/>}

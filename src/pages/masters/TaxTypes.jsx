@@ -235,6 +235,7 @@ const TaxTypes = () => {
     const result = await showRestoreConfirm();
 
     if (result.isConfirmed) {
+      try {
         const res = await restoreTaxTypeApi(editTaxType.id, {
           userId: user?.userId || 1,
         });
@@ -245,9 +246,15 @@ const TaxTypes = () => {
           loadTaxTypes(true);
           refreshInactiveTaxTypes();
           loadInactive();
+        } else if (res?.status === 409) {
+          showErrorToast(res?.data?.message || "Cannot restore. Item already exists");
         } else {
-          showErrorToast("Failed to restore");
+          showErrorToast(res?.data?.message || "Failed to restore");
         }
+      } catch (err) {
+        console.error(err);
+        showErrorToast(err?.response?.data?.message || "Server error");
+      }
     }
   };
 
@@ -367,13 +374,24 @@ const TaxTypes = () => {
               createLabel="New Tax Type"
               permissionCreate={true} // TODO: Permission
               onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25 || 
+                    sortConfig.key !== "id" || 
+                    sortConfig.direction !== "desc";
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setSortConfig({ key: "id", direction: "desc" });
+                setLimit(25);
                 setShowInactive(false);
+                setPage(1);
+
                 refreshTaxTypes();
                 refreshInactiveTaxTypes();
-                loadTaxTypes();
+
+                if (!willUpdate) {
+                    loadTaxTypes();
+                }
               }}
               onColumnSelector={() => setColumnModal(true)}
               onToggleInactive={async () => {
@@ -390,13 +408,21 @@ const TaxTypes = () => {
               setLimit={setLimit}
               total={totalRecords}
               onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25;
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setLimit(25);
                 setShowInactive(false);
+                setPage(1);
+
                 refreshTaxTypes();
                 refreshInactiveTaxTypes();
-                loadTaxTypes();
+
+                if (!willUpdate) {
+                    loadTaxTypes();
+                }
               }}
             />
           </div>

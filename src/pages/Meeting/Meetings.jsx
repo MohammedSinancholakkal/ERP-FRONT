@@ -216,13 +216,19 @@ const Meetings = () => {
     if (!result.isConfirmed) return;
 
     try {
-      await restoreMeetingApi(id, { userId: 1 });
-      showSuccessToast("Meeting restored successfully");
-      loadMeetings(sortConfig);
-      setInactiveMeetings(prev => prev.filter(m => m.id !== id));
+      const res = await restoreMeetingApi(id, { userId: 1 });
+      if (res?.status === 200) {
+        showSuccessToast("Meeting restored successfully");
+        loadMeetings(sortConfig);
+        setInactiveMeetings(prev => prev.filter(m => m.id !== id));
+      } else if (res?.status === 409) {
+        showErrorToast(res?.data?.message || 'Cannot restore. Item already exists');
+      } else {
+        showErrorToast(res?.data?.message || 'Failed to restore meeting');
+      }
     } catch (error) {
       console.error("RESTORE ERROR:", error);
-      showErrorToast("Failed to restore meeting");
+      showErrorToast(error?.response?.data?.message || "Failed to restore meeting");
     }
   };
 
@@ -247,13 +253,19 @@ const Meetings = () => {
     loadMeetings(newConfig);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = (triggerLoad = false) => {
+    const willUpdate = 
+      page !== 1 || 
+      limit !== 25 || 
+      sortConfig.key !== "id" || 
+      sortConfig.direction !== "desc";
+
     setSearchText("");
-    setSortConfig({ key: "id", direction: "asc" });
     setPage(1);
-    setShowInactive(false); // Reset inactive view
+    setLimit(25);
+    setSortConfig({ key: "id", direction: "desc" });
+    setShowInactive(false);
     
-    // Clear Filters
     setFilterMeetingType("");
     setFilterStartDate("");
     setFilterEndDate("");
@@ -262,7 +274,9 @@ const Meetings = () => {
     setFilterOrganizedBy("");
     setFilterReporter("");
 
-    loadMeetings({ key: "id", direction: "asc" });
+    if (triggerLoad || !willUpdate) {
+      loadMeetings({ key: "id", direction: "desc" });
+    }
   };
 
   /* Filter Logic - ACTIVE ONLY (Client Side Filtering Only) */
@@ -286,7 +300,21 @@ const Meetings = () => {
     if (filterOrganizedBy) result = result.filter(m => m.organizedBy === filterOrganizedBy);
     if (filterReporter) result = result.filter(m => m.reporter === filterReporter);
 
-    // Sorting Logic REMOVED (Handled by Backend)
+    // Sorting Logic
+    if (sortConfig.key) {
+        const { key, direction } = sortConfig;
+        result = [...result].sort((a, b) => {
+            let valA = a[key] ?? "";
+            let valB = b[key] ?? "";
+
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
 
     setFilteredMeetings(result);
     setPage(1); 
@@ -299,7 +327,8 @@ const Meetings = () => {
     filterDepartment, 
     filterLocation, 
     filterOrganizedBy, 
-    filterReporter
+    filterReporter,
+    sortConfig
   ]);
 
   /* Pagination Logic */
@@ -382,7 +411,7 @@ const Meetings = () => {
               onCreate={() => navigate("/app/meeting/meetings/new")}
               createLabel="New Meeting"
               permissionCreate={hasPermission(PERMISSIONS.MEETINGS.CREATE)}
-              onRefresh={handleRefresh}
+              onRefresh={() => handleRefresh()}
               onColumnSelector={() => setColumnModalOpen(true)}
               onToggleInactive={async () => {
                 if (!showInactive) await loadInactiveMeetings();
@@ -402,7 +431,7 @@ const Meetings = () => {
               limit={limit}
               setLimit={setLimit}
               total={total}
-              onRefresh={handleRefresh}
+              onRefresh={() => handleRefresh()}
             />
             </ContentCard>
         </div>

@@ -320,27 +320,35 @@ const NewPayroll = () => {
   };
 
   const handleRestorePayroll = async () => {
-     if (!id) return;
-
-     const result = await showRestoreConfirm("this payroll record");
+    if (loading) return;
+    const result = await showRestoreConfirm("payroll");
 
     if (!result.isConfirmed) return;
 
     const toastId = showLoadingToast("Restoring payroll...");
+    setLoading(true);
+
     try {
-        setLoading(true);
-        const res = await restorePayrollApi(id, { userId: 1 });
-        dismissToast(toastId);
-        if (res.status === 200) {
-            showSuccessToast("Payroll restored successfully.");
-            navigate("/app/hr/payroll");
-        }
+      const res = await restorePayrollApi(id, { userId: currentUserId });
+      dismissToast(toastId);
+      if (res?.status === 200 || res?.status === 201) {
+        showSuccessToast("Payroll restored successfully.");
+        navigate("/app/hr/payrolls");
+      } else if (res?.status === 409) {
+        showErrorToast(res.data?.message || "Restore failed: Duplicate active payroll exists.");
+      } else {
+        showErrorToast("Failed to restore payroll");
+      }
     } catch (err) {
-        dismissToast(toastId);
-        console.error("Restore failed", err);
-        showErrorToast("Failed to restore payroll.");
+      dismissToast(toastId);
+      console.error("restore error", err);
+      if (err.response && err.response.status === 409) {
+          showErrorToast(err.response.data?.message || "Restore failed: Duplicate active payroll exists.");
+      } else {
+          showErrorToast("Failed to restore payroll");
+      }
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -429,15 +437,20 @@ const NewPayroll = () => {
         <hr className="mb-4 border-gray-300" />
 
         {/* TOP SECTION: 2-COLUMN GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4 mb-8">
            {/* LEFT COLUMN */}
            <div className="space-y-4">
                {/* Number */}
-               <InputField
-                   label="Number"
-                   value={number}
-                   disabled
-               />
+               <div className="flex gap-2 w-full">
+                  <div className="flex-grow min-w-0">
+                    <InputField
+                        label="Number"
+                        value={number}
+                        disabled
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-[38px]"></div>
+               </div>
 
                {/* Cash / Bank */}
                <SearchableSelect
@@ -450,33 +463,44 @@ const NewPayroll = () => {
                    }}
                    placeholder="Select Bank..."
                    disabled={inactiveView}
+                   showSpacer
                />
            </div>
 
            {/* RIGHT COLUMN */}
            <div className="space-y-4">
               {/* Description */}
-              <InputField
-                  label="Description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={inactiveView}
-              />
+              <div className="flex gap-2 w-full">
+                <div className="flex-grow min-w-0">
+                  <InputField
+                      label="Description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      disabled={inactiveView}
+                  />
+                </div>
+                <div className="flex-shrink-0 w-[38px]"></div>
+              </div>
 
               {/* Payment Date */}
-              <InputField
-                  type="date"
-                  label={<>Payment Date <span className="text-dark">*</span></>}
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  disabled={inactiveView}
-              />
+              <div className="flex gap-2 w-full">
+                <div className="flex-grow min-w-0">
+                  <InputField
+                      type="date"
+                      label={<>Payment Date <span className="text-dark">*</span></>}
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      disabled={inactiveView}
+                  />
+                </div>
+                <div className="flex-shrink-0 w-[38px]"></div>
+              </div>
            </div>
         </div>
 
         <div className="mb-8 overflow-x-auto">
           <div className="flex items-center gap-2 mb-2 font-medium">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Employee List</label>
+            <label className={`text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>Employee List</label>
             {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
             <button
               onClick={() => navigate("/app/hr/employee", {
@@ -494,7 +518,7 @@ const NewPayroll = () => {
 
           <div className={`border rounded overflow-hidden min-w-[900px] ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
             <table className="w-full text-sm">
-              <thead className={`${theme === 'emerald' || theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
+              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                 <tr>
                   <th className="p-3">Employee</th>
                   <th className="p-3">Bank Account</th>
@@ -508,14 +532,14 @@ const NewPayroll = () => {
               </thead>
               <tbody className={`divide-y text-center ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-200' : 'divide-gray-700'}`}>
                 {rows.map((r, i) => (
-                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'hover:bg-gray-50 border-gray-200' : 'hover:bg-gray-750 border-gray-700'}`}>
+                  <tr key={i} className={`transition-colors ${theme === 'emerald' || theme === 'purple' ? 'hover:bg-gray-50 border-gray-200 text-gray-700' : 'hover:bg-gray-750 border-gray-700 text-gray-300'}`}>
                     <td className="p-3">{r.employeeName}</td>
                     <td className="p-3">{r.bankAccount}</td>
                     <td className="p-3">{r.bankName}</td>
                     <td className="p-3">{Number(r.basicSalary).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3">{Number(r.totalIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3">{Number(r.totalDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-3 font-semibold">{Number(r.takeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`p-3 font-semibold ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>{Number(r.takeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3 flex gap-2">
                        {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
                        <>
@@ -552,50 +576,50 @@ const NewPayroll = () => {
              {/* LEFT COLUMN - Totals */}
              <div className="space-y-4">
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Currency</label>
+                    <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Currency</label>
                      <div className="flex-1 font-medium">
-                        <input value={currency} disabled className={`w-full border rounded px-3 py-2 cursor-not-allowed ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-500' : 'bg-gray-800 border-gray-700 text-gray-400'}`} />
+                        <input value={currency} disabled className={`w-full border rounded px-3 py-2 cursor-not-allowed transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900/60' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900/60' : 'bg-gray-800 border-gray-700 text-gray-500'}`} />
                     </div>
                  </div>
                  
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Basic Salary</label>
+                    <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Basic Salary</label>
                      <div className="flex-1 font-medium">
-                        <input value={Number(sumBasic).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                        <input value={Number(sumBasic).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                     </div>
                  </div>
 
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
                       <div className="flex-1 font-medium">
-                        <input value={Number(sumIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
+                        <input value={Number(sumIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                      </div>
+                 </div>
+
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
+                      <div className="flex-1 font-medium">
+                        <input value={Number(sumDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
+                      </div>
                  </div>
              </div>
 
              {/* RIGHT COLUMN - Totals */}
              <div className="space-y-4">
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Take Home Pay</label>
                       <div className="flex-1 font-medium">
-                        <input value={Number(sumDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
-                     </div>
+                        <input value={Number(sumTakeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
+                      </div>
                  </div>
 
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>Total Take Home Pay</label>
-                      <div className="flex-1 font-medium">
-                        <input value={Number(sumTakeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-700 text-gray-300'}`} />
-                     </div>
-                 </div>
-
-                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-                         Total Payment Amount <span className="text-dark">*</span>
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-purple-700 font-bold' : 'text-white'}`}>
+                         Total Payment Amount 
                      </label>
                       <div className="flex-1 font-medium">
-                        <input value={Number(totalPaymentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} readOnly className={`w-full border rounded px-3 py-2 text-right font-semibold ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-gray-900 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
-                     </div>
+                        <input value={Number(totalPaymentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} readOnly className={`w-full border rounded px-3 py-2 text-right font-bold text-lg transition-colors ${theme === 'emerald' ? 'bg-white text-emerald-800 border-emerald-300' : theme === 'purple' ? 'bg-white text-purple-800 border-purple-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
+                      </div>
                  </div>
              </div>
           </div>

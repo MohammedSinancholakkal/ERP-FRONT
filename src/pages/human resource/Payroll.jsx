@@ -143,11 +143,38 @@ const fetchPayrolls = async () => {
 
   const handleRefresh = async () => {
     setSearchText("");
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
-    setSortConfig({ key: null, direction: 'asc' });
     setShowInactive(false);
-    await fetchPayrolls();
-    // showSuccessToast("Refreshed");
+    
+    try {
+      setLoading(true);
+      const resp = await getPayrollsApi(1, 10000, newSort.key, newSort.direction);
+      if (resp.status === 200) {
+        const records = resp.data?.records || [];
+        const normalized = records.map((p) => ({
+          id: p.id,
+          number: p.Number || p.number,
+          description: p.Description || p.description || "",
+          paymentDate: p.PaymentDate || p.paymentDate,
+          cashBank: p.BankName || p.bankName || "Cash",
+          currencyName: p.CurrencyName || p.currencyName,
+          totalBasicSalary: p.TotalBasicSalary || p.totalBasicSalary,
+          totalIncome: p.TotalIncome || p.totalIncome,
+          totalDeduction: p.TotalDeduction || p.totalDeduction,
+          totalTakeHomePay: p.TotalTakeHomePay || p.totalTakeHomePay,
+          totalPaymentAmount: p.TotalPaymentAmount || p.totalPaymentAmount,
+          isInactive: false,
+        }));
+        setRows(normalized);
+      }
+    } catch (err) {
+      console.error("Error refreshing payrolls", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleToggleInactive = async () => {

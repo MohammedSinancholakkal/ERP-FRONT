@@ -7,7 +7,7 @@ const FilterBar = ({ filters = [], onClear, className = "" }) => {
   return (
     <div className={`flex flex-wrap items-center gap-2 p-2 rounded-md border ${theme === 'emerald' ? 'bg-white border-emerald-200' : theme === 'purple' ? 'bg-gray-50 border-[#e5e7eb]': 'bg-gray-900 border-gray-700'} ${className}`}>
       {filters.map((filter, index) => (
-        <div key={index} className="w-full sm:w-48">
+        <div key={index} className="w-full sm:w-36 lg:w-48">
           <label className={`text-xs block font-medium ${theme === 'emerald' ? 'text-emerald-900' : theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>{filter.label}</label>
           {filter.type === 'date' ? (
              <input

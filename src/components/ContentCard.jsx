@@ -10,7 +10,7 @@ const ContentCard = ({ children, className = "" }) => {
         theme === "emerald"
           ? "bg-white border-emerald-200 border-t-4 border-t-white"
           : theme === "purple"
-          ? "bg-white border-gray-200 border-t-4 border-t-white"
+          ? "bg-white border-gray-200 border-t-4 border-t-[#6448AE]"
           : "bg-gray-800 border-gray-700 border-t-4 border-t-gray-400"
       } ${className}`}
     >

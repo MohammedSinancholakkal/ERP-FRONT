@@ -357,7 +357,11 @@ const Attendance = () => {
       loadInactiveAttendance();
     } catch (err) {
       console.error("Restore failed", err);
-      showErrorToast("Failed to restore record.");
+      if (err.response && err.response.status === 409) {
+          showErrorToast(err.response.data?.message || "Restore failed: Duplicate active attendance exists.");
+      } else {
+          showErrorToast("Failed to restore record.");
+      }
     }
   };
 
@@ -402,11 +406,37 @@ const Attendance = () => {
 
   const handleRefresh = async () => {
     setSearchText("");
+    const newSort = { key: "id", direction: "desc" };
+    setSortConfig(newSort);
+    setLimit(25);
     setPage(1);
-    setSortConfig({ key: null, direction: 'asc' });
     setShowInactive(false);
-    await loadAttendance();
-    // showSuccessToast("Refreshed");
+
+    try {
+      const res = await getAttendanceApi(1, 25, newSort.key, newSort.direction);
+      const data = res?.data?.records || [];
+      const formatted = data.map((item) => {
+        const emp = employees.find((e) => e.Id === item.employeeId);
+        const { date: inDate, time: inTime } = splitDateTime(item.checkIn);
+        const { date: outDate, time: outTime } = splitDateTime(item.checkOut);
+        const formattedIn = inTime ? formatTime12Hour(inTime) : "";
+        const formattedOut = outTime ? formatTime12Hour(outTime) : "";
+        return {
+          id: item.id,
+          employeeId: item.employeeId,
+          employee: emp ? `${emp.FirstName} ${emp.LastName}` : (item.employeeName || "Unknown"),
+          checkIn: `${inDate} ${formattedIn}`,
+          checkOut: item.checkOut ? `${outDate} ${formattedOut}` : "-",
+          rawCheckIn: item.checkIn,
+          rawCheckOut: item.checkOut,
+          stayTime: item.checkOut ? calculateStayTime(inDate, inTime, outDate, outTime) : "-",
+        };
+      });
+      setRows(formatted);
+      setTotal(res?.data?.total || 0);
+    } catch (err) {
+      console.error("Failed to refresh attendance:", err);
+    }
   };
 
   const totalRecords = total; // Use server value

@@ -25,7 +25,7 @@ const LatestOrders = ({ orders = [] }) => {
   const isLight = theme === 'purple' || theme === 'emerald';
 
   return (
-    <DashboardCard title="Latest Orders" color="bg-cyan-400" bodyClass="p-6 h-70">
+    <DashboardCard title="Latest Orders" color="bg-cyan-400" bodyClass="p-6 h-80">
       <div className="h-full flex flex-col">
         <div className="flex-1 overflow-y-auto pr-2">
       <table className={`w-full text-sm ${isLight ? 'text-gray-700' : 'text-gray-200'}`}>
@@ -57,21 +57,21 @@ const LatestOrders = ({ orders = [] }) => {
         </tbody>
       </table>
         </div>
-      </div>
 
-      <div className="flex justify-between items-center mt-5 flex-shrink-0">
-        <button 
-          onClick={() => navigate("/app/sales/newsale")} // Assuming newsale route
-          className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded text-sm shadow-sm"
-        >
-          Place New Order
-        </button>
-        <button 
-          onClick={() => navigate("/app/sales/sales")}
-          className={`border px-4 py-2 rounded text-sm transition-colors ${isLight ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-gray-400 text-gray-200 hover:bg-gray-700'}`}
-        >
-          View All Orders
-        </button>
+        <div className="flex justify-between items-center mt-auto pt-4 flex-shrink-0">
+          <button 
+            onClick={() => navigate("/app/sales/newsale")}
+            className={`text-sm font-medium cursor-pointer transition-colors ${isLight ? 'text-cyan-600 hover:text-cyan-700' : 'text-cyan-400 hover:text-cyan-300'}`}
+          >
+            Place New Order
+          </button>
+          <button 
+            onClick={() => navigate("/app/sales/sales")}
+            className={`text-sm font-medium cursor-pointer transition-colors ${isLight ? 'text-purple-600 hover:text-purple-700' : 'text-yellow-400 hover:text-yellow-300'}`}
+          >
+            View All Orders
+          </button>
+        </div>
       </div>
     </DashboardCard>
   );
@@ -83,7 +83,7 @@ const RecentlyAddedProducts = ({ products = [] }) => {
   const isLight = theme === 'purple' || theme === 'emerald';
 
   return (
-    <DashboardCard title="Recently Added Products" color="bg-purple-400" bodyClass="p-6 h-62">
+    <DashboardCard title="Recently Added Products" color="bg-purple-400" bodyClass="p-6 h-80">
       <div className="h-full flex flex-col">
         <div className="flex-1 space-y-4 overflow-y-auto pr-2">
         {products.length > 0 ? (
@@ -115,14 +115,14 @@ const RecentlyAddedProducts = ({ products = [] }) => {
           </div>
         )}
         </div>
-      </div>
 
-      <button 
-        onClick={() => navigate("/app/inventory/products")}
-        className={`w-full text-center mt-2 text-sm cursor-pointer flex-shrink-0 ${isLight ? 'text-purple-600 hover:text-purple-700' : 'text-yellow-400 hover:text-yellow-300'}`}
-      >
-        View All Products
-      </button>
+        <button 
+          onClick={() => navigate("/app/inventory/products")}
+          className={`w-full text-center mt-auto pt-4 text-sm font-medium cursor-pointer transition-colors flex-shrink-0 ${isLight ? 'text-purple-600 hover:text-purple-700' : 'text-yellow-400 hover:text-yellow-300'}`}
+        >
+          View All Products
+        </button>
+      </div>
     </DashboardCard>
   );
 };

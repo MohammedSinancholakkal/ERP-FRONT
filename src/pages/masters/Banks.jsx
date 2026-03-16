@@ -468,10 +468,16 @@ const Banks = () => {
           setEditModalOpen(false);
           loadRows();
           loadInactive();
+        } else {
+          if (res?.status === 409) {
+            showErrorToast(res?.data?.message || "Cannot restore. Bank already exists");
+          } else {
+            showErrorToast(res?.data?.message || "Restore failed");
+          }
         }
       } catch (err) {
         console.error(err);
-        showErrorToast("Restore failed");
+        showErrorToast(err?.response?.data?.message || "Restore failed");
       }
     }
   };
@@ -487,7 +493,7 @@ const Banks = () => {
     visibleColumns.branch && { key: "branch", label: "Branch", sortable: true },
     visibleColumns.isCompanyBank && { 
         key: "isCompanyBank", 
-        label: "Company Bank", 
+        label: "Co. Bank", 
         sortable: true,
         render: (item) => item.isCompanyBank ? (
             <span className="flex items-center justify-center text-green-600">
@@ -497,7 +503,7 @@ const Banks = () => {
     },
     visibleColumns.isInternalBank && { 
         key: "isInternalBank", 
-        label: "Internal Bank", 
+        label: "Int. Bank", 
         sortable: true,
         render: (item) => item.isInternalBank ? (
             <span className="flex items-center justify-center text-blue-600">
@@ -533,13 +539,24 @@ const Banks = () => {
                 createLabel="New Bank"
                 permissionCreate={hasPermission(PERMISSIONS.BANKS.CREATE)}
                 onRefresh={() => {
+                    const willUpdate = 
+                        page !== 1 || 
+                        limit !== 25 || 
+                        sortConfig.key !== "id" || 
+                        sortConfig.direction !== "desc";
+
                     setSearchText("");
-                    setSortConfig({ key: "id", direction: "asc" });
-                    setPage(1);
+                    setSortConfig({ key: "id", direction: "desc" });
+                    setLimit(25);
                     setShowInactive(false);
+                    setPage(1);
+
                     refreshCtx();
                     refreshInactiveCtx();
-                    loadRows();
+
+                    if (!willUpdate) {
+                        loadRows();
+                    }
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 onToggleInactive={async () => {
@@ -555,13 +572,21 @@ const Banks = () => {
                 setLimit={setLimit}
                 total={totalRecords}
                 onRefresh={() => {
+                    const willUpdate = 
+                        page !== 1 || 
+                        limit !== 25;
+
                     setSearchText("");
-                    setSortConfig({ key: "id", direction: "asc" });
-                    setPage(1);
+                    setLimit(25);
                     setShowInactive(false);
+                    setPage(1);
+
                     refreshCtx();
                     refreshInactiveCtx();
-                    loadRows();
+
+                    if (!willUpdate) {
+                        loadRows();
+                    }
                 }}
                 />
             </div>
@@ -625,7 +650,7 @@ const Banks = () => {
                        </div>
                   </div>
              </div>
-             <div className="col-span-2 mt-2">
+             <div className="col-span-1 mt-2">
                  {canAssignCompanyBank && (
                      <label className={`flex items-center gap-2 cursor-pointer w-fit ${!!companyBankId ? 'opacity-50 cursor-not-allowed' : ''}`}>
                          <input 
@@ -635,11 +660,11 @@ const Banks = () => {
                             className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             disabled={!!companyBankId}
                          />
-                         <span className="text-sm font-medium text-dark">Apply as Company Bank Account</span>
+                         <span className="text-sm font-medium text-dark">Company Bank</span>
                      </label>
                  )}
              </div>
-             <div className="col-span-2 mt-2">
+             <div className="col-span-1 mt-2">
                  <label className="flex items-center gap-2 cursor-pointer w-fit">
                      <input 
                         type="checkbox" 
@@ -647,7 +672,7 @@ const Banks = () => {
                         onChange={e => setNewItem({...newItem, isInternalBank: e.target.checked})} 
                         className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                      />
-                     <span className="text-sm font-medium text-dark">Apply as Internal Bank Account</span>
+                     <span className="text-sm font-medium text-dark">Internal Bank</span>
                  </label>
              </div>
           </div>
@@ -720,7 +745,7 @@ const Banks = () => {
              )}
              
              {!editItem.isInactive && canAssignCompanyBank && (
-                 <div className="col-span-2 mt-2">
+                 <div className="col-span-1 mt-2">
                      <label className={`flex items-center gap-2 cursor-pointer w-fit ${(!!companyBankId && editItem.id !== companyBankId) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                          <input 
                             type="checkbox" 
@@ -729,13 +754,13 @@ const Banks = () => {
                             className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             disabled={!!companyBankId && editItem.id !== companyBankId}
                          />
-                         <span className="text-sm font-medium text-dark">Apply as Company Bank Account</span>
+                         <span className="text-sm font-medium text-dark">Company Bank</span>
                      </label>
                  </div>
              )}
              
              {!editItem.isInactive && (
-                 <div className="col-span-2 mt-2">
+                 <div className="col-span-1 mt-2">
                      <label className="flex items-center gap-2 cursor-pointer w-fit">
                          <input 
                             type="checkbox" 
@@ -743,7 +768,7 @@ const Banks = () => {
                             onChange={e => setEditItem({...editItem, isInternalBank: e.target.checked})} 
                             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                          />
-                         <span className="text-sm font-medium text-dark">Apply as Internal Bank Account</span>
+                         <span className="text-sm font-medium text-dark">Internal Bank</span>
                      </label>
                  </div>
              )}

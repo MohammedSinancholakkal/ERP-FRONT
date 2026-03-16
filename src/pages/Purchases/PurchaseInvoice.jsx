@@ -203,7 +203,7 @@ const PurchaseInvoice = () => {
             <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
             {purchase.TaxTypeId && (
                 <div className={`flex justify-between border-b pb-2 ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200' : 'border-gray-700'}`}>
-                  <span>Tax Type:</span>
+                  <span>Tax Rate:</span>
                   <span>{taxTypeName}</span>
                 </div>
             )}

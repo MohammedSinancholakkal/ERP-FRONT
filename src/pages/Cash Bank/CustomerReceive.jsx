@@ -444,11 +444,12 @@ const CustomerReceive = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Receive"
                 permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
-                onRefresh={async () => {
+                onRefresh={() => {
                     setSearchText("");
                     setSortConfig({ key: "id", direction: "desc" });
                     setPage(1);
-                    await fetchData();
+                    setLimit(25);
+                    fetchData();
                 }}
                 onColumnSelector={() => setColumnModalOpen(true)}
                 // onToggleInactive={() => setShowInactive((s) => !s)} // Removed toggle inactive prop

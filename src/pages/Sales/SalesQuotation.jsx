@@ -258,11 +258,50 @@ const SalesQuotation = () => {
     setFilterCustomer("");
     setFilterDate("");
     setFilterExpiry("");
-    setSortConfig({ key: null, direction: 'asc' });
+    
+    const newDirection = "desc";
+    setSortConfig(prev => ({ ...prev, direction: newDirection }));
+    setLimit(25);
     setPage(1);
-    setShowInactive(false); // Reset inactive
-    await fetchAllData();
-    // toast.success("Refreshed");
+    setShowInactive(false);
+    
+    setIsLoading(true);
+    try {
+      const [cRes, eRes, qRes] = await Promise.all([
+        getCustomersApi(1, 1000),
+        getEmployeesApi(1, 1000),
+        getQuotationsApi(1, 25, sortConfig.key, newDirection)
+      ]);
+      let cList = [];
+      let eList = [];
+      if (cRes.status === 200) {
+        cList = (cRes.data.records || []).map((c) => ({
+          id: c.id ?? c.Id ?? c.customerId ?? c.CustomerId ?? null,
+          name: c.name ?? c.Name ?? c.companyName ?? c.CompanyName ?? `${c.firstName ?? c.FirstName ?? ""} ${c.lastName ?? c.LastName ?? ""}`.trim()
+        }));
+        setCustomers(cList);
+      }
+      if (eRes.status === 200) {
+        eList = (eRes.data.records || []).map((e) => ({
+          id: e.id ?? e.Id ?? e.employeeId ?? e.EmployeeId ?? null,
+          name: e.fullName ?? e.fullname ?? e.name ?? e.Name ?? `${e.firstName ?? e.FirstName ?? ""} ${e.lastName ?? e.LastName ?? ""}`.trim()
+        }));
+        setEmployees(eList);
+      }
+      if (qRes.status === 200) {
+        let rows = qRes.data.records || [];
+        const normalized = rows.map(q => normalizeQuotation(q, cList, eList));
+        setQuotationsList(normalized);
+        const total = qRes.data.totalRecords || qRes.data.total || rows.length || 0;
+        setTotalRecords(total);
+        setTotalPages(qRes.data.totalPages || Math.max(1, Math.ceil(total / 25)));
+      }
+    } catch (error) {
+      console.error("Error refreshing quotations", error);
+      toast.error("Failed to refresh quotations");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filteredList = quotationsList.filter((p) => {

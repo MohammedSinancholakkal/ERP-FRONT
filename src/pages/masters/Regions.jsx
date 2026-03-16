@@ -266,12 +266,14 @@ const Regions = () => {
             setEditModalOpen(false);
             loadRows();
             loadInactive();
+          } else if (res?.status === 409) {
+            showErrorToast(res?.data?.message || 'Cannot restore. Item already exists');
           } else {
-            showErrorToast("Restore failed");
+            showErrorToast(res?.data?.message || 'Restore failed');
           }
         } catch (err) {
-            console.error(err);
-            showErrorToast("Server error");
+          console.error(err);
+          showErrorToast(err?.response?.data?.message || "Server error");
         }
     }
   };
@@ -302,13 +304,24 @@ const Regions = () => {
             createLabel="New Region"
             permissionCreate={hasPermission(PERMISSIONS.REGIONS.CREATE)}
             onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25 || 
+                    sortConfig.key !== "id" || 
+                    sortConfig.direction !== "desc";
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setSortConfig({ key: "id", direction: "desc" });
+                setLimit(25);
                 setShowInactive(false);
+                setPage(1);
+
                 refreshRegions();
                 refreshInactiveRegions();
-                loadRows();
+
+                if (!willUpdate) {
+                    loadRows();
+                }
             }}
             onColumnSelector={() => setColumnModal(true)}
             onToggleInactive={async () => {
@@ -325,17 +338,26 @@ const Regions = () => {
             setLimit={setLimit}
             total={totalRecords}
             onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25;
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setLimit(25);
                 setShowInactive(false);
-                loadRows();
+                setPage(1);
+
+                refreshRegions();
+                refreshInactiveRegions();
+
+                if (!willUpdate) {
+                    loadRows();
+                }
             }}
             />
           </div>
         </ContentCard>
       </div>
-
        {/* ADD MODAL */}
        <AddModal
          isOpen={modalOpen}

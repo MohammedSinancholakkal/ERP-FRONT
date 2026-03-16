@@ -442,12 +442,14 @@ const Locations = () => {
             setEditModalOpen(false);
             loadRows();
             loadInactive();
+          } else if (res?.status === 409) {
+            showErrorToast(res?.data?.message || 'Cannot restore. Item already exists');
           } else {
-            showErrorToast("Restore failed");
+            showErrorToast(res?.data?.message || 'Restore failed');
           }
         } catch (err) {
-            console.error(err);
-            showErrorToast("Server error");
+          console.error(err);
+          showErrorToast(err?.response?.data?.message || "Server error");
         }
     }
   };
@@ -702,13 +704,28 @@ const Locations = () => {
             createLabel="New Location"
             permissionCreate={hasPermission(PERMISSIONS.LOCATIONS.CREATE)}
             onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25 || 
+                    sortConfig.key !== "id" || 
+                    sortConfig.direction !== "desc" ||
+                    filters.countryId !== "" ||
+                    filters.stateId !== "" ||
+                    filters.cityId !== "";
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setFilters({ countryId: "", stateId: "", cityId: "" });
+                setSortConfig({ key: "id", direction: "desc" });
+                setLimit(25);
                 setShowInactive(false);
+                setPage(1);
+
                 refreshCtx();
                 refreshInactiveCtx();
-                loadRows();
+
+                if (!willUpdate) {
+                    loadRows();
+                }
             }}
             onColumnSelector={() => setColumnModal(true)}
             onToggleInactive={async () => {
@@ -729,13 +746,21 @@ const Locations = () => {
             setLimit={setLimit}
             total={totalRecords}
             onRefresh={() => {
+                const willUpdate = 
+                    page !== 1 || 
+                    limit !== 25;
+
                 setSearchText("");
-                setPage(1);
-                setSortConfig({ key: "id", direction: "asc" });
+                setLimit(25);
                 setShowInactive(false);
+                setPage(1);
+
                 refreshCtx();
                 refreshInactiveCtx();
-                loadRows();
+
+                if (!willUpdate) {
+                    loadRows();
+                }
             }}
             />
           </div>
@@ -965,7 +990,7 @@ const Locations = () => {
                </div>
                 <div>
                     <InputField
-                         label="Address"
+                         label="Address *"
                          value={editData.address}
                          onChange={(e) => setEditData({...editData, address: e.target.value})}
                          disabled={editData.isInactive}

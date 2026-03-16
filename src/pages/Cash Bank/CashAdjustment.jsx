@@ -43,14 +43,34 @@ const CashAdjustment = () => {
   const [searchText, setSearchText] = useState("");
   const [coaList, setCoaList] = useState([]);
   
-  /* ---------------------------- Pagination ---------------------------- */
+  /* ---------------------------- PAGINATION ---------------------------- */
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
 
+  /* ---------------------------- SORTING ---------------------------- */
+  const [sortConfig, setSortConfig] = useState({ key: "voucherDate", direction: "desc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setPage(1);
+    setSortConfig({ key, direction });
+  };
+
   const fetchData = async () => {
     try {
-      const res = await getCashAdjustmentsApi(page, limit, false, searchText, "t.VDate DESC, t.Id DESC", "DESC");
+      // Map frontend keys to backend columns if necessary. 
+      // For CashAdjustment, the API expects a sort string.
+      let sortStr = "t.VDate DESC, t.Id DESC";
+      if (sortConfig.key === "id") sortStr = "t.Id";
+      else if (sortConfig.key === "voucherNo" || sortConfig.key === "voucherName") sortStr = "t.VNo";
+      else if (sortConfig.key === "voucherDate") sortStr = "t.VDate";
+      else if (sortConfig.key === "amount") sortStr = "t.Amount";
+
+      const res = await getCashAdjustmentsApi(page, limit, false, searchText, sortStr, sortConfig.direction.toUpperCase());
       if (res.status === 200) {
         setRows(res.data.records);
         setTotalRecords(res.data.total);
@@ -69,7 +89,15 @@ const CashAdjustment = () => {
 
   useEffect(() => {
     fetchData();
-  }, [page, limit, searchText]);
+  }, [page, limit, searchText, sortConfig]);
+
+  const onRefresh = () => {
+    setSearchText("");
+    setPage(1);
+    setLimit(25);
+    setSortConfig({ key: "voucherDate", direction: "desc" });
+    fetchData();
+  };
 
   /* ------------------------------ Modal ------------------------------ */
   const [modalOpen, setModalOpen] = useState(false);
@@ -257,12 +285,10 @@ const CashAdjustment = () => {
                 onCreate={() => setModalOpen(true)}
                 createLabel="New Cash Adjustment"
                 permissionCreate={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
-                onRefresh={() => {
-                    setSearchText("");
-                    setPage(1);
-                    fetchData();
-                }}
+                onRefresh={onRefresh}
                 onColumnSelector={() => setColumnModalOpen(true)}
+                sortConfig={sortConfig}
+                onSort={handleSort}
 
                 page={page}
                 setPage={setPage}
