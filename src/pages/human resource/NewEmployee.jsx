@@ -147,6 +147,13 @@ const loadEmployeeForEdit = async () => {
       rateType: emp.RateType || "",
       hourlyRate: emp.HoureRateSalary ?? emp.HourlyRateSalary ?? "",
       salary: emp.BasicSalary ?? emp.salary ?? "",
+      basicPay: emp.BasicPay ?? "",
+      da: emp.DA ?? "",
+      hra: emp.HRA ?? "",
+      pfEmployee: emp.PFEmployee ?? "",
+      pfEmployer: emp.PFEmployer ?? "",
+      esiEmployee: emp.ESIEmployee ?? "",
+      esiEmployer: emp.ESIEmployer ?? "",
       bloodGroup: emp.BloodGroup || "",
       phone: emp.Phone || "",
       email: emp.Email || "",
@@ -216,6 +223,14 @@ const loadEmployeeForEdit = async () => {
     payrollBankId: "",
     payrollBankAccount: "",
     userId: (JSON.parse(localStorage.getItem("user")) || {}).userId || 1,
+    // Splitted Salary Fields
+    basicPay: "",
+    da: "",
+    hra: "",
+    pfEmployee: "",
+    pfEmployer: "",
+    esiEmployee: "",
+    esiEmployer: "",
   });
 
   // ----- lookups -----
@@ -751,6 +766,56 @@ const loadUsers = async () => {
     setForm((p) => ({ ...p, pictureFile: file, picturePreview: URL.createObjectURL(file) }));
   };
   const removePicture = () => handlePictureChange(null);
+
+  // ---------- salary splits calculation ----------
+  const calculateSplits = (totalSalary) => {
+    const salary = Number(totalSalary) || 0;
+    
+    if (salary <= 0) {
+      setForm(p => ({
+        ...p,
+        salary: totalSalary,
+        basicPay: "",
+        da: "",
+        hra: "",
+        pfEmployee: "",
+        pfEmployer: "",
+        esiEmployee: "",
+        esiEmployer: ""
+      }));
+      return;
+    }
+
+    // Standard splits (Example logic: Basic 50%, DA 20%, HRA 30%)
+    const basicPay = (salary * 0.5).toFixed(2);
+    const da = (salary * 0.2).toFixed(2);
+    const hra = (salary * 0.3).toFixed(2);
+
+    // PF Calculation (Example: 12% of BasicPay)
+    const pfEmployee = (Number(basicPay) * 0.12).toFixed(2);
+    const pfEmployer = (Number(basicPay) * 0.13).toFixed(2); 
+
+    // ESI Calculation (Example: 0.75% for Emp, 3.25% for Employer of Gross)
+    const esiEmployee = (salary * 0.0075).toFixed(2);
+    const esiEmployer = (salary * 0.0325).toFixed(2);
+
+    setForm(p => ({
+      ...p,
+      salary: totalSalary,
+      basicPay,
+      da,
+      hra,
+      pfEmployee,
+      pfEmployer,
+      esiEmployee,
+      esiEmployer
+    }));
+  };
+
+  const handleSalaryChange = (val) => {
+    setForm(p => ({ ...p, salary: val }));
+    calculateSplits(val.replace(/,/g, ""));
+  };
 
   // ---------- submit employee ----------
 const submitEmployee = async () => {
@@ -1438,7 +1503,7 @@ const handleRestore = async () => {
                     <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                         {/* Address */}
                         <div className="flex flex-col h-full">
-           <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Address <span className="text-dark"> *</span></label>
+           <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>Address <span className="text-dark"> *</span></label>
                            <div className="flex-grow">
                             <textarea 
                               value={form.address} 
@@ -1486,10 +1551,101 @@ const handleRestore = async () => {
                     <div className="flex gap-2 w-full">
                       <div className="flex-grow min-w-0">
                         <InputField
-                          label="Basic Salary"
+                          label="Gross Salary"
                           value={form.salary}
-                          onChange={(e) => setForm(p => ({ ...p, salary: e.target.value }))}
+                          onChange={(e) => handleSalaryChange(e.target.value)}
                           required
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="Basic Pay"
+                          value={form.basicPay}
+                          onChange={(e) => setForm(p => ({ ...p, basicPay: e.target.value }))}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="DA"
+                          value={form.da}
+                          onChange={(e) => setForm(p => ({ ...p, da: e.target.value }))}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="HRA"
+                          value={form.hra}
+                          onChange={(e) => setForm(p => ({ ...p, hra: e.target.value }))}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="PF Employer"
+                          value={form.pfEmployer}
+                          onChange={(e) => setForm(p => ({ ...p, pfEmployer: e.target.value }))}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="PF Employee"
+                          value={form.pfEmployee}
+                          onChange={(e) => setForm(p => ({ ...p, pfEmployee: e.target.value }))}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="ESI Employer"
+                          value={form.esiEmployer}
+                          onChange={(e) => setForm(p => ({ ...p, esiEmployer: e.target.value }))}
+                          disabled={isRestoreMode}
+                          className="font-medium"
+                          formatted
+                        />
+                      </div>
+                      <div className="flex-shrink-0 w-[38px]"></div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-grow min-w-0">
+                        <InputField
+                          label="ESI Employee"
+                          value={form.esiEmployee}
+                          onChange={(e) => setForm(p => ({ ...p, esiEmployee: e.target.value }))}
                           disabled={isRestoreMode}
                           className="font-medium"
                           formatted
@@ -1558,10 +1714,10 @@ const handleRestore = async () => {
                       <table className="w-full text-center text-sm">
                         <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                           <tr className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
-                            <th className="py-2 pr-4 font-semibold text-left">Income</th>
-                            <th className="py-2 w-24 font-semibold text-right">Amount</th>
-                            <th className="py-2 font-semibold text-left">Description</th>
-                            <th className="py-2 w-28 font-semibold text-right">Actions</th>
+                            <th className="py-2 pr-4 font-semibold ">Income</th>
+                            <th className="py-2 w-24 font-semibold ">Amount</th>
+                            <th className="py-2 font-semibold ">Description</th>
+                            <th className="py-2 w-28 font-semibold ">Actions</th>
                           </tr>
                         </thead>
 
@@ -1574,7 +1730,7 @@ const handleRestore = async () => {
                             </tr>
                           ) : (
                             incomes.map((r) => (
-                              <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'}`}>
+                              <tr key={r.id} className={`font-medium ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'} ${theme === 'purple' ? 'text-purple-800' : ''}`}>
                                 <td className={`py-2 pr-4 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.typeName}</td>
                                 <td className={`py-2 w-24 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 <td className={`py-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.description || "-"}</td>
@@ -1627,10 +1783,10 @@ const handleRestore = async () => {
                       <table className="w-full text-center text-sm">
                         <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                           <tr className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>
-                            <th className="py-2 pr-4 font-semibold text-left">Deduction</th>
-                            <th className="py-2 w-24 font-semibold text-right">Amount</th>
-                            <th className="py-2 font-semibold text-left">Description</th>
-                            <th className="py-2 w-28 font-semibold text-right">Actions</th>
+                            <th className="py-2 pr-4 font-semibold">Deduction</th>
+                            <th className="py-2 w-24 font-semibold ">Amount</th>
+                            <th className="py-2 font-semibold ">Description</th>
+                            <th className="py-2 w-28 font-semibold">Actions</th>
                           </tr>
                         </thead>
                         <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
@@ -1642,7 +1798,7 @@ const handleRestore = async () => {
                             </tr>
                           ) : (
                             deductions.map((r) => (
-                              <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'}`}>
+                              <tr key={r.id} className={`font-medium ${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-t border-gray-700'} ${theme === 'purple' ? 'text-purple-800' : ''}`}>
                                 <td className={`py-2 pr-4 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.typeName}</td>
                                 <td className={`py-2 w-24 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 <td className={`py-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.description || "-"}</td>
@@ -1677,7 +1833,7 @@ const handleRestore = async () => {
       >
           <div className="space-y-3">
             <div>
-                <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Income <span className="text-dark">*</span></label>
+              <label className={`text-sm block mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>Income <span className="text-dark">*</span></label>
               <SearchableSelect
                 options={incomeTypes}
                 value={incomeForm.typeId}
@@ -1720,7 +1876,7 @@ const handleRestore = async () => {
       >
          <div className="space-y-3">
             <div>
-               <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Deduction <span className="text-dark">*</span></label>
+               <label className={`text-sm block mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>Deduction <span className="text-dark">*</span></label>
               <SearchableSelect
                 options={deductionTypes}
                 value={deductionForm.typeId}
@@ -1730,7 +1886,7 @@ const handleRestore = async () => {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                 <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Amount <span className="text-dark">*</span></label>
+                 <label className={`text-sm block mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>Amount <span className="text-dark">*</span></label>
                  <input 
                    type="number" 
                    value={deductionForm.amount} 
@@ -1741,7 +1897,7 @@ const handleRestore = async () => {
                  />
               </div>
               <div className="col-span-2">
-                 <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Description</label>
+                 <label className={`text-sm block mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>Description</label>
                  <input 
                    type="text" 
                    value={deductionForm.description} 

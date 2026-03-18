@@ -132,6 +132,17 @@ const NewPayroll = () => {
           bankAccount: emp.BankAccount,
           bankName: emp.BankName,
           basicSalary: emp.BasicSalary,
+          basicPay: emp.BasicPay,
+          da: emp.DA,
+          hra: emp.HRA,
+          pfEmployee: emp.PFEmployee,
+          pfEmployer: emp.PFEmployer,
+          esiEmployee: emp.ESIEmployee,
+          esiEmployer: emp.ESIEmployer,
+          payrollYear: emp.PayrollYear,
+          payrollMonth: emp.PayrollMonth,
+          totalDaysInMonth: emp.TotalDaysInMonth,
+          workedDays: emp.WorkedDays,
           totalIncome: emp.TotalIncome,
           totalDeduction: emp.TotalDeduction,
           takeHome: emp.TakeHomePay,
@@ -255,6 +266,17 @@ const NewPayroll = () => {
           bankAccount: r.bankAccount,
           bankName: r.bankName,
           basicSalary: Number(r.basicSalary),
+          basicPay: Number(r.basicPay || 0),
+          da: Number(r.da || 0),
+          hra: Number(r.hra || 0),
+          pfEmployee: Number(r.pfEmployee || 0),
+          pfEmployer: Number(r.pfEmployer || 0),
+          esiEmployee: Number(r.esiEmployee || 0),
+          esiEmployer: Number(r.esiEmployer || 0),
+          payrollYear: r.payrollYear,
+          payrollMonth: r.payrollMonth,
+          totalDaysInMonth: Number(r.totalDaysInMonth || 0),
+          workedDays: Number(r.workedDays || 0),
           totalIncome: Number(r.totalIncome),
           totalDeduction: Number(r.totalDeduction),
           takeHomePay: Number(r.takeHome),
@@ -278,11 +300,7 @@ const NewPayroll = () => {
       
       if (resp.status === 200 || resp.status === 201) {
         showSuccessToast(isEdit ? "Payroll updated successfully!" : "Payroll saved successfully!");
-        if (!isEdit && resp.data.payrollId) {
-             navigate(`/app/hr/editpayroll/${resp.data.payrollId}`);
-        } else {
-             if (isEdit) navigate("/app/hr/payroll");
-        }
+        navigate("/app/hr/payroll");
       } else {
         showErrorToast(resp.data?.message || `Failed to ${isEdit ? 'update' : 'save'} payroll`);
       }
@@ -532,7 +550,7 @@ const NewPayroll = () => {
               </thead>
               <tbody className={`divide-y text-center ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-200' : 'divide-gray-700'}`}>
                 {rows.map((r, i) => (
-                  <tr key={i} className={`transition-colors ${theme === 'emerald' || theme === 'purple' ? 'hover:bg-gray-50 border-gray-200 text-gray-700' : 'hover:bg-gray-750 border-gray-700 text-gray-300'}`}>
+                  <tr key={i} className={`transition-colors font-medium ${theme === 'emerald' ? 'hover:bg-emerald-50 text-emerald-900' : theme === 'purple' ? 'hover:bg-purple-50 text-purple-800' : 'hover:bg-gray-750 text-gray-300'}`}>
                     <td className="p-3">{r.employeeName}</td>
                     <td className="p-3">{r.bankAccount}</td>
                     <td className="p-3">{r.bankName}</td>
@@ -602,6 +620,18 @@ const NewPayroll = () => {
                         <input value={Number(sumDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                       </div>
                  </div>
+
+                  {/* Batch CTC Tracking */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Man Power Expense</label>
+                       <div className="flex-1 font-medium">
+                         <input 
+                            value={Number(rows.reduce((s, r) => s + (Number(r.basicSalary) + Number(r.pfEmployer || 0) + Number(r.esiEmployer || 0) + Number(r.totalIncome || 0)), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                            disabled 
+                            className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900 font-bold' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900 font-bold' : 'bg-gray-800 border-gray-700 text-white font-bold'}`} 
+                         />
+                       </div>
+                  </div>
              </div>
 
              {/* RIGHT COLUMN - Totals */}

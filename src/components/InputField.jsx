@@ -26,7 +26,7 @@ const InputField = ({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
+          className={`w-full border-2 rounded px-3 py-1.5 text-sm font-medium outline-none transition-colors ${
             theme === "emerald"
               ? "bg-emerald-50 border-emerald-600 text-emerald-900 placeholder-emerald-400 focus:border-emerald-400"
               : theme === "purple"
@@ -90,7 +90,7 @@ const InputField = ({
         placeholder={placeholder}
         disabled={disabled}
         required={required}
-          className={`w-full border-2 rounded px-3 py-1.5 text-sm outline-none transition-colors ${
+          className={`w-full border-2 rounded px-3 py-1.5 text-sm font-medium outline-none transition-colors ${
             theme === "emerald"
               ? "bg-emerald-50 border-emerald-600 text-emerald-900 placeholder-emerald-400 focus:border-emerald-400"
               : theme === "purple"

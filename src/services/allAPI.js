@@ -1956,6 +1956,10 @@ export const getInactivePayrollsApi = () =>
 export const restorePayrollApi = (id, data) =>
   commonAPI("PUT", `${serverURL}/payrolls/restore/${id}`, data);
 
+// PERIODS
+export const getPayrollPeriodsApi = () =>
+  commonAPI("GET", `${serverURL}/payrolls/periods/all`);
+
 // ======================= Stock Updates APIs =======================
 
 // LIST (paginated)

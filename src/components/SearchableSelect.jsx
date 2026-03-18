@@ -147,7 +147,7 @@ const SearchableSelect = ({
               onClick={toggleOpen}
               tabIndex={0}
             >
-              <span className={`truncate flex-1 text-xs sm:text-sm ${selectedOption ? (theme === 'emerald' ? "text-emerald-900" : theme === 'purple' ? "text-purple-900" : theme === 'dark' ? "text-white" : "text-black") : (theme === 'purple' ? "text-gray-400" : "text-gray-400")}`}>
+              <span className={`truncate flex-1 text-xs sm:text-sm font-medium ${selectedOption ? (theme === 'emerald' ? "text-emerald-900" : theme === 'purple' ? "text-purple-900" : theme === 'dark' ? "text-white" : "text-black") : (theme === 'purple' ? "text-gray-400" : "text-gray-400")}`}>
                 {selectedOption ? selectedOption.name : placeholder}
               </span>
               <div className="flex items-center gap-2">

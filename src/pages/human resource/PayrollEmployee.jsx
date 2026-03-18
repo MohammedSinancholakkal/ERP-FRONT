@@ -5,7 +5,7 @@ import { ArrowLeft, Plus, Save, Trash2, Pencil, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../../layout/PageLayout";
 import toast from "react-hot-toast";
-import { getEmployeesApi, getEmployeeByIdApi, getBanksApi, getIncomesApi, getDeductionsApi } from "../../services/allAPI";
+import { getEmployeesApi, getEmployeeByIdApi, getBanksApi, getIncomesApi, getDeductionsApi, getPayrollPeriodsApi } from "../../services/allAPI";
 import { useTheme } from "../../context/ThemeContext";
 import SearchableSelect from "../../components/SearchableSelect";
 import ContentCard from "../../components/ContentCard";
@@ -53,8 +53,21 @@ const [employee, setEmployee] = useState(null);
      PAYROLL COMPONENTS
   ========================= */
   const [basicSalary, setBasicSalary] = useState("");
+  const [basicPay, setBasicPay] = useState("");
+  const [da, setDa] = useState("");
+  const [hra, setHra] = useState("");
+  const [pfEmployee, setPfEmployee] = useState("");
+  const [pfEmployer, setPfEmployer] = useState("");
+  const [esiEmployee, setEsiEmployee] = useState("");
+  const [esiEmployer, setEsiEmployer] = useState("");
+
   const [incomes, setIncomes] = useState([]);
   const [deductions, setDeductions] = useState([]);
+  
+  const [payrollPeriods, setPayrollPeriods] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
+  const [workedDays, setWorkedDays] = useState("");
+  const [totalDays, setTotalDays] = useState("");
 
   /* modal states */
   const [showIncomeModal, setShowIncomeModal] = useState(false);
@@ -82,52 +95,15 @@ const [employee, setEmployee] = useState(null);
   /* =========================
      FETCH DATA
   ========================= */
-  useEffect(() => {
-    fetchEmployees();
-    fetchBanks();
-    fetchTypes();
-
-    // If editing, load existing data
-    if (location.state?.editEmployee) {
-      const edit = location.state.editEmployee;
-      setEmployee({ id: edit.employeeId, name: edit.employeeName });
-      setBankAccount(edit.bankAccount || "");
-      setBankName(edit.bankName || "");
-      setBasicSalary(edit.basicSalary || "");
-      setIncomes(edit.incomes || []);
-      setDeductions(edit.deductions || []);
-    }
-  }, []);
-
-  const fetchTypes = async () => {
-    try {
-      const [incResp, dedResp] = await Promise.all([
-        getIncomesApi(1, 1000),
-        getDeductionsApi(1, 1000)
-      ]);
-      
-      const incRecords = incResp?.data?.records || [];
-      const dedRecords = dedResp?.data?.records || [];
-
-      setIncomeTypes(incRecords.map(i => ({ id: i.Id, name: i.IncomeName })));
-      setDeductionTypes(dedRecords.map(d => ({ id: d.Id, name: d.Name || d.DeductionName })));
-    } catch (err) {
-      console.error("Error fetching types", err);
-    }
-  };
-
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
-      const resp = await getEmployeesApi(1, 1000);
+      const resp = await getEmployeesApi(1, 5000); // load all for search
       const records = resp?.data?.records || [];
-      const normalized = records.map(e => ({
-        id: e.Id,
-        name: `${e.FirstName} ${e.LastName}`
-      }));
+      const normalized = records.map(e => ({ id: e.Id, name: `${e.FirstName} ${e.LastName}` }));
       setEmployees(normalized);
     } catch (err) {
-      console.error("Error fetching employees", err);
+      console.error("Error loading employees", err);
       toast.error("Failed to load employees");
     } finally {
       setEmployeesLoading(false);
@@ -138,15 +114,82 @@ const [employee, setEmployee] = useState(null);
     try {
       const resp = await getBanksApi(1, 5000);
       const records = resp?.data?.records || [];
-      const normalized = records.map(b => ({
-        id: b.Id,
-        name: b.BankName
-      }));
-      setBanks(normalized);
+      setBanks(records.map(b => ({ id: b.Id, name: b.BankName })));
     } catch (err) {
-      console.error("Error fetching banks", err);
+      console.error("Error loading banks", err);
     }
   };
+
+  const fetchTypes = async () => {
+    try {
+      const [incResp, dedResp] = await Promise.all([
+        getIncomesApi(1, 5000), 
+        getDeductionsApi(1, 5000)
+      ]);
+      
+      const incomeRecords = incResp.data?.records || [];
+      const deductionRecords = dedResp.data?.records || [];
+
+      setIncomeTypes(incomeRecords.map(x => ({ id: x.Id, name: x.IncomeName })));
+      setDeductionTypes(deductionRecords.map(x => ({ id: x.Id, name: x.DeductionName })));
+    } catch (err) {
+      console.error("Error fetching types:", err);
+    }
+  };
+
+  const fetchPeriods = async () => {
+    try {
+      const resp = await getPayrollPeriodsApi();
+      const periods = resp?.data || [];
+      const normalized = periods.map(p => ({ 
+          id: p.Id, 
+          name: `${p.MonthName} ${p.Year}`,
+          totalDays: p.TotalDays,
+          year: p.Year,
+          month: p.MonthName
+      }));
+      setPayrollPeriods(normalized);
+    } catch (err) {
+      console.error("Error fetching periods:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+    fetchBanks();
+    fetchTypes();
+    fetchPeriods();
+
+    // If editing, load existing data
+    if (location.state?.editEmployee) {
+      const edit = location.state.editEmployee;
+      setEmployee({ id: edit.employeeId, name: edit.employeeName });
+      setBankAccount(edit.bankAccount || "");
+      setBankName(edit.bankName || "");
+      setBasicSalary(edit.basicSalary || "");
+      setBasicPay(edit.basicPay || "");
+      setDa(edit.da || "");
+      setHra(edit.hra || "");
+      setPfEmployee(edit.pfEmployee || "");
+      setPfEmployer(edit.pfEmployer || "");
+      setEsiEmployee(edit.esiEmployee || "");
+      setEsiEmployer(edit.esiEmployer || "");
+      setIncomes(edit.incomes || []);
+      setDeductions(edit.deductions || []);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (location.state?.editEmployee && payrollPeriods.length > 0) {
+      const edit = location.state.editEmployee;
+      const period = payrollPeriods.find(p => p.year === edit.payrollYear && p.month === edit.payrollMonth);
+      if (period) {
+          setSelectedPeriod(period);
+          setTotalDays(period.totalDays);
+      }
+      setWorkedDays(edit.workedDays || "");
+    }
+  }, [payrollPeriods, location.state?.editEmployee]);
 
   const handleEmployeeSelect = async (emp) => {
     setEmployee(emp);
@@ -155,6 +198,13 @@ const [employee, setEmployee] = useState(null);
       const data = resp?.data;
       if (data) {
         setBasicSalary(data.BasicSalary || "");
+        setBasicPay(data.BasicPay || "");
+        setDa(data.DA || "");
+        setHra(data.HRA || "");
+        setPfEmployee(data.PFEmployee || "");
+        setPfEmployer(data.PFEmployer || "");
+        setEsiEmployee(data.ESIEmployee || "");
+        setEsiEmployer(data.ESIEmployer || "");
         setBankAccount(data.BankAccountForPayroll || "");
         
         // resolve bank name
@@ -212,6 +262,39 @@ const [employee, setEmployee] = useState(null);
   /* =========================
      CALCULATIONS
   ========================= */
+  const calculateSplits = (totalSalary) => {
+    const salary = Number(totalSalary) || 0;
+    setBasicSalary(totalSalary); 
+    
+    if (salary <= 0) {
+      setBasicPay("");
+      setDa("");
+      setHra("");
+      setPfEmployee("");
+      setPfEmployer("");
+      setEsiEmployee("");
+      setEsiEmployer("");
+      return;
+    }
+
+    // Standard splits (Basic 50%, DA 20%, HRA 30%)
+    const bPay = (salary * 0.5).toFixed(2);
+    const dAllowance = (salary * 0.2).toFixed(2);
+    const hRentAllowance = (salary * 0.3).toFixed(2);
+
+    setBasicPay(bPay);
+    setDa(dAllowance);
+    setHra(hRentAllowance);
+
+    // PF Calculation (12% for Employee, 13% for Employer of BasicPay)
+    setPfEmployee((Number(bPay) * 0.12).toFixed(2));
+    setPfEmployer((Number(bPay) * 0.13).toFixed(2));
+
+    // ESI Calculation (0.75% for Employee, 3.25% for Employer of Gross)
+    setEsiEmployee((salary * 0.0075).toFixed(2));
+    setEsiEmployer((salary * 0.0325).toFixed(2));
+  };
+
   const totalIncome = incomes.reduce(
     (s, i) => s + Number(i.amount || 0),
     0
@@ -226,6 +309,9 @@ const [employee, setEmployee] = useState(null);
   );
 
   const takeHomePay = summaryTotalIncome - totalDeduction;
+
+  const totalExpsenseOfManPower = summaryTotalIncome + Number(pfEmployer || 0) + Number(esiEmployer || 0);
+  const totalCompanyBenefitExpense = Number(pfEmployer || 0) + Number(esiEmployer || 0);
 
   /* =========================
      HANDLERS
@@ -339,9 +425,21 @@ const handleSave = () => {
     bankAccount,
     bankName,
     basicSalary: Number(basicSalary),
+    basicPay: Number(basicPay),
+    da: Number(da),
+    hra: Number(hra),
+    pfEmployee: Number(pfEmployee),
+    pfEmployer: Number(pfEmployer),
+    esiEmployee: Number(esiEmployee),
+    esiEmployer: Number(esiEmployer),
+    esiEmployer: Number(esiEmployer),
     totalIncome,
     totalDeduction,
     takeHome: takeHomePay,
+    payrollYear: selectedPeriod?.year || null,
+    payrollMonth: selectedPeriod?.month || "",
+    totalDaysInMonth: Number(totalDays) || 0,
+    workedDays: Number(workedDays) || 0,
     incomes: incomes, // pass raw for UI editing
     deductions: deductions // pass raw for UI editing
   };
@@ -459,15 +557,105 @@ const handleBack = () => {
         {/* PAYROLL COMPONENTS */}
         <Section title="Payroll Components">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6">
+
             <div className="flex gap-2 w-full">
               <div className="flex-grow min-w-0">
                 <InputField
-                  label={<>Basic Salary <span className="text-dark"></span></>}
+                  label="Gross Salary"
                   type="text"
                   value={basicSalary}
-                  onChange={setBasicSalary}
+                  onChange={(e) => calculateSplits(e.target.value)}
                   required
                   formatted
+                />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+            {/* Splitup fields */}
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField label="Basic Pay" value={basicPay} onChange={(e) => setBasicPay(e.target.value)} formatted />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField label="DA" value={da} onChange={(e) => setDa(e.target.value)} formatted />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField label="HRA" value={hra} onChange={(e) => setHra(e.target.value)} formatted />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+            {/* PF / ESI contributions */}
+             <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField label="PF Employee" value={pfEmployee} onChange={(e) => setPfEmployee(e.target.value)} formatted />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+             <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField label="PF Employer" value={pfEmployer} onChange={(e) => setPfEmployer(e.target.value)} formatted />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+             <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField label="ESI Employee" value={esiEmployee} onChange={(e) => setEsiEmployee(e.target.value)} formatted />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+             <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField label="ESI Employer" value={esiEmployer} onChange={(e) => setEsiEmployer(e.target.value)} formatted />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+
+            {/* Period Selection */}
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <SearchableSelect
+                    label={<>Select Year & Month</>}
+                    options={payrollPeriods}
+                    value={selectedPeriod?.id}
+                    onChange={(val) => {
+                        const period = payrollPeriods.find(p => p.id === val);
+                        setSelectedPeriod(period);
+                        setTotalDays(period?.totalDays || "");
+                    }}
+                    placeholder="Select Period"
+                    required
+                />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+
+            <div className="flex gap-2 w-full">
+               <div className="flex-grow min-w-0">
+                <InputField
+                    label="Total Days in Month"
+                    value={totalDays}
+                    readOnly
+                    placeholder="Auto-filled from period"
+                />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField
+                    label="Worked Days"
+                    type="number"
+                    value={workedDays}
+                    onChange={(e) => setWorkedDays(e.target.value)}
+                    placeholder="Enter worked days"
+                    required
                 />
               </div>
               <div className="flex-shrink-0 w-[38px]"></div>
@@ -493,10 +681,10 @@ const handleBack = () => {
               <table className="w-full text-sm">
                 <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                   <tr>
-                    <th className="p-2 text-left font-semibold">Income</th>
-                    <th className="p-2 text-right font-semibold">Amount</th>
-                    <th className="p-2 text-left font-semibold">Short Note</th>
-                    <th className="p-2 text-right font-semibold">Actions</th>
+                    <th className="p-2  font-semibold">Income</th>
+                    <th className="p-2  font-semibold">Amount</th>
+                    <th className="p-2  font-semibold">Short Note</th>
+                    <th className="p-2  font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className={`${theme === 'emerald' || theme === 'purple' ? 'divide-y divide-gray-200' : 'bg-gray-800 divide-y divide-gray-700'}`}>
@@ -508,10 +696,10 @@ const handleBack = () => {
                     </tr>
                   ) : (
                     incomes.map((r) => (
-                      <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
-                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.type?.name ?? r.typeName}</td>
-                        <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.note || "-"}</td>
+                      <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50 font-medium' : 'border-gray-700 hover:bg-gray-700'} ${theme === 'purple' ? 'text-purple-800' : ''}`}>
+                        <td className="p-2">{r.type?.name ?? r.typeName}</td>
+                        <td className="p-2 text-right">{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-xs">{r.note || "-"}</td>
                         <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
                           <button
                             className="p-1 mr-2"
@@ -558,10 +746,10 @@ const handleBack = () => {
               <table className="w-full text-center text-sm">
                 <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 text-purple-800' : 'bg-gray-900 text-white'}`}>
                   <tr className={`${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>
-                    <th className="py-2 pr-4 font-semibold text-left">Deduction</th>
-                    <th className="py-2 w-24 font-semibold text-right">Amount</th>
-                    <th className="py-2 font-semibold text-left">Short Note</th>
-                    <th className="py-2 w-28 font-semibold text-right">Actions</th>
+                    <th className="py-2 pr-4 font-semibold ">Deduction</th>
+                    <th className="py-2 w-24 font-semibold ">Amount</th>
+                    <th className="py-2 font-semibold ">Short Note</th>
+                    <th className="py-2 w-28 font-semibold">Actions</th>
                   </tr>
                 </thead>
 
@@ -574,10 +762,10 @@ const handleBack = () => {
                     </tr>
                   ) : (
                     deductions.map((r) => (
-                      <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50' : 'border-gray-700 hover:bg-gray-700'}`}>
-                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>{r.type?.name ?? r.typeName}</td>
-                        <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className={`p-2 transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}`}>{r.note || "-"}</td>
+                      <tr key={r.id} className={`${theme === 'emerald' || theme === 'purple' ? 'border-gray-200 hover:bg-gray-50 font-medium' : 'border-gray-700 hover:bg-gray-700'} ${theme === 'purple' ? 'text-purple-800' : ''}`}>
+                        <td className="p-2">{r.type?.name ?? r.typeName}</td>
+                        <td className="p-2 text-right">{Number(r.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-xs">{r.note || "-"}</td>
                         <td className={`p-2 text-right transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
                           <button
                             className="p-1 mr-2"
@@ -616,6 +804,19 @@ const handleBack = () => {
                      <input value={Number(summaryTotalIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                   </div>
               </div>
+              {/* New Company Expense fields */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                 <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Company PF/ESI Expense</label>
+                  <div className="flex-1 font-medium">
+                     <input value={Number(totalCompanyBenefitExpense).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900 font-bold' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900 font-bold' : 'bg-gray-800 border-gray-700 text-white font-bold'}`} />
+                  </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                 <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Expense of Man Power</label>
+                  <div className="flex-1 font-medium">
+                     <input value={Number(totalExpsenseOfManPower).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900 font-bold' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900 font-bold' : 'bg-gray-800 border-gray-700 text-white font-bold'}`} />
+                  </div>
+              </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                  <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
@@ -646,9 +847,8 @@ const handleBack = () => {
         width="500px"
       >
         <div className="space-y-3">
-          <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
-            Income Name <span className="text-dark mr-1">*</span>
-             
+          <label className={`text-sm block mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>
+            Income Type <span className="text-dark">*</span>
           </label>
           <SearchableSelect
             options={incomeTypes}
@@ -695,9 +895,9 @@ const handleBack = () => {
         width="500px"
       >
          <div className="space-y-3">
-           <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>
-             Deduction Name <span className="text-dark mr-1">*</span>
-          </label>
+            <label className={`text-sm block mb-1 font-medium ${theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>
+              Deduction Type <span className="text-dark">*</span>
+            </label>
           <SearchableSelect
              options={deductionTypes}
              value={deductionForm.type?.id}

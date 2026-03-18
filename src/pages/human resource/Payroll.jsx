@@ -41,6 +41,10 @@ const Payroll = () => {
     totalDeduction: true,
     totalTakeHomePay: true,
     totalPaymentAmount: true,
+    payrollYear: true,
+    payrollMonth: true,
+    totalPFEmployer: true,
+    totalESIEmployer: true,
   };
 
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
@@ -80,6 +84,10 @@ const fetchPayrolls = async () => {
         totalDeduction: p.TotalDeduction || p.totalDeduction,
         totalTakeHomePay: p.TotalTakeHomePay || p.totalTakeHomePay,
         totalPaymentAmount: p.TotalPaymentAmount || p.totalPaymentAmount,
+        payrollYear: p.PayrollYear || p.payrollYear,
+        payrollMonth: p.PayrollMonth || p.payrollMonth,
+        totalPFEmployer: p.TotalPFEmployer || p.totalPFEmployer,
+        totalESIEmployer: p.TotalESIEmployer || p.totalESIEmployer,
         isInactive: false,
       }));
 
@@ -129,6 +137,10 @@ const fetchPayrolls = async () => {
           totalDeduction: p.TotalDeduction || p.totalDeduction,
           totalTakeHomePay: p.TotalTakeHomePay || p.totalTakeHomePay,
           totalPaymentAmount: p.TotalPaymentAmount || p.totalPaymentAmount,
+          payrollYear: p.PayrollYear || p.payrollYear,
+          payrollMonth: p.PayrollMonth || p.payrollMonth,
+          totalPFEmployer: p.TotalPFEmployer || p.totalPFEmployer,
+          totalESIEmployer: p.TotalESIEmployer || p.totalESIEmployer,
           isInactive: true,
         }));
         setInactiveRows(normalized);
@@ -166,6 +178,10 @@ const fetchPayrolls = async () => {
           totalDeduction: p.TotalDeduction || p.totalDeduction,
           totalTakeHomePay: p.TotalTakeHomePay || p.totalTakeHomePay,
           totalPaymentAmount: p.TotalPaymentAmount || p.totalPaymentAmount,
+          payrollYear: p.PayrollYear || p.payrollYear,
+          payrollMonth: p.PayrollMonth || p.payrollMonth,
+          totalPFEmployer: p.TotalPFEmployer || p.totalPFEmployer,
+          totalESIEmployer: p.TotalESIEmployer || p.totalESIEmployer,
           isInactive: false,
         }));
         setRows(normalized);
@@ -273,6 +289,10 @@ const fetchPayrolls = async () => {
                     visibleColumns.totalDeduction && { key: "totalDeduction", label: "Total Deduction", sortable: true, render: (r) => Number(r.totalDeduction || 0).toFixed(2) },
                     visibleColumns.totalTakeHomePay && { key: "totalTakeHomePay", label: "Take Home Pay", sortable: true, className: "font-semibold text-green-400", render: (r) => Number(r.totalTakeHomePay || 0).toFixed(2) },
                     visibleColumns.totalPaymentAmount && { key: "totalPaymentAmount", label: "Total Payment", sortable: true, render: (r) => Number(r.totalPaymentAmount || 0).toFixed(2) },
+                    visibleColumns.payrollYear && { key: "payrollYear", label: "Year", sortable: true },
+                    visibleColumns.payrollMonth && { key: "payrollMonth", label: "Month", sortable: true },
+                    visibleColumns.totalPFEmployer && { key: "totalPFEmployer", label: "Total PF Employer", sortable: true, render: (r) => Number(r.totalPFEmployer || 0).toFixed(2) },
+                    visibleColumns.totalESIEmployer && { key: "totalESIEmployer", label: "Total ESI Employer", sortable: true, render: (r) => Number(r.totalESIEmployer || 0).toFixed(2) },
                 ].filter(Boolean)}
                 data={paginatedRows}
                 inactiveData={inactiveRows}
