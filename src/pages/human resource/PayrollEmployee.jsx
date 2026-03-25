@@ -68,6 +68,8 @@ const [employee, setEmployee] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [workedDays, setWorkedDays] = useState("");
   const [totalDays, setTotalDays] = useState("");
+  const [salaryPaymentStatus, setSalaryPaymentStatus] = useState("Pending");
+  const [earnedSalary, setEarnedSalary] = useState("");
 
   /* modal states */
   const [showIncomeModal, setShowIncomeModal] = useState(false);
@@ -114,7 +116,12 @@ const [employee, setEmployee] = useState(null);
     try {
       const resp = await getBanksApi(1, 5000);
       const records = resp?.data?.records || [];
-      setBanks(records.map(b => ({ id: b.Id, name: b.BankName })));
+      const normalized = records.map(b => {
+          const id = b.id !== undefined ? b.id : b.Id !== undefined ? b.Id : b.ID !== undefined ? b.ID : null;
+          const name = b.name || b.BankName || b.bankName || "Unknown Bank";
+          return { id, name };
+      });
+      setBanks(normalized);
     } catch (err) {
       console.error("Error loading banks", err);
     }
@@ -166,6 +173,7 @@ const [employee, setEmployee] = useState(null);
       setEmployee({ id: edit.employeeId, name: edit.employeeName });
       setBankAccount(edit.bankAccount || "");
       setBankName(edit.bankName || "");
+      setBankId(edit.bankId || null);
       setBasicSalary(edit.basicSalary || "");
       setBasicPay(edit.basicPay || "");
       setDa(edit.da || "");
@@ -176,6 +184,7 @@ const [employee, setEmployee] = useState(null);
       setEsiEmployer(edit.esiEmployer || "");
       setIncomes(edit.incomes || []);
       setDeductions(edit.deductions || []);
+      setSalaryPaymentStatus(edit.salaryPaymentStatus || "Pending");
     }
   }, []);
 
@@ -252,6 +261,11 @@ const [employee, setEmployee] = useState(null);
             note: ""
           })));
         }
+
+        // Initialize workedDays to totalDays if possible
+        if (selectedPeriod?.totalDays) {
+          setWorkedDays(selectedPeriod.totalDays);
+        }
       }
     } catch (err) {
       console.error("Error fetching employee details", err);
@@ -262,9 +276,18 @@ const [employee, setEmployee] = useState(null);
   /* =========================
      CALCULATIONS
   ========================= */
-  const calculateSplits = (totalSalary) => {
-    const salary = Number(totalSalary) || 0;
-    setBasicSalary(totalSalary); 
+  const calculateSplits = (fixedSalary, tDays, wDays) => {
+    const fixed = Number(fixedSalary) || 0;
+    const total = Number(tDays) || 0;
+    const worked = Number(wDays) || 0;
+
+    let earned = fixed;
+    if (total > 0 && worked >= 0 && worked < total) {
+      earned = (fixed / total) * worked;
+    }
+    
+    setEarnedSalary(earned.toFixed(2));
+    const salary = earned;
     
     if (salary <= 0) {
       setBasicPay("");
@@ -277,10 +300,10 @@ const [employee, setEmployee] = useState(null);
       return;
     }
 
-    // Standard splits (Basic 50%, DA 20%, HRA 30%)
+    // Standard splits (Basic 50%, DA 10%, HRA 40%)
     const bPay = (salary * 0.5).toFixed(2);
-    const dAllowance = (salary * 0.2).toFixed(2);
-    const hRentAllowance = (salary * 0.3).toFixed(2);
+    const dAllowance = (salary * 0.1).toFixed(2);
+    const hRentAllowance = (salary * 0.4).toFixed(2);
 
     setBasicPay(bPay);
     setDa(dAllowance);
@@ -295,22 +318,33 @@ const [employee, setEmployee] = useState(null);
     setEsiEmployer((salary * 0.0325).toFixed(2));
   };
 
+  // Re-calculate splits whenever relevant values change
+  useEffect(() => {
+    if (basicSalary && totalDays) {
+      const wDays = workedDays === "" ? totalDays : workedDays;
+      calculateSplits(basicSalary, totalDays, wDays);
+    }
+  }, [basicSalary, totalDays, workedDays]);
+
   const totalIncome = incomes.reduce(
     (s, i) => s + Number(i.amount || 0),
     0
   );
 
   // Summary display: Total Income should include Basic Salary for accuracy
-  const summaryTotalIncome = Number(basicSalary || 0) + totalIncome;
+  // Summary display: Total Income should use earnedSalary if present, or basicSalary
+  const summaryTotalIncome = Number(earnedSalary || basicSalary || 0) + totalIncome;
 
-  const totalDeduction = deductions.reduce(
+  const customDeductionsTotal = deductions.reduce(
     (s, d) => s + Number(d.amount || 0),
     0
   );
 
+  const totalDeduction = customDeductionsTotal + Number(pfEmployee || 0) + Number(esiEmployee || 0);
+
   const takeHomePay = summaryTotalIncome - totalDeduction;
 
-  const totalExpsenseOfManPower = summaryTotalIncome + Number(pfEmployer || 0) + Number(esiEmployer || 0);
+  const totalExpsenseOfManPower = summaryTotalIncome;
   const totalCompanyBenefitExpense = Number(pfEmployer || 0) + Number(esiEmployer || 0);
 
   /* =========================
@@ -424,14 +458,14 @@ const handleSave = () => {
     bankId, // Add BankId
     bankAccount,
     bankName,
-    basicSalary: Number(basicSalary),
+    fixedMonthlyBasic: Number(basicSalary),
+    basicSalary: Number(earnedSalary || basicSalary),
     basicPay: Number(basicPay),
     da: Number(da),
     hra: Number(hra),
     pfEmployee: Number(pfEmployee),
     pfEmployer: Number(pfEmployer),
     esiEmployee: Number(esiEmployee),
-    esiEmployer: Number(esiEmployer),
     esiEmployer: Number(esiEmployer),
     totalIncome,
     totalDeduction,
@@ -440,6 +474,7 @@ const handleSave = () => {
     payrollMonth: selectedPeriod?.month || "",
     totalDaysInMonth: Number(totalDays) || 0,
     workedDays: Number(workedDays) || 0,
+    salaryPaymentStatus: salaryPaymentStatus,
     incomes: incomes, // pass raw for UI editing
     deductions: deductions // pass raw for UI editing
   };
@@ -561,16 +596,17 @@ const handleBack = () => {
             <div className="flex gap-2 w-full">
               <div className="flex-grow min-w-0">
                 <InputField
-                  label="Gross Salary"
+                  label="Fixed Monthly Basic"
                   type="text"
                   value={basicSalary}
-                  onChange={(e) => calculateSplits(e.target.value)}
+                  onChange={(e) => setBasicSalary(e.target.value)}
                   required
                   formatted
                 />
               </div>
               <div className="flex-shrink-0 w-[38px]"></div>
             </div>
+
             {/* Splitup fields */}
             <div className="flex gap-2 w-full">
               <div className="flex-grow min-w-0">
@@ -650,7 +686,7 @@ const handleBack = () => {
             <div className="flex gap-2 w-full">
               <div className="flex-grow min-w-0">
                 <InputField
-                    label="Worked Days"
+                    label="No. of days paid"
                     type="number"
                     value={workedDays}
                     onChange={(e) => setWorkedDays(e.target.value)}
@@ -659,6 +695,35 @@ const handleBack = () => {
                 />
               </div>
               <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <InputField
+                  label="Earned Gross Salary"
+                  type="text"
+                  value={earnedSalary}
+                  readOnly
+                  placeholder="Calculated based on days"
+                  formatted
+                />
+              </div>
+              <div className="flex-shrink-0 w-[38px]"></div>
+            </div>
+
+            <div className="flex gap-2 w-full">
+              <div className="flex-grow min-w-0">
+                <SearchableSelect
+                  label="Salary Payment Status"
+                  options={[
+                    { id: "Pending", name: "Pending" },
+                    { id: "Paid", name: "Paid" }
+                  ]}
+                  value={salaryPaymentStatus}
+                  onChange={(val) => setSalaryPaymentStatus(val)}
+                  showSpacer
+                />
+              </div>
             </div>
           </div>
 
@@ -777,7 +842,6 @@ const handleBack = () => {
                           >
                             <Pencil size={14} />
                           </button>
-
                           <button
                             className="p-1 text-dark"
                             onClick={() => deleteDeduction(r.id)}
@@ -826,7 +890,7 @@ const handleBack = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-purple-700 font-bold' : 'text-gray-300'}`}>Take Home Pay</label>
+                 <label className={`w-40 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-purple-700 font-bold' : 'text-gray-300'}`}>Net Salary</label>
                   <div className="flex-1 font-medium">
                      <input value={Number(takeHomePay).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right font-bold text-lg ${theme === 'emerald' || theme === 'purple' ? 'bg-white text-purple-700 border-gray-300' : 'bg-gray-900 border-gray-600 text-white'}`} />
                   </div>

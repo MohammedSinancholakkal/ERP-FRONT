@@ -786,10 +786,10 @@ const loadUsers = async () => {
       return;
     }
 
-    // Standard splits (Example logic: Basic 50%, DA 20%, HRA 30%)
+    // Standard splits (Example logic: Basic 50%, HRA 40%, DA 10%)
     const basicPay = (salary * 0.5).toFixed(2);
-    const da = (salary * 0.2).toFixed(2);
-    const hra = (salary * 0.3).toFixed(2);
+    const da = (salary * 0.1).toFixed(2);
+    const hra = (salary * 0.4).toFixed(2);
 
     // PF Calculation (Example: 12% of BasicPay)
     const pfEmployee = (Number(basicPay) * 0.12).toFixed(2);
@@ -1510,7 +1510,7 @@ const handleRestore = async () => {
                               onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))}
                               disabled={isRestoreMode}
                               required
-                              className={`w-full h-full border rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-800 border-gray-600 text-gray-200'} ${isRestoreMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              className={`w-full h-full border-2 rounded px-3 py-1.5 text-sm font-medium outline-none resize-none transition-colors ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-600 text-emerald-800 focus:border-emerald-400' : theme === 'purple' ? 'bg-white border-gray-300 text-purple-800 focus:border-gray-500' : 'bg-gray-800 border-gray-600 text-gray-200 focus:border-gray-500'} ${isRestoreMode ? 'opacity-50 cursor-not-allowed' : ''}`}
                               style={{ minHeight: '120px' }}
                             />
                            </div>

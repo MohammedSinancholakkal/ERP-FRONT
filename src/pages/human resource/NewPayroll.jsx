@@ -95,10 +95,10 @@ const NewPayroll = () => {
     // 1. Initial banks fetch
     fetchBanks();
 
-    // 2. If editing, fetch payroll data
-    if (isEdit) {
+    // 2. If editing, fetch payroll data (ONLY if not restoring from local state)
+    if (isEdit && !location.state?.payrollState) {
       fetchPayrollData();
-    } else {
+    } else if (!isEdit && !location.state?.payrollState) {
       setNumber(`PAYROLL/${year}`);
     }
 
@@ -109,9 +109,32 @@ const NewPayroll = () => {
       setPaymentDate(ps.paymentDate || getDefaultPaymentDate());
       setCashBank(ps.cashBank || null);
       setDescription(ps.description || "");
-      setRows(ps.rows || []);
+      
+      let initialRows = ps.rows || [];
+      
+      // If we also have an employeePayload, apply it immediately to the initialRows
+      if (location.state?.employeePayload) {
+        const payload = location.state.employeePayload;
+        const editIdx = location.state.editIndex;
+        
+        if (editIdx !== undefined && editIdx !== null && editIdx >= 0 && editIdx < initialRows.length) {
+          initialRows[editIdx] = payload;
+        } else {
+          // Check for existing by employeeId (backup)
+          const existsIdx = initialRows.findIndex(r => r.employeeId === payload.employeeId);
+          if (existsIdx >= 0) {
+            initialRows[existsIdx] = payload;
+          } else {
+            initialRows.push(payload);
+          }
+        }
+        // Clear it from navigation state after use to prevent double-processing
+        navigate(location.pathname, { replace: true, state: { ...location.state, employeePayload: null, editIndex: null } });
+      }
+      
+      setRows(initialRows);
     }
-  }, [id]);
+  }, [id, location.state?.employeePayload]); // Added employeePayload to triggers
 
   const fetchPayrollData = async () => {
     try {
@@ -121,7 +144,7 @@ const NewPayroll = () => {
         const { payroll, employees } = resp.data;
         setNumber(payroll.Number);
         setPaymentDate(payroll.PaymentDate ? new Date(payroll.PaymentDate).toISOString().split('T')[0] : getDefaultPaymentDate());
-        setCashBank(payroll.CashBankId ? { id: payroll.CashBankId, name: payroll.BankName || "Bank" } : null);
+        setCashBank(payroll.CashBankId ? { id: payroll.CashBankId, name: payroll.BankName || payroll.bankName || "Bank" } : null);
         setDescription(payroll.Description || "");
         
         // Normalize employees for the table
@@ -132,6 +155,7 @@ const NewPayroll = () => {
           bankAccount: emp.BankAccount,
           bankName: emp.BankName,
           basicSalary: emp.BasicSalary,
+          fixedMonthlyBasic: emp.FixedMonthlyBasic || emp.BasicSalary, // Fallback to BasicSalary if null
           basicPay: emp.BasicPay,
           da: emp.DA,
           hra: emp.HRA,
@@ -146,6 +170,7 @@ const NewPayroll = () => {
           totalIncome: emp.TotalIncome,
           totalDeduction: emp.TotalDeduction,
           takeHome: emp.TakeHomePay,
+          salaryPaymentStatus: emp.SalaryPaymentStatus || "Pending",
           incomes: (emp.incomes || []).map(inc => ({
             type: { id: inc.IncomeId, name: inc.IncomeName || "Income" },
             note: inc.ShortNote,
@@ -172,10 +197,11 @@ const NewPayroll = () => {
       setBanksLoading(true);
       const resp = await getBanksApi(page, limit);
       const records = resp?.data?.records || [];
-      const normalized = records.map(b => ({
-        id: b.id,
-        name: b.BankName
-      }));
+      const normalized = records.map(b => {
+          const id = b.id !== undefined ? b.id : b.Id !== undefined ? b.Id : b.ID !== undefined ? b.ID : null;
+          const name = b.name || b.BankName || b.bankName || "Unknown Bank";
+          return { id, name };
+      });
       setBanks(normalized);
     } catch (err) {
       console.error("Error loading banks", err);
@@ -186,34 +212,8 @@ const NewPayroll = () => {
     }
   };
 
-  useEffect(() => {
-    if (location.state?.employeePayload) {
-      const editIdx = location.state.editIndex;
-      setRows((prev) => {
-        if (editIdx !== undefined && editIdx !== null && editIdx >= 0 && editIdx < prev.length) {
-             // Update existing row by index
-             const newRows = [...prev];
-             newRows[editIdx] = location.state.employeePayload;
-             return newRows;
-        } else {
-             // Check if employeeId exists just in case (fallback for safety or direct adds)
-             const exists = prev.find(
-               (r) => r.employeeId === location.state.employeePayload.employeeId
-             );
-     
-             if (exists) {
-               return prev.map((r) =>
-                 r.employeeId === location.state.employeePayload.employeeId
-                   ? location.state.employeePayload
-                   : r
-               );
-             }
-             return [...prev, location.state.employeePayload];
-        }
-      });
-      navigate(location.pathname, { replace: true, state: { ...location.state, employeePayload: null, editIndex: null } });
-    }
-  }, [location.state?.employeePayload]);
+  // The employeePayload update is now handled within the main init/restore useEffect 
+  // to avoid race conditions between setRows calls.
 
   const deleteRow = (index) => {
     setRows((prev) => prev.filter((_, i) => i !== index));
@@ -253,7 +253,7 @@ const NewPayroll = () => {
         number,
         description,
         paymentDate,
-        cashBankId: cashBank?.id || null,
+        cashBankId: (cashBank?.id || cashBank?.id === 0) ? cashBank.id : (cashBank?.Id || cashBank?.Id === 0) ? cashBank.Id : null,
         totalBasicSalary: Number(sumBasic),
         totalIncome: Number(sumIncome),
         totalDeduction: Number(sumDeduction),
@@ -262,10 +262,12 @@ const NewPayroll = () => {
         currencyName: currency,
         employees: rows.map((r) => ({
           employeeId: r.employeeId ?? null,
+          employeeName: r.employeeName,
           bankId: r.bankId, // Add BankId
           bankAccount: r.bankAccount,
           bankName: r.bankName,
           basicSalary: Number(r.basicSalary),
+          fixedMonthlyBasic: Number(r.fixedMonthlyBasic || r.basicSalary || 0),
           basicPay: Number(r.basicPay || 0),
           da: Number(r.da || 0),
           hra: Number(r.hra || 0),
@@ -277,6 +279,7 @@ const NewPayroll = () => {
           payrollMonth: r.payrollMonth,
           totalDaysInMonth: Number(r.totalDaysInMonth || 0),
           workedDays: Number(r.workedDays || 0),
+          salaryPaymentStatus: r.salaryPaymentStatus || 'Pending',
           totalIncome: Number(r.totalIncome),
           totalDeduction: Number(r.totalDeduction),
           takeHomePay: Number(r.takeHome),
@@ -544,20 +547,30 @@ const NewPayroll = () => {
                   <th className="p-3">Basic Salary</th>
                   <th className="p-3">Income</th>
                   <th className="p-3">Deduction</th>
-                  <th className="p-3">Take Home</th>
+                  <th className="p-3">Net Salary</th>
+                  <th className="p-3">Status</th>
                   <th className="p-3"></th>
                 </tr>
               </thead>
               <tbody className={`divide-y text-center ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-200' : 'divide-gray-700'}`}>
                 {rows.map((r, i) => (
-                  <tr key={i} className={`transition-colors font-medium ${theme === 'emerald' ? 'hover:bg-emerald-50 text-emerald-900' : theme === 'purple' ? 'hover:bg-purple-50 text-purple-800' : 'hover:bg-gray-750 text-gray-300'}`}>
+                  <tr key={i} className={`transition-colors font-medium ${theme === 'emerald' ? 'hover:bg-emerald-50 text-emerald-900' : theme === 'purple' ? 'hover:bg-purple-50 text-black' : 'hover:bg-gray-750 text-gray-300'}`}>
                     <td className="p-3">{r.employeeName}</td>
                     <td className="p-3">{r.bankAccount}</td>
                     <td className="p-3">{r.bankName}</td>
                     <td className="p-3">{Number(r.basicSalary).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3">{Number(r.totalIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="p-3">{Number(r.totalDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className={`p-3 font-semibold ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-purple-800' : 'text-white'}`}>{Number(r.takeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`p-3 font-semibold ${theme === 'emerald' ? 'text-emerald-800' : theme === 'purple' ? 'text-black' : 'text-white'}`}>{Number(r.takeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        r.salaryPaymentStatus === 'Paid' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {r.salaryPaymentStatus || 'Pending'}
+                      </span>
+                    </td>
                     <td className="p-3 flex gap-2">
                        {!inactiveView && (isEdit ? hasPermission(PERMISSIONS.HR.PAYROLL.EDIT) : hasPermission(PERMISSIONS.HR.PAYROLL.CREATE)) && (
                        <>
@@ -594,28 +607,28 @@ const NewPayroll = () => {
              {/* LEFT COLUMN - Totals */}
              <div className="space-y-4">
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Currency</label>
+                    <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-gray-300'}`}>Currency</label>
                      <div className="flex-1 font-medium">
                         <input value={currency} disabled className={`w-full border rounded px-3 py-2 cursor-not-allowed transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900/60' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900/60' : 'bg-gray-800 border-gray-700 text-gray-500'}`} />
                     </div>
                  </div>
                  
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Basic Salary</label>
+                    <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-gray-300'}`}>Total Basic Salary</label>
                      <div className="flex-1 font-medium">
                         <input value={Number(sumBasic).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                     </div>
                  </div>
 
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Income</label>
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-gray-300'}`}>Total Income</label>
                       <div className="flex-1 font-medium">
                         <input value={Number(sumIncome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                      </div>
                  </div>
 
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-gray-300'}`}>Total Deduction</label>
                       <div className="flex-1 font-medium">
                         <input value={Number(sumDeduction).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                       </div>
@@ -623,10 +636,10 @@ const NewPayroll = () => {
 
                   {/* Batch CTC Tracking */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Man Power Expense</label>
+                      <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-gray-300'}`}>Total Man Power Expense</label>
                        <div className="flex-1 font-medium">
                          <input 
-                            value={Number(rows.reduce((s, r) => s + (Number(r.basicSalary) + Number(r.pfEmployer || 0) + Number(r.esiEmployer || 0) + Number(r.totalIncome || 0)), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                            value={Number(rows.reduce((s, r) => s + (Number(r.basicSalary) + Number(r.totalIncome || 0)), 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
                             disabled 
                             className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900 font-bold' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900 font-bold' : 'bg-gray-800 border-gray-700 text-white font-bold'}`} 
                          />
@@ -637,14 +650,14 @@ const NewPayroll = () => {
              {/* RIGHT COLUMN - Totals */}
              <div className="space-y-4">
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-700 font-medium' : 'text-gray-300'}`}>Total Take Home Pay</label>
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-medium' : theme === 'purple' ? 'text-purple-800 font-medium' : 'text-gray-300'}`}>Total Net Salary</label>
                       <div className="flex-1 font-medium">
                         <input value={Number(sumTakeHome).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} disabled className={`w-full border rounded px-3 py-2 text-right transition-colors ${theme === 'emerald' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : theme === 'purple' ? 'bg-purple-50/50 border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-700 text-white'}`} />
                       </div>
                  </div>
 
                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-purple-700 font-bold' : 'text-white'}`}>
+                     <label className={`w-40 text-sm transition-colors ${theme === 'emerald' || theme === 'purple' ? 'text-purple-800 font-bold' : 'text-white'}`}>
                          Total Payment Amount 
                      </label>
                       <div className="flex-1 font-medium">

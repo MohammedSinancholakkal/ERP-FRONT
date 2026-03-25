@@ -287,7 +287,7 @@ const fetchPayrolls = async () => {
                     visibleColumns.totalBasicSalary && { key: "totalBasicSalary", label: "Total Basic Salary", sortable: true, render: (r) => Number(r.totalBasicSalary || 0).toFixed(2) },
                     visibleColumns.totalIncome && { key: "totalIncome", label: "Total Income", sortable: true, render: (r) => Number(r.totalIncome || 0).toFixed(2) },
                     visibleColumns.totalDeduction && { key: "totalDeduction", label: "Total Deduction", sortable: true, render: (r) => Number(r.totalDeduction || 0).toFixed(2) },
-                    visibleColumns.totalTakeHomePay && { key: "totalTakeHomePay", label: "Take Home Pay", sortable: true, className: "font-semibold text-green-400", render: (r) => Number(r.totalTakeHomePay || 0).toFixed(2) },
+                    visibleColumns.totalTakeHomePay && { key: "totalTakeHomePay", label: "Net Salary", sortable: true, className: "font-semibold text-green-400", render: (r) => Number(r.totalTakeHomePay || 0).toFixed(2) },
                     visibleColumns.totalPaymentAmount && { key: "totalPaymentAmount", label: "Total Payment", sortable: true, render: (r) => Number(r.totalPaymentAmount || 0).toFixed(2) },
                     visibleColumns.payrollYear && { key: "payrollYear", label: "Year", sortable: true },
                     visibleColumns.payrollMonth && { key: "payrollMonth", label: "Month", sortable: true },
