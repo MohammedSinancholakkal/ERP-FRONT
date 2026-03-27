@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
-import { hasPermission } from "../utils/permissionUtils";
+import { hasPermission, hasNoPermissions } from "../utils/permissionUtils";
 import { PERMISSIONS } from "../constants/permissions";
 import { getDashboardStatsApi } from "../services/allAPI";
 import {
@@ -163,7 +163,9 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    if (!hasNoPermissions()) {
       fetchDashboardData();
+    }
   }, []);
 
   if (loading && !dashboardData) {
@@ -174,12 +176,55 @@ const Dashboard = () => {
   }
 
 
+  if (hasNoPermissions()) {
+    return (
+      <div className={`h-full flex items-center justify-center p-6 ${isLight ? 'bg-white' : 'bg-gray-900'}`}>
+        <div className="text-center max-w-2xl">
+          <div className="mb-8 flex justify-center">
+             {/* <img 
+               src="/no_access_illustration.png" 
+               alt="No Access" 
+               className="w-64 h-auto"
+             /> */}
+          </div>
+          <h2 className="text-4xl font-normal mb-8 text-[#4A90E2]">
+            Sorry, you cannot view the page.
+          </h2>
+          <div className="space-y-4">
+            <p className="text-xl text-[#FF6B6B]">
+              No permission to access this page.
+            </p>
+            <p className="text-xl text-[#FF6B6B]">
+              To access, please contact the administrator.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!hasPermission(PERMISSIONS.DASHBOARD.VIEW)) {
     return (
-      <div className="flex items-center justify-center h-full text-white">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-400">You do not have permission to view the dashboard.</p>
+      <div className={`h-full flex items-center justify-center p-6 ${isLight ? 'bg-white' : 'bg-gray-900'}`}>
+        <div className="text-center max-w-2xl">
+          <div className="mb-8 flex justify-center">
+             <img 
+               src="/no_access_illustration.png" 
+               alt="No Access" 
+               className="w-64 h-auto"
+             />
+          </div>
+          <h2 className="text-4xl font-normal mb-8 text-[#4A90E2]">
+            Sorry, you cannot view the page.
+          </h2>
+          <div className="space-y-4">
+            <p className="text-xl text-[#FF6B6B]">
+              No permission to access this page.
+            </p>
+            <p className="text-xl text-[#FF6B6B]">
+              To access, please contact the administrator.
+            </p>
+          </div>
         </div>
       </div>
     );

@@ -6,6 +6,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useSettings } from "../contexts/SettingsContext"; 
 import { serverURL } from "../services/serverURL"; 
 import SearchableSelect from "./SearchableSelect";
+import { showLoadingToast, dismissToast, showSuccessToast, showErrorToast } from "../utils/notificationUtils";
 
 const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { theme, setTheme } = useTheme();
@@ -60,14 +61,18 @@ const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   // LOGOUT
   // ==========================
   const handleLogout = async () => {
+    const toastId = showLoadingToast("Logging out...");
     try {
         const refreshToken = localStorage.getItem("refreshToken");
         await LogoutApi({ refreshToken }); 
+        dismissToast(toastId);
+        showSuccessToast("Logged out successfully");
     } catch(err) {
         console.error("Logout API failed", err);
+        dismissToast(toastId);
+        // We still log them out locally even if API fails
     }
     localStorage.clear();
-    toast.success("Logged out");
     window.location.href = "/"; // redirect to login
   };
 

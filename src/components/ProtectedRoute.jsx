@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { hasPermission } from '../utils/permissionUtils';
+import { hasPermission, hasNoPermissions } from '../utils/permissionUtils';
 
 const ProtectedRoute = ({ children, permission }) => {
   const location = useLocation();
@@ -9,6 +9,15 @@ const ProtectedRoute = ({ children, permission }) => {
   const token = localStorage.getItem("token");
   if (!token) {
     return <Navigate to="/" replace />;
+  }
+
+  // 3. New Policy: If user has NO permissions, they must stay on dashboard
+  if (hasNoPermissions()) {
+      if (location.pathname !== "/app/dashboard") {
+          return <Navigate to="/app/dashboard" replace />;
+      }
+      // If they are on dashboard, let them through so they see the "No Permissions" message
+      return children;
   }
 
   // 2. Check for Permission (Authorization)

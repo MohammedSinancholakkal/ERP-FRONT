@@ -75,6 +75,7 @@ import SalesReport from "./pages/reports/SalesReport";
 import ProductWiseSalesReport from "./pages/reports/ProductWiseSalesReport";
 import PurchaseReport from "./pages/reports/PurchaseReport";
 import TaxReport from "./pages/reports/TaxReport";
+import AuditLogsReport from "./pages/reports/AuditLogsReport";
 import Settings from "./pages/Administration/Settings";
 import Translations from "./pages/Administration/Translations";
 import NewSuppliers from "./pages/business partners/NewSuppliers";
@@ -107,8 +108,11 @@ import NewProduct from "./pages/Inventory/NewProduct";
 import TaxPercentage from "./pages/masters/TaxPercentage";
 
 import { DashboardProvider } from "./context/DashboardContext";
+import usePageTracking from "./hooks/usePageTracking";
+
 
 function App() {
+  usePageTracking();
   return (
     <ThemeProvider>
       <DashboardProvider>
@@ -322,6 +326,7 @@ function App() {
           <Route path="reports/productwisesalereport" element={<ProductWiseSalesReport />} />
           <Route path="reports/purchasereport" element={<PurchaseReport />} />
           <Route path="reports/taxreport" element={<TaxReport />} />
+          <Route path="reports/auditlogs" element={<AuditLogsReport />} />
 
           </Route>
         </Routes>

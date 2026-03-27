@@ -38,6 +38,21 @@ export const resetPasswordApi = async (data) =>
 export const getDashboardStatsApi = () => 
   commonAPI("GET", `${serverURL}/dashboard/stats`);
 
+// AUDIT LOGS
+export const getAuditLogsApi = (page, limit, startDate, endDate, userId, tableName) => {
+  let url = `${serverURL}/audit-logs?page=${page}&limit=${limit}`;
+  if (startDate) url += `&startDate=${startDate}`;
+  if (endDate) url += `&endDate=${endDate}`;
+  if (userId) url += `&userId=${userId}`;
+  if (tableName) url += `&tableName=${encodeURIComponent(tableName)}`;
+  return commonAPI("GET", url);
+};
+
+export const logPageVisitApi = (data) =>
+  commonAPI("POST", `${serverURL}/audit-logs/page-visit`, data);
+
+
+
 
 // LIST (Paginated)
 export const getUsersApi = (page, limit, sortBy = null, order = null) =>

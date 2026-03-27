@@ -21,6 +21,11 @@ export const hasAnyPermission = (permissionKeys) => {
     return permissionKeys.some(key => permissions.includes(key));
 };
 
+export const hasNoPermissions = () => {
+    const permissions = JSON.parse(localStorage.getItem("permissions") || "[]");
+    return permissions.length === 0;
+};
+
 // Define priority order for entry point
 export const getEntryRoute = () => {
   // If can view dashboard, that's top priority
@@ -56,5 +61,7 @@ export const getEntryRoute = () => {
   // Reports
   if (hasPermission("reports_view")) return "/app/reports/dayclosing";
 
-  return "/app/profile"; // Fallback
+  if (hasPermission("reports_view")) return "/app/reports/dayclosing";
+
+  return "/app/dashboard"; // Fallback to dashboard
 };

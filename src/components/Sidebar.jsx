@@ -20,7 +20,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useSettings } from "../contexts/SettingsContext";
 import { serverURL } from "../services/serverURL";
 import { useTheme } from "../context/ThemeContext";
-import { hasPermission, hasAnyPermission } from "../utils/permissionUtils";
+import { hasPermission, hasAnyPermission, hasNoPermissions } from "../utils/permissionUtils";
 import { PERMISSIONS } from "../constants/permissions";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
@@ -180,6 +180,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Customer Receivable Detailed", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Supplier Payable Report", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Supplier Payable Detailed", key: PERMISSIONS.REPORTS.VIEW },
+    { label: "Audit Logs", key: PERMISSIONS.REPORTS.VIEW },
     { label: "Tax Report", key: PERMISSIONS.REPORTS.VIEW }
   ];
 
@@ -198,7 +199,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   // -------------------------
 
   const filterSection = (title, items) => {
-    // 1. Filter by Permissions first
+    // 1. If NO permissions assigned, hide all sections
+    if (hasNoPermissions()) return { show: false, items: [] };
+
+    // 2. Filter by Permissions
     const permittedItems = items.filter(item => {
         if (!item.key) return false; // No key = not visible
 
@@ -390,7 +394,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             )}
 
             {/* DASHBOARD */}
-            {hasPermission(PERMISSIONS.DASHBOARD.VIEW) && (
+            {(hasPermission(PERMISSIONS.DASHBOARD.VIEW) || hasNoPermissions()) && (
             <div>
               <NavLink
                 to="/app/dashboard"
