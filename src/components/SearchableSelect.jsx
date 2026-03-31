@@ -32,6 +32,12 @@ const SearchableSelect = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const listRef = useRef(null);
 
+  // Generate a unique ID if not provided
+  // Generate a unique ID if not provided
+  const internalId = useMemo(() => id || `select-${(typeof label === 'string') ? label.replace(/\s+/g, '-').toLowerCase() : Math.random().toString(36).substr(2, 9)}`, [id, label]);
+  const searchId = `search-${internalId}`;
+  const hiddenInputId = `hidden-${internalId}`;
+
   useEffect(() => {
     setHighlightedIndex(-1);
   }, [searchTerm, isOpen]);
@@ -137,15 +143,34 @@ const SearchableSelect = ({
   return (
     <> 
       <div className={`w-full ${className}`}>
-        {label && <label className={`block text-sm mb-1 font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}>{label} {required && "*"}</label>}
+        {label && (
+          <label 
+            htmlFor={internalId}
+            className={`block text-sm mb-1 font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-900' : 'text-black'}`}
+          >
+            {label} {required && "*"}
+          </label>
+        )}
+        {/* Hidden input for form submission and autofill support */}
+        <input 
+          type="hidden" 
+          id={hiddenInputId}
+          name={name} 
+          value={value || ""} 
+        />
         <div className="flex gap-2 items-start">
           <div className="relative flex-grow min-w-0" ref={wrapperRef}>
             <div
+              id={internalId}
               className={`w-full h-8 sm:h-9 border-2 rounded px-3 py-1 flex sm:py-1.5 justify-between items-center cursor-pointer transition-colors ${theme === 'emerald' ? `bg-emerald-50 border-emerald-600 hover:border-emerald-500 ${isOpen ? 'border-emerald-400' : ''}` : theme === 'purple' ? `bg-white border-gray-300 hover:border-gray-400 ${isOpen ? 'border-gray-500' : ''}` : 'bg-gray-800 border-gray-600 hover:border-gray-500'} ${
                 disabled ? "opacity-50 cursor-not-allowed" : ""
               }`}
               onClick={toggleOpen}
               tabIndex={0}
+              role="combobox"
+              aria-expanded={isOpen}
+              aria-haspopup="listbox"
+              aria-controls={isOpen ? `${internalId}-listbox` : undefined}
             >
               <span className={`truncate flex-1 text-xs sm:text-sm font-medium ${selectedOption ? (theme === 'emerald' ? "text-emerald-900" : theme === 'purple' ? "text-purple-900" : theme === 'dark' ? "text-white" : "text-black") : (theme === 'purple' ? "text-gray-400" : "text-gray-400")}`}>
                 {selectedOption ? selectedOption.name : placeholder}
@@ -231,8 +256,8 @@ const SearchableSelect = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               onClick={(e) => e.stopPropagation()}
               autoFocus
-              name={name ? `search_${name}` : undefined}
-              id={id ? `search_${id}` : undefined}
+              id={searchId}
+              name={name ? `search_${name}` : `search_${internalId}`}
               onKeyDown={(e) => {
                  if(e.key === "Enter") {
                     e.preventDefault();

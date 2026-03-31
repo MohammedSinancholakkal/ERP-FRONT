@@ -141,25 +141,6 @@ const end = Math.min(page * limit, totalRecords);
     const descLen = newCategory.description?.trim().length || 0;
     if (newCategory.description && (descLen < 2 || descLen > 300)) return showErrorToast("Description must be between 2 and 300 characters");
 
-    // Parent category name validation is tricky as we only have the ID here usually, but if we're creating new ones we might need it.
-    // However, the input is a select box for existing parent categories. The user probably meant "if searching/selecting".
-    // Or if creating a sub-category?
-    // Wait, the prompt says "parent category min 2 max 50". This usually implies the Name of the parent category if it's being created or displayed?
-    // In this form, it's a dropdown. We can't validate "length" of a dropdown selection ID.
-    // BUT! Since it's a "SearchableSelect", maybe they type in it?
-    // If it's just selecting an ID, validation is n/a on length, just existence.
-    // I will assume the prompt means "If I were to type a new parent category name" OR they want to ensure the selected parent's name meets this?
-    // No, standard validation usually applies to INPUT fields.
-    // Let's stick to Name and Description for now. If "Parent Category" implies a free-text input, I'd validate it, but it's a select.
-    // Re-reading: "parent category min 2 max 50" -> Maybe they mean the name of the parent category?
-    // If I select a parent, I am selecting an ID.
-    // I will just validate Name and Description.
-    // Wait, if the requirement is strict, maybe I should check the selected parent name length?
-    // "parent category min 2 max 50" -> This is likely ensuring the Parent Category Name (if displayed or filtered) is within limits? 
-    // Or maybe they mistakenly think it's a text box.
-    // I'll stick to validating Name and Description. Validating ID length is nonsense.
-    // Actually, looking at NewProduct validation, I should probably check NewProduct too.
-
     if (!newCategory.name.trim()) return showErrorToast("Name required");
 
     try {
@@ -332,9 +313,9 @@ const handleRestore = async () => {
         />
 
         {/* PARENT CATEGORY */}
-        <label className="block text-sm mb-1 font-medium">Parent Category</label>
         <div className="mt-1">
           <SearchableSelect
+            label="Parent Category"
             options={categories.map(c => ({ id: c.id, name: c.name }))}
             value={newCategory.parentCategoryId}
             onChange={(v) => {
@@ -387,9 +368,9 @@ const handleRestore = async () => {
         />
 
         {/* PARENT CATEGORY */}
-        <label className="block text-sm mb-1 font-medium">Parent Category</label>
         <div className="mt-1">
           <SearchableSelect
+            label="Parent Category"
             options={categories.map(c => ({ id: c.id, name: c.name }))}
             value={editCategory.parentCategoryId}
             onChange={(v) => {

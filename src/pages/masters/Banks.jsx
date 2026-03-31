@@ -614,7 +614,7 @@ const Banks = () => {
                   <InputField label="Branch" value={newItem.Branch} onChange={e => setNewItem({...newItem, Branch: e.target.value})} />
               </div>
              <div className="col-span-2">
-                  <label className="text-sm font-medium text-dark">Signature</label>
+                  <label className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-800' : 'text-dark'}`}>Signature</label>
                   <div className="mt-2 w-full">
                        <div className="w-full border-2 border-dashed border-gray-700 rounded-lg bg-gray-white flex flex-col items-center justify-center relative overflow-hidden h-[160px]">
                             {preview ? (
@@ -706,7 +706,7 @@ const Banks = () => {
               </div>
              {!editItem.isInactive && (
                 <div className="col-span-2">
-                    <label className="text-sm font-medium text-dark">Signature</label>
+                    <label className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-800' : 'text-dark'}`}>Signature</label>
                      <div className="mt-2 w-full">
                        <div className="w-full border-2 border-dashed border-gray-700 rounded-lg bg-white flex flex-col items-center justify-center relative overflow-hidden h-[160px]">
                             {preview ? (

@@ -29,6 +29,7 @@ import ColumnPickerModal from "../../components/modals/ColumnPickerModal";
 import AddModal from "../../components/modals/AddModal";
 import EditModal from "../../components/modals/EditModal";
 import ContentCard from "../../components/ContentCard";
+import InputField from "../../components/InputField";
 
 const Attendance = () => {
   const { theme } = useTheme();
@@ -59,8 +60,9 @@ const Attendance = () => {
     checkInTime: "",
     checkOutDate: "",
     checkOutTime: "",
-    isInactive: false, // track if we are editing an inactive record
+    isInactive: false,
   });
+  const [loading, setLoading] = useState(false);
 
   const getTodayDate = () => new Date().toISOString().split("T")[0];
   const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
@@ -311,6 +313,7 @@ const Attendance = () => {
     const checkIn = `${editForm.checkInDate} ${editForm.checkInTime}`;
     const checkOut = `${editForm.checkOutDate} ${editForm.checkOutTime}`;
 
+    setLoading(true);
     try {
       await updateAttendanceApi(editForm.id, {
         employeeId: editForm.employeeId,
@@ -324,14 +327,16 @@ const Attendance = () => {
     } catch(err) {
       console.error("Update failed", err);
       showErrorToast("Update failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async () => {
     const result = await showDeleteConfirm("this attendance record");
-
     if (!result.isConfirmed) return;
 
+    setLoading(true);
     try {
       await deleteAttendanceApi(editForm.id, { userId: 1 });
       showSuccessToast("Attendance deleted successfully.");
@@ -341,14 +346,16 @@ const Attendance = () => {
     } catch (err) {
       console.error("Delete failed", err);
       showErrorToast("Failed to delete record.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRestore = async () => {
     const result = await showRestoreConfirm("this attendance record");
-  
-      if (!result.isConfirmed) return;
+    if (!result.isConfirmed) return;
 
+    setLoading(true);
     try {
       await restoreAttendanceApi(editForm.id, { userId: 1 });
       showSuccessToast("Attendance restored successfully.");
@@ -362,6 +369,8 @@ const Attendance = () => {
       } else {
           showErrorToast("Failed to restore record.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -378,6 +387,7 @@ const Attendance = () => {
     const checkIn = `${form.checkInDate} ${form.checkInTime}`;
     const checkOut = `${form.checkOutDate} ${form.checkOutTime}`;
 
+    setLoading(true);
     try {  
       await addAttendanceApi({
         employeeId: form.employeeId,
@@ -401,6 +411,8 @@ const Attendance = () => {
     } catch (err) {
       console.error("Failed to save attendance:", err);
       showErrorToast("Failed to save attendance");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -461,99 +473,71 @@ const Attendance = () => {
         title="Add Attendance"
         width="700px"
         permission={hasPermission(PERMISSIONS.HR.ATTENDANCE.CREATE)}
+        loading={loading}
       >
         <div className="p-0 space-y-4">
-          <div className="mb-4">
-            <label className={`text-sm opacity-80 mb-1 block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Employee *</label>
-            <SearchableSelect
-              value={form.employeeId}
-              onChange={(val) => {
-                const emp = employees.find((e) => e.Id === val);
-                setForm({
-                  ...form,
-                  employeeId: val,
-                  employee: emp ? `${emp.FirstName} ${emp.LastName}` : "",
-                });
+          <SearchableSelect
+            label="Employee *"
+            value={form.employeeId}
+            onChange={(val) => {
+              const emp = employees.find((e) => e.Id === val);
+              setForm({
+                ...form,
+                employeeId: val,
+                employee: emp ? `${emp.FirstName} ${emp.LastName}` : "",
+              });
+            }}
+            options={employees.map((e) => ({
+              id: e.Id,
+              name: `${e.FirstName} ${e.LastName}`,
+            }))}
+            placeholder="Select employee"
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <InputField
+              label="Check In Date"
+              type="date"
+              value={form.checkInDate}
+              onFocus={() => setIsManualTime(true)}
+              onChange={(e) => {
+                setIsManualTime(true);
+                setForm((p) => ({ ...p, checkInDate: e.target.value }));
               }}
-              options={employees.map((e) => ({
-                id: e.Id,
-                name: `${e.FirstName} ${e.LastName}`,
-              }))}
-              placeholder="Select employee"
-              className="w-full"
+            />
+            <InputField
+              label="Check In Time"
+              type="time"
+              value={form.checkInTime}
+              onFocus={() => setIsManualTime(true)}
+              onChange={(e) => {
+                setIsManualTime(true);
+                setForm((p) => ({ ...p, checkInTime: e.target.value }));
+              }}
             />
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Date</label>
-              <input
-                type="date"
-                value={form.checkInDate}
-                onFocus={() => setIsManualTime(true)}
-                onChange={(e) => {
-                  setIsManualTime(true);
-                  setForm((p) => ({
-                    ...p,
-                    checkInDate: e.target.value,
-                  }));
-                }}
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-              />
-            </div>
-
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Time</label>
-              <input
-                type="time"
-                value={form.checkInTime}
-                onFocus={() => setIsManualTime(true)}
-                onChange={(e) => {
-                  setIsManualTime(true);
-                  setForm((p) => ({
-                    ...p,
-                    checkInTime: e.target.value,
-                  }));
-                }}
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-              />
-            </div>
-          </div>
-
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Date</label>
-              <input
-                type="date"
-                value={form.checkOutDate}
-                onFocus={() => setIsManualTime(true)}
-                onChange={(e) => {
-                  setIsManualTime(true);
-                  setForm((p) => ({
-                    ...p,
-                    checkOutDate: e.target.value,
-                  }));
-                }}
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-              />
-            </div>
-
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Time</label>
-              <input
-                type="time"
-                value={form.checkOutTime}
-                onFocus={() => setIsManualTime(true)}
-                onChange={(e) => {
-                  setIsManualTime(true);
-                  setForm((p) => ({
-                    ...p,
-                    checkOutTime: e.target.value,
-                  }));
-                }}
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <InputField
+              label="Check Out Date"
+              type="date"
+              value={form.checkOutDate}
+              onFocus={() => setIsManualTime(true)}
+              onChange={(e) => {
+                setIsManualTime(true);
+                setForm((p) => ({ ...p, checkOutDate: e.target.value }));
+              }}
+            />
+            <InputField
+              label="Check Out Time"
+              type="time"
+              value={form.checkOutTime}
+              onFocus={() => setIsManualTime(true)}
+              onChange={(e) => {
+                setIsManualTime(true);
+                setForm((p) => ({ ...p, checkOutTime: e.target.value }));
+              }}
+            />
           </div>
         </div>
       </AddModal>
@@ -571,83 +555,60 @@ const Attendance = () => {
         permissionEdit={hasPermission(PERMISSIONS.HR.ATTENDANCE.EDIT)}
         saveText="Update"
         width="700px"
+        loading={loading}
       >
         <div className="p-0 space-y-4">
-          {/* EMPLOYEE */}
-          <div className="mb-4">
-            <label className={`text-sm opacity-80 mb-1 block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Employee *</label>
-            <SearchableSelect
-              value={editForm.employeeId}
-              onChange={(val) => {
-                const emp = employees.find((e) => e.Id === val);
-                setEditForm({
-                  ...editForm,
-                  employeeId: val,
-                  employee: emp ? `${emp.FirstName} ${emp.LastName}` : "",
-                });
-              }}
-              options={employees.map((e) => ({
-                id: e.Id,
-                name: `${e.FirstName} ${e.LastName}`,
-              }))}
-              placeholder="Select employee"
-              className="w-full"
+          <SearchableSelect
+            label="Employee *"
+            value={editForm.employeeId}
+            onChange={(val) => {
+              const emp = employees.find((e) => e.Id === val);
+              setEditForm({
+                ...editForm,
+                employeeId: val,
+                employee: emp ? `${emp.FirstName} ${emp.LastName}` : "",
+              });
+            }}
+            options={employees.map((e) => ({
+              id: e.Id,
+              name: `${e.FirstName} ${e.LastName}`,
+            }))}
+            placeholder="Select employee"
+            disabled={editForm.isInactive}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <InputField
+              label="Check In Date"
+              type="date"
+              value={editForm.checkInDate}
+              onChange={(e) => setEditForm({ ...editForm, checkInDate: e.target.value })}
+              disabled={editForm.isInactive}
+            />
+            <InputField
+              label="Check In Time"
+              type="time"
+              value={editForm.checkInTime}
+              onChange={(e) => setEditForm({ ...editForm, checkInTime: e.target.value })}
               disabled={editForm.isInactive}
             />
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Date</label>
-              <input
-                type="date"
-                value={editForm.checkInDate}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, checkInDate: e.target.value })
-                }
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-                disabled={editForm.isInactive}
-              />
-            </div>
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check In Time</label>
-              <input
-                type="time"
-                value={editForm.checkInTime}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, checkInTime: e.target.value })
-                }
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-                disabled={editForm.isInactive}
-              />
-            </div>
-          </div>
-
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Date</label>
-              <input
-                type="date"
-                value={editForm.checkOutDate}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, checkOutDate: e.target.value })
-                }
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-                disabled={editForm.isInactive}
-              />
-            </div>
-            <div>
-              <label className={`text-sm opacity-80 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Check Out Time</label>
-              <input
-                type="time"
-                value={editForm.checkOutTime}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, checkOutTime: e.target.value })
-                }
-                className={`w-full border rounded px-3 py-2 mt-1 ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-900 border-gray-700 text-white'}`}
-                disabled={editForm.isInactive}
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <InputField
+              label="Check Out Date"
+              type="date"
+              value={editForm.checkOutDate}
+              onChange={(e) => setEditForm({ ...editForm, checkOutDate: e.target.value })}
+              disabled={editForm.isInactive}
+            />
+            <InputField
+              label="Check Out Time"
+              type="time"
+              value={editForm.checkOutTime}
+              onChange={(e) => setEditForm({ ...editForm, checkOutTime: e.target.value })}
+              disabled={editForm.isInactive}
+            />
           </div>
         </div>
       </EditModal>

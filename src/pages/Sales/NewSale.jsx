@@ -367,18 +367,18 @@ useEffect(() => {
 
         // Map details to rows
         const mappedRows = details.map(d => ({
-          productId: d.productId,
-          productName: d.productName,
-          description: d.Description,
+          productId: d.productId ?? d.ProductId,
+          productName: d.productName ?? d.ProductName,
+          description: d.description ?? d.Description,
           unitId: d.unitId ?? d.UnitId,
           unitName: d.unitName ?? d.UnitName,
-          quantity: d.Quantity ?? d.quantity ?? 0,
-          unitPrice: d.UnitPrice ?? d.unitPrice ?? 0,
-          discount: d.Discount ?? d.discount ?? 0,
-          total: d.Total ?? d.total ?? 0,
-          brandId: d.brandId || d.BrandId,
-          orderBookerId: d.OrderBookerId || d.orderBookerId,
-          taxPercentage: d.TaxPercentage ?? d.taxPercentage ?? 0
+          quantity: d.quantity ?? d.Quantity ?? 0,
+          unitPrice: d.unitPrice ?? d.UnitPrice ?? 0,
+          discount: d.discount ?? d.Discount ?? 0,
+          total: d.total ?? d.Total ?? 0,
+          brandId: d.brandId ?? d.BrandId,
+          orderBookerId: d.orderBookerId ?? d.OrderBookerId,
+          taxPercentage: d.taxPercentage ?? d.TaxPercentage ?? 0
         }));
         setRows(mappedRows);
       }
@@ -1041,7 +1041,10 @@ const openProductModal = () => {
                     (s.VNo || s.invoiceNo || "").toLowerCase() === invoiceNo.trim().toLowerCase() && 
                     (id ? String(s.id || s.Id || s.SaleId) !== String(id) : true)
                 );
-                if (existing) return toast.error("Invoice No already exists");
+                if (existing) {
+                  setLoading(false);
+                  return toast.error("Invoice No already exists");
+                }
             }
         } catch (e) {
             console.error("Duplicate Invoice Check Error", e);
@@ -1285,6 +1288,8 @@ const openProductModal = () => {
               </label>
                  <div className="flex-1 flex items-center gap-2">
                 <SearchableSelect
+                  id="sale-customer"
+                  name="customerId"
                   options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
                   value={customer}
                   onChange={setCustomer}
@@ -1328,6 +1333,8 @@ const openProductModal = () => {
               </label>
               <div className="flex-1 flex items-center gap-2">
                 <select
+                  id="sale-paymentAccount"
+                  name="paymentAccount"
                   value={paymentAccount}
                   onChange={(e) => setPaymentAccount(e.target.value)}
                   className={`flex-1 border-2 rounded px-3 py-1.5 outline-none font-medium disabled:opacity-50 text-sm ${theme === 'emerald' ? 'bg-emerald-50 border-emerald-600 text-emerald-900 focus:border-emerald-400' : theme === 'purple' ? 'bg-white border-gray-300 text-purple-800 focus:border-gray-500' : 'bg-gray-900 border-gray-700 text-white focus:border-gray-500'}`}
@@ -1358,6 +1365,8 @@ const openProductModal = () => {
                <div className="flex-1 flex items-center gap-2">
                  <div className="flex-1 font-medium">
                  <SearchableSelect
+                    id="sale-taxRate"
+                    name="taxTypeId"
                     options={taxTypesList}
                     value={taxTypeId}
                     onChange={setTaxTypeId}
@@ -1388,6 +1397,8 @@ const openProductModal = () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="sale-invoiceNo"
+                         name="invoiceNo"
                          value={invoiceNo}
                          onChange={(e) => setInvoiceNo(e.target.value)}
                          placeholder="Auto-generated"
@@ -1414,6 +1425,8 @@ const openProductModal = () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="sale-vehicleNo"
+                         name="vehicleNo"
                          value={vehicleNo}
                          onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
                          placeholder="Vehicle/Transport No"
@@ -1439,6 +1452,8 @@ const openProductModal = () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="sale-date"
+                         name="date"
                          type="date"
                          value={date}
                          onChange={(e) => setDate(e.target.value)}
@@ -1535,6 +1550,8 @@ const openProductModal = () => {
               </label>
                <div className="flex-1 font-medium">
                 <InputField
+                    id="sale-details"
+                    name="details"
                     textarea
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
@@ -1548,10 +1565,10 @@ const openProductModal = () => {
           <div className="lg:col-span-8">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                 
-                {/* Taxable Amount */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Taxable Amount</label>
                   <InputField
+                    name="grandTotal_taxable"
                     value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
                     className="text-right font-bold"
@@ -1564,7 +1581,7 @@ const openProductModal = () => {
                    <div className="flex items-center gap-2 mb-1">
                       <label className={`flex-1 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-purple-700 font-semibold' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-dark font-semibold' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
@@ -1582,10 +1599,10 @@ const openProductModal = () => {
                   />
                 </div>
 
-                {/* Discount (Input) */}
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Discount</label>
                     <InputField
+                        name="globalDiscount"
                         type="number"
                         value={globalDiscount}
                         onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
@@ -1596,10 +1613,10 @@ const openProductModal = () => {
                     />
                 </div>
 
-                {/* Total Discount (ReadOnly) */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Discount</label>
                   <InputField
+                    name="totalDiscount"
                     value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
                     className="text-right"
@@ -1607,10 +1624,10 @@ const openProductModal = () => {
                   />
                 </div>
 
-                {/* Shipping Cost */}
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Shipping Cost</label>
                     <InputField
+                        name="shippingCost"
                         type="number"
                         value={shippingCost}
                         onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
@@ -1623,9 +1640,11 @@ const openProductModal = () => {
 
                 {/* Paid Amount */}
                 <div>
+                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Paid Amount</label>
                     <InputField
                         type="number"
-                        label="Paid Amount"
+                        id="sale-paidAmount"
+                        name="paidAmount"
                         value={paidAmount}
                         onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
                         disabled={inactiveView}
@@ -1635,10 +1654,10 @@ const openProductModal = () => {
                     />
                 </div>
 
-                {/* Change */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Change</label>
                   <InputField
+                    name="changeAmount"
                     value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
                     className="text-right"
@@ -1646,10 +1665,10 @@ const openProductModal = () => {
                   />
                 </div>
 
-                {/* Due */}
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Due</label>
                   <InputField
+                    name="dueAmount"
                     value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
                     className="text-right"
@@ -1708,6 +1727,7 @@ const openProductModal = () => {
                 <div className="md:col-span-2 mt-2">
                   <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Grand Total</label>
                   <InputField
+                    name="grandTotal"
                     value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     readOnly
                     className="text-right font-bold text-2xl"
@@ -1736,10 +1756,9 @@ const openProductModal = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}> Brand *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
-
+                label="Brand *"
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                 value={newItem.brandId}
                 onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
@@ -1748,7 +1767,7 @@ const openProductModal = () => {
               />
               <button
                  type="button"
-                 className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                 className={`p-2 border rounded flex items-center justify-center mt-5 ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                  onClick={() => {
                      if (newItem.brandId) {
                          const b = brandsList.find(x => String(x.id) === String(newItem.brandId));
@@ -1766,9 +1785,9 @@ const openProductModal = () => {
 
           {/* Product */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}> Product *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
+                label="Product"
                 options={productsList
                   .filter(p => String(p.BrandId) === String(newItem.brandId) || String(p.brandId) === String(newItem.brandId))
                   .map(p => ({ id: p.id, name: p.ProductName }))
@@ -1783,7 +1802,7 @@ const openProductModal = () => {
                <button
                   type="button"
                   disabled={!newItem.brandId && !newItem.productId} // Allow if brand selected (for add) OR product selected (for edit)
-                  className={`p-2 border rounded flex items-center justify-center ${
+                  className={`p-2 border rounded flex items-center justify-center mt-5 ${
                       (!newItem.brandId && !newItem.productId)
                        ? 'opacity-50 cursor-not-allowed ' + (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-gray-500')
                        : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
@@ -1804,32 +1823,32 @@ const openProductModal = () => {
             </div>
           </div>
 
-          {/* Description */}
           <div className="col-span-2">
             <InputField
               textarea
               label="Description"
+              name="itemDescription"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
             />
           </div>
 
-          {/* Quantity */}
           <div>
             <InputField
               type="number"
               label="Quantity *"
+              name="itemQuantity"
               className="font-medium"
               value={newItem.quantity}
               onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
             />
           </div>
 
-          {/* Unit Price */}
           <div>
             <InputField
               type="number"
               label="Unit Price"
+              name="itemUnitPrice"
                className="font-medium"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
@@ -1837,31 +1856,31 @@ const openProductModal = () => {
             />
           </div>
 
-          {/* Discount */}
           <div>
             <InputField
               type="number"
               label="Discount (%)"
+              name="itemDiscount"
                className="font-medium"
               value={newItem.discount}
               onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
             />
           </div>
 
-          {/* Unit (Read Only) */}
           <div>
             <InputField
                label="Unit"
+               name="itemUnitName"
                 className="font-medium"
                value={newItem.unitName}
                disabled={true} // Read only style
             />
           </div>
 
-          {/* Tax Percentage (Read Only) */}
           <div>
             <InputField
                label="Tax Percentage (%)"
+               name="itemTaxPercentage"
                value={newItem.taxPercentage}
                 className="font-medium"
                disabled={true}
@@ -1880,6 +1899,7 @@ const openProductModal = () => {
       >
         <InputField
           label="Brand Name"
+          name="brandName"
           value={newBrandName}
           onChange={(e) => setNewBrandName(e.target.value)}
           placeholder="Brand Name"
@@ -1900,6 +1920,7 @@ const openProductModal = () => {
           {/* Product Code */}
           <InputField
             label="Product Code"
+            name="productCode"
             value={newProductData.productCode}
             onChange={(e) => setNewProductData({ ...newProductData, productCode: e.target.value })}
             placeholder="Product Code"
@@ -1908,6 +1929,7 @@ const openProductModal = () => {
           {/* Product Name */}
           <InputField
              label="Product Name *"
+             name="productName"
              value={newProductData.name}
              onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
              placeholder="Product Name"
@@ -1916,6 +1938,7 @@ const openProductModal = () => {
           {/* SN */}
           <InputField
              label="SN"
+             name="SN"
              readOnly
              value={newProductData.SN}
              disabled
@@ -1924,6 +1947,7 @@ const openProductModal = () => {
           {/* Model */}
           <InputField
              label="Model"
+             name="model"
              value={newProductData.Model}
              onChange={(e) => setNewProductData({ ...newProductData, Model: e.target.value })}
              placeholder="Model"
@@ -1969,6 +1993,7 @@ const openProductModal = () => {
           <InputField
              type="number"
              label="Unit Price *"
+             name="productPrice"
              value={newProductData.price}
              onChange={(e) => setNewProductData({ ...newProductData, price: e.target.value })}
              formatted
@@ -1978,6 +2003,7 @@ const openProductModal = () => {
            <InputField
              type="number"
              label="Reorder Level"
+             name="reorderLevel"
              value={newProductData.ReorderLevel}
              onChange={(e) => setNewProductData({ ...newProductData, ReorderLevel: e.target.value })}
           />
@@ -2003,7 +2029,7 @@ const openProductModal = () => {
             saveText="Save"
             width="400px"
         >
-            <InputField value={brandEditData.name} onChange={e => setBrandEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+            <InputField name="editBrandName" value={brandEditData.name} onChange={e => setBrandEditData(p => ({...p, name: e.target.value}))} autoFocus required />
         </AddModal>
     </PageLayout>
   );

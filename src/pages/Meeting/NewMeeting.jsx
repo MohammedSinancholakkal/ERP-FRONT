@@ -1097,6 +1097,7 @@ const NewMeeting = () => {
                         <div className="flex-1">
                            <InputField
                                label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Meeting Name *</span>}
+                               name="meetingName"
                                value={form.meetingName}
                                onChange={(e) => updateField("meetingName", e.target.value)}
                                placeholder="e.g. Sales Strategy Q4"
@@ -1131,6 +1132,7 @@ const NewMeeting = () => {
                         <div className="flex-1">
                            <InputField
                               label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Start Date *</span>}
+                               name="startDate"
                               type="datetime-local"
                               value={form.startDate}
                               onChange={(e) => updateField("startDate", e.target.value)}
@@ -1144,6 +1146,7 @@ const NewMeeting = () => {
                         <div className="flex-1">
                            <InputField
                               label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>End Date *</span>}
+                               name="endDate"
                               type="datetime-local"
                               value={form.endDate}
                               onChange={(e) => updateField("endDate", e.target.value)}
@@ -1298,6 +1301,7 @@ const NewMeeting = () => {
              <div className="mt-8 border-t pt-6">
                   <InputField
                      label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>External Recipients (Email)</span>}
+                      name="externalRecipients"
                      textarea
                      rows={2}
                      placeholder="Enter emails separated by commas (e.g. client@example.com, vendor@test.com)"
@@ -1404,6 +1408,7 @@ const NewMeeting = () => {
          <div>
             <InputField
              label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Type Name *</span>}
+             name="meetingTypeName"
              placeholder="Enter Meeting Type Name"
              value={newMeetingType}
              onChange={(e) => setNewMeetingType(e.target.value)}
@@ -1421,6 +1426,7 @@ const NewMeeting = () => {
          <div>
             <InputField
              label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Type Name *</span>}
+             name="attendeeTypeName"
              placeholder="Enter Attendee Type Name"
              value={newAttendeeType}
              onChange={(e) => setNewAttendeeType(e.target.value)}
@@ -1438,6 +1444,7 @@ const NewMeeting = () => {
          <div>
             <InputField
              label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Status Name *</span>}
+             name="attendanceStatusName"
              placeholder="Enter Attendance Status Name"
              value={newAttendanceStatus}
              onChange={(e) => setNewAttendanceStatus(e.target.value)}
@@ -1457,6 +1464,7 @@ const NewMeeting = () => {
                <div>
                  <InputField
                     label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Department Name *</span>}
+                    name="departmentName"
                     value={newDepartment.department}
                     onChange={(e) => setNewDepartment({ ...newDepartment, department: e.target.value })}
                  />
@@ -1515,6 +1523,7 @@ const NewMeeting = () => {
                <div className="col-span-2">
                  <InputField
                    label={<span className={theme === 'emerald' ? 'text-emerald-700' : theme === 'purple' ? 'text-purple-900' : 'text-gray-300'}>Location Name *</span>}
+                   name="locationName"
                    value={newLocation.name}
                    onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
                  />
@@ -1595,6 +1604,7 @@ const NewMeeting = () => {
               <div>
                 <InputField
                    label="Address"
+                   name="address"
                    value={newLocation.address}
                    onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
                 />
@@ -1603,6 +1613,7 @@ const NewMeeting = () => {
               <div>
                 <InputField
                    label="Latitude"
+                   name="latitude"
                    value={newLocation.latitude}
                    onChange={(e) => setNewLocation({ ...newLocation, latitude: e.target.value })}
                 />
@@ -1611,6 +1622,7 @@ const NewMeeting = () => {
               <div>
                 <InputField
                    label="Longitude"
+                   name="longitude"
                    value={newLocation.longitude}
                    onChange={(e) => setNewLocation({ ...newLocation, longitude: e.target.value })}
                 />
@@ -1629,6 +1641,7 @@ const NewMeeting = () => {
         <div>
            <InputField
             label="Country Name"
+            name="countryName"
             placeholder="Enter Country Name"
             value={newCountryName}
             onChange={(e) => setNewCountryName(e.target.value)}
@@ -1648,6 +1661,7 @@ const NewMeeting = () => {
               <div>
                 <InputField
                    label="State Name *"
+                    name="stateName"
                    value={newState.name}
                    onChange={(e) => setNewState({ ...newState, name: e.target.value })}
                 />
@@ -1678,6 +1692,7 @@ const NewMeeting = () => {
               <div>
                 <InputField
                    label="City Name *"
+                    name="cityName"
                    value={newCity.name}
                    onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
                 />

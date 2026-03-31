@@ -266,6 +266,7 @@ const TaxPercentage = () => {
            <div>
              <InputField
                label="Percentage %"
+               name="taxPercentage"
                type="number"
                step="0.01"
                value={newItem.percentage}
@@ -294,6 +295,7 @@ const TaxPercentage = () => {
            <div>
              <InputField
                label="Percentage %"
+               name="taxPercentage"
                type="number"
                step="0.01"
                value={editItem.percentage}

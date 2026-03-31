@@ -358,6 +358,7 @@ const Countries = () => {
                   <div className="flex gap-2 items-start">
                     <div className="flex-grow">
                       <InputField
+                        name="countryName"
                         label="Name"
                         value={newData.name}
                         onChange={e => setNewData({...newData, name: e.target.value})}
@@ -389,6 +390,7 @@ const Countries = () => {
                   <div className="flex gap-2 items-start">
                     <div className="flex-grow">
                       <InputField
+                        name="countryName"
                         label="Name"
                         value={editData.name}
                         onChange={e => setEditData({...editData, name: e.target.value})}

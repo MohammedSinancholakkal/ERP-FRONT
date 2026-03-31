@@ -55,20 +55,20 @@ body {
 
 /* Chrome, Edge, Safari */
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 30px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
   background: #0f1724;
   /* dark track (matches your theme) */
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #6b7280;
   /* gray-500 */
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

@@ -537,9 +537,9 @@ const GoodsReceipt = () => {
             <div className="p-6 grid grid-cols-3 gap-4">
               {/* Supplier (searchable + star) */}
               <div className="col-span-1 relative">
-                <label className="text-sm">Supplier *</label>
                 <div className="flex gap-2 items-center">
                   <SearchableSelect
+                    label="Supplier *"
                     options={supplierOptions}
                     value={form.supplier}
                     onChange={(v) => setForm((p) => ({ ...p, supplier: v }))}
@@ -559,9 +559,9 @@ const GoodsReceipt = () => {
 
               {/* Purchase Bill (searchable + star) */}
               <div className="col-span-1 relative">
-                <label className="text-sm">Purchase Bill *</label>
                 <div className="flex gap-2 items-center">
                   <SearchableSelect
+                    label="Purchase Bill *"
                     options={purchaseOptions}
                     value={form.purchaseBill}
                     onChange={(v) => setForm((p) => ({ ...p, purchaseBill: v }))}
@@ -580,44 +580,35 @@ const GoodsReceipt = () => {
               </div>
 
               {/* Date */}
-              <div>
-                <label className="text-sm">Date *</label>
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
+              <InputField
+                label="Date *"
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+              />
 
               {/* Time */}
-              <div>
-                <label className="text-sm">Time *</label>
-                <input
-                  type="time"
-                  value={form.time}
-                  onChange={(e) => setForm((p) => ({ ...p, time: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
+              <InputField
+                label="Time *"
+                type="time"
+                value={form.time}
+                onChange={(e) => setForm((p) => ({ ...p, time: e.target.value }))}
+              />
 
               {/* Total Quantity */}
-              <div>
-                <label className="text-sm">Total Quantity *</label>
-                <input
-                  type="number"
-                  value={form.totalQuantity}
-                  onChange={(e) => setForm((p) => ({ ...p, totalQuantity: e.target.value }))}
-                  placeholder="0"
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-                />
-              </div>
+              <InputField
+                label="Total Quantity *"
+                type="number"
+                value={form.totalQuantity}
+                onChange={(e) => setForm((p) => ({ ...p, totalQuantity: e.target.value }))}
+                placeholder="0"
+              />
 
               {/* Employee (searchable + star) */}
               <div className="relative col-span-2">
-                <label className="text-sm">Employee *</label>
                 <div className="flex gap-2 items-center">
                   <SearchableSelect
+                    label="Employee *"
                     options={employeeOptions}
                     value={form.employee}
                     onChange={(v) => setForm((p) => ({ ...p, employee: v }))}
@@ -631,30 +622,26 @@ const GoodsReceipt = () => {
                     <Star size={16} className="" />
                   </button>
                 </div>
-
-
               </div>
 
               {/* Employee Remarks */}
               <div className="col-span-3">
-                <label className="text-sm">Employee Remarks *</label>
-                <textarea
-                  rows={3}
+                <InputField
+                  label="Employee Remarks *"
+                  textarea
                   value={form.employeeRemarks}
                   onChange={(e) => setForm((p) => ({ ...p, employeeRemarks: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
                   placeholder="Enter remarks..."
                 />
               </div>
 
               {/* Reference */}
               <div className="col-span-3">
-                <label className="text-sm">Reference (optional)</label>
-                <input
+                <InputField
+                  label="Reference (optional)"
                   value={form.reference}
                   onChange={(e) => setForm((p) => ({ ...p, reference: e.target.value }))}
                   placeholder="Reference / PO / GRN..."
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
                 />
               </div>
             </div>

@@ -329,6 +329,8 @@ const Languages = () => {
           <div>
             <InputField
               label="Language ID"
+              id="new-language-code"
+              name="languageId"
               value={newLanguage.languageId}
               onChange={(e) =>
                 setNewLanguage((prev) => ({
@@ -344,6 +346,8 @@ const Languages = () => {
           <div>
             <InputField
               label="Language Name"
+              id="new-language-name"
+              name="languageName"
               value={newLanguage.languageName}
               onChange={(e) =>
                 setNewLanguage((prev) => ({
@@ -380,6 +384,8 @@ const Languages = () => {
           <div>
             <InputField
               label="Language ID"
+              id="edit-language-code"
+              name="languageId"
               value={editLanguage.languageId}
               onChange={(e) =>
                 setEditLanguage((prev) => ({
@@ -395,6 +401,8 @@ const Languages = () => {
           <div>
             <InputField
               label="Language Name"
+              id="edit-language-name"
+              name="languageName"
               value={editLanguage.languageName}
               onChange={(e) =>
                 setEditLanguage((prev) => ({

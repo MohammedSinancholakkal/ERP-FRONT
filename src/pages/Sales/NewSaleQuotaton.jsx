@@ -1045,6 +1045,10 @@ const handleDeleteQuotation = async () => {
 };
 
 const handleRestoreQuotation = async () => {
+    if (!userId) {
+        return toast.error("User session invalid. Please re-login.");
+    }
+
     const result = await showRestoreConfirm('quotation');
 
     if (!result.isConfirmed) return;
@@ -1052,8 +1056,14 @@ const handleRestoreQuotation = async () => {
     const toastId = showLoadingToast("Restoring...");
     setLoading(true);
 
+    const quotationId = (id === "undefined" || !id) ? (location.state?.quotation?.id || location.state?.quotation?.Id) : id;
+
+    if (!quotationId || quotationId === "undefined") {
+        return toast.error("Invalid Quotation ID. Please go back and try again.");
+    }
+
     try {
-      const res = await restoreQuotationApi(id, { userId });
+      const res = await restoreQuotationApi(quotationId, { userId });
       dismissToast(toastId);
       if (res.status === 200) {
         showSuccessToast("Quotation restored successfully.");
@@ -1189,6 +1199,8 @@ const handleRestoreQuotation = async () => {
               </label>
                  <div className="flex-1 flex items-center gap-2">
                 <SearchableSelect
+                  id="quotation-customer"
+                  name="customerId"
                   options={customersList.map(c => ({ id: c.id, name: c.companyName }))}
                   value={customer}
                   onChange={setCustomer}
@@ -1227,6 +1239,8 @@ const handleRestoreQuotation = async () => {
               </label>
               <div className="flex-1 flex items-center gap-2">
                   <SearchableSelect
+                    id="quotation-taxType"
+                    name="taxTypeId"
                     options={taxTypesList.map(t => ({ id: t.id || t.typeId, name: `${t.name || t.typeName} (${t.percentage}%)` }))}
                     value={taxTypeId}
                     onChange={(val) => setTaxTypeId(val)}
@@ -1248,6 +1262,8 @@ const handleRestoreQuotation = async () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="quotation-vehicleNo"
+                         name="vehicleNo"
                          value={vehicleNo}
                          onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
                          placeholder="Enter Vehicle No"
@@ -1271,6 +1287,8 @@ const handleRestoreQuotation = async () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="quotation-no"
+                         name="quotationNo"
                          value={quotationNo}
                          onChange={(e) => setQuotationNo(e.target.value)}
                          readOnly={true}
@@ -1291,6 +1309,8 @@ const handleRestoreQuotation = async () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="quotation-date"
+                         name="date"
                          type="date"
                          value={date}
                          onChange={(e) => setDate(e.target.value)}
@@ -1313,6 +1333,8 @@ const handleRestoreQuotation = async () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="quotation-expiryDate"
+                         name="expiryDate"
                          type="date"
                          value={expiryDate}
                          onChange={(e) => setExpiryDate(e.target.value)}
@@ -1567,10 +1589,9 @@ const handleRestoreQuotation = async () => {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Brand */}
-          <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}> Brand *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
+                label="Brand *"
                 options={brandsList.map(b => ({ id: b.id, name: b.name }))}
                 value={newItem.brandId}
                 onChange={(val) => setNewItem({ ...newItem, brandId: val, productId: "", productName: "" })}
@@ -1579,7 +1600,7 @@ const handleRestoreQuotation = async () => {
               />
               <button
                  type="button"
-                 className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                 className={`p-2 border rounded flex items-center justify-center mt-5 ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                  onClick={() => {
                      if (newItem.brandId) {
                          const b = brandsList.find(x => String(x.id) === String(newItem.brandId));
@@ -1593,13 +1614,11 @@ const handleRestoreQuotation = async () => {
                   {newItem.brandId ? <Pencil size={16} /> : <Star size={16} />}
               </button>
             </div>
-          </div>
 
           {/* Product */}
-          <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Product *</label>
             <div className="flex items-center gap-2">
               <SearchableSelect
+                label="Product"
                 options={productsList
                   .filter(p => String(p.BrandId ?? p.brandId) === String(newItem.brandId))
                   .map(p => ({ id: p.id, name: p.ProductName }))
@@ -1614,7 +1633,7 @@ const handleRestoreQuotation = async () => {
                <button
                   type="button"
                   disabled={!newItem.brandId && !newItem.productId} // Allow if brand selected (for add) OR product selected (for edit)
-                  className={`p-2 border rounded flex items-center justify-center ${
+                  className={`p-2 border rounded flex items-center justify-center mt-5 ${
                       (!newItem.brandId && !newItem.productId)
                        ? 'opacity-50 cursor-not-allowed ' + (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'bg-gray-800 border-gray-600 text-gray-500')
                        : (theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400')
@@ -1633,7 +1652,6 @@ const handleRestoreQuotation = async () => {
                    {newItem.productId ? <Pencil size={16} /> : <Star size={16} />}
                </button>
             </div>
-          </div>
 
           {/* Description */}
           <div className="col-span-2">
@@ -1682,8 +1700,8 @@ const handleRestoreQuotation = async () => {
 
           {/* Unit (Read Only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Unit</label>
             <InputField
+              label="Unit"
               type="text"
               value={newItem.unitName}
               readOnly
@@ -1693,8 +1711,8 @@ const handleRestoreQuotation = async () => {
 
           {/* Tax Percentage (Read Only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-dark font-medium' : 'text-white'}`}>Tax Percentage (%)</label>
             <InputField
+              label="Tax Percentage (%)"
               type="text"
               value={newItem.taxPercentage}
               readOnly

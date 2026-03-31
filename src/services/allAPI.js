@@ -1944,6 +1944,9 @@ export const searchServiceInvoiceApi = (query) =>
 // ======================= Payroll APIs =======================
 
 // LIST (paginated)
+export const getNextPayrollNumberApi = () =>
+  commonAPI("GET", `${serverURL}/payrolls/next-number`, "", "");
+
 export const getPayrollsApi = (page, limit, sortBy = null, order = null) =>
   commonAPI("GET", `${serverURL}/payrolls?page=${page}&limit=${limit}&sortBy=${sortBy || ""}&order=${order || ""}`);
 

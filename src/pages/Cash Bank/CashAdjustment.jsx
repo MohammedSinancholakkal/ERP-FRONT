@@ -16,6 +16,7 @@ import { showSuccessToast, showErrorToast } from "../../utils/notificationUtils"
 const CashAdjustment = () => {
   const { theme } = useTheme();
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("currentUser"));
@@ -124,6 +125,7 @@ const CashAdjustment = () => {
       return;
     }
 
+    setLoading(true);
     try {
       const reqBody = {
         date: newAdj.date,
@@ -151,6 +153,8 @@ const CashAdjustment = () => {
     } catch (err) {
       console.error(err);
       showErrorToast("Error creating adjustment");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,87 +169,68 @@ const CashAdjustment = () => {
         title="New Cash Adjustment"
         width="700px"
         permission={hasPermission(PERMISSIONS.CASH_BANK.CREATE)}
+        loading={loading}
       >
         <div className="p-0 space-y-4">
-          {/* Voucher Date */}
-          <div>
-            <label className="text-sm">Voucher Date *</label>
-            <input
-              type="date"
-              value={newAdj.date}
-              onChange={(e) => setNewAdj({ ...newAdj, date: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-            />
-          </div>
+          <InputField
+            label="Voucher Date *"
+            type="date"
+            value={newAdj.date}
+            onChange={(e) => setNewAdj({ ...newAdj, date: e.target.value })}
+          />
 
-          {/* Adjustment Type */}
-          <div>
-            <label className="text-sm">Adjustment Type *</label>
-            <select
-              value={newAdj.type}
-              onChange={(e) => setNewAdj({ ...newAdj, type: e.target.value })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-            >
-              <option value="">Select Type</option>
-              <option value="Debit">Debit (-)</option>
-              <option value="Credit">Credit (+)</option>
-            </select>
-          </div>
+          <SearchableSelect
+            label="Adjustment Type *"
+            value={newAdj.type}
+            onChange={(val) => setNewAdj({ ...newAdj, type: val })}
+            options={[
+              { id: "Debit", name: "Debit (-)" },
+              { id: "Credit", name: "Credit (+)" }
+            ]}
+            placeholder="Select Type"
+          />
 
-          {/* COA Head Name */}
-          <div>
-            <SearchableSelect 
-              label="Offsetting Account *"
-              options={coaList.map(h => ({
-                  id: h.headName,
-                  name: `${h.headCode} - ${h.headName}`
-              }))}
-              value={newAdj.coaHeadName}
-              onChange={(val) => {
-                  const selected = coaList.find(c => c.headName === val);
-                  setNewAdj({ 
-                      ...newAdj, 
-                      coaHeadName: val,
-                      coa: selected ? selected.headCode : newAdj.coa
-                  });
-              }}
-              placeholder="Select Account Head"
-            />
-          </div>
+          <SearchableSelect 
+            label="Offsetting Account *"
+            options={coaList.map(h => ({
+                id: h.headName,
+                name: `${h.headCode} - ${h.headName}`
+            }))}
+            value={newAdj.coaHeadName}
+            onChange={(val) => {
+                const selected = coaList.find(c => c.headName === val);
+                setNewAdj({ 
+                    ...newAdj, 
+                    coaHeadName: val,
+                    coa: selected ? selected.headCode : newAdj.coa
+                });
+            }}
+            placeholder="Select Account Head"
+          />
 
-          {/* COA Code */}
-          <div>
-            <label className="text-sm">COA *</label>
-            <input
-              value={newAdj.coa}
-              readOnly
-              placeholder="Auto-filled"
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 opacity-70 cursor-not-allowed"
-            />
-          </div>
+          <InputField
+            label="COA *"
+            value={newAdj.coa}
+            readOnly
+            placeholder="Auto-filled"
+          />
 
-          {/* Amount */}
-            <InputField
-              label="Amount *"
-              type="number"
-              value={newAdj.amount}
-              onChange={(e) => setNewAdj({ ...newAdj, amount: e.target.value })}
-              placeholder="0"
-              formatted
-            />
+          <InputField
+            label="Amount *"
+            type="number"
+            value={newAdj.amount}
+            onChange={(e) => setNewAdj({ ...newAdj, amount: e.target.value })}
+            placeholder="0"
+            formatted
+          />
 
-          {/* Remarks */}
-          <div>
-            <label className="text-sm">Remarks *</label>
-            <textarea
-              value={newAdj.remarks}
-              onChange={(e) =>
-                setNewAdj({ ...newAdj, remarks: e.target.value })
-              }
-              rows={2}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2"
-            />
-          </div>
+          <InputField
+            label="Remarks *"
+            textarea
+            value={newAdj.remarks}
+            onChange={(e) => setNewAdj({ ...newAdj, remarks: e.target.value })}
+            rows={2}
+          />
         </div>
       </AddModal>
 

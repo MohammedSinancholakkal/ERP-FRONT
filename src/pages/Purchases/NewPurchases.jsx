@@ -1218,6 +1218,8 @@ const NewPurchase = () => {
                </label>
                <div className="flex-1 flex items-center gap-2">
                  <SearchableSelect
+                     id="purchase-supplier"
+                     name="supplierId"
                      options={suppliersList.map(s => ({ id: s.id, name: s.companyName }))}
                      value={supplier}
                      onChange={(val) => setSupplier(val)}
@@ -1260,6 +1262,8 @@ const NewPurchase = () => {
                 <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                      <select
+                       id="purchase-paymentAccount"
+                       name="paymentAccount"
                        value={paymentAccount}
                        onChange={(e) => setPaymentAccount(e.target.value)}
                        className={`w-full border rounded px-3 py-2 outline-none disabled:opacity-50 text-sm font-medium ${theme === 'emerald' ? 'bg-white border-emerald-300 text-emerald-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-gray-300 text-purple-800 focus:border-gray-500' : 'bg-gray-800 border-gray-600 text-white focus:border-gray-500'}`}
@@ -1287,6 +1291,8 @@ const NewPurchase = () => {
                <div className="flex-1 flex items-center gap-2">
                    <div className="flex-1 font-medium">
                    <SearchableSelect
+                     id="purchase-taxRate"
+                     name="taxTypeId"
                      options={taxTypesList}
                      value={taxTypeId}
                      onChange={(val) => setTaxTypeId(val)}
@@ -1310,6 +1316,8 @@ const NewPurchase = () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="purchase-date"
+                         name="date"
                          type="date"
                          value={date}
                          onChange={(e) => setDate(e.target.value)}
@@ -1334,6 +1342,8 @@ const NewPurchase = () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="purchase-invoiceNo"
+                         name="invoiceNo"
                          value={invoiceNo}
                          onChange={(e) => setInvoiceNo(e.target.value)}
                          disabled={inactiveView || !!id}
@@ -1354,6 +1364,8 @@ const NewPurchase = () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="purchase-orderNo"
+                         name="purchaseOrderNo"
                          value={purchaseOrderNo}
                          onChange={(e) => setPurchaseOrderNo(e.target.value)}
                          disabled={inactiveView || !!id}
@@ -1374,6 +1386,8 @@ const NewPurchase = () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         id="purchase-vehicleNo"
+                         name="vehicleNo"
                          value={vehicleNo}
                          onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
                          placeholder="Vehicle Number"
@@ -1464,6 +1478,8 @@ const NewPurchase = () => {
             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Details</label>
              <div className="flex-1 font-medium">
                <InputField
+                 id="purchase-details"
+                 name="details"
                  textarea
                  value={details}
                  onChange={(e) => setDetails(e.target.value)}
@@ -1482,6 +1498,7 @@ const NewPurchase = () => {
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Taxable Amount</label>
                    <InputField
+                      name="grandTotal_taxable"
                       value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right font-bold"
@@ -1494,7 +1511,7 @@ const NewPurchase = () => {
                    <div className="flex items-center gap-2 mb-1">
                       <label className={`flex-1 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-purple-700 font-semibold' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-dark font-semibold' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
@@ -1505,6 +1522,7 @@ const NewPurchase = () => {
                       </div>
                    </div>
                    <InputField
+                      name="totalTax"
                       value={noTax ? "0.00" : taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1516,6 +1534,7 @@ const NewPurchase = () => {
                 <div>
                     <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Discount</label>
                     <InputField
+                        name="globalDiscount"
                         type="number"
                         value={globalDiscount}
                         onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
@@ -1529,6 +1548,7 @@ const NewPurchase = () => {
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Discount</label>
                    <InputField
+                      name="totalDiscount"
                       value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1540,6 +1560,7 @@ const NewPurchase = () => {
                 <div>
                     <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Shipping Cost</label>
                     <InputField
+                        name="shippingCost"
                         type="number"
                         value={shippingCost}
                         onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
@@ -1553,7 +1574,9 @@ const NewPurchase = () => {
                 {/* Paid Amount */}
                 <div>
                     <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Paid Amount</label>
-                    <InputField
+                     <InputField
+                        id="purchase-paidAmount"
+                        name="paidAmount"
                         type="number"
                         value={paidAmount}
                         onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
@@ -1568,6 +1591,7 @@ const NewPurchase = () => {
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Change</label>
                    <InputField
+                      name="changeAmount"
                       value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1579,6 +1603,7 @@ const NewPurchase = () => {
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Due</label>
                    <InputField
+                      name="dueAmount"
                       value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1634,6 +1659,7 @@ const NewPurchase = () => {
                 <div className="md:col-span-2 mt-2">
                     <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-900' : 'text-white'}`}>Grand Total</label>
                     <InputField
+                      name="netTotal"
                       value={netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right font-bold text-2xl"
@@ -1754,6 +1780,7 @@ const NewPurchase = () => {
             <InputField
               textarea
               label="Description"
+              name="itemDescription"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
             />
@@ -1764,6 +1791,7 @@ const NewPurchase = () => {
             <InputField
                type="number"
                label="Quantity *"
+               name="itemQuantity"
                className="font-medium"
                value={newItem.quantity}
                onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
@@ -1775,6 +1803,7 @@ const NewPurchase = () => {
             <InputField
               type="number"
               label="Unit Price"
+              name="itemUnitPrice"
               className="font-medium"
               value={newItem.unitPrice}
               onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
@@ -1787,6 +1816,7 @@ const NewPurchase = () => {
             <InputField
               type="number"
               label="Discount (%)"
+              name="itemDiscount"
               className="font-medium"
               value={newItem.discount}
               onChange={(e) => setNewItem({ ...newItem, discount: e.target.value })}
@@ -1798,6 +1828,7 @@ const NewPurchase = () => {
           <div>
             <InputField
                label="Tax Percentage (%)"
+               name="itemTaxPercentage"
                value={newItem.taxPercentage}
                readOnly
                className="cursor-not-allowed text-gray-600 font-medium"
@@ -1808,6 +1839,7 @@ const NewPurchase = () => {
           <div>
             <InputField
                label="Unit"
+               name="itemUnitName"
                value={newItem.unitName}
                readOnly
                className="cursor-not-allowed text-gray-600 font-medium"
@@ -1831,6 +1863,7 @@ const NewPurchase = () => {
       >
         <InputField
           label="Brand Name"
+          name="brandName"
           required
           value={newBrandName}
           onChange={(e) => setNewBrandName(e.target.value)}
@@ -1841,6 +1874,7 @@ const NewPurchase = () => {
         <InputField
             textarea
             label="Description"
+            name="brandDescription"
             value={newBrandDescription}
             onChange={(e) => setNewBrandDescription(e.target.value)}
             className="w-full h-24 resize-none"
@@ -1857,6 +1891,7 @@ const NewPurchase = () => {
       >
         <InputField
           label="Company Name"
+          name="supplierName"
           value={newSupplierName}
           onChange={(e) => setNewSupplierName(e.target.value)}
           placeholder="Company Name"
@@ -1877,6 +1912,7 @@ const NewPurchase = () => {
             <div>
                 <InputField
                     label="Product Code"
+                    name="productCode"
                     value={newProductData.productCode}
                     onChange={(e) => setNewProductData({...newProductData, productCode: e.target.value})}
                     className="mb-2"
@@ -1884,6 +1920,7 @@ const NewPurchase = () => {
 
                 <InputField
                     label="Product Name"
+                    name="productName"
                     required
                     value={newProductData.name}
                     onChange={(e) => setNewProductData({...newProductData, name: e.target.value})}
@@ -1892,6 +1929,7 @@ const NewPurchase = () => {
 
                 <InputField
                     label="SN"
+                    name="SN"
                     value={newProductData.SN}
                     disabled
                     className="mb-2 bg-gray-100 cursor-not-allowed"
@@ -1899,6 +1937,7 @@ const NewPurchase = () => {
 
                 <InputField
                     label="Model"
+                    name="model"
                     value={newProductData.Model}
                     onChange={(e) => setNewProductData({...newProductData, Model: e.target.value})}
                     className="mb-2"
@@ -1907,6 +1946,7 @@ const NewPurchase = () => {
                 <InputField
                     type="number"
                     label="Unit Price"
+                    name="price"
                     required
                     step="0.01"
                     value={newProductData.price}
@@ -1918,6 +1958,7 @@ const NewPurchase = () => {
                 <InputField
                     type="number"
                     label="Reorder Level"
+                    name="reorderLevel"
                     required
                     step="0.01"
                     value={newProductData.ReorderLevel}
@@ -1979,6 +2020,7 @@ const NewPurchase = () => {
                 <InputField
                     textarea
                     label="Description"
+                    name="productDescription"
                     value={newProductData.description}
                     onChange={(e) => setNewProductData({...newProductData, description: e.target.value})}
                     className="w-full h-20 resize-none"

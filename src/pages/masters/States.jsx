@@ -497,9 +497,9 @@ const States = () => {
                   </div>
               </div>
               <div>
-                  <label className="text-sm">Country *</label>
                   <div className="flex items-center gap-2">
                       <SearchableSelect
+                        label="Country *"
                         options={countries.map(c => ({ id: c.id, name: c.name }))}
                         value={newData.countryId}
                         onChange={(val) => setNewData({...newData, countryId: val})}
@@ -507,7 +507,7 @@ const States = () => {
                         className="w-full"
                         direction="up"
                       />
-                      {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                      {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center mt-5 ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                             <Star size={16} />
                         </button>)}
                   </div>

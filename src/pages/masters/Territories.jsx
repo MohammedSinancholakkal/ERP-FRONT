@@ -541,6 +541,7 @@ const Territories = () => {
                       <div className="flex-grow">
                           <InputField
                               label="Territory Description"
+                              name="territoryDescription"
                               value={newItem.name}
                               onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
                               className="mt-1"
@@ -566,7 +567,7 @@ const Territories = () => {
                     {hasPermission(PERMISSIONS.REGIONS.CREATE) && (
                     <button
                         onClick={() => setAddRegionModalOpen(true)}
-                        className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                        className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         title="Quick Add Region"
                     >
                         <Star size={16} className="" />
@@ -596,6 +597,7 @@ const Territories = () => {
                      <div className="flex-grow">
                         <InputField
                             label="Territory Description"
+                            name="territoryDescription"
                             value={editItem.name}
                             onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
                             disabled={editItem.isInactive}
@@ -607,10 +609,10 @@ const Territories = () => {
                  </div>
              </div>
              <div>
-                <label className="text-sm text-dark">Region *</label>
                 <div className="flex items-center gap-2 mt-1">
                     <div className="flex-grow">
                         <SearchableSelect
+                            label="Region *"
                             options={regions.map(r => ({ id: r.id, name: r.name }))}
                             value={editItem.regionId}
                             onChange={(val) => setEditItem((p) => ({ ...p, regionId: val }))}
@@ -629,7 +631,7 @@ const Territories = () => {
                                         setRegionEditData({ id: editItem.regionId, name: r?.name || "" });
                                         setEditRegionModalOpen(true);
                                     }}
-                                    className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                                    className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                                     title="Edit Region"
                                 >
                                     <Pencil size={16} />
@@ -655,6 +657,7 @@ const Territories = () => {
                    <div className="flex-grow">
                        <InputField
                            label="Region Name"
+                           name="regionName"
                            value={newRegionName}
                            onChange={e => setNewRegionName(e.target.value)}
                            className="mt-1"
@@ -669,7 +672,7 @@ const Territories = () => {
 
        {editRegionModalOpen && (
            <AddModal isOpen={true} onClose={() => setEditRegionModalOpen(false)} onSave={handleEditRegionSave} title={`Edit Region (${regionEditData.name})`} saveText="Update">
-               <InputField value={regionEditData.name} onChange={e => setRegionEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+               <InputField name="regionName" value={regionEditData.name} onChange={e => setRegionEditData(p => ({...p, name: e.target.value}))} autoFocus required />
            </AddModal>
        )}
 

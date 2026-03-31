@@ -411,6 +411,7 @@ const Deductions = () => {
           <div>
             <InputField
               label="Name"
+              name="deductionName"
               value={newItem.name}
               onChange={(e) => setNewItem({ name: e.target.value })}
               className="mt-1"
@@ -435,6 +436,7 @@ const Deductions = () => {
           <div>
              <InputField
                 label="Name"
+                name="deductionName"
                 value={editItem.name}
                 onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
                 disabled={editItem.isInactive}

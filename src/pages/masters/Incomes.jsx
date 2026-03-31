@@ -410,6 +410,7 @@ const Incomes = () => {
           <div>
             <InputField
               label="Name"
+              name="incomeName"
               value={newItem.name}
               onChange={(e) => setNewItem({ name: e.target.value })}
               className="mt-1"
@@ -434,6 +435,7 @@ const Incomes = () => {
           <div>
              <InputField
                 label="Name"
+                name="incomeName"
                 value={editItem.name}
                 onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
                 disabled={editItem.isInactive}

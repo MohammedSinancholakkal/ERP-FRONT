@@ -11,8 +11,7 @@ import {
   getGoodsIssueByIdApi,
   updateGoodsIssueApi,
   deleteGoodsIssueApi,
-  restoreGoodsIssueApi, // <-- ensure this is exported in allAPI
-  getSuppliersApi, // optional
+  restoreGoodsIssueApi, 
 } from '../../services/allAPI'
 
 import SearchableSelect from "../../components/SearchableSelect";
@@ -34,7 +33,6 @@ function NewGoodsIssue() {
   const userId = userData?.userId || userData?.id || userData?.Id
   const { theme } = useTheme();
 
-  // --- NEW: read-only flag when opening an inactive record ---
   const [isReadonly, setIsReadonly] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -51,7 +49,6 @@ function NewGoodsIssue() {
   const [salesPersonsList, setSalesPersonsList] = useState([])
   const [warehousesList, setWarehousesList] = useState([])
   const [productsList, setProductsList] = useState([])
-  const [suppliersList, setSuppliersList] = useState([]) // optional
 
   // --- LINE ITEMS STATE ---
   const [rows, setRows] = useState([])
@@ -75,7 +72,7 @@ function NewGoodsIssue() {
   // --- CALCULATED VALUES ---
   const [totalQuantity, setTotalQuantity] = useState(0)
 
-  // initial load - fetch all dropdown lists so fields show immediately
+  // initial load
   useEffect(() => {
     (async () => {
       await fetchEmployees()
@@ -86,34 +83,11 @@ function NewGoodsIssue() {
     })()
   }, [])
 
-
-  // --- FETCH GOODS ISSUE FOR EDIT ---
   useEffect(() => {
     if (id) {
       fetchGoodsIssueDetails(id)
-      // optionally fetch suppliers if you need them:
-      // fetchSuppliers()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
-
-  const fetchSuppliers = async () => {
-    try {
-      const res = await getSuppliersApi(1, 1000)
-      if (res.status === 200) {
-        const records = Array.isArray(res?.data?.records) ? res.data.records : []
-        const normalized = records.map(r => ({
-          id: r.id ?? r.Id,
-          name: r.name ?? r.Name ?? r.companyName ?? r.CompanyName ?? ''
-        }))
-        setSuppliersList(normalized)
-        return normalized
-      }
-    } catch (error) {
-      console.error("Error fetching suppliers", error)
-      return []
-    }
-  }
 
   const fetchEmployees = async () => {
     try {
@@ -170,41 +144,14 @@ function NewGoodsIssue() {
     }
   }
 
-  const fetchPurchases = async () => {
-    try {
-      const res = await getPurchasesApi(1, 1000)
-      if (res.status === 200) {
-        const records = Array.isArray(res?.data?.records) ? res.data.records : []
-        const normalized = records.map(r => ({
-          id: r.id ?? r.Id ?? r.PurchaseId,
-          reference: r.reference ?? r.Reference ?? r.VNo ?? r.invoiceNo ?? r.invoiceNo ?? '',
-          name: r.reference ?? r.Reference ?? r.VNo ?? r.invoiceNo ?? r.invoiceNo ?? '',
-          supplierId: r.SupplierId ?? r.supplierId ?? r.Supplier?.id ?? r.supplier?.id ?? r.supplierId ?? r.SupplierId,
-          supplierName: r.SupplierName ?? r.supplierName ?? r.Supplier?.name ?? r.supplier?.name ?? r.Supplier?.companyName ?? ''
-        }))
-        setPurchasesList(normalized)
-        return normalized
-      }
-    } catch (error) {
-      console.error("Error fetching purchases", error)
-      return []
-    }
-  }
-
   const fetchGoodsIssueDetails = async (issueId) => {
     try {
       const res = await getGoodsIssueByIdApi(issueId)
-
       if (res.status === 200) {
         const { issue, details } = res.data
-
-        // --- READONLY CHECK ---
-        // If the issue is inactive (IsActive === 0) set read-only mode
-        // Note: adapt the property name if backend uses lowercase/boolean
         const inactive = issue.IsActive === 0 || issue.isActive === 0 || issue.IsActive === false || issue.isActive === false
         setIsReadonly(Boolean(inactive))
 
-        // TOP SECTION
         setSales(issue.SaleId)
         setCustomer(issue.CustomerId)
         setSalesPerson(issue.EmployeeId)
@@ -212,10 +159,7 @@ function NewGoodsIssue() {
         setReference(issue.Reference || "")
         setRemarks(issue.Remarks || "")
         setJournalRemarks(issue.JournalRemarks || "")
-        setSales(issue.SaleId)
-        setCustomer(issue.CustomerId)
 
-        // LINE ITEMS
         const mappedRows = (details || []).map(d => ({
           productId: d.productId ?? d.ProductId,
           productName: d.productName ?? d.ProductName,
@@ -224,7 +168,6 @@ function NewGoodsIssue() {
           quantity: d.quantity ?? d.Quantity,
           description: d.description ?? d.Description ?? ""
         }))
-
         setRows(mappedRows)
       }
     } catch (error) {
@@ -237,27 +180,13 @@ function NewGoodsIssue() {
     try {
       const res = await getSalesApi(1, 1000)
       if (res.status === 200) {
-        const records = Array.isArray(res?.data?.records)
-          ? res.data.records
-          : res?.data || []
-
+        const records = Array.isArray(res?.data?.records) ? res.data.records : res?.data || []
         const normalized = records.map(r => ({
           id: r.id ?? r.Id ?? r.SaleId,
-          name:
-            r.reference ??
-            r.Reference ??
-            r.invoiceNo ??
-            r.InvoiceNo ??
-            r.saleNo ??
-            `Sale-${r.id ?? r.Id}`,
+          name: r.reference ?? r.Reference ?? r.invoiceNo ?? r.InvoiceNo ?? r.saleNo ?? `Sale-${r.id ?? r.Id}`,
           customerId: r.CustomerId ?? r.customerId,
-          customerName:
-            r.CustomerName ??
-            r.customerName ??
-            r.Customer?.Name ??
-            r.customer?.name ??      ""
+          customerName: r.CustomerName ?? r.customerName ?? r.Customer?.name ?? r.customer?.name ?? ""
         }))
-
         setSalesList(normalized)
         return normalized
       }
@@ -271,22 +200,12 @@ function NewGoodsIssue() {
   const fetchCustomers = async () => {
     try {
       const res = await getCustomersApi(1, 1000)
-
       if (res.status === 200) {
-        const records = Array.isArray(res?.data?.records)
-          ? res.data.records
-          : res?.data || []
-
+        const records = Array.isArray(res?.data?.records) ? res.data.records : res?.data || []
         const normalized = records.map(c => ({
           id: c.id ?? c.Id ?? c.CustomerId,
-          name:
-            c.name ??
-            c.Name ??
-            c.companyName ??
-            c.CompanyName ??
-            "Customer"
+          name: c.name ?? c.Name ?? c.companyName ?? c.CompanyName ?? "Customer"
         }))
-
         setCustomersList(normalized)
         return normalized
       }
@@ -297,21 +216,18 @@ function NewGoodsIssue() {
     }
   }
 
-useEffect(() => {
-  if (!sales) {
-    setCustomer('')
-    return
-  }
+  useEffect(() => {
+    if (!sales) {
+      setCustomer('')
+      return
+    }
+    const sale = salesList.find(s => String(s.id) === String(sales))
+    if (sale?.customerId) {
+      setCustomer(sale.customerId)
+    }
+  }, [sales, salesList])
 
-  const sale = salesList.find(s => String(s.id) === String(sales))
-  if (sale?.customerId) {
-    setCustomer(sale.customerId)
-  }
-}, [sales, salesList])
-
-  // --- MODAL HANDLERS ---
   const openItemModal = () => {
-    // block opening modal when read-only
     if (isReadonly) return
     setEditingIndex(null)
     setNewItem({
@@ -357,21 +273,18 @@ useEffect(() => {
     setRows(rows.filter((_, i) => i !== index))
   }
 
-  // --- MAIN CALCULATION ---
   useEffect(() => {
     let sum = 0
     rows.forEach(r => sum += parseFloat(r.quantity) || 0)
     setTotalQuantity(sum)
   }, [rows])
 
-  // --- SAVE / UPDATE ---
   const handleSaveIssue = async () => {
     if (isReadonly) return
     if (!sales) return showErrorToast('Please select a sale')
     if (!customer) return showErrorToast('Please select a customer')
     if (!salesPerson) return showErrorToast('Please select a sales person')
     if (!date) return showErrorToast('Please select a date');
- 
     if (rows.length === 0) return showErrorToast('Please add at least one item')
 
     const payload = {
@@ -397,7 +310,6 @@ useEffect(() => {
     setLoading(true)
     try {
       const res = await addGoodsIssueApi(payload)
-
       if (res.status === 200) {
         showSuccessToast('Goods Issue saved successfully')
         navigate('/app/inventory/goodsissue')
@@ -414,7 +326,6 @@ useEffect(() => {
 
   const handleUpdateIssue = async () => {
     if (isReadonly) return
-    // validation appropriate to Goods Issue (not purchases)
     if (!sales) return showErrorToast('Please select a sale')
     if (!customer) return showErrorToast('Please select a customer')
     if (!salesPerson) return showErrorToast('Please select a sales person')
@@ -466,13 +377,11 @@ useEffect(() => {
   const handleDeleteIssue = async () => {
     if (isReadonly) return
     const result = await showDeleteConfirm('goods issue');
-
     if (!result.isConfirmed) return
 
     setLoading(true)
     try {
       const res = await deleteGoodsIssueApi(id, { userId })
-
       if (res.status === 200) {
         showSuccessToast('Goods issue deleted successfully.')
         navigate('/app/inventory/goodsissue')
@@ -487,383 +396,344 @@ useEffect(() => {
     }
   }
 
-// --- NEW: restore handler ---
-const handleRestoreIssue = async () => {
-  const result = await showRestoreConfirm('goods issue');
+  const handleRestoreIssue = async () => {
+    const result = await showRestoreConfirm('goods issue');
+    if (!result.isConfirmed) return
 
-  if (!result.isConfirmed) return
-
-  setLoading(true)
-  try {
-    const res = await restoreGoodsIssueApi(id, { userId })
-    if (res.status === 200) {
-      showSuccessToast('Goods issue restored successfully.')
-      navigate('/app/inventory/goodsissue')
-    } else {
-      showErrorToast('Failed to restore goods issue.')
+    setLoading(true)
+    try {
+      const res = await restoreGoodsIssueApi(id, { userId })
+      if (res.status === 200) {
+        showSuccessToast('Goods issue restored successfully.')
+        navigate('/app/inventory/goodsissue')
+      } else {
+        showErrorToast('Failed to restore goods issue.')
+      }
+    } catch (error) {
+      console.error('RESTORE ERROR', error)
+      showErrorToast('Error restoring goods issue.')
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error('RESTORE ERROR', error)
-    showErrorToast('Error restoring goods issue.')
-  } finally {
-    setLoading(false)
   }
-}
-
 
   return (
     <PageLayout>
       <div className={`p-6 h-full overflow-y-auto ${theme === 'emerald' ? 'bg-emerald-50 text-gray-800' : theme === 'purple' ? 'bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900' : 'bg-gradient-to-b from-gray-900 to-gray-700 text-white'}`}>
         <ContentCard>
           <div className="h-full overflow-y-auto pr-2">
-        {/* HEADER */}
-        <div className="mb-6">
-           <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-4">
-                 <button onClick={() => navigate(-1)} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
-                   <ArrowLeft size={24} />
-                 </button>
-                 <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
-                   {id ? (isReadonly ? "View Goods Issue (inactive)" : "Edit Goods Issue") : "New Goods Issue"}
-                 </h2>
+            {/* HEADER */}
+            <div className="mb-6">
+               <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-4">
+                     <button onClick={() => navigate(-1)} className={`${theme === 'emerald' ? 'hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50  hover:bg-purple-100 text-purple-800' : 'hover:bg-gray-700'} p-2 rounded-full`}>
+                       <ArrowLeft size={24} />
+                     </button>
+                     <h2 className={`text-xl font-bold ${theme === 'purple' ? 'text-[#6448AE]' : ''}`}>
+                       {id ? (isReadonly ? "View Goods Issue (inactive)" : "Edit Goods Issue") : "New Goods Issue"}
+                     </h2>
+                  </div>
+
+                  {/* ACTION BUTTONS */}
+                  <div className="flex gap-2">
+                    {id ? (
+                      <>
+                        {!isReadonly ? (
+                          <>
+                            {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
+                            <button
+                              onClick={handleDeleteIssue}
+                              disabled={loading}
+                              className="flex items-center gap-2 bg-red-600 border border-red-500 px-6 py-2 rounded-lg text-white hover:bg-red-700 shadow-lg transition-colors"
+                            >
+                              <Trash2 size={18} /> Delete
+                            </button>
+                            )}
+
+                            {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.EDIT) && (
+                            <button
+                              onClick={handleUpdateIssue}
+                              disabled={loading}
+                              className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            >
+                              {loading ? (
+                                 <>
+                                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
+                                 </>
+                              ) : (
+                                 <>
+                                 <Save size={18} /> Update
+                                 </>
+                              )}
+                            </button>
+                            )}
+                          </>
+                        ) : (
+                          hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
+                          <button
+                            onClick={handleRestoreIssue}
+                            disabled={loading}
+                            className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          >
+                            {loading ? (
+                                 <>
+                                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Restoring...
+                                 </>
+                              ) : (
+                                 <>
+                                 <ArchiveRestore size={18} /> Restore
+                                 </>
+                              )}
+                          </button>
+                          )
+                        )}
+                      </>
+                    ) : (
+                      hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE) && (
+                      <button
+                        onClick={handleSaveIssue}
+                        disabled={isReadonly || loading}
+                        className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600'} ${isReadonly || loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      >
+                        {loading ? (
+                            <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
+                            </>
+                         ) : (
+                            <>
+                            <Save size={18} /> Save
+                            </>
+                         )}
+                      </button>
+                      )
+                    )}
+                  </div>
+               </div>
+               <hr className="border-gray-300" />
+            </div>
+
+            {/* TOP SECTION: 2-COLUMN GRID */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                {/* LEFT COL */}
+                <div className="space-y-4">
+                   <div className="flex items-center">
+                     <div className="flex-1 font-medium">
+                       <SearchableSelect
+                         label="Sale *"
+                         value={sales}
+                         onChange={setSales}
+                         placeholder="Select Sale"
+                         options={salesList}
+                         disabled={isReadonly}
+                         className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
+                       />
+                     </div>
+                     <div className="w-[34px]"></div>
+                   </div>
+
+                   <div className="flex items-center">
+                     <div className="flex-1 font-medium">
+                       <SearchableSelect
+                         label="Customer *"
+                         value={customer}
+                         onChange={() => {}}
+                         placeholder="Customer"
+                         options={customersList}
+                         disabled={true}
+                         className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
+                       />
+                     </div>
+                     <div className="w-[34px]"></div>
+                   </div>
+
+                   <div className="flex items-center">
+                     <div className="flex-1 font-medium">
+                       <InputField
+                         label="Date "
+                         type="date"
+                         value={date}
+                         onChange={e => setDate(e.target.value)}
+                         disabled={isReadonly}
+                         required
+                       />
+                     </div>
+                     <div className="w-[34px]"></div>
+                   </div>
+                </div>
+
+                {/* RIGHT COL */}
+                <div className="space-y-4">
+                   <div className="flex items-center">
+                     <div className="flex-1 font-medium">
+                       <SearchableSelect
+                         label="Sales Person *"
+                         value={salesPerson}
+                         onChange={setSalesPerson}
+                         placeholder="Select Sales Person"
+                         options={salesPersonsList}
+                         disabled={isReadonly}
+                         className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
+                       />
+                     </div>
+                     <div className="w-[34px]"></div>
+                   </div>
+
+                   <div className="flex items-center">
+                     <div className="flex-1 font-medium">
+                       <InputField
+                         label="Reference"
+                         value={reference}
+                         onChange={e => setReference(e.target.value)}
+                         disabled={isReadonly}
+                         placeholder="Reference No"
+                       />
+                     </div>
+                     <div className="w-[34px]"></div>
+                   </div>
+                </div>
+            </div>
+
+            {/* LINE ITEMS */}
+            <div className="mb-8">
+              <div className="flex gap-2 mb-2 font-medium">
+                <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Line Items</label>
+                <button
+                  onClick={openItemModal}
+                  disabled={isReadonly}
+                  className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border border-gray-600 text-blue-300'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Plus size={16} /> Add
+                </button>
               </div>
 
-               {/* ACTION BUTTONS */}
-               <div className="flex gap-2">
-                 {id ? (
-                   <>
-                     {!isReadonly ? (
-                       <>
-                         {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
-                         <button
-                           onClick={handleDeleteIssue}
-                           disabled={loading}
-                           className="flex items-center gap-2 bg-red-600 border border-red-500 px-6 py-2 rounded-lg text-white hover:bg-red-700 shadow-lg transition-colors"
-                         >
-                           <Trash2 size={18} /> Delete
-                         </button>
-                         )}
-
-                         {hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.EDIT) && (
-                         <button
-                           onClick={handleUpdateIssue}
-                           disabled={loading}
-                           className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                         >
-                           {loading ? (
-                              <>
-                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating...
-                              </>
-                           ) : (
-                              <>
-                              <Save size={18} /> Update
-                              </>
-                           )}
-                         </button>
-                         )}
-                       </>
-                     ) : (
-                       hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.DELETE) && (
-                       <button
-                         onClick={handleRestoreIssue}
-                         disabled={loading}
-                         className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 text-blue-300 hover:bg-gray-600'} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                       >
-                         {loading ? (
-                              <>
-                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Restoring...
-                              </>
-                           ) : (
-                              <>
-                              <ArchiveRestore size={18} /> Restore
-                              </>
-                           )}
-                       </button>
-                       )
-                     )}
-                   </>
-                 ) : (
-                   hasPermission(PERMISSIONS.INVENTORY.GOODS_ISSUE.CREATE) && (
-                   <button
-                     onClick={handleSaveIssue}
-                     disabled={isReadonly || loading}
-                     className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors shadow-lg font-medium ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white' : 'bg-gray-700 border border-gray-600 hover:bg-gray-600'} ${isReadonly || loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                   >
-                     {loading ? (
-                         <>
-                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...
-                         </>
-                      ) : (
-                         <>
-                         <Save size={18} /> Save
-                         </>
-                      )}
-                   </button>
-                   )
-                 )}
-               </div>
-           </div>
-           <hr className="border-gray-300" />
-        </div>
-
-        {/* TOP SECTION: 2-COLUMN GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* LEFT COL */}
-            <div className="space-y-4">
-               {/* Sales */}
-               <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                   Sale <span className="text-dark">*</span>
-                 </label>
-                  <div className="flex-1 font-medium">
-                   <SearchableSelect
-                      value={sales}
-                      onChange={setSales}
-                      placeholder="Select Sale"
-                      options={salesList}
-                      disabled={isReadonly}
-                      className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
-                   />
-                 </div>
-               </div>
-
-               {/* Customer */}
-               <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                   Customer <span className="text-dark">*</span>
-                 </label>
-                  <div className="flex-1 font-medium">
-                    <SearchableSelect
-                      value={customer}
-                      onChange={() => {}}
-                      placeholder="Customer"
-                      options={customersList}
-                      disabled={true}
-                      className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
-                    />
-                 </div>
-               </div>
-
-               {/* Date */}
-               <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                   Date <span className="text-dark">*</span>
-                 </label>
-                  <div className="flex-1 font-medium">
-                   <InputField
-                      type="date"
-                      value={date}
-                      onChange={e => setDate(e.target.value)}
-                      disabled={isReadonly}
-                      required
-                   />
-                 </div>
-               </div>
+              <div className={`border rounded overflow-x-auto ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+                <table className="w-full text-sm text-left">
+                  <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
+                    <tr>
+                      <th className="p-3">Product Name</th>
+                      <th className="p-3">Description</th>
+                      <th className="p-3">Warehouse</th>
+                      <th className="p-3">Quantity</th>
+                      <th className="p-3 w-16"></th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-100' : 'divide-gray-700'}`}>
+                    {rows.map((r, i) => (
+                      <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-200 hover:bg-gray-750'} ${isReadonly ? 'opacity-80' : ''}`}>
+                        <td className="p-3">{r.productName}</td>
+                        <td className="p-3">{r.description}</td>
+                        <td className="p-3">{r.warehouseName}</td>
+                        <td className="p-3">{r.quantity}</td>
+                        <td className="p-3 flex gap-2 justify-center">
+                          {!isReadonly ? (
+                            <>
+                              <Edit size={16} onClick={() => editRow(i)} className="cursor-pointer text-blue-400" />
+                              <Trash2 size={16} onClick={() => deleteRow(i)} className="cursor-pointer text-red-400" />
+                            </>
+                          ) : (
+                            <span className="text-gray-400 text-xs">inactive</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {rows.length === 0 && (
+                  <div className="p-8 text-center text-gray-500">
+                    No items added. Click "+ Add" to start.
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* RIGHT COL */}
-            <div className="space-y-4">
-               {/* Sales Person */}
-               <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                   Sales Person <span className="text-dark">*</span>
-                 </label>
-                  <div className="flex-1 font-medium">
-                    <SearchableSelect
-                      value={salesPerson}
-                      onChange={setSalesPerson}
-                      placeholder="Select Sales Person"
-                      options={salesPersonsList}
-                      disabled={isReadonly}
-                      className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
-                    />
-                 </div>
-               </div>
-
-               {/* Reference */}
-               <div className="flex items-center">
-                 <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                   Reference
-                 </label>
-                  <div className="flex-1 font-medium">
-                   <InputField
-                      value={reference}
-                      onChange={e => setReference(e.target.value)}
-                      disabled={isReadonly}
-                      placeholder="Reference No"
-                   />
-                 </div>
-               </div>
+            {/* REMARKS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <InputField
+                label="Remarks"
+                textarea
+                value={remarks}
+                onChange={e => setRemarks(e.target.value)}
+                disabled={isReadonly}
+                className="h-24"
+              />
+              <InputField
+                label="Journal Remarks"
+                textarea
+                value={journalRemarks}
+                onChange={e => setJournalRemarks(e.target.value)}
+                disabled={isReadonly}
+                className="h-24"
+              />
             </div>
-        </div>
 
-        {/* LINE ITEMS */}
-        <div className="mb-8">
-          <div className="flex gap-2 mb-2 font-medium">
-            <label className={`text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Line Items</label>
-            <button
-              onClick={openItemModal}
-              disabled={isReadonly}
-              className={`flex items-center gap-2 px-4 py-2 rounded ${theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : theme === 'purple' ? ' bg-[#6448AE] hover:bg-[#6E55B6]  text-white shadow-md' : 'bg-gray-800 border border-gray-600 text-blue-300'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            {/* ITEM MODAL */}
+            <AddModal
+              isOpen={isItemModalOpen}
+              onClose={() => setIsItemModalOpen(false)}
+              onSave={addItemToTable}
+              title={editingIndex !== null ? "Edit Goods Issue Details" : "New Goods Issue Details"}
+              width="700px"
             >
-              <Plus size={16} /> Add
-            </button>
-          </div>
+              <div className="grid grid-cols-1 gap-5">
+                <SearchableSelect
+                  label="Product *"
+                  value={newItem.productId}
+                  onChange={(val) => {
+                    const p = productsList.find(x => String(x.id) === String(val))
+                    if (p) {
+                      setNewItem(prev => ({
+                        ...prev,
+                        productId: p.id,
+                        productName: p.name,
+                        quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1
+                      }))
+                    } else {
+                      setNewItem(prev => ({ ...prev, productId: val, quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1 }))
+                    }
+                  }}
+                  placeholder="Product"
+                  options={productsList}
+                  disabled={isReadonly}
+                  className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
+                />
 
-          <div className={`border rounded overflow-x-auto ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-            <table className="w-full text-sm text-left">
-              <thead className={`${theme === 'emerald' ? 'bg-emerald-50 text-emerald-900 border-b border-emerald-100' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-b border-purple-100' : 'bg-gray-700 text-gray-300'} font-medium`}>
-                <tr>
-                  <th className="p-3">Product Name</th>
-                  <th className="p-3">Description</th>
-                  <th className="p-3">Warehouse</th>
-                  <th className="p-3">Quantity</th>
-                  <th className="p-3 w-16"></th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${theme === 'emerald' || theme === 'purple' ? 'divide-gray-100' : 'divide-gray-700'}`}>
-                {rows.map((r, i) => (
-                  <tr key={i} className={`${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-200 hover:bg-gray-750'} ${isReadonly ? 'opacity-80' : ''}`}>
-                    <td className="p-3">{r.productName}</td>
-                    <td className="p-3">{r.description}</td>
-                    <td className="p-3">{r.warehouseName}</td>
-                    <td className="p-3">{r.quantity}</td>
-                    <td className="p-3 flex gap-2 justify-center">
-                      {!isReadonly ? (
-                        <>
-                          <Edit size={16} onClick={() => editRow(i)} className="cursor-pointer text-blue-400" />
-                          <Trash2 size={16} onClick={() => deleteRow(i)} className="cursor-pointer text-red-400" />
-                        </>
-                      ) : (
-                        <span className="text-gray-400 text-xs">inactive</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {rows.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
-                No items added. Click "+ Add" to start.
+                <InputField
+                  label="Quantity *"
+                  type="number"
+                  value={newItem.quantity}
+                  onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+                  disabled={isReadonly}
+                />
+
+                <SearchableSelect
+                  label="Warehouse *"
+                  value={newItem.warehouseId}
+                  onChange={(val) => {
+                    const w = warehousesList.find(x => String(x.id) === String(val))
+                    if (w) {
+                      setNewItem({ ...newItem, warehouseId: w.id, warehouseName: w.name })
+                    } else {
+                      setNewItem(prev => ({ ...prev, warehouseId: val }))
+                    }
+                  }}
+                  placeholder="Warehouse"
+                  options={warehousesList}
+                  disabled={isReadonly}
+                  className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
+                />
+
+                <InputField
+                  label="Description"
+                  textarea
+                  value={newItem.description || ""}
+                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                  disabled={isReadonly}
+                  className="h-24"
+                />
               </div>
-            )}
+            </AddModal>
           </div>
-        </div>
-
-        {/* TOTAL QUANTITY */}
-        <div className="mb-6 flex justify-end">
-          <div className={`border rounded px-4 py-2 font-bold ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-800' : theme === 'purple' ? 'bg-white border-purple-200 text-purple-900' : 'bg-gray-800 border-gray-600'}`}>
-            Total Quantity: {totalQuantity.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-        </div>
-
-        {/* REMARKS */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-3">
-          <textarea
-            placeholder="Remarks"
-            value={remarks}
-            onChange={e => setRemarks(e.target.value)}
-            disabled={isReadonly}
-            className={`h-24 rounded px-3 py-2 outline-none border ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-gray-500' : 'bg-gray-800 border-gray-600 text-white focus:border-blue-500'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
-          />
-          <textarea
-            placeholder="Journal Remarks"
-            value={journalRemarks}
-            onChange={e => setJournalRemarks(e.target.value)}
-            disabled={isReadonly}
-            className={`h-24 rounded px-3 py-2 outline-none border ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-gray-500' : 'bg-gray-800 border-gray-600 text-white focus:border-blue-500'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
-          />
-        </div>
-
-      {/* ITEM MODAL (unchanged) */}
-      {/* ITEM MODAL */}
-      <AddModal
-        isOpen={isItemModalOpen}
-        onClose={() => setIsItemModalOpen(false)}
-        onSave={addItemToTable}
-        title={editingIndex !== null ? "Edit Goods Issue Details" : "New Goods Issue Details"}
-        width="700px"
-      >
-        <div className="grid grid-cols-1 gap-5">
-          <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-               Product <span className="text-dark">*</span>
-            </label>
-            <SearchableSelect
-              value={newItem.productId}
-              onChange={(val) => {
-                const p = productsList.find(x => String(x.id) === String(val))
-                if (p) {
-                  setNewItem(prev => ({
-                    ...prev,
-                    productId: p.id,
-                    productName: p.name,
-                    quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1
-                  }))
-                } else {
-                  setNewItem(prev => ({ ...prev, productId: val, quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1 }))
-                }
-              }}
-              placeholder="Product"
-              options={productsList}
-              disabled={isReadonly}
-              className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
-            />
-          </div>
-
-          <div>
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-               Quantity <span className="text-dark">*</span>
-            </label>
-             <InputField
-               type="number"
-               value={newItem.quantity}
-               onChange={(e) =>
-                 setNewItem({ ...newItem, quantity: e.target.value })
-               }
-               disabled={isReadonly}
-             />
-          </div>
-
-          <div>
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-               Warehouse <span className="text-dark">*</span>
-            </label>
-            <SearchableSelect
-              value={newItem.warehouseId}
-              onChange={(val) => {
-                const w = warehousesList.find(x => String(x.id) === String(val))
-                if (w) {
-                  setNewItem({ ...newItem, warehouseId: w.id, warehouseName: w.name })
-                } else {
-                  setNewItem(prev => ({ ...prev, warehouseId: val }))
-                }
-              }}
-              placeholder="Warehouse"
-              options={warehousesList}
-              disabled={isReadonly}
-              className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
-            />
-          </div>
-
-          <div>
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-              Description
-            </label>
-            <textarea
-              value={newItem.description || ""}
-              onChange={(e) =>
-                setNewItem({ ...newItem, description: e.target.value })
-              }
-              rows={3}
-              disabled={isReadonly}
-               className={`w-full border rounded px-3 py-2 outline-none resize-none ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : 'bg-gray-900 border-gray-600 text-white'}`}
-            />
-          </div>
-        </div>
-      </AddModal>
-          </div>
-      </ContentCard>
+        </ContentCard>
       </div>
     </PageLayout>
   )

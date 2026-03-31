@@ -1416,7 +1416,7 @@ const NewPurchaseOrder = () => {
                    <div className="flex items-center gap-2 mb-1">
                       <label className={`flex-1 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-purple-700 font-semibold' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-dark font-semibold' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}

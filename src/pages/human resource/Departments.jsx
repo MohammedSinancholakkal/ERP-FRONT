@@ -343,8 +343,8 @@ const Departments = () => {
 
     {/* PARENT DEPARTMENT */}
     <div>
-      <label className="block text-sm mb-1">Parent Department</label>
       <SearchableSelect
+        label="Parent Department"
         value={newDepartment.parentDepartmentId}
         onChange={(val) =>
           setNewDepartment({ ...newDepartment, parentDepartmentId: val })
@@ -405,8 +405,8 @@ const Departments = () => {
 
     {/* PARENT DEPARTMENT */}
     <div>
-      <label className="block text-sm mb-1">Parent Department</label>
       <SearchableSelect
+        label="Parent Department"
         value={editDepartment.parentDepartmentId}
         onChange={(val) =>
           setEditDepartment({ ...editDepartment, parentDepartmentId: val })

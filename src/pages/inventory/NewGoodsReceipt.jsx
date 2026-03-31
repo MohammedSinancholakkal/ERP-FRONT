@@ -615,50 +615,44 @@ if (isRestoreMode || inactiveFromDb) {
           <div className="space-y-4">
              {/* Purchase */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                 Purchase <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span>
-               </label>
-                <div className="flex-1 font-medium">
-                 <SearchableSelect
-                    value={purchase}
-                    onChange={setPurchase}
-                    placeholder="Select Purchase"
-                    options={purchasesList}
-                    disabled={isReadonly}
-                    className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
-                 />
-               </div>
+                 <div className="flex-1 font-medium">
+                  <SearchableSelect
+                     label="Purchase *"
+                     value={purchase}
+                     onChange={setPurchase}
+                     placeholder="Select Purchase"
+                     options={purchasesList}
+                     disabled={isReadonly}
+                     className={theme === 'emerald' || theme === 'purple' ? 'bg-white' : 'bg-gray-800'}
+                  />
+                </div>
              </div>
 
              {/* Supplier */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                 Supplier <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span>
-               </label>
-                <div className="flex-1 font-medium">
-                 <InputField
-                    value={supplierDisplayName}
-                    readOnly
-                    disabled
-                    placeholder="Supplier Name"
-                    className=" cursor-not-allowed"
-                 />
-               </div>
+                 <div className="flex-1 font-medium">
+                  <InputField
+                     label="Supplier *"
+                     value={supplierDisplayName}
+                     readOnly
+                     disabled
+                     placeholder="Supplier Name"
+                     className=" cursor-not-allowed"
+                  />
+                </div>
              </div>
 
              {/* Date */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                 Date
-               </label>
-                <div className="flex-1 font-medium">
-                 <InputField
-                    type="date"
-                    value={date}
-                    onChange={e => setDate(e.target.value)}
-                    disabled={isReadonly}
-                 />
-               </div>
+                 <div className="flex-1 font-medium">
+                  <InputField
+                     label="Date *"
+                     type="date"
+                     value={date}
+                     onChange={e => setDate(e.target.value)}
+                     disabled={isReadonly}
+                  />
+                </div>
              </div>
           </div>
 
@@ -666,11 +660,9 @@ if (isRestoreMode || inactiveFromDb) {
           <div className="space-y-4">
              {/* Employee */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                 Employee <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span>
-               </label>
                 <div className="flex-1 font-medium">
                   <SearchableSelect
+                    label="Employee *"
                     value={employee}
                     onChange={setEmployee}
                     placeholder="Select Employee"
@@ -683,11 +675,9 @@ if (isRestoreMode || inactiveFromDb) {
 
              {/* Reference */}
              <div className="flex items-center">
-               <label className={`w-32 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-                 Reference
-               </label>
                 <div className="flex-1 font-medium">
                  <InputField
+                    label="Reference"
                     value={reference}
                     onChange={e => setReference(e.target.value)}
                     disabled={isReadonly}
@@ -764,19 +754,21 @@ if (isRestoreMode || inactiveFromDb) {
 
         {/* ROW 5: REMARKS + JOURNAL REMARKS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <textarea
+          <InputField
+            label="Remarks"
             placeholder="Remarks"
+            textarea
             value={remarks}
             onChange={e => setRemarks(e.target.value)}
             disabled={isReadonly}
-            className={`h-24 rounded px-3 py-2 outline-none border ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-gray-500' : 'bg-gray-800 border-gray-600 text-white focus:border-gray-500'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
-          <textarea
+          <InputField
+            label="Journal Remarks"
             placeholder="Journal Remarks"
+            textarea
             value={journalRemarks}
             onChange={e => setJournalRemarks(e.target.value)}
             disabled={isReadonly}
-            className={`h-24 rounded px-3 py-2 outline-none border ${theme === 'emerald' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-gray-500' : 'bg-gray-800 border-gray-600 text-white focus:border-gray-500'} ${isReadonly ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
         </div>
 
@@ -793,23 +785,17 @@ if (isRestoreMode || inactiveFromDb) {
         <div className="grid grid-cols-1 gap-5">
            {/* PRODUCT */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>
-             Product <span className={theme === 'dark' ? 'text-white' : 'text-dark'}>*</span> 
-            </label>
             <SearchableSelect
+              label="Product *"
               value={newItem.productId}
               onChange={(val) => {
                 const p = productsList.find(x => String(x.id) === String(val))
-                if (p) {
-                  setNewItem(prev => ({
-                    ...prev,
-                    productId: p.id,
-                    productName: p.ProductName || p.name || '',
-                    quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1
-                  }))
-                } else {
-                  setNewItem(prev => ({ ...prev, productId: val, quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1 }))
-                }
+                setNewItem(prev => ({
+                  ...prev,
+                  productId: val,
+                  productName: p?.name || '',
+                  quantity: prev.quantity && prev.quantity > 0 ? prev.quantity : 1
+                }))
               }}
               placeholder="Product"
               options={productsList}
@@ -819,32 +805,26 @@ if (isRestoreMode || inactiveFromDb) {
           </div>
 
           {/* QUANTITY */}
-          <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-       Quantity       <span className="text-dark">*</span> 
-            </label>
-             <InputField
-               type="number"
-               value={newItem.quantity}
-               onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-               disabled={isReadonly}
-             />
-          </div>
+          <InputField
+            label="Quantity *"
+            type="number"
+            value={newItem.quantity}
+            onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+            disabled={isReadonly}
+          />
 
           {/* WAREHOUSE */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-             Warehouse <span className="text-dark">*</span> 
-            </label>
             <SearchableSelect
+              label="Warehouse *"
               value={newItem.warehouseId}
               onChange={(val) => {
                 const w = warehousesList.find(x => String(x.id) === String(val))
-                if (w) {
-                  setNewItem({ ...newItem, warehouseId: w.id, warehouseName: w.name })
-                } else {
-                  setNewItem(prev => ({ ...prev, warehouseId: val }))
-                }
+                setNewItem(prev => ({ 
+                  ...prev, 
+                  warehouseId: val, 
+                  warehouseName: w?.name || '' 
+                }))
               }}
               placeholder="Warehouse"
               options={warehousesList}
@@ -853,20 +833,14 @@ if (isRestoreMode || inactiveFromDb) {
             />
           </div>
 
-          <div>
-             <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-              Description
-            </label>
-            <textarea
-              value={newItem.description || ""}
-              onChange={(e) =>
-                setNewItem({ ...newItem, description: e.target.value })
-              }
-              rows={3}
-              disabled={isReadonly}
-               className={`w-full border rounded px-3 py-2 outline-none resize-none ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500' : 'bg-gray-900 border-gray-600 text-white'}`}
-            />
-          </div>
+          <InputField
+            label="Description"
+            textarea
+            value={newItem.description || ""}
+            onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+            disabled={isReadonly}
+            placeholder="Add some details..."
+          />
         </div>
       </AddModal>
           </div>

@@ -422,6 +422,7 @@ const ExpenseTypes = () => {
            <div>
              <InputField
                  label="Name"
+                 name="expenseTypeName"
                  value={newItem.name}
                  onChange={(e) => setNewItem({ name: e.target.value })}
                  className="mt-1"

@@ -411,6 +411,7 @@ const MeetingTypes = () => {
           <div>
             <InputField
               label="Name"
+              name="meetingTypeName"
               value={newItem.name}
               onChange={(e) => setNewItem({ name: e.target.value })}
               className="mt-1"
@@ -435,6 +436,7 @@ const MeetingTypes = () => {
           <div>
              <InputField
                 label="Name"
+                name="meetingTypeName"
                 value={editItem.name}
                 onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
                 disabled={editItem.isInactive}

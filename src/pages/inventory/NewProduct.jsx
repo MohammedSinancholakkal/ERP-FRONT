@@ -1127,9 +1127,9 @@ const NewProduct = () => {
             </div>
 
             {/* PARENT CATEGORY */}
-            <label className="block text-sm mb-1 mt-4 text-black">Parent Category</label>
-             <div className="mt-1">
+            <div className="mt-4">
                 <SearchableSelect
+                    label="Parent Category"
                     options={categories.map(c => ({ id: c.id, name: c.name || c.CategoryName }))}
                     value={newCategory.parentCategoryId}
                     onChange={(v) => setNewCategory({ ...newCategory, parentCategoryId: v })}
@@ -1195,7 +1195,7 @@ const NewProduct = () => {
             saveText="Save"
             zIndex={1150}
         >
-            <InputField value={categoryEditData.name} onChange={e => setCategoryEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+            <InputField label="Category Name" value={categoryEditData.name} onChange={e => setCategoryEditData(p => ({...p, name: e.target.value}))} autoFocus required />
         </AddModal>
 
         {/* --- EDIT UNIT MODAL --- */}
@@ -1207,7 +1207,7 @@ const NewProduct = () => {
             saveText="Save"
             zIndex={1150}
         >
-            <InputField value={unitEditData.name} onChange={e => setUnitEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+            <InputField label="Unit Name" value={unitEditData.name} onChange={e => setUnitEditData(p => ({...p, name: e.target.value}))} autoFocus required />
         </AddModal>
 
         {/* --- EDIT BRAND MODAL --- */}
@@ -1219,7 +1219,7 @@ const NewProduct = () => {
             saveText="Save"
             zIndex={1150}
         >
-            <InputField value={brandEditData.name} onChange={e => setBrandEditData(p => ({...p, name: e.target.value}))} autoFocus required />
+            <InputField label="Brand Name" value={brandEditData.name} onChange={e => setBrandEditData(p => ({...p, name: e.target.value}))} autoFocus required />
         </AddModal>
     </PageLayout>
   );

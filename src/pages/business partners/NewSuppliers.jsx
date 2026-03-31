@@ -932,7 +932,7 @@ const NewSupplier = () => {
       // fallback removed: do nothing if API fails
     } catch (err) {
       console.error("submit supplier error", err);
-      showErrorToast("Save failed");
+      if (err.response?.status === 409) { showErrorToast(err.response.data?.message || "Supplier already exists"); } else { showErrorToast("Save failed"); }
     } finally {
       setIsSaving(false);
     }
@@ -1084,6 +1084,8 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Company Name"
+                    id="supplier-companyName"
+                    name="companyName"
                     required
                     value={form.companyName}
                     onChange={(e) => update("companyName", e.target.value)}
@@ -1103,6 +1105,8 @@ const handleRestore = async () => {
                   <div className="flex-1 font-medium">
                    <SearchableSelect
                       label="Country"
+                      id="supplier-country"
+                      name="countryId"
                       required
                       options={countries.map((c) => ({ id: c.Id ?? c.id, name: c.CountryName ?? c.name }))}
                       value={form.countryId}
@@ -1147,6 +1151,8 @@ const handleRestore = async () => {
                   <div className="flex-1 font-medium">
                    <SearchableSelect
                       label="State"
+                      id="supplier-state"
+                      name="stateId"
                       required
                       options={states.map((s) => ({ id: s.Id ?? s.id, name: s.StateName ?? s.name }))}
                       value={form.stateId}
@@ -1193,6 +1199,8 @@ const handleRestore = async () => {
                   <div className="flex-1 font-medium">
                    <SearchableSelect
                       label="City"
+                      id="supplier-city"
+                      name="cityId"
                       required
                       options={cities.map((c) => ({ id: c.Id ?? c.id, name: c.CityName ?? c.name }))}
                       value={form.cityId}
@@ -1236,6 +1244,8 @@ const handleRestore = async () => {
                   <InputField
                     text
                     label="Address Line 1"
+                    id="supplier-addressLine1"
+                    name="addressLine1"
                     value={form.addressLine1}
                     onChange={(e) => update("addressLine1", e.target.value)}
                     disabled={isInactive}
@@ -1275,6 +1285,8 @@ const handleRestore = async () => {
                   <div className="flex-1 font-medium">
                    <SearchableSelect
                       label="Region"
+                      id="supplier-region"
+                      name="regionId"
                       options={regions.map((r) => ({
                           id: r.regionId ?? r.Id ?? r.id,
                           name: r.regionName ?? r.RegionName ?? r.name ?? ""
@@ -1316,6 +1328,8 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Postal Code"
+                    id="supplier-postalCode"
+                    name="postalCode"
                     value={form.postalCode}
                     onChange={(e) => update("postalCode", e.target.value)}
                     disabled={isInactive}
@@ -1334,6 +1348,8 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Contact Name"
+                    id="supplier-contactName"
+                    name="contactName"
                     value={form.contactName}
                     onChange={(e) => update("contactName", e.target.value)}
                     disabled={isInactive}
@@ -1352,6 +1368,7 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Contact Title"
+                    name="contactTitle"
                     value={form.contactTitle}
                     onChange={(e) => update("contactTitle", e.target.value)}
                     disabled={isInactive}
@@ -1369,6 +1386,8 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Phone"
+                    id="supplier-phone"
+                    name="phone"
                     value={form.phone}
                     onChange={(e) => update("phone", e.target.value)}
                     disabled={isInactive}
@@ -1387,6 +1406,7 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Fax"
+                    name="fax"
                     value={form.fax}
                     onChange={(e) => update("fax", e.target.value)}
                     disabled={isInactive}
@@ -1404,6 +1424,7 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Email Address"
+                    name="emailAddress"
                     type="email"
                     value={form.emailAddress}
                     onChange={(e) => update("emailAddress", e.target.value)}
@@ -1422,6 +1443,8 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Email"
+                    id="supplier-email"
+                    name="email"
                     type="email"
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
@@ -1440,6 +1463,7 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Website"
+                    name="website"
                     value={form.website}
                     onChange={(e) => update("website", e.target.value)}
                     disabled={isInactive}
@@ -1498,6 +1522,7 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                       label="PAN"
+                      name="pan"
                       value={form.pan}
                       onChange={(e) => update("pan", e.target.value.toUpperCase())}
                       disabled={isInactive}
@@ -1516,6 +1541,8 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                     label="Previous Credit Balance"
+                    id="supplier-previousCredit"
+                    name="previousCredit"
                     type="number"
                     required
                     value={form.previousCredit}
@@ -1536,6 +1563,7 @@ const handleRestore = async () => {
                  <div className="flex-1 font-medium">
                   <InputField
                       label="GSTIN"
+                      name="gstin"
                       value={form.gstin}
                       onChange={(e) => update("gstin", e.target.value.toUpperCase())}
                       disabled={isInactive}

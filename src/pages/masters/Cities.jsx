@@ -734,9 +734,9 @@ const Cities = () => {
                    />
                 </div>
                <div>
-                  <label className="text-sm">Country *</label>
                   <div className="flex items-center gap-2">
                     <SearchableSelect
+                      label="Country *"
                       options={countries.map(c => ({ id: c.id, name: c.name }))}
                       value={newCity.countryId}
                       onChange={(val) => {
@@ -747,16 +747,16 @@ const Cities = () => {
                       className="w-full"
                     />
                     {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (
-                    <button type="button"  className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`} onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}>
+                    <button type="button"  className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`} onClick={() => { setCountryFormName(""); setCountryModalCallback(null); setAddCountryModalOpen(true); }}>
                       <Star size={16} />
                     </button>
                     )}
                   </div>
                </div>
                <div>
-                  <label className="text-sm">State *</label>
                   <div className="flex items-center gap-2">
                     <SearchableSelect
+                      label="State *"
                       options={states.map(s => ({ id: s.id, name: s.name }))}
                       value={newCity.stateId}
                       onChange={(val) => setNewCity((p) => ({ ...p, stateId: val }))}
@@ -768,7 +768,7 @@ const Cities = () => {
                     {hasPermission(PERMISSIONS.STATES.CREATE) && (
                     <button
                       type="button"
-                     className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                     className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                       onClick={() => { setStateFormName(""); setStateModalCallback(null); setAddStateModalOpen(true); }}
                       disabled={!newCity.countryId}
                     >
@@ -804,9 +804,9 @@ const Cities = () => {
                    />
                </div>
               <div>
-                  <label className="text-sm">Country *</label>
                   <div className="flex items-center gap-2">
                     <SearchableSelect
+                      label="Country *"
                       options={countries.map(c => ({ id: c.id, name: c.name }))}
                       value={editCity.countryId}
                       onChange={(val) => {
@@ -820,7 +820,7 @@ const Cities = () => {
                      {editCity.countryId && (
                      <button
                         type="button"
-                         className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                         className={`p-2 border rounded flex items-center justify-center mt-5 ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         onClick={() => { 
                             setCountryEditData({ id: editCity.countryId, name: getCountryName(editCity.countryId) });
                             setEditCountryModalOpen(true); 
@@ -834,9 +834,9 @@ const Cities = () => {
                   </div>
               </div>
               <div>
-                  <label className="text-sm">State *</label>
                   <div className="flex items-center gap-2">
                     <SearchableSelect
+                      label="State *"
                       options={states.map(s => ({ id: s.id, name: s.name }))}
                       value={editCity.stateId}
                       onChange={(val) => setEditCity((p) => ({ ...p, stateId: val }))}
@@ -848,7 +848,7 @@ const Cities = () => {
                      {editCity.stateId && (
                      <button
                         type="button"
-                        className={`p-2 border rounded flex items-center justify-center ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
+                        className={`p-2 border rounded flex items-center justify-center mt-5 ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}
                         onClick={() => { 
                             setStateEditData({ id: editCity.stateId, name: getStateName(editCity.stateId), countryId: editCity.countryId });
                             setEditStateModalOpen(true); 

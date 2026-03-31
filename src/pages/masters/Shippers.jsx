@@ -479,6 +479,7 @@ const Shippers = () => {
                     value={newItem.phone}
                     onChange={(e) => setNewItem((p) => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                     className="mt-1"
+                    required
                 />
             </div>
           </div>
@@ -515,6 +516,7 @@ const Shippers = () => {
                     onChange={(e) => setEditItem((p) => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                     disabled={editItem.isInactive}
                     className="mt-1"
+                    required
                 />
              </div>
           </div>

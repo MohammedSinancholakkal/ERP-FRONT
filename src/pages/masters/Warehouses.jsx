@@ -774,6 +774,7 @@ const Warehouses = () => {
                <div>
                    <InputField
                        label="Name"
+                       name="warehouseName"
                        value={newData.name}
                        onChange={e => setNewData({...newData, name: e.target.value})}
                        className="mt-1"
@@ -783,6 +784,7 @@ const Warehouses = () => {
                <div>
                    <InputField
                        label="Description"
+                       name="warehouseDescription"
                        textarea
                        value={newData.description}
                        onChange={e => setNewData({...newData, description: e.target.value})}
@@ -791,24 +793,24 @@ const Warehouses = () => {
                </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-dark">Country *</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
+                               label="Country *"
                                options={countries}
                                value={newData.countryId}
                                onChange={(val) => setNewData({...newData, countryId: val, stateId: "", cityId: ""})}
                                className="w-full"
                                direction="down"
                            />
-                           {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                           {hasPermission(PERMISSIONS.COUNTRIES.CREATE) && (<button onClick={() => setAddCountryModalOpen(true)} className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                                <Star size={16} />
                            </button>)}
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-dark">State *</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
+                               label="State *"
                                options={states.filter(s => s.countryId == newData.countryId)}
                                value={newData.stateId}
                                onChange={(val) => setNewData({...newData, stateId: val, cityId: ""})}
@@ -816,7 +818,7 @@ const Warehouses = () => {
                                className="w-full"
                                direction="down"
                            />
-                           {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                           {hasPermission(PERMISSIONS.STATES.CREATE) && (<button onClick={() => setAddStateModalOpen(true)} disabled={!newData.countryId} className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                                <Star size={16} className="" />
                            </button>)}
                        </div>
@@ -824,9 +826,9 @@ const Warehouses = () => {
                </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-dark">City *</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
+                               label="City *"
                                options={cities.filter(c => c.stateId == newData.stateId)}
                                value={newData.cityId}
                                onChange={(val) => setNewData({...newData, cityId: val})}
@@ -834,15 +836,14 @@ const Warehouses = () => {
                                className="w-full"
                                direction="down"
                            />
-                           {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                           {hasPermission(PERMISSIONS.CITIES.CREATE) && (<button onClick={() => setAddCityModalOpen(true)} disabled={!newData.stateId} className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                                <Star size={16} className="" />
                            </button>)}
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-dark">Phone *</label>
                         <InputField
-                            
+                            label="Phone"
                             value={newData.phone}
                             onChange={e => setNewData({...newData, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                             className="mt-1"
@@ -850,9 +851,8 @@ const Warehouses = () => {
                    </div>
                </div>
                <div>
-                   <label className="text-sm text-dark">Address *</label>
                     <InputField
-                        
+                        label="Address *"
                         textarea
                         value={newData.address}
                         onChange={e => setNewData({...newData, address: e.target.value})}
@@ -901,9 +901,9 @@ const Warehouses = () => {
                 </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-dark">Country *</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
+                            label="Country *"
                                options={countries}
                                value={editData.countryId}
                                onChange={(val) => setEditData({...editData, countryId: val, stateId: "", cityId: ""})}
@@ -918,7 +918,7 @@ const Warehouses = () => {
                                         const c = countries.find(x => String(x.id) == String(editData.countryId));
                                         setCountryEditData({ id: editData.countryId, name: c?.name || "" });
                                         setEditCountryModalOpen(true);
-                                    }} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                    }} className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                                        <Pencil size={16} />
                                     </button>
                                    )}
@@ -927,9 +927,9 @@ const Warehouses = () => {
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-dark">State *</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
+                               label="State *"
                                options={states.filter(s => s.countryId == editData.countryId)}
                                value={editData.stateId}
                                onChange={(val) => setEditData({...editData, stateId: val, cityId: ""})}
@@ -944,7 +944,7 @@ const Warehouses = () => {
                                         const s = states.find(x => String(x.id) == String(editData.stateId));
                                         setStateEditData({ id: editData.stateId, name: s?.name || "" });
                                         setEditStateModalOpen(true);
-                                    }} disabled={!editData.countryId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                    }} disabled={!editData.countryId} className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                                         <Pencil size={16} />
                                     </button>
                                    )}
@@ -955,9 +955,9 @@ const Warehouses = () => {
                </div>
                <div className="grid grid-cols-2 gap-4">
                    <div>
-                       <label className="text-sm text-dark">City *</label>
                        <div className="flex items-center gap-2 mt-1">
                            <SearchableSelect 
+                               label="City *"
                                options={cities.filter(c => c.stateId == editData.stateId)}
                                value={editData.cityId}
                                onChange={(val) => setEditData({...editData, cityId: val})}
@@ -972,7 +972,7 @@ const Warehouses = () => {
                                         const c = cities.find(x => String(x.id) == String(editData.cityId));
                                         setCityEditData({ id: editData.cityId, name: c?.name || "" });
                                         setEditCityModalOpen(true);
-                                     }} disabled={!editData.stateId} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                     }} disabled={!editData.stateId} className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                                         <Pencil size={16} />
                                      </button>
                                    )}
@@ -981,9 +981,8 @@ const Warehouses = () => {
                        </div>
                    </div>
                    <div>
-                       <label className="text-sm text-dark">Phone *</label>
                         <InputField
-                             label=""
+                             label="Phone"
                              value={editData.phone}
                              onChange={e => setEditData({...editData, phone: e.target.value})}
                              disabled={editData.isInactive}
@@ -992,9 +991,8 @@ const Warehouses = () => {
                    </div>
                </div>
                <div>
-                   <label className="text-sm text-dark">Address</label>
                     <InputField
-                        label=""
+                        label="Address"
                         textarea
                         value={editData.address}
                         onChange={e => setEditData({...editData, address: e.target.value})}

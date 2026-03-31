@@ -275,9 +275,8 @@ const TaxTypes = () => {
           title="New Tax Type"
         >
           <div className="mb-3">
-          <div className="mb-3">
-            <label className="block text-sm mb-1">Tax Category</label>
             <SearchableSelect
+            label="Tax Category *"  
               options={[
                 { id: "intra", name: "Intra State (CGST + SGST)" },
                 { id: "inter", name: "Inter State (IGST)" }
@@ -287,10 +286,10 @@ const TaxTypes = () => {
               className="w-full"
             />
           </div>
-          </div>
 
           <InputField
             label="Percentage (%)"
+            name="taxPercentage"
             type="number"
             value={newPercentage}
             onChange={(e) => setNewPercentage(e.target.value)}
@@ -310,8 +309,8 @@ const TaxTypes = () => {
           saveText="Update"
           >
             <div className="mt-3">
-              <label className="block text-sm mb-1">Tax Category</label>
               <SearchableSelect
+              label="Tax Category *"
                 options={[
                     { id: "intra", name: "Intra State (CGST + SGST)" },
                     { id: "inter", name: "Inter State (IGST)" }
@@ -326,6 +325,7 @@ const TaxTypes = () => {
             <div className="mt-3">
               <InputField
                 label="Percentage (%)"
+                name="taxPercentage"
                 type="number"
                 value={editTaxType.percentage}
                 onChange={(e) => setEditTaxType(prev => ({ ...prev, percentage: e.target.value }))}

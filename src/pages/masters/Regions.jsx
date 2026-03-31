@@ -369,6 +369,7 @@ const Regions = () => {
               <div>
                   <InputField
                     label="Name"
+                    name="regionName"
                     value={newData.name}
                     onChange={e => setNewData({...newData, name: e.target.value})}
                     className="mt-1"
@@ -395,6 +396,7 @@ const Regions = () => {
               <div>
                   <InputField
                     label="Name"
+                    name="regionName"
                     value={editData.name}
                     onChange={e => setEditData({...editData, name: e.target.value})}
                     disabled={editData.isInactive}

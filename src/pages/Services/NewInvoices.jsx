@@ -893,6 +893,7 @@ const handleRestoreInvoice = async () => {
                <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 font-medium">
                        <InputField
+                         name="date"
                          type="date"
                          value={date}
                          onChange={(e) => setDate(e.target.value)}
@@ -982,6 +983,7 @@ const handleRestoreInvoice = async () => {
               </label>
                <div className="flex-1 font-medium">
                 <InputField
+                    name="details"
                     textarea
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
@@ -1012,7 +1014,7 @@ const handleRestoreInvoice = async () => {
                    <div className="flex items-center gap-2 mb-1">
                       <label className={`flex-1 text-sm ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Tax</label>
                       <div className="flex items-center gap-2">
-                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-purple-700 font-semibold' : 'text-gray-400'}`}>No Tax</label>
+                          <label className={`text-xs transition-colors ${theme === 'emerald' ? 'text-emerald-700 font-semibold' : theme === 'purple' ? 'text-dark font-semibold' : 'text-gray-400'}`}>No Tax</label>
                           <input
                             type="checkbox"
                             checked={noTax}
@@ -1023,6 +1025,7 @@ const handleRestoreInvoice = async () => {
                       </div>
                    </div>
                    <InputField
+                      name="totalTax"
                       value={noTax ? "0.00" : taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1034,6 +1037,7 @@ const handleRestoreInvoice = async () => {
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Discount</label>
                     <InputField
+                        name="globalDiscount"
                         type="number"
                         value={globalDiscount}
                         onChange={(e) => setGlobalDiscount(Number(e.target.value) || 0)}
@@ -1048,6 +1052,7 @@ const handleRestoreInvoice = async () => {
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total Discount</label>
                    <InputField
+                      name="totalDiscount"
                       value={totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1059,6 +1064,7 @@ const handleRestoreInvoice = async () => {
                 <div>
                    <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Shipping Cost</label>
                     <InputField
+                        name="shippingCost"
                         type="number"
                         value={shippingCost}
                         onChange={(e) => setShippingCost(Number(e.target.value) || 0)}
@@ -1071,9 +1077,10 @@ const handleRestoreInvoice = async () => {
 
                 {/* Paid Amount */}
                 <div>
+                  <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Paid Amount</label>
                     <InputField
+                        name="paidAmount"
                         type="number"
-                        label="Paid Amount"
                         value={paidAmount}
                         onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
                         disabled={inactiveView}
@@ -1087,6 +1094,7 @@ const handleRestoreInvoice = async () => {
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Change</label>
                    <InputField
+                      name="changeAmount"
                       value={changeAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1098,6 +1106,7 @@ const handleRestoreInvoice = async () => {
                 <div>
                   <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Due</label>
                    <InputField
+                      name="dueAmount"
                       value={dueAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right"
@@ -1115,6 +1124,7 @@ const handleRestoreInvoice = async () => {
                          <div className="md:col-span-2">
                            <label className="block text-sm mb-1 text-gray-500">IGST %</label>
                            <InputField
+                              name="taxRate_igst"
                               value={igstRate}
                               readOnly
                               className="text-right"
@@ -1128,6 +1138,8 @@ const handleRestoreInvoice = async () => {
                            <div>
                            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>CGST %</label>
                            <InputField
+                              label="CGST Rate"
+                              name="taxRate_cgst"
                               value={cgstRate}
                               readOnly
                               className="text-right"
@@ -1137,6 +1149,8 @@ const handleRestoreInvoice = async () => {
                           <div>
                            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>SGST %</label>
                            <InputField
+                              label="SGST Rate"
+                              name="taxRate_sgst"
                               value={sgstRate}
                               readOnly
                               className="text-right"
@@ -1153,6 +1167,7 @@ const handleRestoreInvoice = async () => {
                 <div className="md:col-span-2 mt-2">
                   <label className={`block text-sm font-bold mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-800' : 'text-white'}`}>Grand Total</label>
                     <InputField
+                      name="grandTotal"
                       value={grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       readOnly
                       className="text-right font-bold text-2xl"
@@ -1198,6 +1213,7 @@ const handleRestoreInvoice = async () => {
             <InputField
               textarea
               label="Description"
+              name="itemDescription"
               value={newItem.description}
               onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
             />
@@ -1208,6 +1224,7 @@ const handleRestoreInvoice = async () => {
             <InputField
               type="number"
               label="Quantity *"
+              name="itemQuantity"
               value={newItem.quantity}
               onChange={(e) => {
                   const qty = parseFloat(e.target.value) || 0;
@@ -1228,6 +1245,7 @@ const handleRestoreInvoice = async () => {
             <InputField
               type="number"
               label="Service Charge *"
+              name="itemServiceCharge"
               value={newItem.unitPrice}
               onChange={(e) => {
                   const price = parseFloat(e.target.value) || 0;
@@ -1248,6 +1266,7 @@ const handleRestoreInvoice = async () => {
             <InputField
               type="number"
               label="Discount (%)"
+              name="itemDiscount"
               value={newItem.discount}
               placeholder="0"
               onChange={(e) => {
@@ -1269,7 +1288,7 @@ const handleRestoreInvoice = async () => {
 
           {/* Total (read-only) */}
           <div>
-            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700 font-medium' : 'text-white'}`}>Total</label>
+            <label className={`block text-sm mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-purple-800 font-medium' : 'text-white'}`}>Total</label>
             <div className={`w-full border rounded px-3 py-2 outline-none ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-gray-300'}`}>
                 {parseFloat(newItem.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>

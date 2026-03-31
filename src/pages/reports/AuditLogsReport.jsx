@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import Pagination from "../../components/Pagination";
 
 const AuditLogsReport = () => {
   const { theme } = useTheme();
@@ -23,7 +24,7 @@ const AuditLogsReport = () => {
   const [companyName, setCompanyName] = useState("");
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit] = useState(50);
+  const [limit, setLimit] = useState(50);
 
   // Date formatting for header
   const todayDate = new Date().toLocaleDateString("en-GB", {
@@ -72,7 +73,7 @@ const AuditLogsReport = () => {
 
   useEffect(() => {
     fetchAuditLogs();
-  }, [page]);
+  }, [page, limit]);
 
   useEffect(() => {
     fetchUsers();
@@ -283,14 +284,14 @@ const AuditLogsReport = () => {
             </div>
             
             {/* Table */}
-            <div className="w-full overflow-x-auto print:overflow-visible">
+            <div className="w-full overflow-x-auto pb-4 print:overflow-visible">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className={`text-sm font-bold border-b sticky top-0 z-0 print:static print:bg-white print:text-black ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-gray-900 text-white border-gray-700'}`}>
+                        <tr className={`text-sm font-bold border-b sticky top-0 z-20 print:static print:bg-white print:text-black ${theme === 'emerald' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : theme === 'purple' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-gray-900 text-white border-gray-700'}`}>
                             <th className="py-3 px-4">Timestamp</th>
                             <th className="py-3 px-4">User</th>
                             <th className="py-3 px-4">Table</th>
-                            <th className="py-3 px-4">Action</th>
+                            <th className="py-3 px-4">Operations</th>
                             <th className="py-3 px-4">Column</th>
                             <th className="py-3 px-4 text-red-500">Old Value</th>
                             <th className="py-3 px-4 text-green-500">New Value</th>
@@ -308,6 +309,7 @@ const AuditLogsReport = () => {
                                 const isAdd         = !isPageVisit && (row.Action?.startsWith('ADD_') || row.Action?.includes('CREATE'));
                                 const isDelete      = !isPageVisit && row.Action?.startsWith('DELETE_');
                                 const isUpdate      = !isPageVisit && row.Action?.startsWith('UPDATE_');
+                                const isRestore     = !isPageVisit && row.Action?.includes('RESTORE');
 
                                 const rowBg = isPageVisit
                                   ? (theme === 'dark' ? 'border-gray-700 bg-purple-900/10'  : 'border-purple-100 bg-purple-50/30')
@@ -317,6 +319,8 @@ const AuditLogsReport = () => {
                                   ? (theme === 'dark' ? 'border-gray-700 bg-red-900/10'     : 'border-red-100 bg-red-50/20')
                                   : isUpdate
                                   ? (theme === 'dark' ? 'border-gray-700 bg-amber-900/10'   : 'border-amber-100 bg-amber-50/30')
+                                  : isRestore
+                                  ? (theme === 'dark' ? 'border-gray-700 bg-blue-900/10'    : 'border-blue-100 bg-blue-50/20')
                                   : (theme === 'dark' ? 'border-gray-700' : 'border-gray-100');
 
                                 const displayOld = row.oldValue === '—' || row.oldValue === '-' || !row.oldValue ? '—' : row.oldValue;
@@ -362,26 +366,17 @@ const AuditLogsReport = () => {
                 </table>
             </div>
 
-            {/* Pagination (Simple) */}
-            {!loading && totalRecords > limit && (
-                <div className="flex justify-center gap-2 mt-4 print:hidden">
-                    <button 
-                        disabled={page === 1}
-                        onClick={() => setPage(page - 1)}
-                        className="px-3 py-1 border rounded disabled:opacity-50"
-                    >
-                        Previous
-                    </button>
-                    <span className="py-1">Page {page} of {Math.ceil(totalRecords / limit)}</span>
-                    <button 
-                        disabled={page >= Math.ceil(totalRecords / limit)}
-                        onClick={() => setPage(page + 1)}
-                        className="px-3 py-1 border rounded disabled:opacity-50"
-                    >
-                        Next
-                    </button>
-                </div>
-            )}
+            {/* Pagination */}
+            <div className="print:hidden">
+                <Pagination
+                    page={page}
+                    setPage={setPage}
+                    limit={limit}
+                    setLimit={setLimit}
+                    total={totalRecords}
+                    onRefresh={fetchAuditLogs}
+                />
+            </div>
 
           </div>
         </ContentCard>

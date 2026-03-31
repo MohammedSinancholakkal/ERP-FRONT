@@ -106,6 +106,8 @@ const Translation = () => {
               <div className="flex items-center bg-gray-700 px-2 py-1.5 rounded-md border border-gray-600 w-full sm:w-60">
                 <Search size={16} className="text-gray-300" />
                 <input
+                  id="translation-search"
+                  name="translationSearch"
                   type="text"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
@@ -130,6 +132,8 @@ const Translation = () => {
               {/* SOURCE LANGUAGE DROPDOWN */}
               <div className="relative" ref={sourceRef}>
                 <input
+                  id="source-language-search"
+                  name="sourceLanguage"
                   type="text"
                   placeholder="Source Language"
                   value={sourceSearch}
@@ -167,6 +171,8 @@ const Translation = () => {
               {/* TARGET LANGUAGE DROPDOWN */}
               <div className="relative" ref={targetRef}>
                 <input
+                  id="target-language-search"
+                  name="targetLanguage"
                   type="text"
                   placeholder="Target Language"
                   value={targetSearch}
@@ -242,6 +248,8 @@ const Translation = () => {
 
                           <td className="px-3 py-2 text-center">
                             <input
+                              id={`translation-${row.key}`}
+                              name={`translation-${row.key}`}
                               value={row.userTranslation}
                               onChange={(e) => {
                                 const updated = [...rows];

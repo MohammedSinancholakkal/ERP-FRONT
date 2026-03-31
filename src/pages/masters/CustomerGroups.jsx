@@ -432,6 +432,7 @@ const CustomerGroups = () => {
              <div className="flex gap-2 items-start">
                <div className="flex-grow">
                  <InputField
+                   name="customerGroupName"
                    label="Name"
                    value={newItem.name}
                    onChange={(e) => setNewItem({ name: e.target.value })}
@@ -469,7 +470,8 @@ const CustomerGroups = () => {
               <div className="flex gap-2 items-start">
                 <div className="flex-grow">
                   <InputField
-                     label="Name"
+                     name="customerGroupName"
+                   label="Name"
                      value={editItem.name}
                      onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
                      disabled={editItem.isInactive}

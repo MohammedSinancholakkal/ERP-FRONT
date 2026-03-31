@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { showDeleteConfirm, showRestoreConfirm, showSuccessToast, showErrorToast } from "../../utils/notificationUtils";
-import { getBanksApi, addPayrollApi, getPayrollByIdApi, updatePayrollApi, deletePayrollApi, restorePayrollApi } from "../../services/allAPI"; // adjust import path if needed
+import { getBanksApi, addPayrollApi, getPayrollByIdApi, updatePayrollApi, deletePayrollApi, restorePayrollApi, getNextPayrollNumberApi } from "../../services/allAPI"; // adjust import path if needed
 import SearchableSelect from "../../components/SearchableSelect";
 import { hasPermission } from "../../utils/permissionUtils";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -99,7 +99,7 @@ const NewPayroll = () => {
     if (isEdit && !location.state?.payrollState) {
       fetchPayrollData();
     } else if (!isEdit && !location.state?.payrollState) {
-      setNumber(`PAYROLL/${year}`);
+      fetchNextPayrollNumber();
     }
 
     // 3. Restore state if coming back from PayrollEmployee (overrides fetched data if present)
@@ -209,6 +209,20 @@ const NewPayroll = () => {
       showErrorToast("Failed to load banks");
     } finally {
       setBanksLoading(false);
+    }
+  };
+
+  const fetchNextPayrollNumber = async () => {
+    try {
+      const resp = await getNextPayrollNumberApi();
+      if (resp.status === 200) {
+        setNumber(resp.data.nextNo);
+      }
+    } catch (err) {
+      console.error("Error fetching next payroll number", err);
+      // Fallback if API fails
+      const year = new Date().getFullYear();
+      setNumber(`PAYROLL/${year}`);
     }
   };
 

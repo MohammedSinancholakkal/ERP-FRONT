@@ -63,6 +63,7 @@ const SalesQuotation = () => {
   // Helper to normalize
   const normalizeQuotation = (q, cList = [], eList = []) => ({
     ...q,
+    id: q.id ?? q.Id, // Ensure lowercase 'id' exists
     customerName:
       q.customerName || cList.find((c) => String(c.id) === String(q.customerId) || String(c.id) === String(q.CustomerId))?.name || "-",
     employeeName:

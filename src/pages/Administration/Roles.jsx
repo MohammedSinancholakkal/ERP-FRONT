@@ -654,6 +654,8 @@ const Roles = () => {
             <div className="p-6">
               <InputField
                 label="Role Name"
+                id="new-role-name"
+                name="roleName"
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value)}
                 placeholder="Enter role name"
@@ -740,6 +742,8 @@ const Roles = () => {
             <div className="p-6">
               <InputField
                 label="Role Name"
+                id="edit-role-name"
+                name="roleName"
                 value={editRole.roleName}
                 onChange={(e) =>
                   setEditRole((prev) => ({ ...prev, roleName: e.target.value }))

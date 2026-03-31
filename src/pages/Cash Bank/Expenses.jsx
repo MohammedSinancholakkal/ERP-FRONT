@@ -526,8 +526,9 @@ const Expenses = () => {
 
           {/* Payment Account */}
           <div className="block">
-             <label className="block text-sm mb-1 text-black font-medium">Payment Account *</label>
+            
              <SearchableSelect
+               label={'Payment Account *'}
                options={[
                  { id: "Cash at Hand", name: "Cash at Hand" },
                  { id: "Cash at Bank", name: "Cash at Bank" },
@@ -659,8 +660,8 @@ const Expenses = () => {
           />
 
           <div className="block">
-             <label className="block text-sm mb-1 text-black font-medium">Payment Account *</label>
              <SearchableSelect
+               label={'Payment Account *'}
                options={[
                  { id: "Cash at Hand", name: "Cash at Hand" },
                  { id: "Cash at Bank", name: "Cash at Bank" },

@@ -924,6 +924,8 @@ const handleEditRoles = async () => {
                    Username *
                 </label>
                 <InputField
+                  id="new-user-username"
+                  name="username"
                   value={newUser.username}
                   onChange={(e) => setNewUser((p) => ({ ...p, username: e.target.value }))}
                   required
@@ -936,6 +938,8 @@ const handleEditRoles = async () => {
                    Display Name
                 </label>
                 <InputField
+                  id="new-user-displayName"
+                  name="displayName"
                   value={newUser.displayName}
                   onChange={(e) => setNewUser((p) => ({ ...p, displayName: e.target.value }))}
                   required
@@ -947,6 +951,8 @@ const handleEditRoles = async () => {
                 <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>Email</label>
                 <div className="flex items-center gap-2">
                   <InputField
+                    id="new-user-email"
+                    name="email"
                     type="email"
                     value={newUser.email}
                     onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))}
@@ -966,6 +972,7 @@ const handleEditRoles = async () => {
                   <div className="flex items-center gap-2 mb-2">
                     <input
                       id="userImageUpload"
+                      name="userImage"
                       type="file"
                       accept="image/*"
                       onChange={handleNewFileChange}
@@ -1009,6 +1016,8 @@ const handleEditRoles = async () => {
                    Password *
                 </label>
                 <InputField
+                  id="new-user-password"
+                  name="password"
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))}
@@ -1022,6 +1031,8 @@ const handleEditRoles = async () => {
                    Confirm Password *
                 </label>
                 <InputField
+                  id="new-user-confirmPassword"
+                  name="confirmPassword"
                   type="password"
                   value={newUser.confirmPassword}
                   onChange={(e) => setNewUser((p) => ({ ...p, confirmPassword: e.target.value }))}
@@ -1134,6 +1145,8 @@ const handleEditRoles = async () => {
                    Username *
                 </label>
                 <InputField
+                  id="edit-user-username"
+                  name="username"
                   value={editData.username}
                   onChange={(e) => setEditData((p) => ({ ...p, username: e.target.value }))}
                   disabled={editData.isInactive}
@@ -1147,6 +1160,8 @@ const handleEditRoles = async () => {
                    Display Name
                 </label>
                 <InputField
+                  id="edit-user-displayName"
+                  name="displayName"
                   value={editData.displayName}
                   onChange={(e) => setEditData((p) => ({ ...p, displayName: e.target.value }))}
                   disabled={editData.isInactive}
@@ -1159,6 +1174,8 @@ const handleEditRoles = async () => {
                 <label className={`text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-dark'}`}>Email</label>
                 <div className="flex items-center gap-2">
                   <InputField
+                    id="edit-user-email"
+                    name="email"
                     type="email"
                     value={editData.email}
                     onChange={(e) => setEditData((p) => ({ ...p, email: e.target.value }))}
@@ -1179,6 +1196,7 @@ const handleEditRoles = async () => {
                   <div className="flex items-center gap-2 mb-2">
                     <input
                       id="editUserImageUpload"
+                      name="userImage"
                       type="file"
                       accept="image/*"
                       onChange={handleEditFileChange}

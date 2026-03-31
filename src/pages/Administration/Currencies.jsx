@@ -352,6 +352,8 @@ const Currencies = () => {
           <div>
             <InputField
               label="Currency Name"
+              id="new-currency-name"
+              name="currencyName"
               value={newCurrency.currencyName}
               onChange={(e) =>
                 setNewCurrency((prev) => ({ ...prev, currencyName: e.target.value }))
@@ -364,6 +366,8 @@ const Currencies = () => {
           <div>
             <InputField
               label="Currency Symbol"
+              id="new-currency-symbol"
+              name="currencySymbol"
               value={newCurrency.currencySymbol}
               onChange={(e) =>
                 setNewCurrency((prev) => ({ ...prev, currencySymbol: e.target.value }))
@@ -399,6 +403,8 @@ const Currencies = () => {
           <div>
             <InputField
               label="Currency Name"
+              id="edit-currency-name"
+              name="currencyName"
               value={editCurrency.currencyName}
               onChange={(e) =>
                 setEditCurrency((prev) => ({
@@ -414,6 +420,8 @@ const Currencies = () => {
           <div>
             <InputField
               label="Currency Symbol"
+              id="edit-currency-symbol"
+              name="currencySymbol"
               value={editCurrency.currencySymbol}
               onChange={(e) =>
                 setEditCurrency((prev) => ({

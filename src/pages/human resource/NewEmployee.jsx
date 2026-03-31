@@ -1197,6 +1197,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                           label="First Name"
+                          id="employee-firstName"
+                          name="firstName"
                           value={form.firstName}
                           onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))}
                           placeholder="John"
@@ -1211,6 +1213,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                           label="Last Name"
+                          id="employee-lastName"
+                          name="lastName"
                           value={form.lastName}
                           onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))}
                           required={false}
@@ -1226,6 +1230,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                           label="Phone"
+                          id="employee-phone"
+                          name="phone"
                           value={form.phone}
                           onChange={(e) => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                           required={true}
@@ -1239,6 +1245,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                           label="Email"
+                          id="employee-email"
+                          name="email"
                           value={form.email}
                           onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
                           required={true}
@@ -1253,6 +1261,8 @@ const handleRestore = async () => {
                     <div className="z-[50]">
                       <SearchableSelect
                         label="Designation"
+                        id="employee-designation"
+                        name="designationId"
                         options={designations.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.designation ?? x.DesignationName }))}
                         value={form.designationId}
                         onChange={(val) => setForm({ ...form, designationId: val })}
@@ -1272,6 +1282,8 @@ const handleRestore = async () => {
                     <div className="z-[50]">
                       <SearchableSelect
                         label="Department"
+                        id="employee-department"
+                        name="departmentId"
                         options={departments.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.department ?? x.DepartmentName }))}
                         value={form.departmentId}
                         onChange={(val) => setForm({ ...form, departmentId: val })}
@@ -1305,6 +1317,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                         label="Hour Rate / Salary"
+                        id="employee-salary"
+                        name="hourlyRate"
                         value={form.hourlyRate}
                         onChange={(e) => setForm(p => ({ ...p, hourlyRate: e.target.value }))}
                         disabled={isRestoreMode}
@@ -1334,6 +1348,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                           label="Zip Code"
+                          id="employee-zipCode"
+                          name="zipCode"
                           value={form.zipCode}
                           onChange={(e) => setForm(p => ({ ...p, zipCode: e.target.value }))}
                           disabled={isRestoreMode}
@@ -1350,6 +1366,8 @@ const handleRestore = async () => {
                     <div className="z-[40]">
                       <SearchableSelect
                         label="Country"
+                        id="employee-country"
+                        name="countryId"
                         options={countries.map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
                         value={form.countryId}
                         onChange={(val) => {
@@ -1375,6 +1393,8 @@ const handleRestore = async () => {
                     <div className="z-[40]">
                       <SearchableSelect
                         label="State"
+                        id="employee-state"
+                        name="stateId"
                         options={states.filter(s => (form.countryId ? String(s.countryId) === String(form.countryId) : true)).map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
                         value={form.stateId}
                         onChange={(val) => {
@@ -1401,6 +1421,8 @@ const handleRestore = async () => {
                     <div className="z-[30]">
                       <SearchableSelect
                         label="City"
+                        id="employee-city"
+                        name="cityId"
                         options={cities.filter(c => (form.stateId ? String(c.stateId) === String(form.stateId) : true)).map(x => ({ id: x.id ?? x.Id, name: x.name ?? x.Name }))}
                         value={form.cityId}
                         onChange={(val) => setForm({ ...form, cityId: val })}
@@ -1518,7 +1540,7 @@ const handleRestore = async () => {
 
                         {/* Picture */}
                         <div className="flex flex-col h-full">
-            <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-gray-300'}`}>Picture</label>
+            <label className={`text-sm block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-purple-800' : 'text-gray-300'}`}>Picture</label>
                            <div className={`flex-grow flex items-center justify-center border rounded p-4 h-full ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300' : 'bg-gray-800 border-gray-600'}`} style={{ minHeight: '120px' }}>
                               <div className="flex flex-col items-center gap-2">
                                 <div className={`w-20 h-20 rounded-full overflow-hidden flex-shrink-0 border ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-100 border-gray-200' : 'bg-gray-700 border-gray-600'}`}>
@@ -1552,6 +1574,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                           label="Gross Salary"
+                          id="employee-grossSalary"
+                          name="salary"
                           value={form.salary}
                           onChange={(e) => handleSalaryChange(e.target.value)}
                           required
@@ -1676,6 +1700,8 @@ const handleRestore = async () => {
                       <div className="flex-grow min-w-0">
                         <InputField
                           label="Bank Account"
+                          id="employee-bankAccount"
+                          name="payrollBankAccount"
                           value={form.payrollBankAccount}
                           onChange={(e) => setForm(p => ({ ...p, payrollBankAccount: e.target.value.replace(/\D/g, "").slice(0, 18) }))}
                           required

@@ -338,8 +338,8 @@ const Designations = () => {
 
     {/* PARENT DESIGNATION */}
     <div>
-      <label className="block text-sm mb-1">Parent Designation</label>
       <SearchableSelect
+        label="Parent Designation"
         value={newDesignation.parentDesignationId}
         onChange={(val) =>
           setNewDesignation({ ...newDesignation, parentDesignationId: val })
@@ -402,8 +402,8 @@ const Designations = () => {
 
     {/* PARENT DESIGNATION */}
     <div>
-      <label className="block text-sm mb-1">Parent Designation</label>
       <SearchableSelect
+        label="Parent Designation"
         value={editDesignation.parentDesignationId}
         onChange={(val) =>
           setEditDesignation({ ...editDesignation, parentDesignationId: val })

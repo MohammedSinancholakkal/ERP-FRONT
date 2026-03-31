@@ -364,39 +364,32 @@ if (response?.status === 200) {
           <div className="max-w-[1500px]">
             {/* COMPANY NAME */}
             <div className="mb-3">
-              <label className={labelClass}>Company Name *</label>
-              <input
-                className={inputClass(errors.companyName)}
+              <InputField
+                label="Company Name *"
+                name="companyName"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
+                error={errors.companyName}
               />
-              {errors.companyName && (
-                <p className="text-red-400 text-sm mt-1">
-                  {errors.companyName}
-                </p>
-              )}
             </div>
 
             {/* EMAIL */}
             <div className="mb-3">
-              <label className={labelClass}>Company Email</label>
-              <input
-                className={inputClass(errors.companyEmail)}
+              <InputField
+                label="Company Email"
+                name="companyEmail"
+                type="email"
                 value={companyEmail}
                 onChange={(e) => setCompanyEmail(e.target.value)}
+                error={errors.companyEmail}
               />
-              {errors.companyEmail && (
-                <p className="text-red-400 text-sm mt-1">
-                  {errors.companyEmail}
-                </p>
-              )}
             </div>
 
             {/* ADDRESS */}
             <div className="mb-3">
-              <label className={labelClass}>Address</label>
-              <input
-                className={inputClass()}
+              <InputField
+                label="Address"
+                name="address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
@@ -404,21 +397,22 @@ if (response?.status === 200) {
 
             {/* PHONE */}
             <div className="mb-3">
-              <label className={labelClass}>Phone</label>
-              <input
-                className={inputClass(errors.phone)}
+              <InputField
+                label="Phone"
+                name="phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                error={errors.phone}
+                maxLength={10}
               />
-              {errors.phone && (
-                <p className="text-red-400 text-sm mt-1">{errors.phone}</p>
-              )}
             </div>
 
             {/* CURRENCY SECTION */}
-            <label className={labelClass}>Currency</label>
+            <label htmlFor="currency-select" className={labelClass}>Currency</label>
             <div className="flex items-center gap-2">
               <select
+                id="currency-select"
+                name="currency"
                 className={inputClass(errors.currency)}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
@@ -465,24 +459,21 @@ if (response?.status === 200) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               {/* Tax % */}
               <div>
-                <label className={labelClass}>Tax Percentage *</label>
-                <input
-                  className={inputClass(errors.taxPercentage)}
+                <InputField
+                  label="Tax Percentage *"
+                  name="taxPercentage"
+                  type="number"
                   value={taxPercentage}
                   onChange={(e) => setTaxPercentage(e.target.value)}
+                  error={errors.taxPercentage}
                 />
-                {errors.taxPercentage && (
-                  <p className="text-red-400 text-sm mt-1">
-                    {errors.taxPercentage}
-                  </p>
-                )}
               </div>
 
               {/* GSTIN */}
               <div>
-                <label className={labelClass}>GSTIN</label>
-                <input
-                  className={inputClass()}
+                <InputField
+                  label="GSTIN"
+                  name="gstin"
                   value={gstin}
                   onChange={(e) => setGstin(e.target.value)}
                 />
@@ -490,9 +481,9 @@ if (response?.status === 200) {
 
              {/* PAN No */}
              <div>
-                <label className={labelClass}>PAN No</label>
-                <input
-                  className={inputClass()}
+                <InputField
+                  label="PAN No"
+                  name="pan"
                   value={pan}
                   onChange={(e) => setPan(e.target.value)}
                 />
@@ -500,8 +491,10 @@ if (response?.status === 200) {
 
               {/* Tax TYPE */}
               <div>
-                <label className={labelClass}>Tax Rate *</label>
+                <label htmlFor="taxType-select" className={labelClass}>Tax Rate *</label>
                 <select
+                  id="taxType-select"
+                  name="taxType"
                   className={inputClass(errors.taxType)}
                   value={taxType}
                   onChange={(e) => setTaxType(e.target.value)}
@@ -523,8 +516,10 @@ if (response?.status === 200) {
                 <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Logo</label>
                 <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!logo ? (
-                    <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
+                    <label htmlFor="logo-upload" className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
                       <input
+                        id="logo-upload"
+                        name="logo"
                         type="file"
                         className="hidden"
                         onChange={(e) =>
@@ -555,8 +550,10 @@ if (response?.status === 200) {
                 <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Invoice Logo</label>
                 <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!invoiceLogo ? (
-                    <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
+                    <label htmlFor="invoiceLogo-upload" className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
                       <input
+                        id="invoiceLogo-upload"
+                        name="invoiceLogo"
                         type="file"
                         className="hidden"
                         onChange={(e) =>
@@ -593,8 +590,10 @@ if (response?.status === 200) {
                 <label className={`block mb-1 ${theme === 'emerald' || theme === 'purple' ? 'text-gray-700' : 'text-white'}`}>Favicon</label>
                 <div className={`w-full h-40 border rounded flex items-center justify-center relative ${theme === 'emerald' || theme === 'purple' ? 'bg-gray-50 border-gray-300' : 'bg-gray-900 border-gray-700'}`}>
                   {!favicon ? (
-                    <label className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
+                    <label htmlFor="favicon-upload" className={`cursor-pointer px-4 py-2 border rounded ${theme === 'emerald' || theme === 'purple' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-gray-800 border-gray-600 text-white'}`}>
                       <input
+                        id="favicon-upload"
+                        name="favicon"
                         type="file"
                         className="hidden"
                         onChange={(e) =>
@@ -622,8 +621,10 @@ if (response?.status === 200) {
             </div>
 
             {/* CURRENCY POSITION */}
-            <label className={labelClass}>Currency Position *</label>
+            <label htmlFor="currencyPosition-select" className={labelClass}>Currency Position *</label>
             <select
+              id="currencyPosition-select"
+              name="currencyPosition"
               className={inputClass(errors.currencyPosition)}
               value={currencyPosition}
               onChange={(e) => setCurrencyPosition(e.target.value)}
@@ -639,8 +640,10 @@ if (response?.status === 200) {
             )}
 
             {/* FOOTER TEXT */}
-            <label className={`${labelClass} mt-4`}>Footer Text</label>
+            <label htmlFor="footerText-area" className={`${labelClass} mt-4`}>Footer Text</label>
             <textarea
+              id="footerText-area"
+              name="footerText"
               rows={4}
               className={inputClass()}
               value={footerText}
@@ -660,6 +663,7 @@ if (response?.status === 200) {
                   <div>
                     <InputField
                       label="Currency Name *"
+                      name="currencyName"
                       type="text"
                       value={newCurrencyName}
                       onChange={(e) => setNewCurrencyName(e.target.value)}
@@ -669,6 +673,7 @@ if (response?.status === 200) {
                   <div>
                     <InputField
                       label="Currency Symbol *"
+                      name="currencySymbol"
                       type="text"
                       value={newCurrencySymbol}
                       onChange={(e) => setNewCurrencySymbol(e.target.value)}

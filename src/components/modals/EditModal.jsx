@@ -2,6 +2,7 @@ import React from 'react';
 import BaseModal from './BaseModal';
 import { Save, Trash2, ArchiveRestore } from 'lucide-react';
 import { useTheme } from "../../context/ThemeContext";
+import toast from 'react-hot-toast';
 
 const EditModal = ({
   isOpen,
@@ -51,12 +52,10 @@ const EditModal = ({
       await onSave();
     } catch (error) {
       console.error(error);
+      const errorMsg = error.response?.data?.message || error.message || "An error occurred. Please try again.";
+      toast.error(errorMsg);
     } finally {
-      if (isMounted.current) {
-        setTimeout(() => {
-          setLoading(false);
-        }, 300);
-      }
+      setLoading(false);
     }
   };
 

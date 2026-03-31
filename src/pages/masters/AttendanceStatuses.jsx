@@ -413,6 +413,7 @@ const AttendanceStatuses = () => {
           <div>
              <InputField
                 label="Name"
+                name="attendanceStatusName"
                 value={newItem.name}
                 onChange={(e) => setNewItem({ name: e.target.value })}
                 required
@@ -436,6 +437,7 @@ const AttendanceStatuses = () => {
           <div>
              <InputField
                 label="Name"
+                name="attendanceStatusName"
                 value={editItem.name}
                 onChange={(e) => setEditItem((p) => ({ ...p, name: e.target.value }))}
                 disabled={editItem.isInactive}
