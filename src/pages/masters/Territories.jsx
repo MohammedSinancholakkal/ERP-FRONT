@@ -164,9 +164,9 @@ const Territories = () => {
     }
   };
 
-  const loadInactive = async () => {
+  const loadInactive = async (force = false) => {
     try {
-      const res = await getInactiveTerritoriesApi();
+      const res = await getInactiveTerritoriesApi(force);
       if (res?.status === 200) {
         const items = res.data.records ?? res.data ?? [];
         setInactiveRows(normalizeRows(items));
@@ -218,25 +218,6 @@ const Territories = () => {
     const nameToCheck = newItem.name.trim();
 
     if (!newItem.regionId) return toast.error("Region is required");
-
-    // Check for duplicates
-    try {
-      const searchRes = await searchTerritoryApi(nameToCheck);
-      if (searchRes?.status === 200) {
-        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
-        const existing = rows.find(r => 
-           (r.TerritoryDescription || r.territoryDescription || r.name || r.Name || "").toLowerCase() === nameToCheck.toLowerCase() &&
-           String(r.RegionId || r.regionId) === String(newItem.regionId)
-        );
-        if (existing) {
-             toast.error("Territory with this name already exists in the selected region");
-             return; // Stop execution
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      return toast.error("Error checking duplicates");
-    }
 
     try {
       const payload = {
@@ -355,22 +336,7 @@ const Territories = () => {
     if (!editItem.name?.trim()) return toast.error("Territory name is required");
     if (!editItem.regionId) return toast.error("Region is required");
 
-    // Check for duplicates
-    try {
-      const searchRes = await searchTerritoryApi(editItem.name.trim());
-      if (searchRes?.status === 200) {
-        const rows = Array.isArray(searchRes.data) ? searchRes.data : searchRes.data?.records || [];
-        const existing = rows.find(r => 
-           (r.TerritoryDescription || r.territoryDescription || r.name || r.Name || "").toLowerCase() === editItem.name.trim().toLowerCase() &&
-           String(r.RegionId || r.regionId) === String(editItem.regionId) &&
-           (r.Id || r.id) !== editItem.id
-        );
-        if (existing) return toast.error("Territory with this name already exists in the selected region");
-      }
-    } catch (err) {
-      console.error(err);
-      return toast.error("Error checking duplicates");
-    }
+    if (!editItem.regionId) return toast.error("Region is required");
 
     try {
       const payload = {
@@ -404,8 +370,15 @@ const Territories = () => {
           if (res?.status === 200) {
             toast.success("Deleted");
             setEditModalOpen(false);
+            
+            // Optimistic UI
+            setRows(prev => prev.filter(r => r.id !== editItem.id));
+            
             loadRows();
-            if (showInactive) loadInactive();
+            if (showInactive) {
+                refreshInactiveTerritories();
+                loadInactive(true);
+            }
           }
         } catch (err) {
           console.error(err);
@@ -427,8 +400,13 @@ const Territories = () => {
           if (res?.status === 200) {
             toast.success("Restored");
             setEditModalOpen(false);
+            
+            // Optimistic UI
+            setInactiveRows(prev => prev.filter(r => r.id !== editItem.id));
+            
             loadRows();
-            loadInactive();
+            refreshInactiveTerritories();
+            loadInactive(true);
           }
          else if (res?.status === 409) {
             toast.error(res?.data?.message || 'Cannot restore. Item already exists');

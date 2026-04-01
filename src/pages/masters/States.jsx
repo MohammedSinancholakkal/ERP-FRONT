@@ -159,8 +159,8 @@ const States = () => {
     loadStates();
   }, [page, limit, sortConfig]);
 
-  const loadInactive = async () => {
-    const data = await loadInactiveCtx();
+  const loadInactive = async (force = false) => {
+    const data = await loadInactiveCtx(force);
     setInactiveStates(normalizeRows(data || []));
   };
 
@@ -263,11 +263,14 @@ const States = () => {
         if (res?.status === 200) {
           showSuccessToast("Deleted");
           setEditModalOpen(false);
-          // refreshStates();
-          loadStates(true);
+          
+          // Optimistic UI: remove from active list immediately
+          setStates(prev => prev.filter(s => s.id !== editData.id));
+          
+          loadStates(); // Still load to sync with pagination/total
           if (showInactive) {
               refreshInactiveStates();
-              loadInactive();
+              loadInactive(true);
           }
         } else {
           showErrorToast("Delete failed");
@@ -288,10 +291,13 @@ const States = () => {
         if (res?.status === 200) {
           showSuccessToast("Restored");
           setEditModalOpen(false);
-          // refreshStates();
-          loadStates(true);
+          
+          // Optimistic UI: remove from inactive list immediately
+          setInactiveStates(prev => prev.filter(s => s.id !== editData.id));
+          
+          loadStates(); // Show it in active list
           refreshInactiveStates();
-          loadInactive();
+          loadInactive(true); // Final sync
         } else {
           if (res?.status === 409) {
             showErrorToast(res?.data?.message || "Cannot restore. State already exists");
@@ -545,9 +551,10 @@ const States = () => {
                   </div>
               </div>
                <div>
-                  <label className="text-sm">Country *</label>
+                 
                   <div className="flex items-center gap-2">
                       <SearchableSelect
+                        label="Country *"
                         options={countries.map(c => ({ id: c.id, name: c.name }))}
                         value={editData.countryId}
                         onChange={(val) => setEditData({...editData, countryId: val})}
@@ -563,7 +570,7 @@ const States = () => {
                                     const c = countries.find(x => String(x.id) == String(editData.countryId));
                                     setCountryEditData({ id: editData.countryId, name: c?.name || "" });
                                     setEditCountryModalOpen(true);
-                                }} className={`p-2 border rounded flex items-center justify-center  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
+                                }} className={`p-2 border rounded flex items-center justify-center mt-5  ${theme === 'emerald' ? 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200' : theme === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-gray-800 border-gray-600 text-yellow-400'}`}>
                                    <Pencil size={16} />
                                 </button>
                                )}

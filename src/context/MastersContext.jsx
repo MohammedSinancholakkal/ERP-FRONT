@@ -105,8 +105,8 @@ export const MastersProvider = ({ children }) => {
   };
 
   const createLoadInactiveFunction = (state, setState, getInactiveApi, name) => {
-     return useCallback(async () => {
-        if (state.inactiveLoaded) return state.inactive;
+     return useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh && state.inactiveLoaded) return state.inactive;
         try {
             const res = await getInactiveApi();
             if (res?.status === 200) {

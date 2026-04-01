@@ -187,8 +187,8 @@ const Cities = () => {
   };
 
   // INACTIVE loaders
-  const loadInactiveCities = async () => {
-     const data = await loadInactiveCtx();
+  const loadInactiveCities = async (force = false) => {
+     const data = await loadInactiveCtx(force);
      const normalized = (data || []).map(c => ({
         ...c,
         name: capitalize(c.name)
@@ -347,8 +347,14 @@ const Cities = () => {
           showSuccessToast("City deleted");
           setEditModalOpen(false);
   
-          refreshCities();
-          loadCities(true);
+          // Optimistic UI: remove from active list immediately
+          setCities(prev => prev.filter(c => c.id !== id));
+          
+          loadCities(); // Sync with pagination
+          if (showInactive) {
+            refreshInactiveCities();
+            loadInactiveCities(true);
+          }
         } else {
           showErrorToast(res?.data?.message || "Delete failed");
         }
@@ -369,10 +375,13 @@ const Cities = () => {
         if (res?.status === 200) {
           showSuccessToast("City restored");
           setEditModalOpen(false);
-          refreshCities();
-          await loadCities(true);
+          
+          // Optimistic UI: remove from inactive list immediately
+          setInactiveCities(prev => prev.filter(c => c.id !== editCity.id));
+          
+          loadCities(); 
           refreshInactiveCities();
-          await loadInactiveCities();
+          await loadInactiveCities(true);
         } else {
           if (res?.status === 409) {
             showErrorToast(res?.data?.message || "Cannot restore. City already exists");

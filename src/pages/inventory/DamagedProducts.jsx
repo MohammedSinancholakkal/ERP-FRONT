@@ -442,6 +442,10 @@ const DamagedProducts = () => {
       if (res?.status === 200) {
         showSuccessToast("Deleted");
         setEditModalOpen(false);
+        
+        // Optimistic UI
+        setDamaged(prev => prev.filter(r => (r.Id ?? r.id) !== editDP.id));
+        
         await loadDamaged(page, limit);
         if (showInactive) await loadInactive();
       } else {
@@ -465,10 +469,18 @@ const DamagedProducts = () => {
       if (res?.status === 200) {
         showSuccessToast("Restored");
         setEditModalOpen(false);
+        
+        // Optimistic UI
+        setInactive(prev => prev.filter(r => (r.Id ?? r.id) !== editDP.id));
+        
         await loadDamaged(page, limit);
         await loadInactive();
       } else {
-        showErrorToast("Restore failed");
+        if (res?.status === 409) {
+          showErrorToast(res?.data?.message || "Restore failed. Item already exists");
+        } else {
+          showErrorToast("Restore failed");
+        }
       }
     } catch (err) {
       console.error("RESTORE ERR:", err);

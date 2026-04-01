@@ -704,18 +704,18 @@ const Banks = () => {
               <div>
                   <InputField label="Branch" value={editItem.Branch} onChange={e => setEditItem({...editItem, Branch: e.target.value})} disabled={editItem.isInactive} />
               </div>
-             {!editItem.isInactive && (
-                <div className="col-span-2">
-                    <label className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-800' : 'text-dark'}`}>Signature</label>
-                     <div className="mt-2 w-full">
-                       <div className="w-full border-2 border-dashed border-gray-700 rounded-lg bg-white flex flex-col items-center justify-center relative overflow-hidden h-[160px]">
-                            {preview ? (
-                                <>
-                                    <img 
-                                        src={preview} 
-                                        alt="Prev" 
-                                        className="absolute inset-0 w-full h-full object-contain p-2" 
-                                    />
+             <div className="col-span-2">
+                <label className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : theme === 'purple' ? 'text-purple-800' : 'text-dark'}`}>Signature</label>
+                 <div className="mt-2 w-full">
+                   <div className={`w-full border-2 border-dashed border-gray-700 rounded-lg bg-white flex flex-col items-center justify-center relative overflow-hidden h-[160px] ${editItem.isInactive ? 'opacity-75' : ''}`}>
+                        {preview ? (
+                            <>
+                                <img 
+                                    src={preview} 
+                                    alt="Prev" 
+                                    className="absolute inset-0 w-full h-full object-contain p-2" 
+                                />
+                                {!editItem.isInactive && (
                                     <div className="absolute top-2 right-2 flex gap-1">
                                         <label className="p-1.5 bg-gray-900/80 rounded cursor-pointer hover:bg-black text-white">
                                             <Pencil size={14} />
@@ -731,47 +731,46 @@ const Banks = () => {
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
-                                </>
-                            ) : (
-                                <label className="cursor-pointer flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4 w-full h-full justify-center">
-                                    <Upload size={32} />
-                                    <span className="text-xs">Click to Update Signature</span>
-                                    <input type="file" hidden onChange={(e) => handleFileChange(e, true)} accept="image/*" />
-                                </label>
-                            )}
-                       </div>
-                  </div>
-                </div>
-             )}
+                                )}
+                            </>
+                        ) : (
+                            <label className={`flex flex-col items-center gap-2 text-gray-500 transition-colors p-4 w-full h-full justify-center ${editItem.isInactive ? 'cursor-not-allowed' : 'cursor-pointer hover:text-gray-300'}`}>
+                                <Upload size={32} />
+                                <span className="text-xs">{editItem.isInactive ? "No Signature Available" : "Click to Update Signature"}</span>
+                                {!editItem.isInactive && <input type="file" hidden onChange={(e) => handleFileChange(e, true)} accept="image/*" />}
+                            </label>
+                        )}
+                   </div>
+              </div>
+            </div>
              
-             {!editItem.isInactive && canAssignCompanyBank && (
+             {canAssignCompanyBank && (
                  <div className="col-span-1 mt-2">
-                     <label className={`flex items-center gap-2 cursor-pointer w-fit ${(!!companyBankId && editItem.id !== companyBankId) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                     <label className={`flex items-center gap-2 cursor-pointer w-fit ${(editItem.isInactive || (!!companyBankId && editItem.id !== companyBankId)) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                          <input 
                             type="checkbox" 
                             checked={editItem.isCompanyBank} 
                             onChange={e => setEditItem({...editItem, isCompanyBank: e.target.checked})} 
                             className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                            disabled={!!companyBankId && editItem.id !== companyBankId}
+                            disabled={editItem.isInactive || (!!companyBankId && editItem.id !== companyBankId)}
                          />
                          <span className="text-sm font-medium text-dark">Company Bank</span>
                      </label>
                  </div>
              )}
              
-             {!editItem.isInactive && (
-                 <div className="col-span-1 mt-2">
-                     <label className="flex items-center gap-2 cursor-pointer w-fit">
-                         <input 
-                            type="checkbox" 
-                            checked={editItem.isInternalBank} 
-                            onChange={e => setEditItem({...editItem, isInternalBank: e.target.checked})} 
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                         />
-                         <span className="text-sm font-medium text-dark">Internal Bank</span>
-                     </label>
-                 </div>
-             )}
+             <div className="col-span-1 mt-2">
+                 <label className={`flex items-center gap-2 cursor-pointer w-fit ${editItem.isInactive ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                     <input 
+                        type="checkbox" 
+                        checked={editItem.isInternalBank} 
+                        onChange={e => setEditItem({...editItem, isInternalBank: e.target.checked})} 
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        disabled={editItem.isInactive}
+                     />
+                     <span className="text-sm font-medium text-dark">Internal Bank</span>
+                 </label>
+             </div>
           </div>
        </EditModal>
 
